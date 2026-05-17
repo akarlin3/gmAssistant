@@ -133,6 +133,31 @@ This is normal during first load — Firebase Auth restores the session from Ind
 
 ---
 
+## Prep Item Targets
+
+Each list section in the editor shows a target count, progress bar, and faded placeholder slots up to the target. Targets are book-grounded and switch between Solo and Group modes via the toggle in the header.
+
+| Section | Standard | Solo | Source |
+|---|---|---|---|
+| World Facts | 10 | 5 | CCD ch. 1 |
+| Required Entities | 5 | 3 | CCD ch. 1 |
+| Content Lines | 3 | 3 | Safety tools |
+| Setting Facts | 15 | 8 | CCD ch. 2 |
+| Factions | 4 | 3 | CCD ch. 2 (3-4 min) |
+| Active Conflicts | 3 | 2 | CCD ch. 2 |
+| PC Goals | 3 | 3 | PR ch. 1 (3 concurrent) |
+| Potential Scenes | 5 | 4 | Lazy DM ch. 4 (1-2/hr) |
+| Secrets & Clues | 10 | 8 | Lazy DM ch. 6 ("shoot for 10") |
+| Fantastic Locations | 4 | 3 | Lazy DM ch. 7 (1-2/hr) |
+| Important NPCs | 4 | 3 | Lazy DM ch. 8 |
+| Relevant Monsters | 4 | 3 | Lazy DM ch. 9 |
+| Magic Item Rewards | 2 | 2 | Lazy DM ch. 10 |
+| Active Faction Clocks | 4 | 3 | CCD ch. 6 |
+
+Solo Mode is enabled by default for new campaigns. It persists per-campaign in Firestore via the `__soloMode` field within the campaign's data blob.
+
+---
+
 ## File structure
 
 ```

@@ -16,6 +16,40 @@ const M = {
   pr: { label: 'Proactive', color: 'bg-violet-950/60 text-violet-300 border-violet-900/60' },
 };
 
+// Prep item targets — book-grounded with solo adaptations
+// Keys match section ids / state keys used throughout the editor
+const TARGETS: Record<string, { standard: number; solo: number; label: string; source: string }> = {
+  // CCD ch. 1 — Givens
+  gWorld:    { standard: 10, solo: 5,  label: 'World Facts',         source: 'CCD ch. 1' },
+  gFNL:      { standard: 5,  solo: 3,  label: 'Required Entities',   source: 'CCD ch. 1' },
+  lines:     { standard: 3,  solo: 3,  label: 'Content Lines',       source: 'Safety tools' },
+
+  // CCD ch. 2 — Session −1
+  facts:     { standard: 15, solo: 8,  label: 'Setting Facts',       source: 'CCD ch. 2' },
+  factions:  { standard: 4,  solo: 3,  label: 'Factions',            source: 'CCD ch. 2 (3-4 min)' },
+  conflicts: { standard: 3,  solo: 2,  label: 'Active Conflicts',    source: 'CCD ch. 2' },
+
+  // Proactive Roleplaying ch. 1
+  pcGoals:   { standard: 3,  solo: 3,  label: 'PC Goals',            source: 'PR ch. 1 (3 concurrent)' },
+
+  // Lazy DM ch. 4-8 — per-session
+  scenes:    { standard: 5,  solo: 4,  label: 'Potential Scenes',    source: 'Lazy DM ch. 4 (1-2/hr)' },
+  secrets:   { standard: 10, solo: 8,  label: 'Secrets & Clues',     source: 'Lazy DM ch. 6 (shoot for 10)' },
+  locations: { standard: 4,  solo: 3,  label: 'Fantastic Locations', source: 'Lazy DM ch. 7 (1-2/hr)' },
+  npcs:      { standard: 4,  solo: 3,  label: 'Important NPCs',      source: 'Lazy DM ch. 8' },
+  monsters:  { standard: 4,  solo: 3,  label: 'Relevant Monsters',   source: 'Lazy DM ch. 9' },
+  items:     { standard: 2,  solo: 2,  label: 'Magic Item Rewards',  source: 'Lazy DM ch. 10' },
+
+  // CCD ch. 6 — Faction tracking
+  clocks:    { standard: 4,  solo: 3,  label: 'Active Faction Clocks', source: 'CCD ch. 6' },
+};
+
+function getTarget(key: string, soloMode: boolean): number {
+  const t = TARGETS[key];
+  if (!t) return 0;
+  return soloMode ? t.solo : t.standard;
+}
+
 const Tag = ({ m }: { m: keyof typeof M }) => (
   <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${M[m].color}`}>{M[m].label}</span>
 );
@@ -44,6 +78,28 @@ const Pitfall = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
+const TargetBar = ({ current, target, source }: { current: number; target: number; source?: string }) => {
+  if (target === 0) return null;
+  const pct = Math.min(100, (current / target) * 100);
+  const complete = current >= target;
+  return (
+    <div className="space-y-1" title={source}>
+      <div className="flex items-center justify-between text-[10px]">
+        <span className={complete ? 'text-emerald-400' : 'text-zinc-500'}>
+          {current} of {target}
+        </span>
+        {source && <span className="text-zinc-700">{source}</span>}
+      </div>
+      <div className="h-1 bg-zinc-900 rounded overflow-hidden">
+        <div
+          className={`h-full transition-all ${complete ? 'bg-emerald-700' : 'bg-zinc-600'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
 const Example = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2.5 text-xs">
     <p className="text-zinc-500 mb-1">Example — {title}</p>
@@ -61,10 +117,24 @@ const Field = ({ value, onChange, placeholder, rows = 1 }: { value: string; onCh
   )
 );
 
-const ListField = ({ items = [], onChange, placeholder, rows = 1 }: { items: string[]; onChange: (v: string[]) => void; placeholder: string; rows?: number }) => {
+const ListField = ({
+  items = [],
+  onChange,
+  placeholder,
+  rows = 1,
+  target = 0,
+}: {
+  items: string[];
+  onChange: (v: string[]) => void;
+  placeholder: string;
+  rows?: number;
+  target?: number;
+}) => {
   const update = (i: number, v: string) => { const next = [...items]; next[i] = v; onChange(next); };
   const add = () => onChange([...items, '']);
   const remove = (i: number) => onChange(items.filter((_, j) => j !== i));
+  const remaining = Math.max(0, target - items.length);
+
   return (
     <div className="space-y-1.5">
       {items.map((item, i) => (
@@ -73,7 +143,17 @@ const ListField = ({ items = [], onChange, placeholder, rows = 1 }: { items: str
           <button onClick={() => remove(i)} className="text-zinc-600 hover:text-red-400 px-1.5"><X size={14} /></button>
         </div>
       ))}
-      <button onClick={add} className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1"><Plus size={12} /> Add</button>
+      {Array.from({ length: remaining }).map((_, i) => (
+        <div key={`ghost-${i}`} className="flex gap-1.5 opacity-30">
+          <div className="w-full bg-zinc-900/30 border border-dashed border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-700 italic">
+            {placeholder} #{items.length + i + 1}
+          </div>
+          <div className="px-1.5 w-7" />
+        </div>
+      ))}
+      <button onClick={add} className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1">
+        <Plus size={12} /> Add
+      </button>
     </div>
   );
 };
@@ -244,6 +324,7 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
   const [tab, setTab] = useState<'prep' | 'ref' | 'track'>('prep');
+  const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -266,9 +347,9 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
     if (initialLoadRef.current) { initialLoadRef.current = false; return; }
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     setSyncState('pending');
-    saveTimeoutRef.current = setTimeout(() => { saveToDB({ name, data: state, done }); }, 1500);
+    saveTimeoutRef.current = setTimeout(() => { saveToDB({ name, data: { ...state, __soloMode: soloMode }, done }); }, 1500);
     return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
-  }, [name, state, done, saveToDB]);
+  }, [name, state, done, soloMode, saveToDB]);
 
   const get = (k: string, fb: any) => state[k] !== undefined ? state[k] : fb;
   const setVal = (k: string, v: any) => setState(s => ({ ...s, [k]: v }));
@@ -349,6 +430,17 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
             </button>
             <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
             <div className="flex-1" />
+            <button
+              onClick={() => setSoloMode(s => !s)}
+              className={`text-xs px-2.5 py-1 rounded border flex items-center gap-1 ${
+                soloMode
+                  ? 'bg-pink-950/30 border-pink-900/50 text-pink-300'
+                  : 'border-zinc-800 text-zinc-400 hover:bg-zinc-900'
+              }`}
+              title={soloMode ? 'Solo targets active — click to switch to group' : 'Group targets active — click to switch to solo'}
+            >
+              <User size={12} /> {soloMode ? 'Solo' : 'Group'}
+            </button>
             <button onClick={handleDelete} className="text-xs px-2.5 py-1 rounded border border-red-950 text-red-400 hover:bg-red-950/30 flex items-center gap-1">
               <Trash2 size={12} /> Delete
             </button>
@@ -370,10 +462,10 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
               <BookQuote source="CCD ch. 1">Givens are a set of things your group agrees will feature regardless of how worldbuilding ends up.</BookQuote>
               <Section id="g-world" title="World Facts" methods={['ccd']} done={done['g-world']} onToggle={toggleDone} open={open['g-world']} onToggleOpen={toggleOpen}>
                 <Example title="from CCD">"Post-apocalyptic." "The sun has gone out." "Magic has died."</Example>
-                <ListField items={get('gWorld', [])} onChange={(v) => setVal('gWorld', v)} placeholder="A world fact" />
+                <ListField items={get('gWorld', [])} onChange={(v) => setVal('gWorld', v)} placeholder="A world fact" target={getTarget('gWorld', soloMode)} />
               </Section>
               <Section id="g-fnl" title="Required Factions, NPCs & Locations" methods={['ccd']} done={done['g-fnl']} onToggle={toggleDone} open={open['g-fnl']} onToggleOpen={toggleOpen}>
-                <ListField items={get('gFNL', [])} onChange={(v) => setVal('gFNL', v)} placeholder="A specific entity" />
+                <ListField items={get('gFNL', [])} onChange={(v) => setVal('gFNL', v)} placeholder="A specific entity" target={getTarget('gFNL', soloMode)} />
               </Section>
               <Section id="g-mech" title="Mechanics & System" methods={['ccd']} done={done['g-mech']} onToggle={toggleDone} open={open['g-mech']} onToggleOpen={toggleOpen}>
                 <Field value={get('system', '')} onChange={(v) => setVal('system', v)} placeholder="System (e.g. 5e)" />
@@ -381,7 +473,7 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
                 <ListField items={get('tone', [])} onChange={(v) => setVal('tone', v)} placeholder="A tone word" />
               </Section>
               <Section id="g-lines" title="Content Lines (Hard Nos)" methods={['ccd']} done={done['g-lines']} onToggle={toggleDone} open={open['g-lines']} onToggleOpen={toggleOpen}>
-                <ListField items={get('lines', [])} onChange={(v) => setVal('lines', v)} placeholder="A topic to avoid" />
+                <ListField items={get('lines', [])} onChange={(v) => setVal('lines', v)} placeholder="A topic to avoid" target={getTarget('lines', soloMode)} />
               </Section>
               <Section id="pitch" title="Quick Pitch" methods={['ccd']} done={done['pitch']} onToggle={toggleDone} open={open['pitch']} onToggleOpen={toggleOpen}>
                 <BookQuote source="CCD case study">Pitch the results, not the concept.</BookQuote>
@@ -398,11 +490,12 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
               </Section>
               <Section id="facts" title="Setting Facts" methods={['ccd']} done={done.facts} onToggle={toggleDone} open={open.facts} onToggleOpen={toggleOpen}>
                 <Pitfall>Don't pre-load all the secrets. Players still need new ones to discover.</Pitfall>
-                <ListField items={get('facts', [])} onChange={(v) => setVal('facts', v)} placeholder="A fact about the world" rows={2} />
+                <ListField items={get('facts', [])} onChange={(v) => setVal('facts', v)} placeholder="A fact about the world" rows={2} target={getTarget('facts', soloMode)} />
               </Section>
               <Section id="factions" title="Factions" methods={['pr', 'ccd']} done={done.factions} onToggle={toggleDone} open={open.factions} onToggleOpen={toggleOpen} icon={Users}>
                 <BookQuote source="PR ch. 2">Think of factions, not individual NPCs, as the GM-controlled counterparts of the party.</BookQuote>
                 <Pitfall>Factions whose goals don't overlap with PC goals are just colour.</Pitfall>
+                <TargetBar current={(get('factions', []) as any[]).length} target={getTarget('factions', soloMode)} source={TARGETS.factions.source} />
                 {(get('factions', []) as any[]).map((f: any, i: number) => (
                   <FactionCard key={i} data={f} onChange={(v: any) => {
                     const next = [...(get('factions', []) as any[])]; next[i] = v; setVal('factions', next);
@@ -414,7 +507,7 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
               </Section>
               <Section id="conflicts" title="Active Conflicts" methods={['ccd', 'pr']} done={done.conflicts} onToggle={toggleDone} open={open.conflicts} onToggleOpen={toggleOpen}>
                 <BookQuote source="CCD ch. 2">Conflicts are the end goal of worldbuilding.</BookQuote>
-                <ListField items={get('conflicts', [])} onChange={(v) => setVal('conflicts', v)} placeholder="Faction A vs Faction B over X" rows={2} />
+                <ListField items={get('conflicts', [])} onChange={(v) => setVal('conflicts', v)} placeholder="Faction A vs Faction B over X" rows={2} target={getTarget('conflicts', soloMode)} />
               </Section>
             </Phase>
 
@@ -442,6 +535,7 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
                 </div>
                 <Example title="Bad → Good">"Become powerful" → "Win a duel against the captain of the guard"</Example>
                 <Pitfall>Long-term goals locked in Session 0 are usually worse than ones locked after Session 1.</Pitfall>
+                <TargetBar current={(get('pcGoals', []) as any[]).length} target={getTarget('pcGoals', soloMode)} source={TARGETS.pcGoals.source} />
                 {(get('pcGoals', []) as any[]).map((g: any, i: number) => (
                   <GoalCard key={i} data={g} onChange={(v: any) => {
                     const next = [...(get('pcGoals', []) as any[])]; next[i] = v; setVal('pcGoals', next);
@@ -464,15 +558,16 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
               </Section>
               <Section id="s3-scenes" title="3 · Outline Potential Scenes" methods={['shea']} done={done['s3-scenes']} onToggle={toggleDone} open={open['s3-scenes']} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM (Perkins)">Be prepared to throw what you have away.</BookQuote>
-                <ListField items={get('scenes', [])} onChange={(v) => setVal('scenes', v)} placeholder="A scene" />
+                <ListField items={get('scenes', [])} onChange={(v) => setVal('scenes', v)} placeholder="A scene" target={getTarget('scenes', soloMode)} />
               </Section>
               <Section id="s4-secrets" title="4 · Define Secrets & Clues" methods={['shea']} done={done['s4-secrets']} onToggle={toggleDone} open={open['s4-secrets']} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM ch. 6">Secrets and clues are the connective tissue of an adventure.</BookQuote>
                 <Pitfall>Tying a secret to a specific NPC means if players skip them, the secret never surfaces.</Pitfall>
-                <ListField items={get('secrets', [])} onChange={(v) => setVal('secrets', v)} placeholder="A single-sentence secret" rows={2} />
+                <ListField items={get('secrets', [])} onChange={(v) => setVal('secrets', v)} placeholder="A single-sentence secret" rows={2} target={getTarget('secrets', soloMode)} />
               </Section>
               <Section id="s5-loc" title="5 · Develop Fantastic Locations" methods={['shea']} done={done['s5-loc']} onToggle={toggleDone} open={open['s5-loc']} onToggleOpen={toggleOpen} icon={Map}>
                 <BookQuote source="Lazy DM ch. 7">When in doubt, go for scale.</BookQuote>
+                <TargetBar current={(get('locations', []) as any[]).length} target={getTarget('locations', soloMode)} source={TARGETS.locations.source} />
                 {(get('locations', []) as any[]).map((l: any, i: number) => (
                   <LocationCard key={i} data={l} onChange={(v: any) => {
                     const next = [...(get('locations', []) as any[])]; next[i] = v; setVal('locations', next);
@@ -484,6 +579,7 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
               </Section>
               <Section id="s6-npc" title="6 · Outline Important NPCs" methods={['shea', 'pr']} done={done['s6-npc']} onToggle={toggleDone} open={open['s6-npc']} onToggleOpen={toggleOpen}>
                 <BookQuote source="PR ch. 3">Villains form goals in response to PC goals.</BookQuote>
+                <TargetBar current={(get('npcs', []) as any[]).length} target={getTarget('npcs', soloMode)} source={TARGETS.npcs.source} />
                 {(get('npcs', []) as any[]).map((n: any, i: number) => (
                   <NPCCard key={i} data={n} onChange={(v: any) => {
                     const next = [...(get('npcs', []) as any[])]; next[i] = v; setVal('npcs', next);
@@ -495,12 +591,12 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
               </Section>
               <Section id="s7-mon" title="7 · Choose Relevant Monsters" methods={['shea']} done={done['s7-mon']} onToggle={toggleDone} open={open['s7-mon']} onToggleOpen={toggleOpen} icon={Swords}>
                 <SoloNote>Solo level-1 ~8-12 HP. CR 1/8 one-at-a-time. Narrative outs always.</SoloNote>
-                <ListField items={get('monsters', [])} onChange={(v) => setVal('monsters', v)} placeholder="Monster — CR — use case" />
+                <ListField items={get('monsters', [])} onChange={(v) => setVal('monsters', v)} placeholder="Monster — CR — use case" target={getTarget('monsters', soloMode)} />
               </Section>
               <Section id="s8-rew" title="8 · Select Magic Item Rewards" methods={['shea', 'pr']} done={done['s8-rew']} onToggle={toggleDone} open={open['s8-rew']} onToggleOpen={toggleOpen} icon={Gift}>
                 <BookQuote source="PR ch. 6">Your +1 needs to be actionable.</BookQuote>
                 <Example title="from PR">Sword from a stone. +1: right to rule Albion.</Example>
-                <ListField items={get('items', [])} onChange={(v) => setVal('items', v)} placeholder="Item · what +1 hook it delivers" rows={2} />
+                <ListField items={get('items', [])} onChange={(v) => setVal('items', v)} placeholder="Item · what +1 hook it delivers" rows={2} target={getTarget('items', soloMode)} />
               </Section>
             </Phase>
 
@@ -514,6 +610,7 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
                   <p>16 — arc-defining</p>
                 </div>
               </div>
+              <TargetBar current={(get('clocks', []) as any[]).length} target={getTarget('clocks', soloMode)} source={TARGETS.clocks.source} />
               {(get('clocks', []) as any[]).map((c: any, i: number) => (
                 <ClockCard key={i} data={c} onChange={(v: any) => {
                   const next = [...(get('clocks', []) as any[])]; next[i] = v; setVal('clocks', next);
