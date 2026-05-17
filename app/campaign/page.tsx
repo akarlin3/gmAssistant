@@ -8,7 +8,7 @@ import { subscribeToUserCampaigns, createCampaign, type Campaign } from '@/lib/f
 import { Plus, LogOut, ScrollText, Calendar } from 'lucide-react';
 
 export default function CampaignListPage() {
-  const { user, loading: authLoading, logout } = useAuth();
+  const { user, loading: authLoading, isAdmin, logout } = useAuth();
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +62,14 @@ export default function CampaignListPage() {
                 Campaign Prep
               </div>
               <h1 className="font-display text-2xl sm:text-3xl text-crimson tracking-wide mt-1">Your Campaigns</h1>
-              <p className="text-sm text-ink-soft italic font-serif mt-1 break-all">{user.email}</p>
+              <p className="text-sm text-ink-soft italic font-serif mt-1 break-all flex items-center gap-2 flex-wrap">
+                <span>{user.email}</span>
+                {isAdmin && (
+                  <span className="text-[10px] not-italic px-1.5 py-0.5 rounded-sm border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider">
+                    Admin
+                  </span>
+                )}
+              </p>
             </div>
             <button onClick={handleSignOut} className="text-xs px-3 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
               <LogOut size={12} /> <span className="hidden sm:inline">Sign Out</span>

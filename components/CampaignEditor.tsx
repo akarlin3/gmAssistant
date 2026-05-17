@@ -396,7 +396,7 @@ const Phase = ({ n, title, sub, methods, children, expanded, onToggle, icon: Ico
   </div>
 );
 
-export default function CampaignEditor({ campaign, userEmail }: { campaign: Campaign; userEmail: string }) {
+export default function CampaignEditor({ campaign, userEmail, isAdmin = false }: { campaign: Campaign; userEmail: string; isAdmin?: boolean }) {
   const router = useRouter();
   const [name, setName] = useState(campaign.name);
   const [initialMigration] = useState(() => migrateSessionLogs(campaign.data || {}));
@@ -887,7 +887,13 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
         {tab === 'dmref' && <DMRefTab />}
 
         <footer className="pt-3 mt-4 border-t border-rule text-xs text-ink-mute italic font-serif text-center">
-          {userEmail} · auto-syncs to Firestore every 1.5s
+          {userEmail}
+          {isAdmin && (
+            <span className="not-italic ml-1.5 px-1.5 py-0.5 rounded-sm border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider text-[10px]">
+              Admin
+            </span>
+          )}
+          {' · auto-syncs to Firestore every 1.5s'}
         </footer>
         </div>
       </div>
