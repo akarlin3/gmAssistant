@@ -15,6 +15,7 @@ import DiceRoller, { type Macro } from './DiceRoller';
 import SpellsTab, { type Spell } from './SpellsTab';
 import DMRefTab from './DMRefTab';
 import CharacterCard from './CharacterCard';
+import NamesTab from './NamesTab';
 import {
   type Character,
   emptyCharacter,
@@ -446,7 +447,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'dice' | 'spells' | 'dmref'>('prep');
+  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'dice' | 'spells' | 'names' | 'dmref'>('prep');
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -645,7 +646,15 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
             <div className="mt-3">
               <div className="flex flex-col sm:flex-row sm:flex-wrap gap-1 items-stretch sm:items-center">
-                {([['prep', 'Prep Flow'], ['ref', 'Reference'], ['track', 'Tracking'], ['dice', 'Dice'], ['spells', 'Spells'], ['dmref', 'DM Ref']] as const).map(([id, label]) => (
+                {[
+                  ['prep', 'Prep Flow'] as const,
+                  ['ref', 'Reference'] as const,
+                  ['track', 'Tracking'] as const,
+                  ['dice', 'Dice'] as const,
+                  ['spells', 'Spells'] as const,
+                  ...(isPro ? [['names', 'Names'] as const] : []),
+                  ['dmref', 'DM Ref'] as const,
+                ].map(([id, label]) => (
                   <button key={id} onClick={() => setTab(id)} className={`text-xs px-3 py-1.5 rounded-sm border font-display uppercase tracking-wider transition-colors w-full sm:w-auto sm:flex-shrink-0 ${tab === id ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-soft hover:bg-parchment-deep'}`}>
                     {label}
                   </button>
@@ -1009,6 +1018,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             onHomebrewSpellsChange={(v) => setVal('homebrewSpells', v)}
           />
         )}
+
+        {tab === 'names' && isPro && <NamesTab />}
 
         {tab === 'dmref' && <DMRefTab />}
 

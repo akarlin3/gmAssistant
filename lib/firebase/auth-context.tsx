@@ -3,12 +3,9 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirebaseAuth, googleProvider } from './client';
+import { isProEmail } from '@/lib/verify-pro';
 
-const PRO_EMAILS = new Set(['averykarlin3@gmail.com']);
-
-export function isProEmail(email: string | null | undefined): boolean {
-  return !!email && PRO_EMAILS.has(email.toLowerCase());
-}
+export { isProEmail };
 
 type AuthContextValue = {
   user: User | null;

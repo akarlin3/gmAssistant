@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { normalizeCharacter } from '@/lib/character-schema';
+import { readBearerToken, verifyPro } from '@/lib/verify-pro';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
-
-const PRO_EMAILS = new Set(['averykarlin3@gmail.com']);
 
 const CHARACTER_JSON_SCHEMA = {
   type: 'object',
@@ -118,29 +117,8 @@ Conventions:
 - Preserve homebrew names, custom items, and unusual mechanics verbatim — do not normalize them to canonical 5e equivalents.
 - Strip newlines from single-line fields. Use newlines freely in "equipment", "features", "spells", "backstory", "notes".`;
 
-async function verifyPro(idToken: string): Promise<{ ok: true; email: string } | { ok: false; status: number; message: string }> {
-  const fbKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-  if (!fbKey) return { ok: false, status: 500, message: 'Server missing Firebase config' };
-
-  const lookup = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${fbKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken }),
-    },
-  );
-  if (!lookup.ok) return { ok: false, status: 401, message: 'Invalid auth token' };
-  const data = (await lookup.json()) as { users?: Array<{ email?: string }> };
-  const email = (data?.users?.[0]?.email || '').toLowerCase();
-  if (!email) return { ok: false, status: 401, message: 'Could not resolve email from token' };
-  if (!PRO_EMAILS.has(email)) return { ok: false, status: 403, message: 'Pro only' };
-  return { ok: true, email };
-}
-
 export async function POST(req: NextRequest) {
-  const auth = req.headers.get('authorization') || '';
-  const idToken = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  const idToken = readBearerToken(req.headers.get('authorization'));
   if (!idToken) return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
 
   const verified = await verifyPro(idToken);
