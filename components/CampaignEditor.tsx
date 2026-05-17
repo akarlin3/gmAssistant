@@ -166,18 +166,18 @@ const ListField = ({
 
 const Section = ({ id, title, methods, children, done, onToggle, open, onToggleOpen, icon: Icon }: any) => (
   <div className={`rounded border ${done ? 'border-brass/60 bg-brass/5' : 'border-rule bg-parchment-soft'} shadow-card`}>
-    <div className="flex items-center gap-2 p-3">
+    <div className="flex items-center gap-2 p-2.5 sm:p-3">
       <button onClick={() => onToggle(id)} className={`w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${done ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment'}`}>
         {done && <Check size={10} strokeWidth={3} />}
       </button>
-      <button onClick={() => onToggleOpen(id)} className="flex-1 flex items-center gap-2 text-left">
-        {Icon && <Icon size={14} className="text-brass-deep" />}
-        <span className="font-display text-sm tracking-wide text-ink">{title}</span>
-        <span className="flex gap-1">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
-        <span className="ml-auto text-ink-mute">{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
+      <button onClick={() => onToggleOpen(id)} className="flex-1 min-w-0 flex items-center gap-2 text-left">
+        {Icon && <Icon size={14} className="text-brass-deep flex-shrink-0" />}
+        <span className="font-display text-sm tracking-wide text-ink flex-1 min-w-0">{title}</span>
+        <span className="hidden sm:flex gap-1 flex-shrink-0">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
+        <span className="text-ink-mute flex-shrink-0">{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
       </button>
     </div>
-    {open && <div className="px-3 pb-3 border-t border-rule pt-3 space-y-3">{children}</div>}
+    {open && <div className="px-2.5 sm:px-3 pb-3 border-t border-rule pt-3 space-y-3">{children}</div>}
   </div>
 );
 
@@ -323,7 +323,7 @@ const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }: {
   onRemove: () => void;
 }) => (
   <div className="rounded border border-rule bg-parchment shadow-card">
-    <div className="flex items-center gap-1.5 p-2">
+    <div className="flex items-center flex-wrap gap-1.5 p-2">
       <button onClick={onToggleOpen} className="text-brass-deep hover:text-crimson flex-shrink-0">
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>
@@ -332,13 +332,13 @@ const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }: {
         value={data.title || ''}
         onChange={(e) => onChange({ ...data, title: e.target.value })}
         placeholder="Session title"
-        className="flex-1 min-w-0 bg-transparent font-display tracking-wide text-sm text-ink placeholder:text-ink-faint placeholder:italic placeholder:font-serif focus:outline-none border-b border-transparent focus:border-crimson pb-0.5"
+        className="flex-1 min-w-[8rem] bg-transparent font-display tracking-wide text-sm text-ink placeholder:text-ink-faint placeholder:italic placeholder:font-serif focus:outline-none border-b border-transparent focus:border-crimson pb-0.5"
       />
       <input
         type="date"
         value={data.date || ''}
         onChange={(e) => onChange({ ...data, date: e.target.value })}
-        className="bg-parchment-soft border border-rule rounded px-1.5 py-0.5 text-xs text-ink-soft font-serif focus:border-crimson focus:outline-none"
+        className="bg-parchment-soft border border-rule rounded px-1 py-0.5 text-[11px] sm:text-xs text-ink-soft font-serif focus:border-crimson focus:outline-none flex-shrink-0"
       />
       <button onClick={onRemove} className="text-ink-mute hover:text-crimson px-1 flex-shrink-0">
         <X size={14} />
@@ -368,16 +368,16 @@ const ClockCard = ({ data, onChange, onRemove }: any) => {
         <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
       </div>
       <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="Faction" />
-      <div className="flex items-center gap-2">
-        <select value={max} onChange={(e) => onChange({ ...data, max: Number(e.target.value) })} className="bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif">
+      <div className="flex flex-wrap items-center gap-2">
+        <select value={max} onChange={(e) => onChange({ ...data, max: Number(e.target.value) })} className="bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif flex-shrink-0">
           {[4, 6, 8, 12, 16].map(n => <option key={n} value={n}>{n} segments</option>)}
         </select>
-        <div className="flex gap-0.5 flex-1 border border-brass-deep rounded-sm p-0.5 bg-parchment-deep">
+        <div className="flex gap-0.5 flex-1 min-w-[8rem] border border-brass-deep rounded-sm p-0.5 bg-parchment-deep">
           {Array.from({ length: max }).map((_, i) => (
-            <button key={i} onClick={() => onChange({ ...data, filled: i + 1 === filled ? i : i + 1 })} className={`flex-1 h-5 rounded-sm transition-colors ${i < filled ? 'bg-crimson' : 'bg-parchment hover:bg-parchment-deep'}`} />
+            <button key={i} onClick={() => onChange({ ...data, filled: i + 1 === filled ? i : i + 1 })} className={`flex-1 min-w-[14px] h-5 rounded-sm transition-colors ${i < filled ? 'bg-crimson' : 'bg-parchment hover:bg-parchment-deep'}`} />
           ))}
         </div>
-        <span className="text-xs text-brass-deep font-display">{filled}/{max}</span>
+        <span className="text-xs text-brass-deep font-display flex-shrink-0">{filled}/{max}</span>
       </div>
     </div>
   );
@@ -385,17 +385,17 @@ const ClockCard = ({ data, onChange, onRemove }: any) => {
 
 const Phase = ({ n, title, sub, methods, children, expanded, onToggle, icon: Icon }: any) => (
   <div className="border border-rule rounded-lg overflow-hidden bg-parchment-soft shadow-page">
-    <button onClick={onToggle} className="w-full flex items-center gap-4 p-4 hover:bg-parchment-deep/30 text-left transition-colors">
-      <div className="font-display text-4xl text-crimson w-12 leading-none">{n}</div>
-      {Icon && <Icon size={20} className="text-brass-deep" />}
-      <div className="flex-1">
+    <button onClick={onToggle} className="w-full flex items-center gap-2.5 sm:gap-4 p-3 sm:p-4 hover:bg-parchment-deep/30 text-left transition-colors">
+      <div className="font-display text-3xl sm:text-4xl text-crimson w-8 sm:w-12 leading-none flex-shrink-0">{n}</div>
+      {Icon && <Icon size={20} className="text-brass-deep flex-shrink-0 hidden sm:block" />}
+      <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-display text-lg tracking-wide text-ink">{title}</span>
-          <span className="flex gap-1">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
+          <span className="font-display text-base sm:text-lg tracking-wide text-ink">{title}</span>
+          <span className="flex flex-wrap gap-1">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
         </div>
-        <div className="text-sm text-ink-soft italic font-serif mt-0.5">{sub}</div>
+        <div className="text-xs sm:text-sm text-ink-soft italic font-serif mt-0.5">{sub}</div>
       </div>
-      {expanded ? <ChevronDown size={18} className="text-brass-deep" /> : <ChevronRight size={18} className="text-brass-deep" />}
+      {expanded ? <ChevronDown size={18} className="text-brass-deep flex-shrink-0" /> : <ChevronRight size={18} className="text-brass-deep flex-shrink-0" />}
     </button>
     {expanded && <div className="p-3 pt-3 space-y-2 border-t border-rule bg-parchment/40">{children}</div>}
   </div>
@@ -522,9 +522,9 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
   );
 
   return (
-    <main className="min-h-screen p-5 md:p-8">
+    <main className="min-h-screen p-3 sm:p-5 md:p-8">
       <div className="max-w-3xl mx-auto">
-        <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-5 md:p-8 space-y-4">
+        <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
           <header className="pb-4 border-b border-rule">
             <div className="flex items-center justify-between gap-2 mb-3">
               <Link href="/campaign" className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1">
@@ -533,9 +533,9 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
               <SyncIndicator />
             </div>
             <div className="flex items-center gap-2">
-              <ScrollText size={20} className="text-crimson" />
+              <ScrollText size={20} className="text-crimson flex-shrink-0" />
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign Name"
-                className="flex-1 bg-transparent border-b border-rule font-display text-2xl tracking-wide text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none pb-1" />
+                className="flex-1 min-w-0 bg-transparent border-b border-rule font-display text-xl sm:text-2xl tracking-wide text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none pb-1" />
             </div>
             <p className="text-sm text-ink-soft italic font-serif mt-1.5">Lazy DM · Collaborative Campaign Design · Proactive Roleplaying</p>
 
@@ -545,10 +545,9 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
               <ToolBtn onClick={exportJSON}><Download size={12} /> Export</ToolBtn>
               <ToolBtn onClick={() => fileInputRef.current?.click()}><Upload size={12} /> Import</ToolBtn>
               <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
-              <div className="flex-1" />
               <button
                 onClick={() => setSoloMode(s => !s)}
-                className={`text-xs px-3 py-1 rounded border font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
+                className={`sm:ml-auto text-xs px-3 py-1 rounded border font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
                   soloMode
                     ? 'bg-wine/10 border-wine text-wine'
                     : 'border-rule text-ink-soft hover:bg-parchment-deep'
@@ -560,13 +559,17 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
               <ToolBtn onClick={handleDelete} danger><Trash2 size={12} /> Delete</ToolBtn>
             </div>
 
-            <div className="flex gap-1 mt-3 items-center">
-              {([['prep', 'Prep Flow'], ['ref', 'Reference'], ['track', 'Tracking'], ['dice', 'Dice'], ['spells', 'Spells'], ['dmref', 'DM Ref']] as const).map(([id, label]) => (
-                <button key={id} onClick={() => setTab(id)} className={`text-xs px-3 py-1.5 rounded-sm border font-display uppercase tracking-wider transition-colors ${tab === id ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-soft hover:bg-parchment-deep'}`}>
-                  {label}
-                </button>
-              ))}
-              <span className="ml-auto text-xs text-brass-deep font-display uppercase tracking-wider">{completedCount} Steps Done</span>
+            <div className="mt-3 -mx-3 sm:mx-0 overflow-x-auto sm:overflow-visible">
+              <div className="flex sm:flex-wrap gap-1 items-center px-3 sm:px-0 whitespace-nowrap">
+                {([['prep', 'Prep Flow'], ['ref', 'Reference'], ['track', 'Tracking'], ['dice', 'Dice'], ['spells', 'Spells'], ['dmref', 'DM Ref']] as const).map(([id, label]) => (
+                  <button key={id} onClick={() => setTab(id)} className={`text-xs px-3 py-1.5 rounded-sm border font-display uppercase tracking-wider transition-colors flex-shrink-0 ${tab === id ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-soft hover:bg-parchment-deep'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mt-2 text-right text-xs text-brass-deep font-display uppercase tracking-wider">
+              {completedCount} Steps Done
             </div>
           </header>
 

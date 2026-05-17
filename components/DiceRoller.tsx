@@ -355,7 +355,7 @@ export default function DiceRoller({
             NdX±M · 4d6kh3 · 1d20+5; 1d8+3
           </span>
         </div>
-        <div className="flex gap-1.5 items-center">
+        <div className="flex gap-1.5 items-center flex-wrap">
           <input
             type="text"
             value={formula}
@@ -367,7 +367,7 @@ export default function DiceRoller({
               if (e.key === 'Enter') rollFormula();
             }}
             placeholder="1d20+5; 1d8+3"
-            className={`flex-1 ${inputCls} text-base`}
+            className={`flex-1 min-w-[8rem] ${inputCls} text-base`}
             style={{ fontFamily: 'var(--font-garamond), Georgia, serif' }}
           />
           <button onClick={rollFormula} className={primaryBtn}>
@@ -450,24 +450,24 @@ export default function DiceRoller({
                 key={m.id}
                 className="flex items-center gap-2 rounded border border-rule bg-parchment-soft px-2.5 py-1.5"
               >
-                <span className="font-display tracking-wide text-sm text-ink truncate flex-1">{m.name}</span>
-                <span className="text-xs text-ink-mute italic font-serif truncate max-w-[40%]">{m.formula}</span>
+                <span className="font-display tracking-wide text-sm text-ink truncate flex-1 min-w-0">{m.name}</span>
+                <span className="text-xs text-ink-mute italic font-serif truncate max-w-[40%] hidden sm:inline">{m.formula}</span>
                 <button
                   onClick={() => doRoll(m.formula, m.name)}
-                  className="text-xs px-2.5 py-0.5 rounded-sm border border-crimson bg-crimson text-parchment hover:bg-crimson-deep font-display uppercase tracking-wider"
+                  className="text-xs px-2.5 py-0.5 rounded-sm border border-crimson bg-crimson text-parchment hover:bg-crimson-deep font-display uppercase tracking-wider flex-shrink-0"
                 >
                   Roll
                 </button>
                 <button
                   onClick={() => beginEditMacro(m)}
-                  className="text-ink-mute hover:text-brass-deep"
+                  className="text-ink-mute hover:text-brass-deep flex-shrink-0"
                   title="Edit"
                 >
                   <Pencil size={13} />
                 </button>
                 <button
                   onClick={() => deleteMacro(m.id)}
-                  className="text-ink-mute hover:text-crimson"
+                  className="text-ink-mute hover:text-crimson flex-shrink-0"
                   title="Delete"
                 >
                   <X size={14} />
@@ -503,24 +503,24 @@ export default function DiceRoller({
               title="Click to re-roll"
             >
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs text-ink-mute font-display tracking-wider w-9">
+                <span className="text-xs text-ink-mute font-display tracking-wider w-9 flex-shrink-0">
                   {relTime(r.ts, now)}
                 </span>
                 {r.label && (
-                  <span className="text-xs px-1.5 py-0.5 rounded-sm bg-brass/15 border border-brass-deep/30 text-brass-deep font-display uppercase tracking-wider">
+                  <span className="text-xs px-1.5 py-0.5 rounded-sm bg-brass/15 border border-brass-deep/30 text-brass-deep font-display uppercase tracking-wider flex-shrink-0 truncate max-w-[40%]">
                     {r.label}
                   </span>
                 )}
-                <span className="text-xs text-ink-mute italic font-serif truncate">{r.formula}</span>
+                <span className="text-xs text-ink-mute italic font-serif truncate flex-1 min-w-0">{r.formula}</span>
                 <span
-                  className="ml-auto font-display text-2xl text-crimson leading-none"
+                  className="font-display text-2xl text-crimson leading-none flex-shrink-0"
                   style={{ fontVariantNumeric: 'tabular-nums' }}
                 >
                   {r.total}
                 </span>
                 <RotateCcw
                   size={12}
-                  className="text-ink-faint opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="text-ink-faint opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 hidden sm:block"
                 />
               </div>
               <div className="space-y-0.5">
