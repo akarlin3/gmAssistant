@@ -453,6 +453,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   const [syncError, setSyncError] = useState<string>('');
   const [uploadingChar, setUploadingChar] = useState(false);
   const [charUploadError, setCharUploadError] = useState<string>('');
+  const [useOpusForParse, setUseOpusForParse] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const characterFileInputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -533,6 +534,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       const idToken = await user.getIdToken();
       const form = new FormData();
       form.append('file', file);
+      if (useOpusForParse) form.append('useOpus', 'true');
       const res = await fetch('/api/parse-character-sheet', {
         method: 'POST',
         headers: { Authorization: `Bearer ${idToken}` },
@@ -756,6 +758,19 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                       >
                         <FileUp size={12} /> {uploadingChar ? 'Parsing…' : 'Upload Sheet'}
                       </button>
+                      <label
+                        className="text-xs text-ink-soft hover:text-ink flex items-center gap-1.5 font-display uppercase tracking-wider cursor-pointer select-none"
+                        title="Use Claude Opus instead of Sonnet for parsing (slower, higher cost, may catch more detail)"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={useOpusForParse}
+                          onChange={(e) => setUseOpusForParse(e.target.checked)}
+                          disabled={uploadingChar}
+                          className="accent-crimson"
+                        />
+                        Use Opus
+                      </label>
                       <input
                         ref={characterFileInputRef}
                         type="file"

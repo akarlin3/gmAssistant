@@ -134,6 +134,8 @@ export async function POST(req: NextRequest) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
   }
+  const useOpus = form.get('useOpus') === 'true';
+  const model = useOpus ? 'claude-opus-4-7' : 'claude-sonnet-4-6';
   if (file.size === 0) {
     return NextResponse.json({ error: 'File is empty' }, { status: 400 });
   }
@@ -168,7 +170,7 @@ export async function POST(req: NextRequest) {
   let response: Anthropic.Messages.Message;
   try {
     response = await client.messages.create({
-      model: 'claude-opus-4-7',
+      model,
       max_tokens: 8192,
       system: [
         {
