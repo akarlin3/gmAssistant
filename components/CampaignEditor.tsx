@@ -10,7 +10,7 @@ import {
   Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff
 } from 'lucide-react';
 import DiceRoller, { type Macro } from './DiceRoller';
-import SpellsTab from './SpellsTab';
+import SpellsTab, { type Spell } from './SpellsTab';
 import DMRefTab from './DMRefTab';
 
 const M = {
@@ -879,6 +879,8 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
           <SpellsTab
             favorites={get('spellFavs', []) as string[]}
             onFavoritesChange={(v) => setVal('spellFavs', v)}
+            homebrewSpells={get('homebrewSpells', []) as Spell[]}
+            onHomebrewSpellsChange={(v) => setVal('homebrewSpells', v)}
           />
         )}
 
