@@ -4,14 +4,23 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { updateCampaign, deleteCampaign as deleteCampaignDoc, type Campaign } from '@/lib/firebase/campaigns';
+import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
-  Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff
+  Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff,
+  FileUp,
 } from 'lucide-react';
 import DiceRoller, { type Macro } from './DiceRoller';
 import SpellsTab, { type Spell } from './SpellsTab';
 import DMRefTab from './DMRefTab';
+import CharacterCard from './CharacterCard';
+import {
+  type Character,
+  emptyCharacter,
+  makeCharacterId,
+  normalizeCharacter,
+} from '@/lib/character-schema';
 
 const M = {
   shea: { label: 'Lazy DM', color: 'border-moss/40 bg-moss/5 text-moss' },
@@ -293,6 +302,35 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// One-way migration: pcName/pcClass/pcBg/pcWant/pcFear/pcLove/pcFactions → characters[0].
+// Legacy keys are dropped after migration; data is preserved inside the new character.
+function migrateCharacters(data: Record<string, any>): Record<string, any> {
+  if (Array.isArray(data.characters)) {
+    return { ...data, characters: (data.characters as unknown[]).map(normalizeCharacter) };
+  }
+  const { pcName, pcClass, pcBg, pcWant, pcFear, pcLove, pcFactions, ...rest } = data;
+  const hasLegacy =
+    pcName || pcClass || pcBg || pcWant || pcFear || pcLove ||
+    (Array.isArray(pcFactions) && pcFactions.length > 0);
+  if (!hasLegacy) return { ...rest, characters: [] };
+
+  const seed = emptyCharacter();
+  const factionTies = Array.isArray(pcFactions)
+    ? (pcFactions as unknown[]).filter((s) => typeof s === 'string' && s).join(', ')
+    : '';
+  const migrated: Character = {
+    ...seed,
+    name: pcName || '',
+    classLevel: pcClass || '',
+    backstory: pcBg || '',
+    ideals: pcWant || '',
+    flaws: pcFear || '',
+    bonds: pcLove || '',
+    notes: factionTies ? `Faction Ties: ${factionTies}` : '',
+  };
+  return { ...rest, characters: [migrated] };
+}
+
 function migrateSessionLogs(data: Record<string, any>): { initialState: Record<string, any>; initialOpenId: string | null } {
   const { logCurrent, ...rest } = data;
 
@@ -396,22 +434,26 @@ const Phase = ({ n, title, sub, methods, children, expanded, onToggle, icon: Ico
   </div>
 );
 
-export default function CampaignEditor({ campaign, userEmail, isAdmin = false }: { campaign: Campaign; userEmail: string; isAdmin?: boolean }) {
+export default function CampaignEditor({ campaign, userEmail, isPro = false }: { campaign: Campaign; userEmail: string; isPro?: boolean }) {
   const router = useRouter();
   const [name, setName] = useState(campaign.name);
   const [initialMigration] = useState(() => migrateSessionLogs(campaign.data || {}));
-  const [state, setState] = useState<Record<string, any>>(initialMigration.initialState);
+  const [state, setState] = useState<Record<string, any>>(() => migrateCharacters(initialMigration.initialState));
   const [done, setDone] = useState<Record<string, boolean>>(campaign.done || {});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [openLogs, setOpenLogs] = useState<Record<string, boolean>>(
     initialMigration.initialOpenId ? { [initialMigration.initialOpenId]: true } : {}
   );
+  const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
   const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'dice' | 'spells' | 'dmref'>('prep');
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
+  const [uploadingChar, setUploadingChar] = useState(false);
+  const [charUploadError, setCharUploadError] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const characterFileInputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const initialLoadRef = useRef(true);
 
@@ -459,6 +501,53 @@ export default function CampaignEditor({ campaign, userEmail, isAdmin = false }:
     if (log && (log.body || '').trim() && !confirm(`Delete "${log.title || 'this session log'}"? This cannot be undone.`)) return;
     setVal('sessionLogs', sessionLogs.filter(l => l.id !== id));
     setOpenLogs(o => { const next = { ...o }; delete next[id]; return next; });
+  };
+
+  const characters = (state.characters as Character[]) || [];
+  const addCharacter = () => {
+    const fresh = { ...emptyCharacter(), id: makeCharacterId() };
+    setVal('characters', [...characters, fresh]);
+    setOpenChars(o => ({ ...o, [fresh.id]: true }));
+  };
+  const updateCharacter = (id: string, patch: Character) => {
+    setVal('characters', characters.map(c => (c.id === id ? patch : c)));
+  };
+  const removeCharacter = (id: string) => {
+    const c = characters.find(x => x.id === id);
+    const label = c?.name || 'this character';
+    if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
+    setVal('characters', characters.filter(x => x.id !== id));
+    setOpenChars(o => { const next = { ...o }; delete next[id]; return next; });
+  };
+
+  const uploadCharacterSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setCharUploadError('');
+    setUploadingChar(true);
+    try {
+      const user = getFirebaseAuth().currentUser;
+      if (!user) throw new Error('Not signed in');
+      const idToken = await user.getIdToken();
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/parse-character-sheet', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${idToken}` },
+        body: form,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `Parse failed (${res.status})`);
+      const parsed = normalizeCharacter(body.character);
+      const fresh: Character = { ...parsed, id: makeCharacterId() };
+      setVal('characters', [...characters, fresh]);
+      setOpenChars(o => ({ ...o, [fresh.id]: true }));
+    } catch (err: any) {
+      setCharUploadError(err?.message || 'Upload failed');
+    } finally {
+      setUploadingChar(false);
+    }
   };
 
   const exportJSON = () => {
@@ -625,17 +714,54 @@ export default function CampaignEditor({ campaign, userEmail, isAdmin = false }:
 
             <Phase n="2" title="Session 0 — Characters & Goals" sub="PCs Created After the World Exists" methods={['pr', 'shea']} icon={User} expanded={phaseOpen.p2} onToggle={() => togglePhase('p2')}>
               <SoloNote>Solo Session 0 is fast. Spend the saved time on goal craft.</SoloNote>
-              <Section id="pc" title="Character Review" methods={['shea']} done={done.pc} onToggle={toggleDone} open={open.pc} onToggleOpen={toggleOpen}>
+              <Section id="pc" title="Player Characters" methods={['shea']} done={done.pc} onToggle={toggleDone} open={open.pc} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM (Chris Perkins)">Nothing's more important to a campaign than the stories of the player characters.</BookQuote>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><CardLabel>Name</CardLabel><Field value={get('pcName', '')} onChange={(v) => setVal('pcName', v)} placeholder="..." /></div>
-                  <div><CardLabel>Class / Level</CardLabel><Field value={get('pcClass', '')} onChange={(v) => setVal('pcClass', v)} placeholder="..." /></div>
+                <div className="space-y-2">
+                  {characters.map((c) => (
+                    <CharacterCard
+                      key={c.id}
+                      data={c}
+                      open={!!openChars[c.id]}
+                      onToggleOpen={() => setOpenChars(o => ({ ...o, [c.id]: !o[c.id] }))}
+                      onChange={(v) => updateCharacter(c.id, v)}
+                      onRemove={() => removeCharacter(c.id)}
+                    />
+                  ))}
+                  {characters.length === 0 && (
+                    <p className="text-sm text-ink-mute italic font-serif">
+                      No characters yet. Click &quot;Add Character&quot; to start.
+                    </p>
+                  )}
                 </div>
-                <div><CardLabel>Background / Hometown</CardLabel><Field value={get('pcBg', '')} onChange={(v) => setVal('pcBg', v)} placeholder="..." rows={2} /></div>
-                <div><CardLabel>What They Want</CardLabel><Field value={get('pcWant', '')} onChange={(v) => setVal('pcWant', v)} placeholder="..." /></div>
-                <div><CardLabel>What They Fear</CardLabel><Field value={get('pcFear', '')} onChange={(v) => setVal('pcFear', v)} placeholder="..." /></div>
-                <div><CardLabel>One Person They Love</CardLabel><Field value={get('pcLove', '')} onChange={(v) => setVal('pcLove', v)} placeholder="..." /></div>
-                <div><CardLabel>Faction Ties</CardLabel><ListField items={get('pcFactions', [])} onChange={(v) => setVal('pcFactions', v)} placeholder="..." /></div>
+                <div className="flex flex-wrap gap-3 items-center pt-1">
+                  <button onClick={addCharacter} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                    <Plus size={12} /> Add Character
+                  </button>
+                  {isPro && (
+                    <>
+                      <button
+                        onClick={() => characterFileInputRef.current?.click()}
+                        disabled={uploadingChar}
+                        className="text-xs text-crimson hover:text-wine flex items-center gap-1 font-display uppercase tracking-wider disabled:opacity-50 disabled:cursor-wait"
+                        title="Upload a PDF, image, or text character sheet — parsed by Claude (pro only)"
+                      >
+                        <FileUp size={12} /> {uploadingChar ? 'Parsing…' : 'Upload Sheet'}
+                      </button>
+                      <input
+                        ref={characterFileInputRef}
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.md,.json,application/pdf,image/png,image/jpeg,image/webp,image/gif,text/plain,application/json,text/markdown"
+                        onChange={uploadCharacterSheet}
+                        className="hidden"
+                      />
+                    </>
+                  )}
+                  {charUploadError && (
+                    <span className="text-xs text-crimson italic" title={charUploadError}>
+                      {charUploadError}
+                    </span>
+                  )}
+                </div>
               </Section>
               <Section id="goals" title="PC Goals (5 Rules of Proactive Fun)" methods={['pr']} done={done.goals} onToggle={toggleDone} open={open.goals} onToggleOpen={toggleOpen} icon={Target}>
                 <div className="rounded border border-wine/40 bg-wine/5 p-3 text-sm space-y-1.5 text-ink-soft font-serif">
@@ -888,9 +1014,9 @@ export default function CampaignEditor({ campaign, userEmail, isAdmin = false }:
 
         <footer className="pt-3 mt-4 border-t border-rule text-xs text-ink-mute italic font-serif text-center">
           {userEmail}
-          {isAdmin && (
+          {isPro && (
             <span className="not-italic ml-1.5 px-1.5 py-0.5 rounded-sm border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider text-[10px]">
-              Admin
+              Pro
             </span>
           )}
           {' · auto-syncs to Firestore every 1.5s'}

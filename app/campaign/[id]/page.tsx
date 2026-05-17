@@ -8,7 +8,7 @@ import CampaignEditor from '@/components/CampaignEditor';
 
 export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { user, loading: authLoading, isAdmin } = useAuth();
+  const { user, loading: authLoading, isPro } = useAuth();
   const router = useRouter();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,5 +50,5 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   }
   if (!campaign || !user) return null;
 
-  return <CampaignEditor campaign={campaign} userEmail={user.email ?? ''} isAdmin={isAdmin} />;
+  return <CampaignEditor campaign={campaign} userEmail={user.email ?? ''} isPro={isPro} />;
 }
