@@ -559,10 +559,10 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
               <ToolBtn onClick={handleDelete} danger><Trash2 size={12} /> Delete</ToolBtn>
             </div>
 
-            <div className="mt-3 -mx-3 sm:mx-0 overflow-x-auto sm:overflow-visible">
-              <div className="flex sm:flex-wrap gap-1 items-center px-3 sm:px-0 whitespace-nowrap">
+            <div className="mt-3">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-1 items-stretch sm:items-center">
                 {([['prep', 'Prep Flow'], ['ref', 'Reference'], ['track', 'Tracking'], ['dice', 'Dice'], ['spells', 'Spells'], ['dmref', 'DM Ref']] as const).map(([id, label]) => (
-                  <button key={id} onClick={() => setTab(id)} className={`text-xs px-3 py-1.5 rounded-sm border font-display uppercase tracking-wider transition-colors flex-shrink-0 ${tab === id ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-soft hover:bg-parchment-deep'}`}>
+                  <button key={id} onClick={() => setTab(id)} className={`text-xs px-3 py-1.5 rounded-sm border font-display uppercase tracking-wider transition-colors w-full sm:w-auto sm:flex-shrink-0 ${tab === id ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-soft hover:bg-parchment-deep'}`}>
                     {label}
                   </button>
                 ))}
