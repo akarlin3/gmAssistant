@@ -434,7 +434,7 @@ const Phase = ({ n, title, sub, methods, children, expanded, onToggle, icon: Ico
   </div>
 );
 
-export default function CampaignEditor({ campaign, userEmail, isAdmin = false }: { campaign: Campaign; userEmail: string; isAdmin?: boolean }) {
+export default function CampaignEditor({ campaign, userEmail, isPro = false }: { campaign: Campaign; userEmail: string; isPro?: boolean }) {
   const router = useRouter();
   const [name, setName] = useState(campaign.name);
   const [initialMigration] = useState(() => migrateSessionLogs(campaign.data || {}));
@@ -737,13 +737,13 @@ export default function CampaignEditor({ campaign, userEmail, isAdmin = false }:
                   <button onClick={addCharacter} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                     <Plus size={12} /> Add Character
                   </button>
-                  {isAdmin && (
+                  {isPro && (
                     <>
                       <button
                         onClick={() => characterFileInputRef.current?.click()}
                         disabled={uploadingChar}
                         className="text-xs text-crimson hover:text-wine flex items-center gap-1 font-display uppercase tracking-wider disabled:opacity-50 disabled:cursor-wait"
-                        title="Upload a PDF, image, or text character sheet — parsed by Claude (admin only)"
+                        title="Upload a PDF, image, or text character sheet — parsed by Claude (pro only)"
                       >
                         <FileUp size={12} /> {uploadingChar ? 'Parsing…' : 'Upload Sheet'}
                       </button>
@@ -1014,9 +1014,9 @@ export default function CampaignEditor({ campaign, userEmail, isAdmin = false }:
 
         <footer className="pt-3 mt-4 border-t border-rule text-xs text-ink-mute italic font-serif text-center">
           {userEmail}
-          {isAdmin && (
+          {isPro && (
             <span className="not-italic ml-1.5 px-1.5 py-0.5 rounded-sm border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider text-[10px]">
-              Admin
+              Pro
             </span>
           )}
           {' · auto-syncs to Firestore every 1.5s'}

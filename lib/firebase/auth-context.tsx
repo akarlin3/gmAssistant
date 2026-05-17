@@ -4,16 +4,16 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirebaseAuth, googleProvider } from './client';
 
-const ADMIN_EMAILS = new Set(['averykarlin3@gmail.com']);
+const PRO_EMAILS = new Set(['averykarlin3@gmail.com']);
 
-export function isAdminEmail(email: string | null | undefined): boolean {
-  return !!email && ADMIN_EMAILS.has(email.toLowerCase());
+export function isProEmail(email: string | null | undefined): boolean {
+  return !!email && PRO_EMAILS.has(email.toLowerCase());
 }
 
 type AuthContextValue = {
   user: User | null;
   loading: boolean;
-  isAdmin: boolean;
+  isPro: boolean;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -43,10 +43,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth);
   };
 
-  const isAdmin = isAdminEmail(user?.email);
+  const isPro = isProEmail(user?.email);
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin, signInWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, isPro, signInWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );
