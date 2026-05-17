@@ -112,13 +112,8 @@ const Example = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 const Field = ({ value, onChange, placeholder, rows = 1 }: { value: string; onChange: (v: string) => void; placeholder: string; rows?: number }) => (
-  rows > 1 ? (
-    <textarea value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows}
-      className="w-full bg-transparent border-b border-rule text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y px-1 py-1 text-sm" />
-  ) : (
-    <input type="text" value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-      className="w-full bg-transparent border-b border-rule text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none px-1 py-1 text-sm" />
-  )
+  <textarea value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows}
+    className="w-full bg-transparent border-b border-rule text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-none px-1 py-1 text-sm whitespace-pre-wrap break-words [field-sizing:content]" />
 );
 
 const ListField = ({
@@ -327,12 +322,12 @@ const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }: {
       <button onClick={onToggleOpen} className="text-brass-deep hover:text-crimson flex-shrink-0">
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>
-      <input
-        type="text"
+      <textarea
+        rows={1}
         value={data.title || ''}
         onChange={(e) => onChange({ ...data, title: e.target.value })}
         placeholder="Session title"
-        className="flex-1 min-w-[8rem] bg-transparent font-display tracking-wide text-sm text-ink placeholder:text-ink-faint placeholder:italic placeholder:font-serif focus:outline-none border-b border-transparent focus:border-crimson pb-0.5"
+        className="flex-1 min-w-[8rem] bg-transparent font-display tracking-wide text-sm text-ink placeholder:text-ink-faint placeholder:italic placeholder:font-serif focus:outline-none border-b border-transparent focus:border-crimson pb-0.5 resize-none whitespace-pre-wrap break-words [field-sizing:content]"
       />
       <input
         type="date"
@@ -534,8 +529,8 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
             </div>
             <div className="flex items-center gap-2">
               <ScrollText size={20} className="text-crimson flex-shrink-0" />
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign Name"
-                className="flex-1 min-w-0 bg-transparent border-b border-rule font-display text-xl sm:text-2xl tracking-wide text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none pb-1" />
+              <textarea rows={1} value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign Name"
+                className="flex-1 min-w-0 bg-transparent border-b border-rule font-display text-xl sm:text-2xl tracking-wide text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none pb-1 resize-none whitespace-pre-wrap break-words [field-sizing:content]" />
             </div>
             <p className="text-sm text-ink-soft italic font-serif mt-1.5">Lazy DM · Collaborative Campaign Design · Proactive Roleplaying</p>
 
