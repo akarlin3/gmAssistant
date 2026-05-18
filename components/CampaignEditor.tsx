@@ -1110,22 +1110,40 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
             <Flourish />
 
-            <div className="flex flex-wrap gap-1.5 items-center">
-              <ToolBtn onClick={exportJSON}><Download size={12} /> Export</ToolBtn>
-              <ToolBtn onClick={() => fileInputRef.current?.click()}><Upload size={12} /> Import</ToolBtn>
-              <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
-              <button
-                onClick={() => setSoloMode(s => !s)}
-                className={`sm:ml-auto text-xs px-3 py-1 rounded border font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
-                  soloMode
-                    ? 'bg-wine/10 border-wine text-wine'
-                    : 'border-rule text-ink-soft hover:bg-parchment-deep'
-                }`}
-                title={soloMode ? 'Solo targets active — click to switch to group' : 'Group targets active — click to switch to solo'}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 justify-between">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <ToolBtn onClick={exportJSON}><Download size={12} /> Export</ToolBtn>
+                <ToolBtn onClick={() => fileInputRef.current?.click()}><Upload size={12} /> Import</ToolBtn>
+                <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
+                <ToolBtn onClick={handleDelete} danger><Trash2 size={12} /> Delete</ToolBtn>
+              </div>
+              <div
+                role="group"
+                aria-label="Prep target mode"
+                title="Switch prep item targets between solo and group scale"
+                className="inline-flex rounded border border-rule overflow-hidden text-xs font-display uppercase tracking-wider"
               >
-                <User size={12} /> {soloMode ? 'Solo' : 'Group'}
-              </button>
-              <ToolBtn onClick={handleDelete} danger><Trash2 size={12} /> Delete</ToolBtn>
+                <button
+                  type="button"
+                  onClick={() => setSoloMode(true)}
+                  aria-pressed={soloMode}
+                  className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${
+                    soloMode ? 'bg-wine/15 text-wine' : 'text-ink-soft hover:bg-parchment-deep'
+                  }`}
+                >
+                  <User size={12} /> Solo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSoloMode(false)}
+                  aria-pressed={!soloMode}
+                  className={`px-3 py-1 flex items-center gap-1.5 border-l border-rule transition-colors ${
+                    !soloMode ? 'bg-brass-deep/15 text-brass-deep' : 'text-ink-soft hover:bg-parchment-deep'
+                  }`}
+                >
+                  <Users size={12} /> Group
+                </button>
+              </div>
             </div>
 
             <div className="mt-3">
