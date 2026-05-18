@@ -99,11 +99,15 @@ const Inspire = ({
   onPick,
   count = 5,
   label = 'Inspire',
+  compact = false,
+  align = 'right',
 }: {
   tableId: string;
   onPick: (entry: string) => void;
   count?: number;
   label?: string;
+  compact?: boolean;
+  align?: 'left' | 'right';
 }) => {
   const [open, setOpen] = useState(false);
   const [picks, setPicks] = useState<string[]>([]);
@@ -117,35 +121,39 @@ const Inspire = ({
     setOpen(o => !o);
   };
 
+  const triggerClass = compact
+    ? "text-[10px] px-1.5 py-0.5 rounded border border-crimson/50 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment flex items-center gap-1 font-display uppercase tracking-wider"
+    : "text-[11px] px-2 py-0.5 rounded border border-brass-deep/60 bg-brass/15 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass-deep flex items-center gap-1 font-display uppercase tracking-wider";
+
   return (
     <div className="relative inline-block">
       <button
         type="button"
         onClick={toggle}
-        className="text-[11px] px-2 py-0.5 rounded border border-amber-900/40 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40 flex items-center gap-1"
+        className={triggerClass}
         title={`Inspire from ${table.title}`}
       >
         <Sparkles size={11} /> {label}
       </button>
       {open && (
-        <div className="absolute right-0 mt-1 w-80 z-50 rounded border border-zinc-700 bg-zinc-900 shadow-xl p-2 space-y-1.5">
-          <div className="flex items-center justify-between text-[10px] text-zinc-500 px-1 pb-1 border-b border-zinc-800">
-            <span>{table.title}</span>
+        <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} mt-1 w-80 z-50 rounded border border-brass-deep/70 bg-parchment shadow-xl p-2 space-y-1.5`}>
+          <div className="flex items-center justify-between text-[10px] text-ink-mute px-1 pb-1 border-b border-rule">
+            <span className="font-display uppercase tracking-wider text-brass-deep">{table.title}</span>
             <div className="flex gap-2">
-              <button onClick={reroll} className="text-amber-400 hover:text-amber-300">Reroll</button>
-              <button onClick={() => setOpen(false)} className="text-zinc-500 hover:text-zinc-300">Close</button>
+              <button onClick={reroll} className="text-crimson hover:text-wine font-display uppercase tracking-wider">Reroll</button>
+              <button onClick={() => setOpen(false)} className="text-ink-mute hover:text-ink font-display uppercase tracking-wider">Close</button>
             </div>
           </div>
           {picks.map((entry, i) => (
             <button
               key={i}
               onClick={() => { onPick(entry); setOpen(false); }}
-              className="block w-full text-left text-xs px-2 py-1.5 rounded text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+              className="block w-full text-left text-xs px-2 py-1.5 rounded text-ink-soft hover:bg-parchment-deep hover:text-ink font-serif"
             >
               {entry}
             </button>
           ))}
-          <div className="text-[9px] text-zinc-600 px-1 pt-1 italic">{table.attribution}</div>
+          <div className="text-[9px] text-ink-mute px-1 pt-1 italic">{table.attribution}</div>
         </div>
       )}
     </div>
@@ -340,12 +348,50 @@ const GoalCard = ({ data, onChange, onRemove }: any) => (
   </div>
 );
 
+const NPCFieldRow = ({
+  label,
+  value,
+  onChange,
+  placeholder,
+  rows,
+  tableId,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  rows?: number;
+  tableId?: string;
+}) => (
+  <div>
+    <div className="flex items-center justify-between gap-2 mb-0.5">
+      <CardLabel>{label}</CardLabel>
+      {tableId && (
+        <Inspire
+          tableId={tableId}
+          compact
+          label=""
+          onPick={(e) => {
+            if (value && value.trim() && !confirm(`Replace current ${label.toLowerCase()}?`)) return;
+            onChange(e);
+          }}
+        />
+      )}
+    </div>
+    <Field value={value} onChange={onChange} placeholder={placeholder} rows={rows} />
+  </div>
+);
+
 const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) => {
   const [showDetails, setShowDetails] = useState<boolean>(
     defaultDetailsOpen ||
     !!(data.appearance || data.abilities || data.talent || data.mannerism ||
        data.interactions || data.knowledge || data.ideal || data.bond || data.flaw)
   );
+  const archetypeInspire = (tableId: string) => (e: string) => {
+    if (data.archetype && data.archetype.trim() && !confirm('Replace current archetype?')) return;
+    onChange({ ...data, archetype: e });
+  };
   return (
     <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
       <div className="flex justify-between gap-2">
@@ -361,8 +407,17 @@ const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) 
         <div><CardLabel>Faction</CardLabel>
           <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="..." /></div>
       </div>
-      <div><CardLabel>Archetype</CardLabel>
-        <Field value={data.archetype} onChange={(v) => onChange({ ...data, archetype: v })} placeholder='e.g. "Han Solo"' /></div>
+      <div>
+        <div className="flex items-center justify-between gap-2 mb-0.5 flex-wrap">
+          <CardLabel>Archetype</CardLabel>
+          <div className="flex gap-1 flex-wrap">
+            <Inspire tableId="villainArchetypes" compact label="Villain" onPick={archetypeInspire('villainArchetypes')} />
+            <Inspire tableId="npcBackgroundConcepts" compact label="Background" onPick={archetypeInspire('npcBackgroundConcepts')} />
+            <Inspire tableId="raceCharacterNotes" compact label="Species" onPick={archetypeInspire('raceCharacterNotes')} />
+          </div>
+        </div>
+        <Field value={data.archetype} onChange={(v) => onChange({ ...data, archetype: v })} placeholder='e.g. "Han Solo"' />
+      </div>
       <div><CardLabel>Active Goal</CardLabel>
         <Field value={data.goal} onChange={(v) => onChange({ ...data, goal: v })} placeholder="What are they pursuing?" rows={2} /></div>
       <div><CardLabel>Method of Pursuit</CardLabel>
@@ -376,24 +431,15 @@ const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) 
       </button>
       {showDetails && (
         <div className="space-y-2 pt-1 border-t border-rule">
-          <div><CardLabel>Appearance</CardLabel>
-            <Field value={data.appearance} onChange={(v) => onChange({ ...data, appearance: v })} placeholder="Distinctive physical detail or two" /></div>
-          <div><CardLabel>Abilities</CardLabel>
-            <Field value={data.abilities} onChange={(v) => onChange({ ...data, abilities: v })} placeholder="High/low ability — strong, slow, perceptive..." /></div>
-          <div><CardLabel>Talent</CardLabel>
-            <Field value={data.talent} onChange={(v) => onChange({ ...data, talent: v })} placeholder="Something they can do that's distinctive" /></div>
-          <div><CardLabel>Mannerism</CardLabel>
-            <Field value={data.mannerism} onChange={(v) => onChange({ ...data, mannerism: v })} placeholder="Small habit that makes them memorable" /></div>
-          <div><CardLabel>Interactions</CardLabel>
-            <Field value={data.interactions} onChange={(v) => onChange({ ...data, interactions: v })} placeholder="Default conversational stance — curious, suspicious..." /></div>
-          <div><CardLabel>Knowledge</CardLabel>
-            <Field value={data.knowledge} onChange={(v) => onChange({ ...data, knowledge: v })} placeholder="Something useful they know" rows={2} /></div>
-          <div><CardLabel>Ideal</CardLabel>
-            <Field value={data.ideal} onChange={(v) => onChange({ ...data, ideal: v })} placeholder="What drives them" /></div>
-          <div><CardLabel>Bond</CardLabel>
-            <Field value={data.bond} onChange={(v) => onChange({ ...data, bond: v })} placeholder="Who or what they're tied to" /></div>
-          <div><CardLabel>Flaw / Secret</CardLabel>
-            <Field value={data.flaw} onChange={(v) => onChange({ ...data, flaw: v })} placeholder="Flaw or secret that could undermine them" /></div>
+          <NPCFieldRow label="Appearance" value={data.appearance || ''} onChange={(v) => onChange({ ...data, appearance: v })} placeholder="Distinctive physical detail or two" />
+          <NPCFieldRow label="Abilities" value={data.abilities || ''} onChange={(v) => onChange({ ...data, abilities: v })} placeholder="High/low ability — strong, slow, perceptive..." />
+          <NPCFieldRow label="Talent" value={data.talent || ''} onChange={(v) => onChange({ ...data, talent: v })} placeholder="Something they can do that's distinctive" tableId="npcTalents" />
+          <NPCFieldRow label="Mannerism" value={data.mannerism || ''} onChange={(v) => onChange({ ...data, mannerism: v })} placeholder="Small habit that makes them memorable" tableId="npcMannerisms" />
+          <NPCFieldRow label="Interactions" value={data.interactions || ''} onChange={(v) => onChange({ ...data, interactions: v })} placeholder="Default conversational stance — curious, suspicious..." tableId="npcInteractionTraits" />
+          <NPCFieldRow label="Knowledge" value={data.knowledge || ''} onChange={(v) => onChange({ ...data, knowledge: v })} placeholder="Something useful they know" rows={2} />
+          <NPCFieldRow label="Ideal" value={data.ideal || ''} onChange={(v) => onChange({ ...data, ideal: v })} placeholder="What drives them" tableId="npcIdeals" />
+          <NPCFieldRow label="Bond" value={data.bond || ''} onChange={(v) => onChange({ ...data, bond: v })} placeholder="Who or what they're tied to" tableId="npcBonds" />
+          <NPCFieldRow label="Flaw / Secret" value={data.flaw || ''} onChange={(v) => onChange({ ...data, flaw: v })} placeholder="Flaw or secret that could undermine them" tableId="npcFlawsSecrets" />
         </div>
       )}
     </div>
@@ -1355,7 +1401,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   }} onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== i))} />
                 ))}
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add NPC from:</span>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add new NPC seeded by:</span>
                   <Inspire tableId="villainArchetypes" label="Villain" onPick={(e) => {
                     setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: 'Villain', faction: '', archetype: e, goal: '', method: '' }]);
                   }} />
@@ -1365,25 +1411,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   <Inspire tableId="raceCharacterNotes" label="Species" onPick={(e) => {
                     setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: e, goal: '', method: '' }]);
                   }} />
-                  <Inspire tableId="npcMannerisms" label="Mannerism" onPick={(e) => {
-                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', mannerism: e }]);
-                  }} />
-                  <Inspire tableId="npcTalents" label="Talent" onPick={(e) => {
-                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', talent: e }]);
-                  }} />
-                  <Inspire tableId="npcInteractionTraits" label="Interaction" onPick={(e) => {
-                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', interactions: e }]);
-                  }} />
-                  <Inspire tableId="npcIdeals" label="Ideal" onPick={(e) => {
-                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', ideal: e }]);
-                  }} />
-                  <Inspire tableId="npcBonds" label="Bond" onPick={(e) => {
-                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', bond: e }]);
-                  }} />
-                  <Inspire tableId="npcFlawsSecrets" label="Flaw" onPick={(e) => {
-                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', flaw: e }]);
-                  }} />
                 </InspireGroup>
+                <p className="text-[10px] text-ink-mute italic font-serif -mt-1">
+                  Trait inspirations (mannerism, talent, ideal, bond, etc.) live inside each NPC card under &quot;Show Details&quot;.
+                </p>
                 <button onClick={() => setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> Add NPC
                 </button>
