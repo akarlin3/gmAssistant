@@ -9,8 +9,9 @@ import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff,
-  FileUp,
+  FileUp, Sparkles,
 } from 'lucide-react';
+import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import DiceRoller, { type Macro } from './DiceRoller';
 import SpellsTab, { type Spell } from './SpellsTab';
 import DMRefTab from './DMRefTab';
@@ -90,6 +91,68 @@ const Pitfall = ({ children }: { children: React.ReactNode }) => (
     <X size={13} className="text-crimson flex-shrink-0 mt-0.5" />
     <div className="text-ink-soft font-serif"><span className="font-display uppercase tracking-wider text-xs text-crimson">Common Pitfall · </span>{children}</div>
   </div>
+);
+
+const Inspire = ({
+  tableId,
+  onPick,
+  count = 5,
+  label = 'Inspire',
+}: {
+  tableId: string;
+  onPick: (entry: string) => void;
+  count?: number;
+  label?: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [picks, setPicks] = useState<string[]>([]);
+  const table = TABLES[tableId];
+  if (!table) return null;
+
+  const reroll = () => setPicks(sampleTable(tableId, count));
+
+  const toggle = () => {
+    if (!open) reroll();
+    setOpen(o => !o);
+  };
+
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={toggle}
+        className="text-[11px] px-2 py-0.5 rounded border border-amber-900/40 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40 flex items-center gap-1"
+        title={`Inspire from ${table.title}`}
+      >
+        <Sparkles size={11} /> {label}
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-80 z-50 rounded border border-zinc-700 bg-zinc-900 shadow-xl p-2 space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] text-zinc-500 px-1 pb-1 border-b border-zinc-800">
+            <span>{table.title}</span>
+            <div className="flex gap-2">
+              <button onClick={reroll} className="text-amber-400 hover:text-amber-300">Reroll</button>
+              <button onClick={() => setOpen(false)} className="text-zinc-500 hover:text-zinc-300">Close</button>
+            </div>
+          </div>
+          {picks.map((entry, i) => (
+            <button
+              key={i}
+              onClick={() => { onPick(entry); setOpen(false); }}
+              className="block w-full text-left text-xs px-2 py-1.5 rounded text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+            >
+              {entry}
+            </button>
+          ))}
+          <div className="text-[9px] text-zinc-600 px-1 pt-1 italic">{table.attribution}</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const InspireGroup = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex flex-wrap gap-1.5 items-center">{children}</div>
 );
 
 const TargetBar = ({ current, target, source }: { current: number; target: number; source?: string }) => {
@@ -690,6 +753,21 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="pitch" title="Quick Pitch" methods={['ccd']} done={done.pitch} onToggle={toggleDone} open={open.pitch} onToggleOpen={toggleOpen}>
                 <BookQuote source="CCD case study">Pitch the results, not the concept.</BookQuote>
                 <Field value={get('pitch', '')} onChange={(v) => setVal('pitch', v)} placeholder="2-3 sentences" rows={4} />
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Goal seeds:</span>
+                  <Inspire tableId="dungeonGoals" label="Dungeon" onPick={(e) => {
+                    const cur = get('pitch', '') as string;
+                    setVal('pitch', cur ? `${cur}\n• ${e}` : `• ${e}`);
+                  }} />
+                  <Inspire tableId="wildernessGoals" label="Wilderness" onPick={(e) => {
+                    const cur = get('pitch', '') as string;
+                    setVal('pitch', cur ? `${cur}\n• ${e}` : `• ${e}`);
+                  }} />
+                  <Inspire tableId="urbanGoals" label="Urban" onPick={(e) => {
+                    const cur = get('pitch', '') as string;
+                    setVal('pitch', cur ? `${cur}\n• ${e}` : `• ${e}`);
+                  }} />
+                </InspireGroup>
               </Section>
             </Phase>
 
@@ -713,6 +791,18 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     const next = [...(get('factions', []) as any[])]; next[i] = v; setVal('factions', next);
                   }} onRemove={() => setVal('factions', (get('factions', []) as any[]).filter((_: any, j: number) => j !== i))} />
                 ))}
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add faction from:</span>
+                  <Inspire tableId="villainArchetypes" label="Villain" onPick={(e) => {
+                    setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }]);
+                  }} />
+                  <Inspire tableId="allyTypes" label="Ally" onPick={(e) => {
+                    setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }]);
+                  }} />
+                  <Inspire tableId="patronTypes" label="Patron" onPick={(e) => {
+                    setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }]);
+                  }} />
+                </InspireGroup>
                 <button onClick={() => setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: '', area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> Add Faction
                 </button>
@@ -720,6 +810,21 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="conflicts" title="Active Conflicts" methods={['ccd', 'pr']} done={done.conflicts} onToggle={toggleDone} open={open.conflicts} onToggleOpen={toggleOpen}>
                 <BookQuote source="CCD ch. 2">Conflicts are the end goal of worldbuilding.</BookQuote>
                 <ListField items={get('conflicts', [])} onChange={(v) => setVal('conflicts', v)} placeholder="Faction A vs Faction B over X" rows={2} target={getTarget('conflicts', soloMode)} />
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <Inspire tableId="twists" label="Twist" onPick={(e) => {
+                    setVal('conflicts', [...(get('conflicts', []) as string[]), e]);
+                  }} />
+                  <Inspire tableId="moralQuandaries" label="Quandary" onPick={(e) => {
+                    setVal('conflicts', [...(get('conflicts', []) as string[]), e]);
+                  }} />
+                  <Inspire tableId="sideComplications" label="Complication" onPick={(e) => {
+                    setVal('conflicts', [...(get('conflicts', []) as string[]), e]);
+                  }} />
+                  <Inspire tableId="campaignEvents" label="Event" onPick={(e) => {
+                    setVal('conflicts', [...(get('conflicts', []) as string[]), e]);
+                  }} />
+                </InspireGroup>
               </Section>
             </Phase>
 
@@ -817,15 +922,43 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="s2-start" title="2 · Create a Strong Start" methods={['shea']} done={done['s2-start']} onToggle={toggleDone} open={open['s2-start']} onToggleOpen={toggleOpen}>
                 <SoloNote>Solo level-1 cannot reliably survive opening combat. Substitute action that isn't a losable fight.</SoloNote>
                 <Field value={get('strongStart', '')} onChange={(v) => setVal('strongStart', v)} placeholder="One sentence or paragraph" rows={4} />
+                <InspireGroup>
+                  <Inspire tableId="introductions" label="Introduction" onPick={(e) => {
+                    const cur = (get('strongStart', '') as string).trim();
+                    if (cur && !confirm('Replace the current strong start?')) return;
+                    setVal('strongStart', e);
+                  }} />
+                </InspireGroup>
               </Section>
               <Section id="s3-scenes" title="3 · Outline Potential Scenes" methods={['shea']} done={done['s3-scenes']} onToggle={toggleDone} open={open['s3-scenes']} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM (Perkins)">Be prepared to throw what you have away.</BookQuote>
                 <ListField items={get('scenes', [])} onChange={(v) => setVal('scenes', v)} placeholder="A scene" target={getTarget('scenes', soloMode)} />
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <Inspire tableId="sideQuests" label="Side Quest" onPick={(e) => {
+                    setVal('scenes', [...(get('scenes', []) as string[]), e]);
+                  }} />
+                  <Inspire tableId="sideComplications" label="Complication" onPick={(e) => {
+                    setVal('scenes', [...(get('scenes', []) as string[]), e]);
+                  }} />
+                </InspireGroup>
               </Section>
               <Section id="s4-secrets" title="4 · Define Secrets & Clues" methods={['shea']} done={done['s4-secrets']} onToggle={toggleDone} open={open['s4-secrets']} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM ch. 6">Secrets and clues are the connective tissue of an adventure.</BookQuote>
                 <Pitfall>Tying a secret to a specific NPC means if players skip them, the secret never surfaces.</Pitfall>
                 <ListField items={get('secrets', [])} onChange={(v) => setVal('secrets', v)} placeholder="A single-sentence secret" rows={2} target={getTarget('secrets', soloMode)} />
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <Inspire tableId="villainSchemes" label="Scheme" onPick={(e) => {
+                    setVal('secrets', [...(get('secrets', []) as string[]), e]);
+                  }} />
+                  <Inspire tableId="villainWeaknesses" label="Weakness" onPick={(e) => {
+                    setVal('secrets', [...(get('secrets', []) as string[]), e]);
+                  }} />
+                  <Inspire tableId="campaignEvents" label="Event" onPick={(e) => {
+                    setVal('secrets', [...(get('secrets', []) as string[]), e]);
+                  }} />
+                </InspireGroup>
               </Section>
               <Section id="s5-loc" title="5 · Develop Fantastic Locations" methods={['shea']} done={done['s5-loc']} onToggle={toggleDone} open={open['s5-loc']} onToggleOpen={toggleOpen} icon={Map}>
                 <BookQuote source="Lazy DM ch. 7">When in doubt, go for scale.</BookQuote>
@@ -847,6 +980,18 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     const next = [...(get('npcs', []) as any[])]; next[i] = v; setVal('npcs', next);
                   }} onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== i))} />
                 ))}
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add NPC from:</span>
+                  <Inspire tableId="villainArchetypes" label="Villain" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: 'Villain', faction: '', archetype: e, goal: '', method: '' }]);
+                  }} />
+                  <Inspire tableId="npcBackgroundConcepts" label="Background" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: e, goal: '', method: '' }]);
+                  }} />
+                  <Inspire tableId="raceCharacterNotes" label="Species" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: e, goal: '', method: '' }]);
+                  }} />
+                </InspireGroup>
                 <button onClick={() => setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> Add NPC
                 </button>
@@ -902,6 +1047,17 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </Section>
               <Section id="end-collect" title="Collect Every Thread" methods={['ccd']} done={done['end-collect']} onToggle={toggleDone} open={open['end-collect']} onToggleOpen={toggleOpen}>
                 <Field value={get('endThreads', '')} onChange={(v) => setVal('endThreads', v)} placeholder="Active threads list" rows={6} />
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <Inspire tableId="climaxes" label="Climax" onPick={(e) => {
+                    const cur = get('endThreads', '') as string;
+                    setVal('endThreads', cur ? `${cur}\n• ${e}` : `• ${e}`);
+                  }} />
+                  <Inspire tableId="campaignEvents" label="Event" onPick={(e) => {
+                    const cur = get('endThreads', '') as string;
+                    setVal('endThreads', cur ? `${cur}\n• ${e}` : `• ${e}`);
+                  }} />
+                </InspireGroup>
               </Section>
               <Section id="end-catalyst" title="Add Catalysts" methods={['ccd']} done={done['end-catalyst']} onToggle={toggleDone} open={open['end-catalyst']} onToggleOpen={toggleOpen}>
                 <Field value={get('endCatalyst', '')} onChange={(v) => setVal('endCatalyst', v)} placeholder="Forcing events" rows={3} />
