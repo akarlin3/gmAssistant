@@ -304,29 +304,65 @@ const GoalCard = ({ data, onChange, onRemove }: any) => (
   </div>
 );
 
-const NPCCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
-    <div className="flex justify-between gap-2">
-      <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
-      <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) => {
+  const [showDetails, setShowDetails] = useState<boolean>(
+    defaultDetailsOpen ||
+    !!(data.appearance || data.abilities || data.talent || data.mannerism ||
+       data.interactions || data.knowledge || data.ideal || data.bond || data.flaw)
+  );
+  return (
+    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+      <div className="flex justify-between gap-2">
+        <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
+        <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div><CardLabel>Type</CardLabel>
+          <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
+            <option value="">— Choose —</option>
+            <option>Ally</option><option>Villain</option><option>Patron</option><option>Rival</option><option>Neutral / Colour</option>
+          </select></div>
+        <div><CardLabel>Faction</CardLabel>
+          <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="..." /></div>
+      </div>
+      <div><CardLabel>Archetype</CardLabel>
+        <Field value={data.archetype} onChange={(v) => onChange({ ...data, archetype: v })} placeholder='e.g. "Han Solo"' /></div>
+      <div><CardLabel>Active Goal</CardLabel>
+        <Field value={data.goal} onChange={(v) => onChange({ ...data, goal: v })} placeholder="What are they pursuing?" rows={2} /></div>
+      <div><CardLabel>Method of Pursuit</CardLabel>
+        <Field value={data.method} onChange={(v) => onChange({ ...data, method: v })} placeholder="Violence? Charm?" /></div>
+      <button
+        onClick={() => setShowDetails(s => !s)}
+        className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider"
+      >
+        {showDetails ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        {showDetails ? 'Hide Details' : 'Show Details'}
+      </button>
+      {showDetails && (
+        <div className="space-y-2 pt-1 border-t border-rule">
+          <div><CardLabel>Appearance</CardLabel>
+            <Field value={data.appearance} onChange={(v) => onChange({ ...data, appearance: v })} placeholder="Distinctive physical detail or two" /></div>
+          <div><CardLabel>Abilities</CardLabel>
+            <Field value={data.abilities} onChange={(v) => onChange({ ...data, abilities: v })} placeholder="High/low ability — strong, slow, perceptive..." /></div>
+          <div><CardLabel>Talent</CardLabel>
+            <Field value={data.talent} onChange={(v) => onChange({ ...data, talent: v })} placeholder="Something they can do that's distinctive" /></div>
+          <div><CardLabel>Mannerism</CardLabel>
+            <Field value={data.mannerism} onChange={(v) => onChange({ ...data, mannerism: v })} placeholder="Small habit that makes them memorable" /></div>
+          <div><CardLabel>Interactions</CardLabel>
+            <Field value={data.interactions} onChange={(v) => onChange({ ...data, interactions: v })} placeholder="Default conversational stance — curious, suspicious..." /></div>
+          <div><CardLabel>Knowledge</CardLabel>
+            <Field value={data.knowledge} onChange={(v) => onChange({ ...data, knowledge: v })} placeholder="Something useful they know" rows={2} /></div>
+          <div><CardLabel>Ideal</CardLabel>
+            <Field value={data.ideal} onChange={(v) => onChange({ ...data, ideal: v })} placeholder="What drives them" /></div>
+          <div><CardLabel>Bond</CardLabel>
+            <Field value={data.bond} onChange={(v) => onChange({ ...data, bond: v })} placeholder="Who or what they're tied to" /></div>
+          <div><CardLabel>Flaw / Secret</CardLabel>
+            <Field value={data.flaw} onChange={(v) => onChange({ ...data, flaw: v })} placeholder="Flaw or secret that could undermine them" /></div>
+        </div>
+      )}
     </div>
-    <div className="grid grid-cols-2 gap-2">
-      <div><CardLabel>Type</CardLabel>
-        <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
-          <option value="">— Choose —</option>
-          <option>Ally</option><option>Villain</option><option>Patron</option><option>Rival</option><option>Neutral / Colour</option>
-        </select></div>
-      <div><CardLabel>Faction</CardLabel>
-        <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="..." /></div>
-    </div>
-    <div><CardLabel>Archetype</CardLabel>
-      <Field value={data.archetype} onChange={(v) => onChange({ ...data, archetype: v })} placeholder='e.g. "Han Solo"' /></div>
-    <div><CardLabel>Active Goal</CardLabel>
-      <Field value={data.goal} onChange={(v) => onChange({ ...data, goal: v })} placeholder="What are they pursuing?" rows={2} /></div>
-    <div><CardLabel>Method of Pursuit</CardLabel>
-      <Field value={data.method} onChange={(v) => onChange({ ...data, method: v })} placeholder="Violence? Charm?" /></div>
-  </div>
-);
+  );
+};
 
 const LocationCard = ({ data, onChange, onRemove }: any) => (
   <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
@@ -991,6 +1027,24 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   <Inspire tableId="raceCharacterNotes" label="Species" onPick={(e) => {
                     setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: e, goal: '', method: '' }]);
                   }} />
+                  <Inspire tableId="npcMannerisms" label="Mannerism" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', mannerism: e }]);
+                  }} />
+                  <Inspire tableId="npcTalents" label="Talent" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', talent: e }]);
+                  }} />
+                  <Inspire tableId="npcInteractionTraits" label="Interaction" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', interactions: e }]);
+                  }} />
+                  <Inspire tableId="npcIdeals" label="Ideal" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', ideal: e }]);
+                  }} />
+                  <Inspire tableId="npcBonds" label="Bond" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', bond: e }]);
+                  }} />
+                  <Inspire tableId="npcFlawsSecrets" label="Flaw" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', flaw: e }]);
+                  }} />
                 </InspireGroup>
                 <button onClick={() => setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> Add NPC
@@ -1094,6 +1148,14 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <li><span className="font-semibold text-ink">Consequences for Failure.</span> If retryable, it was a skill check.</li>
                 <li><span className="font-semibold text-ink">Fun to Pursue.</span> GM can imagine obstacles.</li>
               </ol>
+            </div>
+            <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+              <h2 className="font-display text-lg tracking-wide text-ink mb-2">The 10-Sentence NPC</h2>
+              <p className="text-sm text-ink-soft font-serif">
+                Detailed NPCs benefit from a roughly ten-sentence sketch: occupation and history,
+                appearance, abilities, talent, mannerism, interactions, useful knowledge, ideal, bond,
+                and flaw or secret. Click &quot;Show Details&quot; on any NPC card to expand the full set.
+              </p>
             </div>
             <div className="rounded border border-wine/40 bg-wine/5 p-4 shadow-card">
               <h2 className="font-display text-lg tracking-wide text-ink mb-2 flex items-center gap-2"><User size={16} className="text-wine" /> Solo Play Adaptations</h2>
