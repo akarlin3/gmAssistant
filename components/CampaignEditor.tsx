@@ -1196,10 +1196,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 justify-between">
-              <div className="-mx-1 px-1 overflow-x-auto max-w-full" role="tablist" aria-label="Campaign sections">
-                <div className="inline-flex border border-rule rounded overflow-hidden font-display uppercase tracking-wider text-xs whitespace-nowrap">
-                  {[
+            <div className="mt-3 flex flex-wrap items-start gap-x-3 gap-y-2 justify-between">
+              <div className="flex flex-col gap-1" role="tablist" aria-label="Campaign sections">
+                {(() => {
+                  const allTabs = [
                     ['prep', 'Prep Flow'] as const,
                     ['ref', 'Reference'] as const,
                     ['track', 'Tracking'] as const,
@@ -1208,23 +1208,33 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     ['spells', 'Spells'] as const,
                     ...(isPro ? [['names', 'Names'] as const, ['locations', 'Locations'] as const] : []),
                     ['dmref', 'DM Ref'] as const,
-                  ].map(([id, label], i) => (
-                    <button
-                      key={id}
-                      type="button"
-                      role="tab"
-                      aria-selected={tab === id}
-                      onClick={() => setTab(id)}
-                      className={`px-3 py-1.5 transition-colors ${i > 0 ? 'border-l border-rule' : ''} ${
-                        tab === id
-                          ? 'bg-crimson text-parchment'
-                          : 'text-ink-soft hover:bg-parchment-deep'
-                      }`}
+                  ];
+                  const half = Math.ceil(allTabs.length / 2);
+                  const rows = [allTabs.slice(0, half), allTabs.slice(half)];
+                  return rows.map((row, rowIdx) => (
+                    <div
+                      key={rowIdx}
+                      className="inline-flex border border-rule rounded overflow-hidden font-display uppercase tracking-wider text-xs whitespace-nowrap self-start"
                     >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                      {row.map(([id, label], i) => (
+                        <button
+                          key={id}
+                          type="button"
+                          role="tab"
+                          aria-selected={tab === id}
+                          onClick={() => setTab(id)}
+                          className={`px-3 py-1.5 transition-colors ${i > 0 ? 'border-l border-rule' : ''} ${
+                            tab === id
+                              ? 'bg-crimson text-parchment'
+                              : 'text-ink-soft hover:bg-parchment-deep'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  ));
+                })()}
               </div>
               <div className="text-xs text-brass-deep font-display uppercase tracking-wider ml-auto">
                 {completedCount} Steps Done
