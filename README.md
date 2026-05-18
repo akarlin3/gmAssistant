@@ -21,50 +21,20 @@ Built for solo DMs who want their notes synced across devices without paying for
 
 Beyond worldbuilding, the app includes table-side helpers for actually running sessions:
 
-### Part 9 — Stripe ($1.99/month Pro subscription)
-
-The pro AI features (character-sheet parser, name generator, NPC inspires) are paywalled at $1.99/month. Anyone in `PRO_EMAILS` (`lib/pro-status.ts`) stays free; everyone else upgrades via Stripe Checkout in-app.
-
-26. **Stripe account.** Sign up at https://stripe.com if you don't already have one. Stay in **Test mode** until you're ready to take real payments.
-27. **Create the product.** Stripe Dashboard → **Products** → **Add product**. Name "Campaign Prep Pro", recurring price **$1.99 USD / month**. Save. Copy the price ID (looks like `price_1ABCxyz…`) — you'll paste it as `STRIPE_PRICE_ID`.
-28. **Get the API secret key.** Dashboard → **Developers** → **API keys** → copy the **Secret key** (`sk_test_…` in test mode). Paste it as `STRIPE_SECRET_KEY`.
-29. **Webhook.** Dashboard → **Developers** → **Webhooks** → **Add endpoint**. URL is `https://<your-railway-domain>/api/stripe/webhook`. Subscribe to:
-    - `checkout.session.completed`
-    - `customer.subscription.created`
-    - `customer.subscription.updated`
-    - `customer.subscription.deleted`
-    - `invoice.payment_failed`
-
-    After creating, copy the **Signing secret** (`whsec_…`) → paste as `STRIPE_WEBHOOK_SECRET`.
-
-30. **Customer Portal.** Dashboard → **Settings** → **Billing** → **Customer portal**. Enable it. Under "Functionality", allow customers to cancel subscriptions. Save.
-31. **Firebase service account.** Firebase Console → **Project settings** (gear) → **Service accounts** tab → **Generate new private key**. A JSON file downloads. Copy the **entire JSON** as a one-line value for `FIREBASE_SERVICE_ACCOUNT_JSON` (Railway's Variables UI accepts multi-line values; locally, paste it on one line and escape newlines in the `private_key` field as `\n`).
-32. **Add the new env vars** to Railway → **Variables** (and to `.env.local` for local dev):
-
-    ```
-    STRIPE_SECRET_KEY=sk_test_...
-    STRIPE_WEBHOOK_SECRET=whsec_...
-    STRIPE_PRICE_ID=price_...
-    FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"...","private_key":"...","client_email":"...",...}
-    ```
-
-33. **Republish Firestore rules.** `firestore.rules` now adds a `users/{uid}` collection (clients can read their own doc; only the server writes). Re-paste the file into Firebase Console → Firestore → Rules → Publish.
-34. **Smoke test in test mode.** Sign in with a non-pro Google account. Click your email in the header → **Upgrade to Pro**. Stripe Checkout opens — use test card `4242 4242 4242 4242`, any future expiry, any 3 digits, any ZIP. After payment you'll return to `/account?checkout=success`. Within a couple seconds the webhook fires and the pro features unlock. Click **Manage subscription** → cancel. Confirm "Cancels on <date>" shows.
-
-For local webhook testing: `stripe listen --forward-to localhost:3000/api/stripe/webhook` prints a temporary `whsec_…` to use in `.env.local`.
-
-When you're ready for real money, flip Stripe to **Live mode**, swap `sk_test_` → `sk_live_`, re-create the product/webhook in live mode, and update Railway's env vars.
-
----
+- **Inspire tables** — quick-roll prompts (including NPC trait inspires shown inline on NPCs)
+- **NPC details panel** — pull up stats, traits, and notes for any NPC at the table
+- **Encounter helper** — XP budgets and difficulty calculation
+- **Renown** and **Downtime** trackers for between-session bookkeeping
 
 ## Pro features (LLM-powered)
 
-A few features call paid inference APIs and are gated to a small allowlist of pro accounts:
+A few features call paid inference APIs and are gated behind a $1.99/month Pro subscription (Stripe Checkout):
 
-- **Character sheet parser** — drop a PDF or screenshot, get a structured character entry (Sonnet by default, Opus opt-in)
+- **Character sheet parser** — drop a PDF or screenshot, get a structured character entry
 - **Name generator** — themed NPC name lists
+- **NPC trait inspires** — generated personality hooks
 
-See `CLAUDE.md` for the pro-gating pattern (server-side `verifyPro` + client-side `isPro` from auth context).
+A small allowlist in `lib/pro-status.ts` (`PRO_EMAILS`) stays free without a subscription. See `CLAUDE.md` for the pro-gating pattern (server-side `verifyPro` + client-side `isPro` from auth context, with `LockedInline` / `LockedPanel` upgrade CTAs).
 
 ## Stack
 
