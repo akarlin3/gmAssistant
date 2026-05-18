@@ -111,13 +111,57 @@ const Inspire = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [picks, setPicks] = useState<string[]>([]);
+  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const table = TABLES[tableId];
+
+  const POPUP_WIDTH = 320; // matches w-80
+  const VIEWPORT_MARGIN = 8;
+
+  const updateCoords = useCallback(() => {
+    if (!btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const width = Math.min(POPUP_WIDTH, vw - VIEWPORT_MARGIN * 2);
+    const preferredLeft = align === 'left' ? r.left : r.right - width;
+    const left = Math.max(VIEWPORT_MARGIN, Math.min(preferredLeft, vw - width - VIEWPORT_MARGIN));
+    setCoords({ top: r.bottom + 4, left, width });
+  }, [align]);
+
+  useEffect(() => {
+    if (!open) return;
+    updateCoords();
+    const onScroll = () => updateCoords();
+    const onResize = () => updateCoords();
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [open, updateCoords]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (btnRef.current?.contains(target) || popupRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, [open]);
+
   if (!table) return null;
 
   const reroll = () => setPicks(sampleTable(tableId, count));
 
   const toggle = () => {
-    if (!open) reroll();
+    if (!open) {
+      reroll();
+      updateCoords();
+    }
     setOpen(o => !o);
   };
 
@@ -126,8 +170,9 @@ const Inspire = ({
     : "text-[11px] px-2 py-0.5 rounded border border-brass-deep/60 bg-brass/15 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass-deep flex items-center gap-1 font-display uppercase tracking-wider";
 
   return (
-    <div className="relative inline-block">
+    <div className="inline-block">
       <button
+        ref={btnRef}
         type="button"
         onClick={toggle}
         className={triggerClass}
@@ -135,8 +180,12 @@ const Inspire = ({
       >
         <Sparkles size={11} /> {label}
       </button>
-      {open && (
-        <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} mt-1 w-80 z-50 rounded border border-brass-deep/70 bg-parchment shadow-xl p-2 space-y-1.5`}>
+      {open && coords && (
+        <div
+          ref={popupRef}
+          style={{ position: 'fixed', top: coords.top, left: coords.left, width: coords.width, zIndex: 50 }}
+          className="rounded border border-brass-deep/70 bg-parchment shadow-xl p-2 space-y-1.5"
+        >
           <div className="flex items-center justify-between text-[10px] text-ink-mute px-1 pb-1 border-b border-rule">
             <span className="font-display uppercase tracking-wider text-brass-deep">{table.title}</span>
             <div className="flex gap-2">
