@@ -18,6 +18,7 @@ import SpellsTab, { type Spell } from './SpellsTab';
 import DMRefTab from './DMRefTab';
 import CharacterCard from './CharacterCard';
 import NamesTab from './NamesTab';
+import LocationsTab from './LocationsTab';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
 import {
@@ -1209,6 +1210,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     ['dice', 'Dice'] as const,
                     ['spells', 'Spells'] as const,
                     ['names', 'Names'] as const,
+                    ['locations', 'Locations'] as const,
                     ['dmref', 'DM Ref'] as const,
                   ];
                   const half = Math.ceil(allTabs.length / 2);
@@ -1860,7 +1862,14 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           </LockedPanel>
         ))}
 
-        {tab === 'locations' && isPro && <LocationsTab />}
+        {tab === 'locations' && (isPro ? (
+          <LocationsTab />
+        ) : (
+          <LockedPanel title="Locations Generator">
+            Generate evocative location names with type tag, cultural tradition, and a one-line
+            atmospheric blurb — across settlements, wilderness, sites, and planar realms. Powered by Claude.
+          </LockedPanel>
+        ))}
 
         {tab === 'dmref' && <DMRefTab />}
 
