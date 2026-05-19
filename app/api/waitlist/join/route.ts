@@ -9,10 +9,19 @@ export async function POST(req: NextRequest) {
   const idToken = readBearerToken(req.headers.get('authorization'));
   if (!idToken) return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
 
+  let auth;
+  try {
+    auth = getAdminAuth();
+  } catch (e) {
+    console.error('[waitlist/join] Firebase Admin SDK failed to initialize:', e);
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+  }
+
   let decoded: { uid: string; email?: string; name?: string };
   try {
-    decoded = await getAdminAuth().verifyIdToken(idToken);
-  } catch {
+    decoded = await auth.verifyIdToken(idToken);
+  } catch (e) {
+    console.error('[waitlist/join] verifyIdToken failed:', e);
     return NextResponse.json({ error: 'Invalid auth token' }, { status: 401 });
   }
   const { uid, email, name } = decoded;

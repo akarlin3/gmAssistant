@@ -8,10 +8,18 @@ export type VerifyProResult =
   | { ok: false; status: number; message: string };
 
 export async function verifyPro(idToken: string): Promise<VerifyProResult> {
+  let auth;
+  try {
+    auth = getAdminAuth();
+  } catch (e) {
+    console.error('[verifyPro] Firebase Admin SDK failed to initialize:', e);
+    return { ok: false, status: 500, message: 'Server misconfigured' };
+  }
   let decoded: { uid: string; email?: string };
   try {
-    decoded = await getAdminAuth().verifyIdToken(idToken);
-  } catch {
+    decoded = await auth.verifyIdToken(idToken);
+  } catch (e) {
+    console.error('[verifyPro] verifyIdToken failed:', e);
     return { ok: false, status: 401, message: 'Invalid auth token' };
   }
   const email = (decoded.email || '').toLowerCase();
