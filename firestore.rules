@@ -30,5 +30,12 @@ service cloud.firestore {
     match /stripeCustomers/{customerId} {
       allow read, write: if false;
     }
+
+    // Pro waitlist signups — written server-side via /api/waitlist/join (Admin SDK).
+    // Clients read their own doc so the UI can show "you're on the waitlist".
+    match /proWaitlist/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
   }
 }

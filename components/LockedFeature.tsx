@@ -8,7 +8,7 @@ export function LockedInline({ label }: { label: string }) {
     <Link
       href="/account"
       className="text-xs px-2 py-1 rounded border border-dashed border-brass/60 text-brass-deep hover:border-crimson hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1.5"
-      title="Upgrade to Pro to unlock this feature"
+      title="Join the Pro waitlist to unlock this feature"
     >
       <Lock size={10} /> {label}
       <span className="text-[9px] opacity-70">— Pro</span>
@@ -28,7 +28,7 @@ export function LockedPanel({ title, children }: { title: string; children: Reac
         href="/account"
         className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-crimson hover:bg-wine text-parchment font-display uppercase tracking-wider"
       >
-        <Sparkles size={12} /> Upgrade to Pro — $1.99 / month
+        <Sparkles size={12} /> Join the Pro waitlist — $2.99 / month at launch
       </Link>
     </div>
   );

@@ -28,13 +28,13 @@ Beyond worldbuilding, the app includes table-side helpers for actually running s
 
 ## Pro features (LLM-powered)
 
-A few features call paid inference APIs and are gated behind a $1.99/month Pro subscription (Stripe Checkout):
+A few features call paid inference APIs and will be gated behind a $2.99/month Pro subscription at launch. Pro is currently waitlist-only — signed-in users can join from the account page and get emailed when it opens:
 
 - **Character sheet parser** — drop a PDF or screenshot, get a structured character entry
 - **Name generator** — themed NPC name lists
 - **NPC trait inspires** — generated personality hooks
 
-A small allowlist in `lib/pro-status.ts` (`PRO_EMAILS`) stays free without a subscription. See `CLAUDE.md` for the pro-gating pattern (server-side `verifyPro` + client-side `isPro` from auth context, with `LockedInline` / `LockedPanel` upgrade CTAs).
+A small allowlist in `lib/pro-status.ts` (`PRO_EMAILS`) gets pro access for free without a subscription. See `CLAUDE.md` for the pro-gating pattern (server-side `verifyPro` + client-side `isPro` from auth context, with `LockedInline` / `LockedPanel` waitlist CTAs).
 
 ## Stack
 

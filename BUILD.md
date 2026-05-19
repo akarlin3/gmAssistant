@@ -94,12 +94,14 @@ You now have a live webapp at `https://gamemaster-builder-production.up.railway.
 
 If you want `prep.yourname.com`: in Railway → Settings → Networking → **Custom Domain**, follow the DNS instructions. Then add the custom domain to Firebase's Authorized domains list too.
 
-### Part 9 — Stripe ($1.99/month Pro subscription)
+### Part 9 — Stripe ($2.99/month Pro subscription — currently waitlist-only)
 
-The pro AI features (character-sheet parser, name generator, NPC inspires) are paywalled at $1.99/month. Anyone in `PRO_EMAILS` (`lib/pro-status.ts`) stays free; everyone else upgrades via Stripe Checkout in-app.
+The pro AI features (character-sheet parser, name generator, NPC inspires) will be paywalled at $2.99/month. Anyone in `PRO_EMAILS` (`lib/pro-status.ts`) stays free.
+
+**Pro is currently waitlist-only.** The non-pro UI shows "Join the Pro waitlist" instead of "Upgrade to Pro" — joining writes a doc to the `proWaitlist` Firestore collection via `POST /api/waitlist/join`. The Stripe steps below remain so existing subscribers can still manage their subscription and so you can flip the upgrade flow back on when you launch. Skip this section entirely if you don't have any existing subscribers.
 
 26. **Stripe account.** Sign up at https://stripe.com if you don't already have one. Stay in **Test mode** until you're ready to take real payments.
-27. **Create the product.** Stripe Dashboard → **Products** → **Add product**. Name "Gamemaster Builder Pro", recurring price **$1.99 USD / month**. Save. Copy the price ID (looks like `price_1ABCxyz…`) — you'll paste it as `STRIPE_PRICE_ID`.
+27. **Create the product.** Stripe Dashboard → **Products** → **Add product**. Name "Gamemaster Builder Pro", recurring price **$2.99 USD / month**. Save. Copy the price ID (looks like `price_1ABCxyz…`) — you'll paste it as `STRIPE_PRICE_ID`.
 28. **Get the API secret key.** Dashboard → **Developers** → **API keys** → copy the **Secret key** (`sk_test_…` in test mode). Paste it as `STRIPE_SECRET_KEY`.
 29. **Webhook.** Dashboard → **Developers** → **Webhooks** → **Add endpoint**. URL is `https://<your-railway-domain>/api/stripe/webhook`. Subscribe to:
     - `checkout.session.completed`
@@ -121,8 +123,8 @@ The pro AI features (character-sheet parser, name generator, NPC inspires) are p
     FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"...","private_key":"...","client_email":"...",...}
     ```
 
-33. **Republish Firestore rules.** `firestore.rules` now adds a `users/{uid}` collection (clients can read their own doc; only the server writes). Re-paste the file into Firebase Console → Firestore → Rules → Publish.
-34. **Smoke test in test mode.** Sign in with a non-pro Google account. Click your email in the header → **Upgrade to Pro**. Stripe Checkout opens — use test card `4242 4242 4242 4242`, any future expiry, any 3 digits, any ZIP. After payment you'll return to `/account?checkout=success`. Within a couple seconds the webhook fires and the pro features unlock. Click **Manage subscription** → cancel. Confirm "Cancels on <date>" shows.
+33. **Republish Firestore rules.** `firestore.rules` covers `users/{uid}` (subscription state) and `proWaitlist/{uid}` (waitlist signups) — clients can read their own doc in each; only the server writes. Re-paste the file into Firebase Console → Firestore → Rules → Publish.
+34. **Smoke test the waitlist.** Sign in with a non-pro Google account. Click your email in the header → **Join the waitlist**. The button switches to "On the waitlist" and the same state shows on `/account`. Verify a doc landed at `proWaitlist/{your-uid}` in Firestore. (To smoke-test the Stripe checkout path, temporarily restore the upgrade button — it's intentionally hidden in waitlist mode.)
 
 For local webhook testing: `stripe listen --forward-to localhost:3000/api/stripe/webhook` prints a temporary `whsec_…` to use in `.env.local`.
 

@@ -3,17 +3,17 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, LogOut, Sparkles, Settings, ExternalLink } from 'lucide-react';
+import { ChevronDown, LogOut, Sparkles, Settings, ExternalLink, MailCheck } from 'lucide-react';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 
-const PRO_PRICE_LABEL = '$1.99 / month';
+const PRO_PRICE_LABEL = '$2.99 / month';
 
 export function AccountMenu() {
-  const { user, isPro, proSource, subscriptionStatus, currentPeriodEndMs, cancelAtPeriodEnd, logout } = useAuth();
+  const { user, isPro, proSource, subscriptionStatus, currentPeriodEndMs, cancelAtPeriodEnd, isOnWaitlist, logout } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState<'checkout' | 'portal' | null>(null);
+  const [busy, setBusy] = useState<'waitlist' | 'portal' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -35,21 +35,21 @@ export function AccountMenu() {
 
   if (!user) return null;
 
-  const startCheckout = async () => {
-    setBusy('checkout');
+  const joinWaitlist = async () => {
+    setBusy('waitlist');
     setError(null);
     try {
       const idToken = await getFirebaseAuth().currentUser?.getIdToken();
       if (!idToken) throw new Error('Not signed in');
-      const res = await fetch('/api/stripe/create-checkout-session', {
+      const res = await fetch('/api/waitlist/join', {
         method: 'POST',
         headers: { Authorization: `Bearer ${idToken}` },
       });
       const data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error || 'Could not start checkout');
-      window.location.href = data.url;
+      if (!res.ok) throw new Error(data.error || 'Could not join waitlist');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not start checkout');
+      setError(e instanceof Error ? e.message : 'Could not join waitlist');
+    } finally {
       setBusy(null);
     }
   };
@@ -138,21 +138,30 @@ export function AccountMenu() {
                 </button>
               )}
             </div>
+          ) : isOnWaitlist ? (
+            <div className="rounded border border-brass/40 bg-brass/5 p-2.5 space-y-1.5">
+              <div className="text-xs font-display uppercase tracking-wider text-brass-deep flex items-center gap-1.5">
+                <MailCheck size={12} /> On the waitlist
+              </div>
+              <p className="text-[11px] font-serif italic text-ink-soft leading-snug">
+                Pro will be {PRO_PRICE_LABEL} when it launches. We&apos;ll email you.
+              </p>
+            </div>
           ) : (
             <div className="rounded border border-brass/40 bg-brass/5 p-2.5 space-y-2">
               <div className="text-xs font-display uppercase tracking-wider text-brass-deep flex items-center gap-1.5">
-                <Sparkles size={12} /> Upgrade to Pro
+                <Sparkles size={12} /> Pro — Coming Soon
               </div>
               <p className="text-[11px] font-serif italic text-ink-soft leading-snug">
-                Unlock the character-sheet parser, name generator, and other AI tools.
+                Pro AI tools at {PRO_PRICE_LABEL}. Join the waitlist for launch.
               </p>
               <button
                 type="button"
-                onClick={startCheckout}
+                onClick={joinWaitlist}
                 disabled={busy !== null}
                 className="w-full text-xs px-2 py-1.5 rounded bg-crimson hover:bg-wine text-parchment font-display uppercase tracking-wider flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
-                {busy === 'checkout' ? 'Starting…' : `Upgrade — ${PRO_PRICE_LABEL}`}
+                {busy === 'waitlist' ? 'Joining…' : 'Join the waitlist'}
               </button>
             </div>
           )}

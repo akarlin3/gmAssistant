@@ -16,6 +16,7 @@ type AuthContextValue = {
   subscriptionStatus: SubscriptionStatus | null;
   currentPeriodEndMs: number | null;
   cancelAtPeriodEnd: boolean;
+  isOnWaitlist: boolean;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -26,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [userDoc, setUserDoc] = useState<Partial<UserDoc> | null>(null);
+  const [isOnWaitlist, setIsOnWaitlist] = useState(false);
 
   useEffect(() => {
     const auth = getFirebaseAuth();
@@ -46,6 +48,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ref,
       (snap) => setUserDoc(snap.exists() ? (snap.data() as Partial<UserDoc>) : null),
       () => setUserDoc(null),
+    );
+    return unsubscribe;
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setIsOnWaitlist(false);
+      return;
+    }
+    const ref = doc(getDb(), 'proWaitlist', user.uid);
+    const unsubscribe = onSnapshot(
+      ref,
+      (snap) => setIsOnWaitlist(snap.exists()),
+      () => setIsOnWaitlist(false),
     );
     return unsubscribe;
   }, [user]);
@@ -72,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         subscriptionStatus: userDoc?.subscriptionStatus ?? null,
         currentPeriodEndMs: userDoc?.currentPeriodEndMs ?? null,
         cancelAtPeriodEnd: userDoc?.cancelAtPeriodEnd ?? false,
+        isOnWaitlist,
         signInWithGoogle,
         logout,
       }}

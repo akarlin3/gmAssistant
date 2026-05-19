@@ -3,11 +3,11 @@
 import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Sparkles, Settings, CheckCircle2, XCircle, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Sparkles, Settings, CheckCircle2, XCircle, ExternalLink, MailCheck } from 'lucide-react';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 
-const PRO_PRICE_LABEL = '$1.99 / month';
+const PRO_PRICE_LABEL = '$2.99 / month';
 
 const PRO_FEATURES = [
   'AI character-sheet parser (PDF / image / text → editable card)',
@@ -19,8 +19,8 @@ const PRO_FEATURES = [
 function AccountPageBody() {
   const router = useRouter();
   const params = useSearchParams();
-  const { user, loading, isPro, proSource, subscriptionStatus, currentPeriodEndMs, cancelAtPeriodEnd } = useAuth();
-  const [busy, setBusy] = useState<'checkout' | 'portal' | null>(null);
+  const { user, loading, isPro, proSource, subscriptionStatus, currentPeriodEndMs, cancelAtPeriodEnd, isOnWaitlist } = useAuth();
+  const [busy, setBusy] = useState<'waitlist' | 'portal' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,21 +38,21 @@ function AccountPageBody() {
     );
   }
 
-  const startCheckout = async () => {
-    setBusy('checkout');
+  const joinWaitlist = async () => {
+    setBusy('waitlist');
     setError(null);
     try {
       const idToken = await getFirebaseAuth().currentUser?.getIdToken();
       if (!idToken) throw new Error('Not signed in');
-      const res = await fetch('/api/stripe/create-checkout-session', {
+      const res = await fetch('/api/waitlist/join', {
         method: 'POST',
         headers: { Authorization: `Bearer ${idToken}` },
       });
       const data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error || 'Could not start checkout');
-      window.location.href = data.url;
+      if (!res.ok) throw new Error(data.error || 'Could not join waitlist');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not start checkout');
+      setError(e instanceof Error ? e.message : 'Could not join waitlist');
+    } finally {
       setBusy(null);
     }
   };
@@ -151,22 +151,33 @@ function AccountPageBody() {
                   </button>
                 )}
               </div>
+            ) : isOnWaitlist ? (
+              <div className="rounded border border-brass/40 bg-brass/5 p-4 space-y-2">
+                <div className="font-display uppercase tracking-wider text-xs text-brass-deep flex items-center gap-1.5">
+                  <MailCheck size={13} /> You&apos;re on the waitlist
+                </div>
+                <p className="text-sm font-serif italic text-ink-soft">
+                  Pro will be {PRO_PRICE_LABEL} when it launches. We&apos;ll email{' '}
+                  <span className="not-italic">{user.email}</span> as soon as it opens up.
+                </p>
+              </div>
             ) : (
               <div className="rounded border border-brass/40 bg-brass/5 p-4 space-y-3">
                 <p className="text-sm font-serif text-ink-soft">
-                  Upgrade for {PRO_PRICE_LABEL}. Cancel anytime from this page.
+                  Pro will be {PRO_PRICE_LABEL} when it launches. Join the waitlist and we&apos;ll
+                  email you the moment it opens.
                 </p>
                 <ul className="text-sm font-serif text-ink space-y-1 list-disc list-inside marker:text-brass-deep">
                   {PRO_FEATURES.map((f) => <li key={f}>{f}</li>)}
                 </ul>
                 <button
                   type="button"
-                  onClick={startCheckout}
+                  onClick={joinWaitlist}
                   disabled={busy !== null}
                   className="text-sm px-4 py-2 rounded bg-crimson hover:bg-wine text-parchment font-display uppercase tracking-wider inline-flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <Sparkles size={13} />
-                  {busy === 'checkout' ? 'Starting checkout…' : `Upgrade to Pro — ${PRO_PRICE_LABEL}`}
+                  {busy === 'waitlist' ? 'Joining…' : 'Join the Pro waitlist'}
                 </button>
               </div>
             )}
