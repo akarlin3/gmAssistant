@@ -38,7 +38,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm bg-parchment-soft border border-rule rounded-lg shadow-page p-8 space-y-6">
         <div className="text-center space-y-3">
           <div className="text-xs text-brass-deep font-display uppercase tracking-[0.3em]">
-            Campaign Prep
+            Gamemaster Builder
           </div>
           <h1 className="font-display text-4xl text-crimson tracking-wide leading-none">Sign In</h1>
           <div className="flourish"><span>❦</span></div>

@@ -1,6 +1,6 @@
-# Campaign Prep
+# Gamemaster Builder
 
-A TTRPG campaign-prep webapp that integrates three published prep methodologies into a single workflow:
+A TTRPG campaign prep webapp that integrates three published prep methodologies into a single workflow:
 
 - **Lazy Dungeon Master** — Mike Shea's 8-step session checklist
 - **Collaborative Campaign Design** — Session −1 worldbuilding (world facts, factions, conflicts, content lines)

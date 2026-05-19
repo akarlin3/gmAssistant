@@ -1,4 +1,4 @@
-# Campaign Prep — TTRPG webapp (Firebase + Railway)
+# Gamemaster Builder — TTRPG webapp (Firebase + Railway)
 
 A Next.js webapp that integrates three TTRPG prep methodologies: Lazy Dungeon Master's 8-step checklist, Collaborative Campaign Design's Session −1 worldbuilding, and Proactive Roleplaying's 5 Rules of Proactive Fun.
 
@@ -22,7 +22,7 @@ You'll touch three services: Firebase Console, Google Cloud Console (briefly, fo
 
 ### Part 1 — Firebase project
 
-1. Go to https://console.firebase.google.com and create a new project. Name it `campaign-prep` (or anything). Disable Google Analytics — not needed.
+1. Go to https://console.firebase.google.com and create a new project. Name it `gamemaster-builder` (or anything). Disable Google Analytics — not needed.
 2. Wait ~30 seconds for provisioning.
 3. In the project sidebar, click **Build** → **Authentication** → **Get started**.
 4. **Sign-in method** tab → click **Google** → toggle Enable. Set a project support email (your email). Save.
@@ -33,7 +33,7 @@ You'll touch three services: Firebase Console, Google Cloud Console (briefly, fo
 
 7. Go to **Project settings** (gear icon, top left next to "Project Overview").
 8. Scroll to "Your apps" → click the **Web icon** (`</>`).
-9. Register app — nickname `campaign-prep-web`. Skip Firebase Hosting checkbox. Click Register.
+9. Register app — nickname `gamemaster-builder-web`. Skip Firebase Hosting checkbox. Click Register.
 10. You'll see a `firebaseConfig` block. Copy these 6 values into `.env.local` (see step 18). Keep this tab open if needed.
 
 ### Part 3 — Authorize Railway domain (do this before deploying so it's ready)
@@ -50,9 +50,9 @@ You'll touch three services: Firebase Console, Google Cloud Console (briefly, fo
 14. Create `.env.local` in the project root with the 6 values from step 10:
     ```
     NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=campaign-prep-xxxx.firebaseapp.com
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID=campaign-prep-xxxx
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=campaign-prep-xxxx.appspot.com
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=gamemaster-builder-xxxx.firebaseapp.com
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID=gamemaster-builder-xxxx
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=gamemaster-builder-xxxx.appspot.com
     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
     NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
     ```
@@ -64,31 +64,31 @@ You'll touch three services: Firebase Console, Google Cloud Console (briefly, fo
 
 ### Part 5 — Push to GitHub
 
-17. Create a new private repo on github.com named `campaign-prep`.
+17. Create a new private repo on github.com named `gamemaster-builder`.
 18. In the project folder:
     ```bash
     git init
     git add .
     git commit -m "Initial commit"
     git branch -M main
-    git remote add origin https://github.com/YOUR_USERNAME/campaign-prep.git
+    git remote add origin https://github.com/YOUR_USERNAME/gamemaster-builder.git
     git push -u origin main
     ```
 
 ### Part 6 — Deploy to Railway
 
-19. Go to https://railway.app → **New Project** → **Deploy from GitHub repo** → select `campaign-prep`. Authorize Railway to access the repo if asked.
+19. Go to https://railway.app → **New Project** → **Deploy from GitHub repo** → select `gamemaster-builder`. Authorize Railway to access the repo if asked.
 20. Railway auto-detects Next.js via Nixpacks and starts building. Wait ~2 minutes.
 21. While building, click the service → **Variables** tab → click **Raw Editor** → paste all 6 `NEXT_PUBLIC_FIREBASE_*` values from `.env.local`. Save.
 22. Railway will redeploy with the new variables. Wait another minute.
-23. Click **Settings** → **Networking** → **Generate Domain**. You'll get a URL like `campaign-prep-production.up.railway.app`.
+23. Click **Settings** → **Networking** → **Generate Domain**. You'll get a URL like `gamemaster-builder-production.up.railway.app`.
 
 ### Part 7 — Authorize the Railway domain in Firebase
 
 24. Back in Firebase Console → **Authentication** → **Settings** → **Authorized domains** → **Add domain**. Paste your Railway domain (without `https://`, just the hostname). Save.
 25. Visit your Railway URL. Sign in with Google. It should work.
 
-You now have a live webapp at `https://campaign-prep-production.up.railway.app` (or whatever your Railway domain is) that syncs across all your devices.
+You now have a live webapp at `https://gamemaster-builder-production.up.railway.app` (or whatever your Railway domain is) that syncs across all your devices.
 
 ### Optional Part 8 — Custom domain
 
@@ -99,7 +99,7 @@ If you want `prep.yourname.com`: in Railway → Settings → Networking → **Cu
 The pro AI features (character-sheet parser, name generator, NPC inspires) are paywalled at $1.99/month. Anyone in `PRO_EMAILS` (`lib/pro-status.ts`) stays free; everyone else upgrades via Stripe Checkout in-app.
 
 26. **Stripe account.** Sign up at https://stripe.com if you don't already have one. Stay in **Test mode** until you're ready to take real payments.
-27. **Create the product.** Stripe Dashboard → **Products** → **Add product**. Name "Campaign Prep Pro", recurring price **$1.99 USD / month**. Save. Copy the price ID (looks like `price_1ABCxyz…`) — you'll paste it as `STRIPE_PRICE_ID`.
+27. **Create the product.** Stripe Dashboard → **Products** → **Add product**. Name "Gamemaster Builder Pro", recurring price **$1.99 USD / month**. Save. Copy the price ID (looks like `price_1ABCxyz…`) — you'll paste it as `STRIPE_PRICE_ID`.
 28. **Get the API secret key.** Dashboard → **Developers** → **API keys** → copy the **Secret key** (`sk_test_…` in test mode). Paste it as `STRIPE_SECRET_KEY`.
 29. **Webhook.** Dashboard → **Developers** → **Webhooks** → **Add endpoint**. URL is `https://<your-railway-domain>/api/stripe/webhook`. Subscribe to:
     - `checkout.session.completed`
@@ -195,7 +195,7 @@ Solo Mode is enabled by default for new campaigns. It persists per-campaign in F
 ## File structure
 
 ```
-campaign-prep/
+gamemaster-builder/
 ├── app/
 │   ├── campaign/
 │   │   ├── [id]/page.tsx          # Campaign editor route
