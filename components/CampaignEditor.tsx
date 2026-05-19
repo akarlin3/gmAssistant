@@ -20,6 +20,7 @@ import CharacterCard from './CharacterCard';
 import SidekickAddPanel from './SidekickAddPanel';
 import NamesTab from './NamesTab';
 import LocationsTab from './LocationsTab';
+import MonstersTab from './MonstersTab';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
 import {
@@ -994,7 +995,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'names' | 'locations' | 'dmref'>('prep');
+  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'names' | 'locations' | 'monsters' | 'dmref'>('prep');
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -1224,6 +1225,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     ['spells', 'Spells'] as const,
                     ['names', 'Names'] as const,
                     ['locations', 'Locations'] as const,
+                    ['monsters', 'Monsters'] as const,
                     ['dmref', 'DM Ref'] as const,
                   ];
                   const half = Math.ceil(allTabs.length / 2);
@@ -1900,6 +1902,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             atmospheric blurb — across settlements, wilderness, sites, and planar realms. Powered by Claude.
           </LockedPanel>
         ))}
+
+        {tab === 'monsters' && <MonstersTab />}
 
         {tab === 'dmref' && <DMRefTab />}
 
