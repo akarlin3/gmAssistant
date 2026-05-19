@@ -3,6 +3,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Dice5, RefreshCw, Loader2, ShieldAlert } from 'lucide-react';
 import { CR_TO_XP } from '@/lib/encounterMath';
+import { useAuth } from '@/lib/firebase/auth-context';
+import { LockedPanel } from './LockedFeature';
+import MonsterScaler from './MonsterScaler';
+
+type Mode = 'roll' | 'scale';
 
 type Action = {
   name: string;
@@ -309,6 +314,8 @@ function pickRandom<T>(arr: T[], avoid?: T): T | null {
 }
 
 export default function MonstersTab() {
+  const { isPro } = useAuth();
+  const [mode, setMode] = useState<Mode>('roll');
   const [monsters, setMonsters] = useState<Monster[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [crMinIdx, setCrMinIdx] = useState(0);
@@ -372,27 +379,91 @@ export default function MonstersTab() {
   const totalCount = monsters?.length ?? 0;
   const srdCount = monsters ? monsters.filter((m) => m.is_srd).length : 0;
 
+  const modeToggle = (
+    <div
+      role="tablist"
+      aria-label="Monsters mode"
+      className="inline-flex border border-rule rounded overflow-hidden font-display uppercase tracking-wider text-xs"
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === 'roll'}
+        onClick={() => setMode('roll')}
+        className={`px-3 py-1.5 transition-colors ${
+          mode === 'roll' ? 'bg-crimson text-parchment' : 'text-ink-soft hover:bg-parchment-deep'
+        }`}
+      >
+        Random Roll
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === 'scale'}
+        onClick={() => setMode('scale')}
+        className={`px-3 py-1.5 border-l border-rule transition-colors flex items-center gap-1.5 ${
+          mode === 'scale' ? 'bg-crimson text-parchment' : 'text-ink-soft hover:bg-parchment-deep'
+        }`}
+      >
+        Scale to CR
+        <span
+          className={`text-[9px] px-1 py-0.5 rounded-sm border ${
+            mode === 'scale'
+              ? 'border-parchment/60 text-parchment/90'
+              : 'border-crimson/60 bg-crimson/10 text-crimson'
+          }`}
+        >
+          Pro
+        </span>
+      </button>
+    </div>
+  );
+
+  if (mode === 'scale') {
+    return (
+      <div className="space-y-3">
+        {modeToggle}
+        {isPro ? (
+          <MonsterScaler />
+        ) : (
+          <LockedPanel title="Scale a Monster to CR">
+            Describe any monster — a coral-armored sea wraith, a hexblade lord, a clockwork hydra —
+            pick a target CR, and Claude finds the closest bestiary entry and scales it into a full
+            statblock ready to drop into your next encounter.
+          </LockedPanel>
+        )}
+      </div>
+    );
+  }
+
   if (loadError) {
     return (
-      <div className="rounded border border-crimson/40 bg-parchment-soft p-4 text-sm text-ink">
-        <div className="flex items-center gap-2 text-crimson font-display uppercase tracking-wider">
-          <ShieldAlert size={16} /> Couldn&rsquo;t load monsters
+      <div className="space-y-3">
+        {modeToggle}
+        <div className="rounded border border-crimson/40 bg-parchment-soft p-4 text-sm text-ink">
+          <div className="flex items-center gap-2 text-crimson font-display uppercase tracking-wider">
+            <ShieldAlert size={16} /> Couldn&rsquo;t load monsters
+          </div>
+          <div className="mt-1 font-serif text-ink-soft">{loadError}</div>
         </div>
-        <div className="mt-1 font-serif text-ink-soft">{loadError}</div>
       </div>
     );
   }
 
   if (!monsters) {
     return (
-      <div className="rounded border border-rule bg-parchment-soft p-6 flex items-center gap-2 text-ink-mute text-sm font-serif">
-        <Loader2 size={16} className="animate-spin" /> Loading bestiary&hellip;
+      <div className="space-y-3">
+        {modeToggle}
+        <div className="rounded border border-rule bg-parchment-soft p-6 flex items-center gap-2 text-ink-mute text-sm font-serif">
+          <Loader2 size={16} className="animate-spin" /> Loading bestiary&hellip;
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
+      {modeToggle}
       <div className="rounded border border-rule bg-parchment-soft p-3 space-y-3 text-xs">
         <div className="flex flex-wrap items-end gap-3">
           <div>
