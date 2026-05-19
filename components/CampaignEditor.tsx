@@ -1889,8 +1889,6 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
         {tab === 'generators' && (
           <GeneratorsTab
-            data={state}
-            onDataChange={(next) => setState(next as typeof state)}
             renderNames={() => (isPro ? <NamesTab /> : (
               <LockedPanel title="Names Generator">
                 Generate culture-rooted first and last names for NPCs, towns, and places — powered by Claude.
