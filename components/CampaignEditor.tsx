@@ -20,7 +20,7 @@ import CharacterCard from './CharacterCard';
 import SidekickAddPanel from './SidekickAddPanel';
 import NamesTab from './NamesTab';
 import LocationsTab from './LocationsTab';
-import MonstersTab from './MonstersTab';
+import MonstersTab, { type HomebrewMonster } from './MonstersTab';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
 import {
@@ -1903,7 +1903,12 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           </LockedPanel>
         ))}
 
-        {tab === 'monsters' && <MonstersTab />}
+        {tab === 'monsters' && (
+          <MonstersTab
+            homebrewMonsters={get('homebrewMonsters', []) as HomebrewMonster[]}
+            onHomebrewMonstersChange={(v) => setVal('homebrewMonsters', v)}
+          />
+        )}
 
         {tab === 'dmref' && <DMRefTab />}
 
