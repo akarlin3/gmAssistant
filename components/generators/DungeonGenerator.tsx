@@ -4,6 +4,7 @@ import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
 import { generateDungeon } from '@/lib/generators/dungeon';
 import type { DungeonChallengeTier, DungeonSize, DungeonTheme } from '@/lib/generators/tables/dungeon-tables';
 import type { DungeonResult } from '@/lib/generators/types';
+import type { LogEntry } from '@/lib/generators/log';
 
 const SIZE_OPTIONS: { value: DungeonSize; label: string }[] = [
   { value: 'small', label: 'Small (5 rooms)' },
@@ -35,15 +36,34 @@ const INPUTS: InputSpec[] = [
   { kind: 'select', key: 'challengeTier', label: 'Challenge Tier', default: '5-10', options: TIER_OPTIONS },
 ];
 
+function copyText(r: DungeonResult): string {
+  const lines: string[] = [
+    r.name,
+    `${r.inputs.theme} · ${r.inputs.size} · CR ${r.inputs.challengeTier}`,
+  ];
+  if (r.hook) lines.push(`\n${r.hook}`);
+  if (r.details.hazards.length) lines.push('\nHazards:', ...r.details.hazards.map(h => `  - ${h}`));
+  if (r.details.inhabitants.length) lines.push('\nInhabitants:', ...r.details.inhabitants.map(h => `  - ${h}`));
+  lines.push(`\nRooms (${r.details.rooms.length}):`);
+  for (const rm of r.details.rooms) {
+    lines.push(`  ${rm.index}. ${rm.name}`);
+    lines.push(`     ${rm.contents}`);
+    lines.push(`     ${rm.dressing}`);
+  }
+  return lines.join('\n');
+}
+
 export default function DungeonGenerator({
-  onSave,
+  entries,
+  onEntriesChange,
 }: {
-  onSave?: (result: DungeonResult) => Promise<void>;
+  entries: LogEntry[];
+  onEntriesChange: (next: LogEntry[]) => void;
 }) {
   return (
     <GeneratorPanel<{ size: string; theme: string; challengeTier: string }, DungeonResult>
       title="Dungeon"
-      description="Generate a dungeon by size, theme, and challenge tier: rooms with contents and dressing, hazards, and theme-keyed inhabitants. Save creates a single Location (subtype: dungeon); rooms live inside details.rooms, not as separate locations."
+      description="Generate a dungeon by size, theme, and challenge tier: rooms with contents and dressing, hazards, and theme-keyed inhabitants."
       inputs={INPUTS}
       generate={(inputs, rng) =>
         generateDungeon({
@@ -53,7 +73,13 @@ export default function DungeonGenerator({
         }, rng)
       }
       enhance={{ kind: 'dungeon' }}
-      onSave={onSave}
+      log={{
+        kind: 'dungeon',
+        entries,
+        onEntriesChange,
+        titleFor: (r) => r.name,
+        copyText,
+      }}
       renderResult={(r) => (
         <div className="space-y-3 font-serif text-sm text-ink">
           <div>

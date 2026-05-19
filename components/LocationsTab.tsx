@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, Shuffle, Copy, Check, MapPin } from 'lucide-react';
+import { Sparkles, Shuffle, Copy, Check, MapPin, Save } from 'lucide-react';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import { CULTURE_GROUPS, ALL_CULTURES } from '@/lib/cultures';
 import { LOCATION_TYPE_GROUPS, ALL_LOCATION_TYPES } from '@/lib/locations';
+import GeneratorLog from './generators/GeneratorLog';
+import { appendToLog, makeLogEntry, type LogEntry } from '@/lib/generators/log';
 
 type GeneratedLocation = {
   name: string;
@@ -12,6 +14,22 @@ type GeneratedLocation = {
   culture: string;
   blurb: string;
 };
+
+type LocationLogPayload = {
+  locationType: string;
+  culture: string;
+  locations: GeneratedLocation[];
+};
+
+function locationsCopyText(p: LocationLogPayload): string {
+  return p.locations
+    .map((loc) => {
+      const tag = [loc.type, loc.culture].filter(Boolean).join(' · ');
+      const head = tag ? `${loc.name}  (${tag})` : loc.name;
+      return loc.blurb ? `${head}\n  ${loc.blurb}` : head;
+    })
+    .join('\n');
+}
 
 const TypeSelect = ({
   value,
@@ -69,7 +87,13 @@ const CultureSelect = ({
   </div>
 );
 
-export default function LocationsTab() {
+export default function LocationsTab({
+  logEntries,
+  onLogEntriesChange,
+}: {
+  logEntries: LogEntry[];
+  onLogEntriesChange: (next: LogEntry[]) => void;
+}) {
   const [locationType, setLocationType] = useState('Random');
   const [culture, setCulture] = useState('Random');
   const [count, setCount] = useState(8);
@@ -77,10 +101,12 @@ export default function LocationsTab() {
   const [error, setError] = useState('');
   const [locations, setLocations] = useState<GeneratedLocation[]>([]);
   const [copied, setCopied] = useState<string>('');
+  const [saved, setSaved] = useState(false);
 
   const generate = async () => {
     setGenerating(true);
     setError('');
+    setSaved(false);
     try {
       const user = getFirebaseAuth().currentUser;
       if (!user) throw new Error('Not signed in');
@@ -116,6 +142,34 @@ export default function LocationsTab() {
   const shuffle = () => {
     setLocationType(ALL_LOCATION_TYPES[Math.floor(Math.random() * ALL_LOCATION_TYPES.length)]);
     setCulture(ALL_CULTURES[Math.floor(Math.random() * ALL_CULTURES.length)]);
+  };
+
+  const saveToLog = () => {
+    if (locations.length === 0) return;
+    const payload: LocationLogPayload = { locationType, culture, locations };
+    const title = `${locations.length} location${locations.length === 1 ? '' : 's'} · ${locationType}${culture !== 'Random' ? ` · ${culture}` : ''}`;
+    onLogEntriesChange(appendToLog(logEntries, makeLogEntry('locations', title, payload)));
+    setSaved(true);
+  };
+
+  const renderPayload = (entry: LogEntry) => {
+    const p = entry.payload as LocationLogPayload;
+    return (
+      <ul className="space-y-1.5 font-serif text-sm">
+        {p.locations.map((loc, i) => {
+          const tag = [loc.type, loc.culture].filter(Boolean).join(' · ');
+          return (
+            <li key={i} className="space-y-0.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-ink">{loc.name}</span>
+                {tag && <span className="text-[10px] text-ink-mute italic">{tag}</span>}
+              </div>
+              {loc.blurb && <div className="text-xs text-ink-soft italic">{loc.blurb}</div>}
+            </li>
+          );
+        })}
+      </ul>
+    );
   };
 
   return (
@@ -176,9 +230,19 @@ export default function LocationsTab() {
 
       {locations.length > 0 && (
         <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
-          <p className="text-[11px] text-ink-mute italic font-serif">
-            Click a name to copy it.
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] text-ink-mute italic font-serif">
+              Click a name to copy it.
+            </p>
+            <button
+              onClick={saveToLog}
+              disabled={saved}
+              className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
+            >
+              {saved ? <Check size={12} /> : <Save size={12} />}
+              {saved ? 'Saved to log' : 'Save to log'}
+            </button>
+          </div>
           <div className="space-y-1.5">
             {locations.map((loc, i) => {
               const tag = [loc.type, loc.culture].filter(Boolean).join(' · ');
@@ -212,6 +276,15 @@ export default function LocationsTab() {
           </div>
         </div>
       )}
+
+      <GeneratorLog
+        kind="locations"
+        entries={logEntries}
+        onChange={onLogEntriesChange}
+        renderPayload={renderPayload}
+        copyText={(e) => locationsCopyText(e.payload as LocationLogPayload)}
+        emptyHint="Generate locations, then click 'Save to log' to keep a batch here."
+      />
     </div>
   );
 }

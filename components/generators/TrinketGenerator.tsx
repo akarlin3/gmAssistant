@@ -3,24 +3,39 @@
 import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
 import { generateTrinkets } from '@/lib/generators/trinket';
 import type { TrinketResult } from '@/lib/generators/types';
+import type { LogEntry } from '@/lib/generators/log';
 
 const INPUTS: InputSpec[] = [
   { kind: 'number', key: 'count', label: 'How many', min: 1, max: 10, default: 1 },
 ];
 
+function copyText(r: TrinketResult): string {
+  return r.trinkets
+    .map((t, i) => `${i + 1}. ${t.description}${t.hook ? `\n   Hook: ${t.hook}` : ''}`)
+    .join('\n');
+}
+
 export default function TrinketGenerator({
-  onSave,
+  entries,
+  onEntriesChange,
 }: {
-  onSave?: (result: TrinketResult) => Promise<void>;
+  entries: LogEntry[];
+  onEntriesChange: (next: LogEntry[]) => void;
 }) {
   return (
     <GeneratorPanel<{ count: number }, TrinketResult>
       title="Trinkets"
-      description="Roll one to ten odd, evocative trinkets from a hundred-entry original table. Save each as an Item (category: trinket)."
+      description="Roll one to ten odd, evocative trinkets from a hundred-entry original table."
       inputs={INPUTS}
       generate={(inputs, rng) => generateTrinkets({ count: inputs.count }, rng)}
       enhance={{ kind: 'trinket' }}
-      onSave={onSave}
+      log={{
+        kind: 'trinket',
+        entries,
+        onEntriesChange,
+        titleFor: (r) => `${r.trinkets.length} trinket${r.trinkets.length === 1 ? '' : 's'}`,
+        copyText,
+      }}
       renderResult={(r) => (
         <ol className="space-y-2 list-decimal ml-5 font-serif text-sm text-ink">
           {r.trinkets.map((t, i) => (

@@ -4,6 +4,7 @@ import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
 import { generateTreasureHoard } from '@/lib/generators/treasure-hoard';
 import type { TreasureHoardResult } from '@/lib/generators/types';
 import type { CrTier, HoardType } from '@/lib/generators/tables/treasure-hoard-tables';
+import type { LogEntry } from '@/lib/generators/log';
 
 const INPUTS: InputSpec[] = [
   {
@@ -31,19 +32,36 @@ function formatCoins(c: TreasureHoardResult['coins']): string {
   return parts.length ? parts.join(' · ') : 'no coin';
 }
 
+function copyText(r: TreasureHoardResult): string {
+  const lines = [`Treasure Hoard (CR ${r.inputs.crTier})`, `Coins: ${formatCoins(r.coins)}`];
+  if (r.gems.length) lines.push(`Gems: ${r.gems.map(g => `${g.name} (${g.value} gp)`).join('; ')}`);
+  if (r.artObjects.length) lines.push(`Art: ${r.artObjects.map(a => `${a.name} (${a.value} gp)`).join('; ')}`);
+  if (r.magicItems.length) lines.push(`Magic Items:\n${r.magicItems.map(mi => `  - ${mi.name} (${mi.rarity})${mi.note ? ` — ${mi.note}` : ''}`).join('\n')}`);
+  if (r.enhancementNote) lines.push(`\n${r.enhancementNote}`);
+  return lines.join('\n');
+}
+
 export default function TreasureHoardGenerator({
-  onSave,
+  entries,
+  onEntriesChange,
 }: {
-  onSave?: (result: TreasureHoardResult) => Promise<void>;
+  entries: LogEntry[];
+  onEntriesChange: (next: LogEntry[]) => void;
 }) {
   return (
     <GeneratorPanel<{ crTier: string; hoardType: string }, TreasureHoardResult>
       title="Treasure Hoard"
-      description="Roll a tiered hoard of coins, gems, art objects, and (for full hoards) magic items. Save records each magic item as a structured item on the campaign."
+      description="Roll a tiered hoard of coins, gems, art objects, and (for full hoards) magic items."
       inputs={INPUTS}
       generate={(inputs, rng) => generateTreasureHoard({ crTier: inputs.crTier as CrTier, hoardType: inputs.hoardType as HoardType }, rng)}
       enhance={{ kind: 'treasure-hoard' }}
-      onSave={onSave}
+      log={{
+        kind: 'treasure-hoard',
+        entries,
+        onEntriesChange,
+        titleFor: (r) => `${r.inputs.hoardType} (CR ${r.inputs.crTier})`,
+        copyText,
+      }}
       renderResult={(r) => (
         <div className="space-y-3 font-serif text-sm text-ink">
           <div>

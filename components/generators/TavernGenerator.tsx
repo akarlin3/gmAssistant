@@ -4,6 +4,7 @@ import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
 import { generateTavern } from '@/lib/generators/tavern';
 import type { TavernVibe } from '@/lib/generators/tables/tavern-tables';
 import type { SettlementSizeClass, TavernResult } from '@/lib/generators/types';
+import type { LogEntry } from '@/lib/generators/log';
 
 const SETTLEMENT_OPTIONS: { value: SettlementSizeClass; label: string }[] = [
   { value: 'thorp', label: 'Thorp' },
@@ -29,15 +30,33 @@ const INPUTS: InputSpec[] = [
   { kind: 'text', key: 'themeKeyword', label: 'Theme Keyword (optional)', default: '', placeholder: 'e.g. "Mended"' },
 ];
 
+function copyText(r: TavernResult): string {
+  const lines: string[] = [
+    r.name,
+    `${r.inputs.vibe} · ${r.inputs.settlementSize}`,
+    r.details.atmosphere,
+    `Owner: ${r.details.owner.name} — ${r.details.owner.descriptor}`,
+    'Menu:',
+    ...r.details.menu.map(m => `  - ${m.name} (${m.kind}) — ${m.price}`),
+    'Patrons:',
+    ...r.details.patrons.map(p => `  - ${p.name} — ${p.descriptor}`),
+    'Rumors:',
+    ...r.details.rumors.map(rm => `  - ${rm}`),
+  ];
+  return lines.join('\n');
+}
+
 export default function TavernGenerator({
-  onSave,
+  entries,
+  onEntriesChange,
 }: {
-  onSave?: (result: TavernResult) => Promise<void>;
+  entries: LogEntry[];
+  onEntriesChange: (next: LogEntry[]) => void;
 }) {
   return (
     <GeneratorPanel<{ vibe: string; settlementSize: string; themeKeyword: string }, TavernResult>
       title="Tavern"
-      description="Generate a full tavern: name, atmosphere, menu priced to settlement size and vibe, patrons, rumors, and an owner. Save creates a Location (subtype: tavern), the owner as a minor NPC, and each patron as a minor NPC."
+      description="Generate a full tavern: name, atmosphere, menu priced to settlement size and vibe, patrons, rumors, and an owner."
       inputs={INPUTS}
       generate={(inputs, rng) =>
         generateTavern(
@@ -50,7 +69,13 @@ export default function TavernGenerator({
         )
       }
       enhance={{ kind: 'tavern' }}
-      onSave={onSave}
+      log={{
+        kind: 'tavern',
+        entries,
+        onEntriesChange,
+        titleFor: (r) => r.name,
+        copyText,
+      }}
       renderResult={(r) => (
         <div className="space-y-3 font-serif text-sm text-ink">
           <div>

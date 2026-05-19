@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Dice6, Plus, X, Check, Trash2, RotateCcw, Pencil } from 'lucide-react';
+import { Dice6, Plus, X, Check, Trash2, RotateCcw, Pencil, Save } from 'lucide-react';
+import GeneratorLog from './generators/GeneratorLog';
+import { appendToLog, makeLogEntry, type LogEntry } from '@/lib/generators/log';
 
 // ---- Types --------------------------------------------------------------
 
@@ -176,9 +178,13 @@ const MAX_HISTORY = 50;
 export default function DiceRoller({
   macros,
   onMacrosChange,
+  logEntries,
+  onLogEntriesChange,
 }: {
   macros: Macro[];
   onMacrosChange: (next: Macro[]) => void;
+  logEntries: LogEntry[];
+  onLogEntriesChange: (next: LogEntry[]) => void;
 }) {
   const [formula, setFormula] = useState('1d20');
   const [modifier, setModifier] = useState(0);
@@ -230,6 +236,11 @@ export default function DiceRoller({
   };
 
   const rollFormula = () => doRoll(formula);
+
+  const saveRollToLog = (r: Roll) => {
+    const head = `${r.label ? `[${r.label}] ` : ''}${r.formula} = ${r.total}`;
+    onLogEntriesChange(appendToLog(logEntries, makeLogEntry('dice', head, r)));
+  };
 
   const beginSaveMacro = () => {
     const parsed = parseFormula(formula);
@@ -496,67 +507,152 @@ export default function DiceRoller({
         )}
         <div className="space-y-1.5">
           {history.map((r) => (
-            <button
+            <div
               key={r.id}
-              onClick={() => doRoll(r.formula, r.label)}
-              className="w-full text-left rounded border border-rule bg-parchment-soft hover:bg-parchment-deep/50 px-2.5 py-2 group transition-colors"
-              title="Click to re-roll"
+              className="rounded border border-rule bg-parchment-soft hover:bg-parchment-deep/50 group transition-colors relative"
             >
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs text-ink-mute font-display tracking-wider w-9 flex-shrink-0">
-                  {relTime(r.ts, now)}
-                </span>
-                {r.label && (
-                  <span className="text-xs px-1.5 py-0.5 rounded-sm bg-brass/15 border border-brass-deep/30 text-brass-deep font-display uppercase tracking-wider flex-shrink-0 truncate max-w-[40%]">
-                    {r.label}
+              <button
+                type="button"
+                onClick={() => doRoll(r.formula, r.label)}
+                className="w-full text-left px-2.5 py-2 pr-9"
+                title="Click to re-roll"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs text-ink-mute font-display tracking-wider w-9 flex-shrink-0">
+                    {relTime(r.ts, now)}
                   </span>
-                )}
-                <span className="text-xs text-ink-mute italic font-serif truncate flex-1 min-w-0">{r.formula}</span>
-                <span
-                  className="font-display text-2xl text-crimson leading-none flex-shrink-0"
-                  style={{ fontVariantNumeric: 'tabular-nums' }}
-                >
-                  {r.total}
-                </span>
-                <RotateCcw
-                  size={12}
-                  className="text-ink-faint opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 hidden sm:block"
-                />
-              </div>
-              <div className="space-y-0.5">
-                {r.parts.map((p, i) => (
-                  <div
-                    key={i}
-                    className="text-xs text-ink-soft font-serif flex items-baseline gap-1.5 flex-wrap"
+                  {r.label && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-sm bg-brass/15 border border-brass-deep/30 text-brass-deep font-display uppercase tracking-wider flex-shrink-0 truncate max-w-[40%]">
+                      {r.label}
+                    </span>
+                  )}
+                  <span className="text-xs text-ink-mute italic font-serif truncate flex-1 min-w-0">{r.formula}</span>
+                  <span
+                    className="font-display text-2xl text-crimson leading-none flex-shrink-0"
+                    style={{ fontVariantNumeric: 'tabular-nums' }}
                   >
-                    <span className="text-ink-mute italic">{p.expr}</span>
-                    {p.advMode && (
-                      <span
-                        className={`text-[10px] font-display uppercase tracking-wider ${
-                          p.advMode === 'adv' ? 'text-moss' : 'text-crimson'
-                        }`}
-                      >
-                        {p.advMode}
-                      </span>
-                    )}
-                    {p.dice.map((d, di) => (
-                      <span key={di} className="text-ink-mute">
-                        d{d.sides}[{renderDiceList(d)}]
-                      </span>
-                    ))}
-                    {p.modifier !== 0 && (
-                      <span className="text-ink-soft">
-                        {p.modifier > 0 ? '+' : ''}
-                        {p.modifier}
-                      </span>
-                    )}
-                    <span className="ml-auto font-display tracking-wider text-ink">= {p.subtotal}</span>
-                  </div>
-                ))}
-              </div>
-            </button>
+                    {r.total}
+                  </span>
+                  <RotateCcw
+                    size={12}
+                    className="text-ink-faint opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 hidden sm:block"
+                  />
+                </div>
+                <div className="space-y-0.5">
+                  {r.parts.map((p, i) => (
+                    <div
+                      key={i}
+                      className="text-xs text-ink-soft font-serif flex items-baseline gap-1.5 flex-wrap"
+                    >
+                      <span className="text-ink-mute italic">{p.expr}</span>
+                      {p.advMode && (
+                        <span
+                          className={`text-[10px] font-display uppercase tracking-wider ${
+                            p.advMode === 'adv' ? 'text-moss' : 'text-crimson'
+                          }`}
+                        >
+                          {p.advMode}
+                        </span>
+                      )}
+                      {p.dice.map((d, di) => (
+                        <span key={di} className="text-ink-mute">
+                          d{d.sides}[{renderDiceList(d)}]
+                        </span>
+                      ))}
+                      {p.modifier !== 0 && (
+                        <span className="text-ink-soft">
+                          {p.modifier > 0 ? '+' : ''}
+                          {p.modifier}
+                        </span>
+                      )}
+                      <span className="ml-auto font-display tracking-wider text-ink">= {p.subtotal}</span>
+                    </div>
+                  ))}
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  saveRollToLog(r);
+                }}
+                className="absolute top-1.5 right-1.5 p-1 rounded text-ink-mute hover:text-brass-deep hover:bg-parchment-deep/60"
+                title="Save this roll to log"
+                aria-label="Save to log"
+              >
+                <Save size={12} />
+              </button>
+            </div>
           ))}
         </div>
+      </div>
+
+      <GeneratorLog
+        kind="dice"
+        entries={logEntries}
+        onChange={onLogEntriesChange}
+        renderPayload={(entry) => <DiceLogRow roll={entry.payload as Roll} />}
+        copyText={(e) => rollToText(e.payload as Roll)}
+        emptyHint="Roll dice and click the save icon on any result to keep it here."
+      />
+    </div>
+  );
+}
+
+function rollToText(r: Roll): string {
+  const head = `${r.label ? `[${r.label}] ` : ''}${r.formula} = ${r.total}`;
+  const parts = r.parts.map((p) => {
+    const dice = p.dice.map((d) => `d${d.sides}[${d.rolls.join(',')}]`).join(' ');
+    const mod = p.modifier === 0 ? '' : (p.modifier > 0 ? `+${p.modifier}` : `${p.modifier}`);
+    return `  ${p.expr} → ${dice}${mod} = ${p.subtotal}`;
+  });
+  return [head, ...parts].join('\n');
+}
+
+function DiceLogRow({ roll }: { roll: Roll }) {
+  return (
+    <div className="text-sm">
+      <div className="flex items-center gap-2 mb-1">
+        {roll.label && (
+          <span className="text-xs px-1.5 py-0.5 rounded-sm bg-brass/15 border border-brass-deep/30 text-brass-deep font-display uppercase tracking-wider flex-shrink-0">
+            {roll.label}
+          </span>
+        )}
+        <span className="text-xs text-ink-mute italic font-serif">{roll.formula}</span>
+        <span
+          className="ml-auto font-display text-2xl text-crimson leading-none"
+          style={{ fontVariantNumeric: 'tabular-nums' }}
+        >
+          {roll.total}
+        </span>
+      </div>
+      <div className="space-y-0.5">
+        {roll.parts.map((p, i) => (
+          <div key={i} className="text-xs text-ink-soft font-serif flex items-baseline gap-1.5 flex-wrap">
+            <span className="text-ink-mute italic">{p.expr}</span>
+            {p.advMode && (
+              <span
+                className={`text-[10px] font-display uppercase tracking-wider ${
+                  p.advMode === 'adv' ? 'text-moss' : 'text-crimson'
+                }`}
+              >
+                {p.advMode}
+              </span>
+            )}
+            {p.dice.map((d, di) => (
+              <span key={di} className="text-ink-mute">
+                d{d.sides}[{renderDiceList(d)}]
+              </span>
+            ))}
+            {p.modifier !== 0 && (
+              <span className="text-ink-soft">
+                {p.modifier > 0 ? '+' : ''}
+                {p.modifier}
+              </span>
+            )}
+            <span className="ml-auto font-display tracking-wider text-ink">= {p.subtotal}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

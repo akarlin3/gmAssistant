@@ -16,6 +16,13 @@ import { LockedInline } from '@/components/LockedFeature';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { makeRng, type SeededRng } from '@/lib/generators/rng';
 import type { GeneratorResult } from '@/lib/generators/types';
+import GeneratorLog from './GeneratorLog';
+import {
+  appendToLog,
+  makeLogEntry,
+  type LogEntry,
+  type LogKind,
+} from '@/lib/generators/log';
 
 export type InputSpec<T extends string | number = string | number> =
   | { kind: 'select'; key: string; label: string; options: readonly { label: string; value: string }[]; default: string }
@@ -31,17 +38,23 @@ export type GeneratorPanelProps<Inputs extends Record<string, string | number>, 
   renderResult: (
     result: R,
     ctx: {
-      saving: boolean;
       enhancing: boolean;
       enhanced: boolean;
       onReroll: () => void;
-      onSave: () => Promise<void>;
       onEnhance?: () => Promise<void>;
       isPro: boolean;
     },
   ) => React.ReactNode;
-  onSave?: (result: R) => Promise<void> | void;
   onEnhanced?: (next: R) => void;
+  // Per-generator log wiring. When provided, a "Save to log" button appears
+  // on each result and a <GeneratorLog/> renders directly below the panel.
+  log?: {
+    kind: LogKind;
+    entries: LogEntry[];
+    onEntriesChange: (next: LogEntry[]) => void;
+    titleFor: (result: R) => string;
+    copyText?: (result: R) => string;
+  };
 };
 
 function deriveInputs<I extends Record<string, string | number>>(specs: InputSpec[], state: Record<string, string | number>): I {
@@ -61,7 +74,7 @@ function deriveInputs<I extends Record<string, string | number>>(specs: InputSpe
 export function GeneratorPanel<I extends Record<string, string | number>, R extends GeneratorResult>(
   props: GeneratorPanelProps<I, R>,
 ) {
-  const { title, description, inputs, generate, enhance, renderResult, onSave, onEnhanced } = props;
+  const { title, description, inputs, generate, enhance, renderResult, onEnhanced, log } = props;
   const { isPro } = useAuth();
 
   const [state, setState] = useState<Record<string, string | number>>(() => {
@@ -70,7 +83,6 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
     return s;
   });
   const [result, setResult] = useState<R | null>(null);
-  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [error, setError] = useState('');
@@ -91,19 +103,12 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
 
   const onReroll = useCallback(() => runGenerate(undefined), [runGenerate]);
 
-  const onSaveClick = useCallback(async () => {
-    if (!result || !onSave) return;
-    setSaving(true);
-    setError('');
-    try {
-      await onSave(result);
-      setSaved(true);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Save failed');
-    } finally {
-      setSaving(false);
-    }
-  }, [result, onSave]);
+  const onSaveToLogClick = useCallback(() => {
+    if (!result || !log) return;
+    const entry = makeLogEntry(log.kind, log.titleFor(result), result);
+    log.onEntriesChange(appendToLog(log.entries, entry));
+    setSaved(true);
+  }, [result, log]);
 
   const onEnhanceClick = useCallback(async () => {
     if (!result || !enhance || !isPro) return;
@@ -208,14 +213,14 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
       {result && (
         <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
-            {onSave && (
+            {log && (
               <button
-                onClick={onSaveClick}
-                disabled={saving || saved}
+                onClick={onSaveToLogClick}
+                disabled={saved}
                 className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
               >
                 {saved ? <Check size={12} /> : <Save size={12} />}
-                {saving ? 'Saving…' : saved ? 'Saved' : 'Save to campaign'}
+                {saved ? 'Saved to log' : 'Save to log'}
               </button>
             )}
             <button
@@ -240,16 +245,34 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
           </div>
           <div className="border-t border-rule pt-3">
             {renderResult(result, {
-              saving,
               enhancing,
               enhanced: result.enhanced,
               onReroll,
-              onSave: onSaveClick,
               onEnhance: enhance && isPro ? onEnhanceClick : undefined,
               isPro,
             })}
           </div>
         </div>
+      )}
+
+      {log && (
+        <GeneratorLog
+          kind={log.kind}
+          entries={log.entries}
+          onChange={log.onEntriesChange}
+          renderPayload={(entry) => (
+            <div className="text-sm text-ink">
+              {renderResult(entry.payload as R, {
+                enhancing: false,
+                enhanced: (entry.payload as R).enhanced,
+                onReroll: () => {},
+                onEnhance: undefined,
+                isPro,
+              })}
+            </div>
+          )}
+          copyText={log.copyText ? (e) => log.copyText!(e.payload as R) : undefined}
+        />
       )}
     </div>
   );

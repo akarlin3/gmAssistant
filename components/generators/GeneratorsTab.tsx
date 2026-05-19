@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Coins, Gem, Shirt, Sparkles, Beer, MountainSnow, MapPinned, Map, ScrollText, Wand2 } from 'lucide-react';
 import type { GeneratorKind } from '@/lib/generators/types';
+import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import TreasureHoardGenerator from './TreasureHoardGenerator';
 import TrinketGenerator from './TrinketGenerator';
 import MundaneShopGenerator from './MundaneShopGenerator';
@@ -41,9 +42,13 @@ const GROUPS: { label: string; entries: { slug: GenSlug; label: string; icon: ty
 ];
 
 export default function GeneratorsTab({
+  logs,
+  onLogsChange,
   renderNames,
   renderLocations,
 }: {
+  logs: GeneratorLogs;
+  onLogsChange: (next: GeneratorLogs) => void;
   renderNames: () => React.ReactNode;
   renderLocations: () => React.ReactNode;
 }) {
@@ -68,20 +73,39 @@ export default function GeneratorsTab({
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const entriesFor = useCallback(
+    (kind: LogKind): LogEntry[] => logs[kind] ?? [],
+    [logs],
+  );
+
+  const setEntriesFor = useCallback(
+    (kind: LogKind) => (next: LogEntry[]) => {
+      onLogsChange({ ...logs, [kind]: next });
+    },
+    [logs, onLogsChange],
+  );
+
   const ActiveComponent = useMemo(() => {
     switch (active) {
-      case 'treasure-hoard': return <TreasureHoardGenerator />;
-      case 'trinket': return <TrinketGenerator />;
-      case 'mundane-shop': return <MundaneShopGenerator />;
-      case 'magic-shop': return <MagicShopGenerator />;
-      case 'tavern': return <TavernGenerator />;
-      case 'dungeon': return <DungeonGenerator />;
-      case 'settlement': return <SettlementGenerator />;
+      case 'treasure-hoard':
+        return <TreasureHoardGenerator entries={entriesFor('treasure-hoard')} onEntriesChange={setEntriesFor('treasure-hoard')} />;
+      case 'trinket':
+        return <TrinketGenerator entries={entriesFor('trinket')} onEntriesChange={setEntriesFor('trinket')} />;
+      case 'mundane-shop':
+        return <MundaneShopGenerator entries={entriesFor('mundane-shop')} onEntriesChange={setEntriesFor('mundane-shop')} />;
+      case 'magic-shop':
+        return <MagicShopGenerator entries={entriesFor('magic-shop')} onEntriesChange={setEntriesFor('magic-shop')} />;
+      case 'tavern':
+        return <TavernGenerator entries={entriesFor('tavern')} onEntriesChange={setEntriesFor('tavern')} />;
+      case 'dungeon':
+        return <DungeonGenerator entries={entriesFor('dungeon')} onEntriesChange={setEntriesFor('dungeon')} />;
+      case 'settlement':
+        return <SettlementGenerator entries={entriesFor('settlement')} onEntriesChange={setEntriesFor('settlement')} />;
       case 'names': return renderNames();
       case 'locations': return renderLocations();
       default: return null;
     }
-  }, [active, renderNames, renderLocations]);
+  }, [active, entriesFor, setEntriesFor, renderNames, renderLocations]);
 
   return (
     <div className="space-y-3">

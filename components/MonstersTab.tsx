@@ -11,12 +11,16 @@ import {
   Trash2,
   ChevronDown,
   ChevronRight,
+  Save,
+  Check,
 } from 'lucide-react';
 import { CR_TO_XP } from '@/lib/encounterMath';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { LockedPanel } from './LockedFeature';
 import MonsterScaler from './MonsterScaler';
 import EncounterBuilder from './EncounterBuilder';
+import GeneratorLog from './generators/GeneratorLog';
+import { appendToLog, makeLogEntry, type LogEntry } from '@/lib/generators/log';
 import type { Character } from '@/lib/character-schema';
 
 type Mode = 'roll' | 'scale' | 'build' | 'homebrew';
@@ -402,10 +406,18 @@ export default function MonstersTab({
   characters,
   homebrewMonsters,
   onHomebrewMonstersChange,
+  rollLogEntries,
+  onRollLogEntriesChange,
+  scaleLogEntries,
+  onScaleLogEntriesChange,
 }: {
   characters?: Character[];
   homebrewMonsters: HomebrewMonster[];
   onHomebrewMonstersChange: (next: HomebrewMonster[]) => void;
+  rollLogEntries: LogEntry[];
+  onRollLogEntriesChange: (next: LogEntry[]) => void;
+  scaleLogEntries: LogEntry[];
+  onScaleLogEntriesChange: (next: LogEntry[]) => void;
 }) {
   const { isPro } = useAuth();
   const [mode, setMode] = useState<Mode>('roll');
@@ -416,6 +428,14 @@ export default function MonstersTab({
   const [types, setTypes] = useState<Set<string>>(new Set());
   const [hbOnly, setHbOnly] = useState(false);
   const [picked, setPicked] = useState<Monster | null>(null);
+  const [savedRoll, setSavedRoll] = useState(false);
+
+  const saveRollToLog = () => {
+    if (!picked) return;
+    const title = `${picked.name} · CR ${picked.challenge_rating}${picked.homebrew ? ' · HB' : ''}`;
+    onRollLogEntriesChange(appendToLog(rollLogEntries, makeLogEntry('monster-roll', title, picked)));
+    setSavedRoll(true);
+  };
 
   useEffect(() => {
     let alive = true;
@@ -455,7 +475,10 @@ export default function MonstersTab({
 
   const roll = () => {
     const next = pickRandom(pool, picked ?? undefined);
-    if (next) setPicked(next);
+    if (next) {
+      setPicked(next);
+      setSavedRoll(false);
+    }
   };
 
   const toggleType = (t: string) => {
@@ -554,7 +577,10 @@ export default function MonstersTab({
       <div className="space-y-3">
         {modeToggle}
         {isPro ? (
-          <MonsterScaler />
+          <MonsterScaler
+            logEntries={scaleLogEntries}
+            onLogEntriesChange={onScaleLogEntriesChange}
+          />
         ) : (
           <LockedPanel title="Scale a Monster to CR">
             Describe any monster — a coral-armored sea wraith, a hexblade lord, a clockwork hydra —
@@ -710,6 +736,17 @@ export default function MonstersTab({
             <RefreshCw size={14} /> Reroll
           </button>
         )}
+        {picked && (
+          <button
+            type="button"
+            onClick={saveRollToLog}
+            disabled={savedRoll}
+            className="px-3 py-2 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass font-display uppercase tracking-wider text-xs flex items-center gap-1.5 disabled:opacity-50 transition-colors"
+          >
+            {savedRoll ? <Check size={14} /> : <Save size={14} />}
+            {savedRoll ? 'Saved to log' : 'Save to log'}
+          </button>
+        )}
         {pool.length === 0 && (
           <span className="text-xs text-crimson font-serif italic">No monsters match these filters.</span>
         )}
@@ -722,8 +759,52 @@ export default function MonstersTab({
           Set your filters and roll a monster.
         </div>
       )}
+
+      <GeneratorLog
+        kind="monster-roll"
+        entries={rollLogEntries}
+        onChange={onRollLogEntriesChange}
+        renderPayload={(entry) => <StatBlock m={entry.payload as Monster} />}
+        copyText={(e) => monsterPlainText(e.payload as Monster)}
+        emptyHint="Roll a monster, then click 'Save to log' to keep it here."
+      />
     </div>
   );
+}
+
+function monsterPlainText(m: Monster): string {
+  const lines: string[] = [
+    m.name,
+    fmtTypeLine(m),
+    '',
+    `AC ${m.armor_class ?? '—'}${m.armor_desc ? ` (${m.armor_desc})` : ''}`,
+    `HP ${m.hit_points ?? '—'}${m.hit_dice ? ` (${m.hit_dice})` : ''}`,
+    `Speed ${fmtSpeed(m.speed)}`,
+    '',
+    `STR ${m.strength} (${mod(m.strength)})  DEX ${m.dexterity} (${mod(m.dexterity)})  CON ${m.constitution} (${mod(m.constitution)})  INT ${m.intelligence} (${mod(m.intelligence)})  WIS ${m.wisdom} (${mod(m.wisdom)})  CHA ${m.charisma} (${mod(m.charisma)})`,
+  ];
+  if (fmtSaves(m)) lines.push(`Saving Throws ${fmtSaves(m)}`);
+  if (fmtSkills(m.skills)) lines.push(`Skills ${fmtSkills(m.skills)}`);
+  if (m.damage_resistances) lines.push(`Damage Resistances ${m.damage_resistances}`);
+  if (m.damage_immunities) lines.push(`Damage Immunities ${m.damage_immunities}`);
+  if (m.condition_immunities) lines.push(`Condition Immunities ${m.condition_immunities}`);
+  if (m.senses) lines.push(`Senses ${m.senses}`);
+  if (m.languages) lines.push(`Languages ${m.languages}`);
+  lines.push(`Challenge ${fmtCR(m.challenge_rating)}`);
+  const blocks: { title: string | null; entries: Action[] }[] = [
+    { title: null, entries: m.special_abilities },
+    { title: 'ACTIONS', entries: m.actions },
+    { title: 'BONUS ACTIONS', entries: m.bonus_actions },
+    { title: 'REACTIONS', entries: m.reactions },
+    { title: 'LEGENDARY ACTIONS', entries: m.legendary_actions },
+  ];
+  for (const block of blocks) {
+    if (!block.entries.length) continue;
+    lines.push('');
+    if (block.title) lines.push(block.title);
+    for (const a of block.entries) lines.push(`${a.name}. ${a.desc}`);
+  }
+  return lines.join('\n');
 }
 
 function HomebrewManager({

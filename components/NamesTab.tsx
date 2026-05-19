@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, Shuffle, Copy, Check } from 'lucide-react';
+import { Sparkles, Shuffle, Copy, Check, Save } from 'lucide-react';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import { CULTURE_GROUPS, ALL_CULTURES } from '@/lib/cultures';
+import GeneratorLog from './generators/GeneratorLog';
+import { appendToLog, makeLogEntry, type LogEntry } from '@/lib/generators/log';
 
 const GENDERS = ['Any', 'Masculine', 'Feminine', 'Androgynous'] as const;
 
@@ -13,6 +15,25 @@ type GeneratedName = {
   firstCulture: string;
   lastCulture: string;
 };
+
+type NameLogPayload = {
+  firstCulture: string;
+  lastCulture: string;
+  gender: typeof GENDERS[number];
+  names: GeneratedName[];
+};
+
+function namesCopyText(p: NameLogPayload): string {
+  return p.names
+    .map((n) => {
+      const full = [n.first, n.last].filter(Boolean).join(' ');
+      const tag = n.firstCulture === n.lastCulture
+        ? n.firstCulture
+        : [n.firstCulture, n.lastCulture].filter(Boolean).join(' · ');
+      return tag ? `${full}  (${tag})` : full;
+    })
+    .join('\n');
+}
 
 const CultureSelect = ({
   label,
@@ -44,7 +65,13 @@ const CultureSelect = ({
   </div>
 );
 
-export default function NamesTab() {
+export default function NamesTab({
+  logEntries,
+  onLogEntriesChange,
+}: {
+  logEntries: LogEntry[];
+  onLogEntriesChange: (next: LogEntry[]) => void;
+}) {
   const [firstCulture, setFirstCulture] = useState('Random');
   const [lastCulture, setLastCulture] = useState('Random');
   const [gender, setGender] = useState<typeof GENDERS[number]>('Any');
@@ -53,10 +80,12 @@ export default function NamesTab() {
   const [error, setError] = useState('');
   const [names, setNames] = useState<GeneratedName[]>([]);
   const [copied, setCopied] = useState<string>('');
+  const [saved, setSaved] = useState(false);
 
   const generate = async () => {
     setGenerating(true);
     setError('');
+    setSaved(false);
     try {
       const user = getFirebaseAuth().currentUser;
       if (!user) throw new Error('Not signed in');
@@ -77,6 +106,34 @@ export default function NamesTab() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const saveToLog = () => {
+    if (names.length === 0) return;
+    const payload: NameLogPayload = { firstCulture, lastCulture, gender, names };
+    const title = `${names.length} name${names.length === 1 ? '' : 's'} · ${firstCulture === lastCulture ? firstCulture : `${firstCulture} / ${lastCulture}`}${gender !== 'Any' ? ` · ${gender}` : ''}`;
+    onLogEntriesChange(appendToLog(logEntries, makeLogEntry('names', title, payload)));
+    setSaved(true);
+  };
+
+  const renderPayload = (entry: LogEntry) => {
+    const p = entry.payload as NameLogPayload;
+    return (
+      <ul className="space-y-1 font-serif text-sm">
+        {p.names.map((n, i) => {
+          const full = [n.first, n.last].filter(Boolean).join(' ');
+          const tag = n.firstCulture === n.lastCulture
+            ? n.firstCulture
+            : [n.firstCulture, n.lastCulture].filter(Boolean).join(' · ');
+          return (
+            <li key={i} className="flex items-center justify-between gap-2">
+              <span className="text-ink">{full}</span>
+              {tag && <span className="text-[10px] text-ink-mute italic">{tag}</span>}
+            </li>
+          );
+        })}
+      </ul>
+    );
   };
 
   const copyName = async (name: string) => {
@@ -172,9 +229,19 @@ export default function NamesTab() {
 
       {names.length > 0 && (
         <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
-          <p className="text-[11px] text-ink-mute italic font-serif">
-            Click a name to copy it.
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] text-ink-mute italic font-serif">
+              Click a name to copy it.
+            </p>
+            <button
+              onClick={saveToLog}
+              disabled={saved}
+              className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
+            >
+              {saved ? <Check size={12} /> : <Save size={12} />}
+              {saved ? 'Saved to log' : 'Save to log'}
+            </button>
+          </div>
           <div className="space-y-1.5">
             {names.map((n, i) => {
               const full = [n.first, n.last].filter(Boolean).join(' ');
@@ -205,6 +272,15 @@ export default function NamesTab() {
           </div>
         </div>
       )}
+
+      <GeneratorLog
+        kind="names"
+        entries={logEntries}
+        onChange={onLogEntriesChange}
+        renderPayload={renderPayload}
+        copyText={(e) => namesCopyText(e.payload as NameLogPayload)}
+        emptyHint="Generate names, then click 'Save to log' to keep a batch here."
+      />
     </div>
   );
 }

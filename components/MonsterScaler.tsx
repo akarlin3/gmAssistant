@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, Loader2, Copy, Check, Wand2 } from 'lucide-react';
+import { Sparkles, Loader2, Copy, Check, Wand2, Save } from 'lucide-react';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import { CR_TO_XP } from '@/lib/encounterMath';
+import GeneratorLog from './generators/GeneratorLog';
+import { appendToLog, makeLogEntry, type LogEntry } from '@/lib/generators/log';
 
 const CR_OPTIONS: string[] = [
   '0', '1/8', '1/4', '1/2', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
@@ -218,12 +220,19 @@ function ScaledStatBlock({ m }: { m: ScaledMonster }) {
   );
 }
 
-export default function MonsterScaler() {
+export default function MonsterScaler({
+  logEntries,
+  onLogEntriesChange,
+}: {
+  logEntries: LogEntry[];
+  onLogEntriesChange: (next: LogEntry[]) => void;
+}) {
   const [description, setDescription] = useState('');
   const [cr, setCr] = useState('5');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [monster, setMonster] = useState<ScaledMonster | null>(null);
+  const [savedScale, setSavedScale] = useState(false);
 
   const generate = async () => {
     const desc = description.trim();
@@ -233,6 +242,7 @@ export default function MonsterScaler() {
     }
     setGenerating(true);
     setError('');
+    setSavedScale(false);
     try {
       const user = getFirebaseAuth().currentUser;
       if (!user) throw new Error('Not signed in');
@@ -324,7 +334,35 @@ export default function MonsterScaler() {
         )}
       </div>
 
-      {monster && <ScaledStatBlock m={monster} />}
+      {monster && (
+        <div className="space-y-2">
+          <div className="flex justify-end">
+            <button
+              onClick={() => {
+                if (!monster) return;
+                const title = `${monster.name} · CR ${monster.cr} · from ${monster.sourceMonster}`;
+                onLogEntriesChange(appendToLog(logEntries, makeLogEntry('monster-scale', title, monster)));
+                setSavedScale(true);
+              }}
+              disabled={savedScale}
+              className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
+            >
+              {savedScale ? <Check size={12} /> : <Save size={12} />}
+              {savedScale ? 'Saved to log' : 'Save to log'}
+            </button>
+          </div>
+          <ScaledStatBlock m={monster} />
+        </div>
+      )}
+
+      <GeneratorLog
+        kind="monster-scale"
+        entries={logEntries}
+        onChange={onLogEntriesChange}
+        renderPayload={(entry) => <ScaledStatBlock m={entry.payload as ScaledMonster} />}
+        copyText={(e) => statblockToText(e.payload as ScaledMonster)}
+        emptyHint="Scale a monster, then click 'Save to log' to keep it here."
+      />
     </div>
   );
 }

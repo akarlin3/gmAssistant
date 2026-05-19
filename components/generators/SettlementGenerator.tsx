@@ -3,6 +3,7 @@
 import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
 import { generateSettlement } from '@/lib/generators/settlement';
 import type { SettlementResult, SettlementSizeClass } from '@/lib/generators/types';
+import type { LogEntry } from '@/lib/generators/log';
 
 const SIZE_OPTIONS: { value: SettlementSizeClass; label: string }[] = [
   { value: 'thorp', label: 'Thorp (≤20)' },
@@ -28,15 +29,32 @@ const INPUTS: InputSpec[] = [
   { kind: 'select', key: 'government', label: 'Government', default: 'random', options: GOVERNMENT_OPTIONS },
 ];
 
+function copyText(r: SettlementResult): string {
+  const lines: string[] = [
+    r.name,
+    `${r.details.sizeClass} · pop. ${r.details.population.toLocaleString()}${r.details.region ? ` · ${r.details.region}` : ''}`,
+    `Government: ${r.details.government}`,
+    `Economy: ${r.details.economy}`,
+    'Notables:',
+    ...r.details.notables.map(n => `  - ${n.name} — ${n.role}`),
+    'Hooks:',
+    ...r.details.hooks.map(h => `  - ${h}`),
+  ];
+  if (r.currentSituation) lines.push(`\n${r.currentSituation}`);
+  return lines.join('\n');
+}
+
 export default function SettlementGenerator({
-  onSave,
+  entries,
+  onEntriesChange,
 }: {
-  onSave?: (result: SettlementResult) => Promise<void>;
+  entries: LogEntry[];
+  onEntriesChange: (next: LogEntry[]) => void;
 }) {
   return (
     <GeneratorPanel<{ sizeClass: string; region: string; government: string }, SettlementResult>
       title="Settlement"
-      description="Generate a settlement with population, government, economy, notable NPCs, and 2–3 hooks. Save creates a Location (subtype: settlement) plus minor NPCs for each notable."
+      description="Generate a settlement with population, government, economy, notable NPCs, and 2–3 hooks."
       inputs={INPUTS}
       generate={(inputs, rng) =>
         generateSettlement(
@@ -49,7 +67,13 @@ export default function SettlementGenerator({
         )
       }
       enhance={{ kind: 'settlement' }}
-      onSave={onSave}
+      log={{
+        kind: 'settlement',
+        entries,
+        onEntriesChange,
+        titleFor: (r) => r.name,
+        copyText,
+      }}
       renderResult={(r) => (
         <div className="space-y-3 font-serif text-sm text-ink">
           <div>

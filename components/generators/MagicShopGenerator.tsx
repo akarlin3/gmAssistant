@@ -4,6 +4,7 @@ import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
 import { generateMagicShop } from '@/lib/generators/magic-shop';
 import type { MagicShopArchetype } from '@/lib/generators/tables/shop-tables';
 import type { ItemRarity, MagicShopResult, SettlementSizeClass } from '@/lib/generators/types';
+import type { LogEntry } from '@/lib/generators/log';
 
 const SETTLEMENT_OPTIONS: { value: SettlementSizeClass; label: string }[] = [
   { value: 'thorp', label: 'Thorp' },
@@ -36,15 +37,27 @@ const INPUTS: InputSpec[] = [
   { kind: 'select', key: 'settlementSize', label: 'Settlement Size', default: 'small city', options: SETTLEMENT_OPTIONS },
 ];
 
+function copyText(r: MagicShopResult): string {
+  return [
+    r.shopName,
+    `${r.inputs.archetype} · ${r.inputs.settlementSize}`,
+    `Proprietor: ${r.owner.name} — ${r.owner.descriptor}`,
+    'Inventory:',
+    ...r.inventory.map(it => `  - ${it.name} [${it.rarity}] — ${it.price}${it.note ? ` (${it.note})` : ''}`),
+  ].join('\n');
+}
+
 export default function MagicShopGenerator({
-  onSave,
+  entries,
+  onEntriesChange,
 }: {
-  onSave?: (result: MagicShopResult) => Promise<void>;
+  entries: LogEntry[];
+  onEntriesChange: (next: LogEntry[]) => void;
 }) {
   return (
     <GeneratorPanel<{ archetype: string; maxRarity: string; settlementSize: string }, MagicShopResult>
       title="Magic Item Shop"
-      description="Generate a shop trading in magic items, filtered by settlement scarcity and tier cap. Save creates a Location (subtype: shop) and a minor NPC for the proprietor."
+      description="Generate a shop trading in magic items, filtered by settlement scarcity and tier cap."
       inputs={INPUTS}
       generate={(inputs, rng) =>
         generateMagicShop(
@@ -57,7 +70,13 @@ export default function MagicShopGenerator({
         )
       }
       enhance={{ kind: 'magic-shop' }}
-      onSave={onSave}
+      log={{
+        kind: 'magic-shop',
+        entries,
+        onEntriesChange,
+        titleFor: (r) => r.shopName,
+        copyText,
+      }}
       renderResult={(r) => (
         <div className="space-y-3 font-serif text-sm text-ink">
           <div>

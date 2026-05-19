@@ -22,6 +22,7 @@ import NamesTab from './NamesTab';
 import LocationsTab from './LocationsTab';
 import MonstersTab, { type HomebrewMonster } from './MonstersTab';
 import GeneratorsTab from './generators/GeneratorsTab';
+import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
 import {
@@ -1033,6 +1034,12 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   const toggleOpen = (id: string) => setOpen(o => ({ ...o, [id]: !o[id] }));
   const togglePhase = (id: string) => setPhaseOpen(p => ({ ...p, [id]: !p[id] }));
 
+  const generatorLogs = (state.generatorLogs as GeneratorLogs) || {};
+  const logEntriesFor = (kind: LogKind): LogEntry[] => generatorLogs[kind] ?? [];
+  const setLogEntriesFor = (kind: LogKind) => (next: LogEntry[]) => {
+    setVal('generatorLogs', { ...generatorLogs, [kind]: next });
+  };
+
   const completedCount = Object.values(done).filter(Boolean).length;
 
   const sessionLogs = (state.sessionLogs as SessionLog[]) || [];
@@ -1875,6 +1882,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           <DiceRoller
             macros={get('macros', []) as Macro[]}
             onMacrosChange={(v) => setVal('macros', v)}
+            logEntries={logEntriesFor('dice')}
+            onLogEntriesChange={setLogEntriesFor('dice')}
           />
         )}
 
@@ -1889,12 +1898,24 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
         {tab === 'generators' && (
           <GeneratorsTab
-            renderNames={() => (isPro ? <NamesTab /> : (
+            logs={generatorLogs}
+            onLogsChange={(next) => setVal('generatorLogs', next)}
+            renderNames={() => (isPro ? (
+              <NamesTab
+                logEntries={logEntriesFor('names')}
+                onLogEntriesChange={setLogEntriesFor('names')}
+              />
+            ) : (
               <LockedPanel title="Names Generator">
                 Generate culture-rooted first and last names for NPCs, towns, and places — powered by Claude.
               </LockedPanel>
             ))}
-            renderLocations={() => (isPro ? <LocationsTab /> : (
+            renderLocations={() => (isPro ? (
+              <LocationsTab
+                logEntries={logEntriesFor('locations')}
+                onLogEntriesChange={setLogEntriesFor('locations')}
+              />
+            ) : (
               <LockedPanel title="Locations Generator">
                 Generate evocative location names with type tag, cultural tradition, and a one-line atmospheric blurb. Powered by Claude.
               </LockedPanel>
@@ -1903,7 +1924,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         )}
 
         {tab === 'names' && (isPro ? (
-          <NamesTab />
+          <NamesTab
+            logEntries={logEntriesFor('names')}
+            onLogEntriesChange={setLogEntriesFor('names')}
+          />
         ) : (
           <LockedPanel title="Names Generator">
             Generate culture-rooted first and last names for NPCs, towns, and places — powered by Claude.
@@ -1912,7 +1936,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         ))}
 
         {tab === 'locations' && (isPro ? (
-          <LocationsTab />
+          <LocationsTab
+            logEntries={logEntriesFor('locations')}
+            onLogEntriesChange={setLogEntriesFor('locations')}
+          />
         ) : (
           <LockedPanel title="Locations Generator">
             Generate evocative location names with type tag, cultural tradition, and a one-line
@@ -1925,6 +1952,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             characters={characters}
             homebrewMonsters={get('homebrewMonsters', []) as HomebrewMonster[]}
             onHomebrewMonstersChange={(v) => setVal('homebrewMonsters', v)}
+            rollLogEntries={logEntriesFor('monster-roll')}
+            onRollLogEntriesChange={setLogEntriesFor('monster-roll')}
+            scaleLogEntries={logEntriesFor('monster-scale')}
+            onScaleLogEntriesChange={setLogEntriesFor('monster-scale')}
           />
         )}
 
