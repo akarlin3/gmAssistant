@@ -155,7 +155,7 @@ These must be done manually in dashboards; not automatable from code:
 
 1. **Stripe account** — create if not already.
 2. **Stripe Dashboard:**
-   - Create product "Campaign Prep Pro" with recurring $1.99/month price → copy `price_xxx`.
+   - Create product "Gamemaster Builder Pro" with recurring $1.99/month price → copy `price_xxx`.
    - Add webhook endpoint pointing at `https://<railway-domain>/api/stripe/webhook` subscribing to `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`. Copy `whsec_xxx`.
    - Enable Customer Portal (Settings → Billing → Customer Portal) with cancellation allowed and `return_url` flexibility.
 3. **Firebase Console** — generate a service account JSON (Project Settings → Service accounts → Generate new private key).
