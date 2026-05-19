@@ -651,7 +651,7 @@ const ClockCard = ({ data, onChange, onRemove }: any) => {
 };
 
 type EncounterMonster = { cr: string; count: number };
-type EncounterCalcState = { pcLevel: number; monsters: EncounterMonster[] };
+type EncounterCalcState = { pcLevel: number; monsters: EncounterMonster[]; gestalt?: boolean };
 
 type DowntimeEntry = {
   id: string;
@@ -834,7 +834,7 @@ const EncounterHelper = ({
   const baseXP = monsters.reduce((sum, m) => sum + (CR_TO_XP[m.cr] || 0) * (m.count || 0), 0);
   const mult = encounterMultiplier(totalCount);
   const adjustedXP = Math.round(baseXP * mult);
-  const { rating, rationale } = difficultyForSolo(adjustedXP, state.pcLevel || 1);
+  const { rating, rationale } = difficultyForSolo(adjustedXP, state.pcLevel || 1, !!state.gestalt);
   const ratingClass = RATING_COLORS[rating] || RATING_COLORS.Medium;
 
   const updateMonster = (i: number, patch: Partial<EncounterMonster>) => {
@@ -855,19 +855,31 @@ const EncounterHelper = ({
         <span className="font-display text-xs uppercase tracking-wider text-amber-900">Solo Encounter Helper</span>
         <span className="text-[10px] text-ink-mute italic font-serif">5e SRD thresholds · solo-adjusted</span>
       </div>
-      <div className="flex items-center gap-2">
-        <label className="text-xs text-ink-soft font-serif">PC Level</label>
-        <input
-          type="number"
-          min={1}
-          max={20}
-          value={state.pcLevel || 1}
-          onChange={(e) => {
-            const v = parseInt(e.target.value || '1', 10);
-            onChange({ ...state, pcLevel: Math.min(20, Math.max(1, isNaN(v) ? 1 : v)) });
-          }}
-          className="w-16 bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
-        />
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-ink-soft font-serif">PC Level</label>
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={state.pcLevel || 1}
+            onChange={(e) => {
+              const v = parseInt(e.target.value || '1', 10);
+              onChange({ ...state, pcLevel: Math.min(20, Math.max(1, isNaN(v) ? 1 : v)) });
+            }}
+            className="w-16 bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+          />
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-ink-soft font-serif cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={!!state.gestalt}
+            onChange={(e) => onChange({ ...state, gestalt: e.target.checked })}
+            className="accent-wine"
+          />
+          Gestalt PC
+          <span className="text-[10px] italic text-ink-mute">(uses full standard thresholds)</span>
+        </label>
       </div>
       <div className="space-y-1.5">
         {monsters.map((m, i) => (
@@ -1353,6 +1365,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                       key={c.id}
                       data={c}
                       open={!!openChars[c.id]}
+                      soloMode={soloMode}
                       onToggleOpen={() => setOpenChars(o => ({ ...o, [c.id]: !o[c.id] }))}
                       onChange={(v) => updateCharacter(c.id, v)}
                       onRemove={() => removeCharacter(c.id)}

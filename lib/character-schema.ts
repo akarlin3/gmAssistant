@@ -11,6 +11,8 @@ export type Character = {
   player: string;
   race: string;
   classLevel: string;
+  gestalt: boolean;
+  classLevel2: string;
   background: string;
   alignment: string;
   experience: string;
@@ -68,6 +70,8 @@ export function emptyCharacter(): Character {
     player: '',
     race: '',
     classLevel: '',
+    gestalt: false,
+    classLevel2: '',
     background: '',
     alignment: '',
     experience: '',
@@ -118,6 +122,8 @@ export function normalizeCharacter(input: unknown): Character {
     player: asStr(o.player),
     race: asStr(o.race),
     classLevel: asStr(o.classLevel),
+    gestalt: o.gestalt === true,
+    classLevel2: asStr(o.classLevel2),
     background: asStr(o.background),
     alignment: asStr(o.alignment),
     experience: asStr(o.experience),

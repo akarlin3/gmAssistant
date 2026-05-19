@@ -6,6 +6,7 @@ import type { Character, Attack } from '@/lib/character-schema';
 type Props = {
   data: Character;
   open: boolean;
+  soloMode: boolean;
   onToggleOpen: () => void;
   onChange: (next: Character) => void;
   onRemove: () => void;
@@ -67,7 +68,7 @@ const AbilityBox = ({
   </div>
 );
 
-export default function CharacterCard({ data, open, onToggleOpen, onChange, onRemove }: Props) {
+export default function CharacterCard({ data, open, soloMode, onToggleOpen, onChange, onRemove }: Props) {
   const set = <K extends keyof Character>(k: K, v: Character[K]) =>
     onChange({ ...data, [k]: v });
 
@@ -90,7 +91,11 @@ export default function CharacterCard({ data, open, onToggleOpen, onChange, onRe
   const removeAttack = (i: number) =>
     onChange({ ...data, attacks: data.attacks.filter((_, j) => j !== i) });
 
-  const headerLabel = [data.name || 'Unnamed', data.classLevel]
+  const showGestalt = soloMode && data.gestalt;
+  const classPart = showGestalt && data.classLevel2
+    ? [data.classLevel, data.classLevel2].filter(Boolean).join(' // ')
+    : data.classLevel;
+  const headerLabel = [data.name || 'Unnamed', classPart]
     .filter(Boolean)
     .join(' · ');
 
@@ -128,9 +133,31 @@ export default function CharacterCard({ data, open, onToggleOpen, onChange, onRe
               <Field value={data.race} onChange={(v) => set('race', v)} placeholder="e.g. Half-Elf" />
             </div>
             <div>
-              <CardLabel>Class / Level</CardLabel>
+              <CardLabel>{showGestalt ? 'Class 1 / Level' : 'Class / Level'}</CardLabel>
               <Field value={data.classLevel} onChange={(v) => set('classLevel', v)} placeholder="e.g. Wizard 5" />
             </div>
+            {showGestalt && (
+              <div>
+                <CardLabel>Class 2 / Level</CardLabel>
+                <Field value={data.classLevel2} onChange={(v) => set('classLevel2', v)} placeholder="e.g. Rogue 5" />
+              </div>
+            )}
+            {soloMode && (
+              <div className={showGestalt ? 'col-span-2' : ''}>
+                <label className="flex items-center gap-2 text-xs font-display uppercase tracking-wider text-brass-deep cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={data.gestalt}
+                    onChange={(e) => set('gestalt', e.target.checked)}
+                    className="accent-wine"
+                  />
+                  Gestalt
+                  <span className="text-[10px] normal-case tracking-normal italic text-ink-mute font-serif">
+                    two classes at every level
+                  </span>
+                </label>
+              </div>
+            )}
             <div>
               <CardLabel>Background</CardLabel>
               <Field value={data.background} onChange={(v) => set('background', v)} placeholder="e.g. Sage" />

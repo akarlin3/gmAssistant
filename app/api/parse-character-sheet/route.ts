@@ -14,6 +14,8 @@ const CHARACTER_JSON_SCHEMA = {
     player: { type: 'string' },
     race: { type: 'string' },
     classLevel: { type: 'string' },
+    gestalt: { type: 'boolean' },
+    classLevel2: { type: 'string' },
     background: { type: 'string' },
     alignment: { type: 'string' },
     experience: { type: 'string' },
@@ -91,7 +93,8 @@ const CHARACTER_JSON_SCHEMA = {
     notes: { type: 'string' },
   },
   required: [
-    'name', 'player', 'race', 'classLevel', 'background', 'alignment', 'experience',
+    'name', 'player', 'race', 'classLevel', 'gestalt', 'classLevel2',
+    'background', 'alignment', 'experience',
     'abilities', 'saves', 'ac', 'hp', 'hpMax', 'initiative', 'speed', 'profBonus', 'hitDice',
     'skills', 'passivePerception', 'languages', 'proficiencies', 'attacks',
     'equipment', 'currency', 'features',
@@ -105,6 +108,8 @@ const SYSTEM_PROMPT = `You are a tabletop RPG character sheet parser. The user w
 Conventions:
 - Use "" for any field that does not appear on the sheet. Never invent data.
 - "classLevel" combines class and level, e.g. "Wizard 5" or "Fighter 3 / Rogue 2" for multiclass.
+- "gestalt" is true only when the sheet explicitly labels itself as a gestalt character — i.e. the variant rule where the PC has two classes at every level and takes the better features of both. Stacked dual-class entries that share a single level (e.g. "Wizard 5 // Rogue 5" or a sheet header reading "Gestalt: Wizard / Rogue") indicate gestalt. A normal multiclass on one line (e.g. "Fighter 3 / Rogue 2") is NOT gestalt — set false.
+- "classLevel2" is the second class+level for gestalt characters only (e.g. "Rogue 5"). Leave "" when gestalt is false.
 - "abilities" values include the score and modifier in parens: e.g. "16 (+3)". If only the modifier is shown, write e.g. "(+3)".
 - "saves" is a comma-separated list of proficient saving throws, e.g. "Wisdom, Charisma". Include modifiers if visible: "Wisdom +5, Charisma +3".
 - "skills" lists proficient skills comma-separated. Prefix expertise entries with "expertise: ", e.g. "Perception +5, expertise: Stealth +9, Arcana +3".

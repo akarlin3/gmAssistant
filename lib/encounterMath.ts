@@ -47,22 +47,25 @@ export function encounterMultiplier(monsterCount: number): number {
 
 // For solo play, the SRD recommends multiplying threshold by 0.5 for a single PC
 // to compensate for the lack of party action economy. We expose both readings.
-export function difficultyForSolo(adjustedXP: number, pcLevel: number): {
+// Gestalt PCs (two classes per level, best-of features) recover most of that lost
+// action economy through extra HP, spells, and per-round options — we use the
+// full standard threshold (1.0x) instead of the solo 0.75x reduction.
+export function difficultyForSolo(adjustedXP: number, pcLevel: number, gestalt = false): {
   rating: 'Trivial' | 'Easy' | 'Medium' | 'Hard' | 'Deadly' | 'Lethal';
   rationale: string;
 } {
   const t = XP_THRESHOLDS[pcLevel] ?? XP_THRESHOLDS[1];
-  // Solo modifier: a single PC of any level has reduced action economy.
-  // Treat 0.75x of the standard threshold as the practical line.
-  const soloEasy = Math.round(t.easy * 0.75);
-  const soloMedium = Math.round(t.medium * 0.75);
-  const soloHard = Math.round(t.hard * 0.75);
-  const soloDeadly = Math.round(t.deadly * 0.75);
+  const mod = gestalt ? 1.0 : 0.75;
+  const label = gestalt ? 'Gestalt' : 'Solo';
+  const soloEasy = Math.round(t.easy * mod);
+  const soloMedium = Math.round(t.medium * mod);
+  const soloHard = Math.round(t.hard * mod);
+  const soloDeadly = Math.round(t.deadly * mod);
 
-  if (adjustedXP < soloEasy) return { rating: 'Trivial', rationale: `Below solo easy threshold (${soloEasy})` };
-  if (adjustedXP < soloMedium) return { rating: 'Easy', rationale: `Solo easy: ${soloEasy}–${soloMedium - 1}` };
-  if (adjustedXP < soloHard) return { rating: 'Medium', rationale: `Solo medium: ${soloMedium}–${soloHard - 1}` };
-  if (adjustedXP < soloDeadly) return { rating: 'Hard', rationale: `Solo hard: ${soloHard}–${soloDeadly - 1}` };
-  if (adjustedXP < soloDeadly * 1.5) return { rating: 'Deadly', rationale: `Solo deadly: ${soloDeadly}+` };
-  return { rating: 'Lethal', rationale: `Well above solo deadly threshold (${soloDeadly}). Reconsider.` };
+  if (adjustedXP < soloEasy) return { rating: 'Trivial', rationale: `Below ${label.toLowerCase()} easy threshold (${soloEasy})` };
+  if (adjustedXP < soloMedium) return { rating: 'Easy', rationale: `${label} easy: ${soloEasy}–${soloMedium - 1}` };
+  if (adjustedXP < soloHard) return { rating: 'Medium', rationale: `${label} medium: ${soloMedium}–${soloHard - 1}` };
+  if (adjustedXP < soloDeadly) return { rating: 'Hard', rationale: `${label} hard: ${soloHard}–${soloDeadly - 1}` };
+  if (adjustedXP < soloDeadly * 1.5) return { rating: 'Deadly', rationale: `${label} deadly: ${soloDeadly}+` };
+  return { rating: 'Lethal', rationale: `Well above ${label.toLowerCase()} deadly threshold (${soloDeadly}). Reconsider.` };
 }
