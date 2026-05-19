@@ -31,11 +31,19 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Pro waitlist signups — written server-side via /api/waitlist/join (Admin SDK).
-    // Clients read their own doc so the UI can show "you're on the waitlist".
+    // Pro waitlist signups — clients write their own doc directly from the
+    // Firebase Web SDK (the deployment can't use the Admin SDK because
+    // service-account key creation is blocked by org policy). The schema is
+    // locked here and the doc is write-once.
     match /proWaitlist/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if false;
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.email is string
+        && request.resource.data.createdAtMs is number
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'createdAtMs', 'createdAt']);
+      allow update, delete: if false;
     }
   }
 }

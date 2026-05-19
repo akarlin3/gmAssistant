@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, LogOut, Sparkles, Settings, ExternalLink, MailCheck } from 'lucide-react';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/lib/firebase/auth-context';
-import { getFirebaseAuth } from '@/lib/firebase/client';
+import { getDb, getFirebaseAuth } from '@/lib/firebase/client';
 
 const PRO_PRICE_LABEL = '$2.99 / month';
 
@@ -39,14 +40,14 @@ export function AccountMenu() {
     setBusy('waitlist');
     setError(null);
     try {
-      const idToken = await getFirebaseAuth().currentUser?.getIdToken();
-      if (!idToken) throw new Error('Not signed in');
-      const res = await fetch('/api/waitlist/join', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${idToken}` },
+      if (!user?.email) throw new Error('Not signed in');
+      await setDoc(doc(getDb(), 'proWaitlist', user.uid), {
+        uid: user.uid,
+        email: user.email.toLowerCase(),
+        displayName: user.displayName ?? null,
+        createdAtMs: Date.now(),
+        createdAt: serverTimestamp(),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not join waitlist');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not join waitlist');
     } finally {
