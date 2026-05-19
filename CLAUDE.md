@@ -7,10 +7,17 @@ inference API must be gated to pro users at **both** layers:
 
 1. **Server (required, security boundary).** New routes under `app/api/` that
    invoke a model must call `verifyPro(idToken)` from `lib/verify-pro.ts`
-   before doing any work. `verifyPro` verifies the Firebase ID token via the
-   Admin SDK, then approves the request if either (a) the email is in
-   `PRO_EMAILS` (comp allowlist) or (b) the user's Firestore `users/{uid}` doc
-   shows an active subscription with `currentPeriodEndMs > now`. Returns
+   before doing any work. `verifyPro` verifies the Firebase ID token by
+   validating its JWT signature against Google's published JWKS (using
+   `jose`) — the Admin SDK is **not** used, because the org policy blocks
+   service-account-key creation in this deployment. The only env var the
+   verifier needs is `NEXT_PUBLIC_FIREBASE_PROJECT_ID` (already set for the
+   client SDK). It then approves the request if either (a) the email is in
+   `PRO_EMAILS` (comp allowlist) or (b) the user's Firestore `users/{uid}`
+   doc shows an active subscription with `currentPeriodEndMs > now`. The
+   Firestore lookup uses the Firestore REST API with the user's own ID
+   token as the bearer credential, so it respects the existing security
+   rule that lets each user read their own `users/{uid}` doc. Returns
    `403 "Pro only"` otherwise. Reference: `app/api/parse-character-sheet/route.ts`.
 
 2. **Client (UX).** Read `isPro` from `useAuth()`
