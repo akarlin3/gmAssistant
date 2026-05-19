@@ -221,6 +221,7 @@ function ScaledStatBlock({ m }: { m: ScaledMonster }) {
 export default function MonsterScaler() {
   const [description, setDescription] = useState('');
   const [cr, setCr] = useState('5');
+  const [srdOnly, setSrdOnly] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [monster, setMonster] = useState<ScaledMonster | null>(null);
@@ -243,7 +244,7 @@ export default function MonsterScaler() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ description: desc, cr }),
+        body: JSON.stringify({ description: desc, cr, srdOnly }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.error || `Generate failed (${res.status})`);
@@ -307,10 +308,28 @@ export default function MonsterScaler() {
             </select>
           </div>
 
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-brass-deep font-display uppercase tracking-wider">
+              Source Pool
+            </span>
+            <label
+              className="flex items-center gap-1.5 cursor-pointer select-none text-xs font-display uppercase tracking-wider text-ink-soft"
+              title="When on, only SRD (System Reference Document) monsters are eligible as the source. Off draws from the full Open5e bestiary."
+            >
+              <input
+                type="checkbox"
+                checked={srdOnly}
+                onChange={(e) => setSrdOnly(e.target.checked)}
+                className="accent-crimson"
+              />
+              {srdOnly ? 'SRD only' : 'Full bestiary'}
+            </label>
+          </div>
+
           <button
             onClick={generate}
             disabled={generating || !description.trim()}
-            className="sm:col-span-2 text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-wine hover:border-wine disabled:opacity-50 disabled:cursor-wait transition-colors"
+            className="col-span-2 sm:col-span-1 text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-wine hover:border-wine disabled:opacity-50 disabled:cursor-wait transition-colors"
           >
             {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
             {generating ? 'Generating…' : 'Scale Monster'}
