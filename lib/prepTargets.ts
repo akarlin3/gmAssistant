@@ -92,18 +92,19 @@ export const PHASE_GROUPS: Array<{ phase: PhaseId; title: string; keys: PrepTarg
 // Object-shape targets carry default values (e.g. `timeframe: 'short'`,
 // `max: 6`) that are present even on a freshly-added blank row. Counting raw
 // length would let those blanks satisfy targets — so we explicitly name the
-// fields that have to be authored before a row counts as filled.
+// fields that have to be authored before a row counts as filled. Every field
+// listed is required; a row only counts once all of them have content.
 const FILLED_FIELDS: Partial<Record<PrepTargetKey, string[]>> = {
   factions:  ['name', 'identity', 'archetype', 'area', 'ideology', 'longGoal'],
   pcGoals:   ['text'],
-  locations: ['name', 'type', 'aspects'],
+  locations: ['name', 'type', 'aspects', 'factions'],
   npcs:      ['name', 'archetype', 'goal', 'method'],
   clocks:    ['text', 'faction'],
 };
 
 function fieldHasContent(v: unknown): boolean {
   if (typeof v === 'string') return v.trim().length > 0;
-  if (Array.isArray(v)) return v.some(x => typeof x === 'string' && x.trim().length > 0);
+  if (Array.isArray(v)) return v.length > 0 && v.every(x => typeof x === 'string' && x.trim().length > 0);
   return false;
 }
 
@@ -112,11 +113,11 @@ export function isFilled(key: PrepTargetKey, item: unknown): boolean {
   if (!item || typeof item !== 'object') return false;
   const fields = FILLED_FIELDS[key];
   if (!fields) {
-    // Unexpected shape — fall back to "any non-empty string field".
-    return Object.values(item as Record<string, unknown>).some(fieldHasContent);
+    // Unexpected shape — fall back to "every string field has content".
+    return Object.values(item as Record<string, unknown>).every(fieldHasContent);
   }
   const obj = item as Record<string, unknown>;
-  return fields.some(f => fieldHasContent(obj[f]));
+  return fields.every(f => fieldHasContent(obj[f]));
 }
 
 export function countFilled(key: PrepTargetKey, items: unknown): number {

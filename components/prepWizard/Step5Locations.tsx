@@ -142,7 +142,7 @@ export default function Step5Locations({ get, setVal, soloTarget, standardTarget
               <input
                 value={loc.factions || ''}
                 onChange={(e) => updateLoc(i, { factions: e.target.value })}
-                placeholder="Factions tied here (optional)"
+                placeholder="Factions tied here"
                 className="w-full bg-parchment border border-rule rounded px-2 py-1 text-xs text-ink-soft font-serif"
               />
             </div>
