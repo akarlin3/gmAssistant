@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import {
   ArrowLeft, Flag, Dice5, Sparkles, ChevronDown, ChevronRight, Check,
   Eye, EyeOff, Plus, Swords, NotebookPen, Target, Map, Users, ScrollText,
+  Skull, Gem, Zap,
 } from 'lucide-react';
 import { TABLES, rollTable } from '@/lib/inspirationTables';
 import InitiativePanel from './InitiativePanel';
@@ -24,26 +25,30 @@ type Props = {
 };
 
 const SECTION_KEYS = [
-  'scenes', 'secrets', 'npcs', 'locations', 'goals', 'clocks',
+  'scenes', 'secrets', 'npcs', 'locations', 'monsters', 'magicItems', 'goals', 'clocks',
 ] as const;
 
 type SectionKey = typeof SECTION_KEYS[number];
 
 const SECTION_META: Record<SectionKey, { label: string; icon: any }> = {
-  scenes:   { label: 'Potential Scenes',  icon: NotebookPen },
-  secrets:  { label: 'Secrets & Clues',   icon: Eye },
-  npcs:     { label: 'NPCs',              icon: Users },
-  locations:{ label: 'Locations',         icon: Map },
-  goals:    { label: 'PC Goals',          icon: Target },
-  clocks:   { label: 'Faction Clocks',    icon: ScrollText },
+  scenes:     { label: 'Potential Scenes',  icon: NotebookPen },
+  secrets:    { label: 'Secrets & Clues',   icon: Eye },
+  npcs:       { label: 'NPCs',              icon: Users },
+  locations:  { label: 'Locations',         icon: Map },
+  monsters:   { label: 'Relevant Monsters', icon: Skull },
+  magicItems: { label: 'Magic Items',       icon: Gem },
+  goals:      { label: 'PC Goals',          icon: Target },
+  clocks:     { label: 'Faction Clocks',    icon: ScrollText },
 };
 
 export default function RunSessionView({
   get, setVal, characters, onEndSession, onExitWithoutEnding,
 }: Props) {
   const [section, setSection] = useState<Record<SectionKey, boolean>>({
-    scenes: true, secrets: true, npcs: true, locations: true, goals: true, clocks: true,
+    scenes: true, secrets: true, npcs: true, locations: true,
+    monsters: true, magicItems: true, goals: true, clocks: true,
   });
+  const [strongStartDone, setStrongStartDone] = useState(false);
   const toggleSection = (k: SectionKey) => setSection(s => ({ ...s, [k]: !s[k] }));
 
   const events = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
@@ -59,6 +64,16 @@ export default function RunSessionView({
     }
     setVal('__sessionUsedScenes', [...usedScenes, text]);
     pushEvent(makeEvent('scene_used', `Used scene: ${text}`));
+  };
+
+  const givenItems = (get('__sessionItemsGiven', []) as string[]) || [];
+  const toggleItemGiven = (text: string) => {
+    if (givenItems.includes(text)) {
+      setVal('__sessionItemsGiven', givenItems.filter(s => s !== text));
+      return;
+    }
+    setVal('__sessionItemsGiven', [...givenItems, text]);
+    pushEvent(makeEvent('magic_item_given', `Magic item given: ${text}`));
   };
 
   const revSec = (get('revSec', {}) as Record<number, boolean>) || {};
@@ -120,6 +135,9 @@ export default function RunSessionView({
   const secrets = (get('secrets', []) as string[]) || [];
   const npcs = (get('npcs', []) as any[]) || [];
   const locations = (get('locations', []) as any[]) || [];
+  const monstersList = (get('monsters', []) as string[]) || [];
+  const magicItemsList = (get('items', []) as string[]) || [];
+  const strongStart = ((get('strongStart', '') as string) || '').trim();
 
   const scratchpad = (get('__sessionScratchpad', '') as string) || '';
   const setScratchpad = (v: string) => setVal('__sessionScratchpad', v);
@@ -153,6 +171,39 @@ export default function RunSessionView({
             <Flag size={12} /> End Session
           </button>
         </header>
+
+        {strongStart && (
+          <section className="rounded border-2 border-crimson/50 bg-crimson/5 shadow-card p-3 sm:p-4">
+            <div className="flex items-start gap-2 mb-1.5">
+              <Zap size={16} className="text-crimson flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                  <h2 className="font-display tracking-wide text-sm sm:text-base text-crimson uppercase">
+                    Strong Start
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const next = !strongStartDone;
+                      setStrongStartDone(next);
+                      if (next) pushEvent(makeEvent('other', 'Strong start delivered'));
+                    }}
+                    className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider flex items-center gap-1 ${
+                      strongStartDone
+                        ? 'bg-brass border-brass-deep text-parchment'
+                        : 'border-brass-deep/60 text-brass-deep hover:bg-brass/10'
+                    }`}
+                  >
+                    {strongStartDone && <Check size={10} strokeWidth={3} />}
+                    {strongStartDone ? 'Delivered' : 'Mark Delivered'}
+                  </button>
+                </div>
+                <p className={`mt-1 text-sm sm:text-base font-serif text-ink-soft whitespace-pre-wrap ${strongStartDone ? 'italic opacity-60' : ''}`}>
+                  {strongStart}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3">
           <div className="space-y-3">
@@ -224,6 +275,40 @@ export default function RunSessionView({
                       )}
                     </li>
                   ))}
+                </ul>
+              )}
+            </SectionShell>
+
+            <SectionShell title={SECTION_META.monsters.label} icon={SECTION_META.monsters.icon} open={section.monsters} onToggle={() => toggleSection('monsters')} count={monstersList.length}>
+              {monstersList.length === 0 ? <Empty>No monsters prepped.</Empty> : (
+                <ul className="space-y-1">
+                  {monstersList.map((m, i) => (
+                    <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif text-ink-soft">
+                      {m}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SectionShell>
+
+            <SectionShell title={SECTION_META.magicItems.label} icon={SECTION_META.magicItems.icon} open={section.magicItems} onToggle={() => toggleSection('magicItems')} count={magicItemsList.length}>
+              {magicItemsList.length === 0 ? <Empty>No magic items prepped.</Empty> : (
+                <ul className="space-y-1">
+                  {magicItemsList.map((it, i) => {
+                    const given = givenItems.includes(it);
+                    return (
+                      <li key={i} className={`flex items-start gap-2 px-2 py-1.5 rounded border ${given ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
+                        <button
+                          onClick={() => toggleItemGiven(it)}
+                          className={`mt-0.5 w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${given ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment hover:border-brass-deep'}`}
+                          title={given ? 'Unmark given' : 'Mark given this session'}
+                        >
+                          {given && <Check size={10} strokeWidth={3} />}
+                        </button>
+                        <span className={`text-sm font-serif ${given ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{it}</span>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </SectionShell>
