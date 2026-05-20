@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
-  ChevronDown, ChevronRight, Pin, PinOff, Edit3, Trash2, Save, X, Award,
+  ChevronDown, ChevronRight, Pin, PinOff, Edit3, Trash2, Save, X, Award, BookOpen,
 } from 'lucide-react';
 import type { SessionLogEntry } from '@/lib/sessionLog';
 import { formatDuration } from '@/lib/sessionLog';
@@ -12,9 +13,10 @@ import { CHANGE_EVENT_LABELS } from '@/lib/sessionEvents';
 type Props = {
   entries: SessionLogEntry[];
   onChange: (entries: SessionLogEntry[]) => void;
+  campaignId?: string;
 };
 
-export default function SessionLogTab({ entries, onChange }: Props) {
+export default function SessionLogTab({ entries, onChange, campaignId }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -104,6 +106,7 @@ export default function SessionLogTab({ entries, onChange }: Props) {
             open={!!openIds[entry.id]}
             editing={editingId === entry.id}
             inCompare={compareIds.includes(entry.id)}
+            campaignId={campaignId}
             onToggleOpen={() => setOpenIds(o => ({ ...o, [entry.id]: !o[entry.id] }))}
             onEdit={() => setEditingId(entry.id)}
             onCancelEdit={() => setEditingId(null)}
@@ -145,6 +148,7 @@ type SessionCardProps = {
   open: boolean;
   editing: boolean;
   inCompare: boolean;
+  campaignId?: string;
   onToggleOpen: () => void;
   onEdit: () => void;
   onCancelEdit: () => void;
@@ -155,7 +159,7 @@ type SessionCardProps = {
 };
 
 function SessionCard({
-  entry, open, editing, inCompare,
+  entry, open, editing, inCompare, campaignId,
   onToggleOpen, onEdit, onCancelEdit, onChange, onSaveEdit, onDelete, onToggleCompare,
 }: SessionCardProps) {
   const duration = formatDuration(entry.endedAt - entry.startedAt);
@@ -188,6 +192,15 @@ function SessionCard({
         <button onClick={() => onChange({ pinned: !entry.pinned })} className="text-ink-mute hover:text-brass flex-shrink-0" title={entry.pinned ? 'Unpin' : 'Pin'}>
           {entry.pinned ? <PinOff size={14} /> : <Pin size={14} />}
         </button>
+        {campaignId && (
+          <Link
+            href={`/campaign/${campaignId}/recap/${entry.id}`}
+            className="text-ink-mute hover:text-brass-deep flex-shrink-0"
+            title="View Recap"
+          >
+            <BookOpen size={14} />
+          </Link>
+        )}
         {!editing && (
           <button onClick={onEdit} className="text-ink-mute hover:text-ink flex-shrink-0" title="Edit">
             <Edit3 size={14} />

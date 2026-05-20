@@ -16,6 +16,7 @@ import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounte
 import DiceRoller, { type Macro } from './DiceRoller';
 import SpellsTab, { type Spell } from './SpellsTab';
 import DMRefTab from './DMRefTab';
+import StrongStartPicker from './StrongStartPicker';
 import CharacterCard from './CharacterCard';
 import SidekickAddPanel from './SidekickAddPanel';
 import NamesTab from './NamesTab';
@@ -645,6 +646,8 @@ const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }: {
 const ClockCard = ({ data, onChange, onRemove }: any) => {
   const max = data.max || 6;
   const filled = data.filled || 0;
+  const notes: string = data.notes || '';
+  const [notesOpen, setNotesOpen] = useState(notes.trim().length > 0);
   return (
     <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
       <div className="flex justify-between gap-2">
@@ -662,6 +665,25 @@ const ClockCard = ({ data, onChange, onRemove }: any) => {
           ))}
         </div>
         <span className="text-xs text-brass-deep font-display flex-shrink-0">{filled}/{max}</span>
+      </div>
+      <div className="pt-1 border-t border-rule/60">
+        <button
+          type="button"
+          onClick={() => setNotesOpen(o => !o)}
+          className="flex items-center gap-1 text-[10px] text-brass-deep hover:text-crimson font-display uppercase tracking-wider"
+        >
+          {notesOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          Notes{notes.trim() ? '' : ' (empty)'}
+        </button>
+        {notesOpen && (
+          <textarea
+            value={notes}
+            onChange={(e) => onChange({ ...data, notes: e.target.value })}
+            placeholder="Front notes — what this faction is doing, why it matters, what advances it"
+            rows={3}
+            className="mt-1.5 w-full bg-parchment-soft border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y [field-sizing:content]"
+          />
+        )}
       </div>
     </div>
   );
@@ -1883,6 +1905,11 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     if (cur && !confirm('Replace the current strong start?')) return;
                     setVal('strongStart', e);
                   }} />
+                  <StrongStartPicker onUse={(body) => {
+                    const cur = (get('strongStart', '') as string).trim();
+                    if (cur && !confirm('Replace the current strong start?')) return;
+                    setVal('strongStart', body);
+                  }} />
                 </InspireGroup>
               </Section>
               <Section id="s3-scenes" title="3 · Outline Potential Scenes" methods={['shea']} done={done['s3-scenes']} onToggle={toggleDone} open={open['s3-scenes']} onToggleOpen={toggleOpen}>
@@ -1998,6 +2025,12 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                       'faction_clock_ticked',
                       `${v.faction || c.faction || 'Faction'}: ${v.text || c.text || 'clock'} ${c.filled || 0} → ${v.filled || 0} / ${v.max || c.max || 6}`,
                       c.filled || 0, v.filled || 0,
+                    );
+                  }
+                  if ((c.notes || '') !== (v.notes || '')) {
+                    trackEvent(
+                      'other',
+                      `Updated notes on clock: ${v.faction || c.faction || 'Faction'} — ${v.text || c.text || 'clock'}`,
                     );
                   }
                 }} onRemove={() => setVal('clocks', (get('clocks', []) as any[]).filter((_: any, j: number) => j !== i))} />
@@ -2317,6 +2350,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           <SessionLogTab
             entries={(get('sessionLogV2', []) as SessionLogEntry[])}
             onChange={(v) => setVal('sessionLogV2', v)}
+            campaignId={campaign.id}
           />
         )}
 
