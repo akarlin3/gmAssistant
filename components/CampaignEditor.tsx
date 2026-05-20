@@ -63,6 +63,13 @@ import {
   normalizeCharacter,
 } from '@/lib/character-schema';
 import { pushSnapshot, popSnapshot, type Snapshot } from '@/lib/undoStack';
+import {
+  TARGETS,
+  getTarget,
+  SECTION_ID_BY_KEY,
+  PHASE_ID_BY_KEY,
+  type PrepTargetKey,
+} from '@/lib/prepTargets';
 
 const M = {
   shea: { label: 'Lazy DM', color: 'border-moss/40 bg-moss/5 text-moss' },
@@ -123,70 +130,8 @@ function groupForTab(tab: TabId): TabGroupId {
   return 'prep';
 }
 
-// Prep item targets — book-grounded with solo adaptations
-// Keys match section ids / state keys used throughout the editor
-const TARGETS: Record<string, { standard: number; solo: number; label: string; source: string }> = {
-  // CCD ch. 1 — Givens
-  gWorld:    { standard: 10, solo: 5,  label: 'World Facts',         source: 'CCD ch. 1' },
-  gFNL:      { standard: 5,  solo: 3,  label: 'Required Entities',   source: 'CCD ch. 1' },
-  lines:     { standard: 3,  solo: 3,  label: 'Content Lines',       source: 'Safety tools' },
-
-  // CCD ch. 2 — Session −1
-  facts:     { standard: 15, solo: 8,  label: 'Setting Facts',       source: 'CCD ch. 2' },
-  factions:  { standard: 4,  solo: 3,  label: 'Factions',            source: 'CCD ch. 2 (3-4 min)' },
-  conflicts: { standard: 3,  solo: 2,  label: 'Active Conflicts',    source: 'CCD ch. 2' },
-
-  // Proactive Roleplaying ch. 1
-  pcGoals:   { standard: 3,  solo: 3,  label: 'PC Goals',            source: 'PR ch. 1 (3 concurrent)' },
-
-  // Lazy DM ch. 4-8 — per-session
-  scenes:    { standard: 5,  solo: 4,  label: 'Potential Scenes',    source: 'Lazy DM ch. 4 (1-2/hr)' },
-  secrets:   { standard: 10, solo: 8,  label: 'Secrets & Clues',     source: 'Lazy DM ch. 6 (shoot for 10)' },
-  locations: { standard: 4,  solo: 3,  label: 'Fantastic Locations', source: 'Lazy DM ch. 7 (1-2/hr)' },
-  npcs:      { standard: 4,  solo: 3,  label: 'Important NPCs',      source: 'Lazy DM ch. 8' },
-  monsters:  { standard: 4,  solo: 3,  label: 'Relevant Monsters',   source: 'Lazy DM ch. 9' },
-  items:     { standard: 2,  solo: 2,  label: 'Magic Item Rewards',  source: 'Lazy DM ch. 10' },
-
-  // CCD ch. 6 — Faction tracking
-  clocks:    { standard: 4,  solo: 3,  label: 'Active Faction Clocks', source: 'CCD ch. 6' },
-};
-
-function getTarget(key: string, soloMode: boolean): number {
-  const t = TARGETS[key];
-  if (!t) return 0;
-  return soloMode ? t.solo : t.standard;
-}
-
-// Map each prep target key (TARGETS) to the Section/anchor id it renders under.
-// Used by the Prep Flow's "Next Up" pill to scroll the lowest-progress section
-// into view. "clocks" has no <Section> wrapper, so it points to an id we
-// inject inside Phase 4.
-const SECTION_ID_BY_KEY: Record<string, string> = {
-  gWorld: 'g-world',
-  gFNL: 'g-fnl',
-  lines: 'g-lines',
-  facts: 'facts',
-  factions: 'factions',
-  conflicts: 'conflicts',
-  pcGoals: 'goals',
-  scenes: 's3-scenes',
-  secrets: 's4-secrets',
-  locations: 's5-loc',
-  npcs: 's6-npc',
-  monsters: 's7-mon',
-  items: 's8-rew',
-  clocks: 'clocks',
-};
-
-// Parent Phase id for each prep target — used to ensure the right Phase is
-// expanded before scrolling.
-const PHASE_ID_BY_KEY: Record<string, string> = {
-  gWorld: 'p0', gFNL: 'p0', lines: 'p0',
-  facts: 'p1', factions: 'p1', conflicts: 'p1',
-  pcGoals: 'p2',
-  scenes: 'p3', secrets: 'p3', locations: 'p3', npcs: 'p3', monsters: 'p3', items: 'p3',
-  clocks: 'p4',
-};
+// Prep item targets — see lib/prepTargets.ts for the single source of truth
+// (shared with the pre-session PrepWizard).
 
 const Tag = ({ m }: { m: keyof typeof M }) => (
   <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider ${M[m].color}`}>{M[m].label}</span>
@@ -1339,9 +1284,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   // Prep Flow tab. Picks the section with the largest gap to target, with
   // ties broken toward the lower current count.
   const nextUp = useMemo(() => {
-    type Candidate = { id: string; label: string; current: number; target: number; sectionId: string; phaseId: string };
+    type Candidate = { id: PrepTargetKey; label: string; current: number; target: number; sectionId: string; phaseId: string };
     const candidates: Candidate[] = [];
-    for (const [key, t] of Object.entries(TARGETS)) {
+    for (const [k, t] of Object.entries(TARGETS)) {
+      const key = k as PrepTargetKey;
       const target = soloMode ? t.solo : t.standard;
       if (target === 0) continue;
       const items = state[key];

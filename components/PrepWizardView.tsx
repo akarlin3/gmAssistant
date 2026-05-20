@@ -9,6 +9,7 @@ import {
   unrevealedSecrets,
   makePrepWizardRunId,
 } from '@/lib/prepWizard';
+import { TARGETS } from '@/lib/prepTargets';
 import Step1ReviewCharacters from './prepWizard/Step1ReviewCharacters';
 import Step2StrongStart from './prepWizard/Step2StrongStart';
 import Step3Scenes from './prepWizard/Step3Scenes';
@@ -35,12 +36,12 @@ const TOTAL_STEPS = 8;
 const SUMMARY_STEP = 9;
 const RUN_CAP = 20;
 
-const SCENE_TARGETS    = { standard: 5,  solo: 4 };
-const SECRET_TARGETS   = { standard: 10, solo: 8 };
-const LOCATION_TARGETS = { standard: 4,  solo: 3 };
-const NPC_TARGETS      = { standard: 4,  solo: 3 };
-const MONSTER_TARGETS  = { standard: 4,  solo: 3 };
-const ITEM_TARGETS     = { standard: 2,  solo: 2 };
+const SCENE_TARGETS    = TARGETS.scenes;
+const SECRET_TARGETS   = TARGETS.secrets;
+const LOCATION_TARGETS = TARGETS.locations;
+const NPC_TARGETS      = TARGETS.npcs;
+const MONSTER_TARGETS  = TARGETS.monsters;
+const ITEM_TARGETS     = TARGETS.items;
 
 export default function PrepWizardView({
   get, setVal, soloMode, onExit, onClose, onStartSession,
