@@ -31,6 +31,7 @@ import InitiativePanel from './InitiativePanel';
 import type { InitiativeState } from '@/lib/initiative';
 import RunSessionView from './RunSessionView';
 import PrepWizardView from './PrepWizardView';
+import Session0Wizard, { makeWizardPC } from './Session0Wizard';
 import SessionLogTab from './SessionLogTab';
 import SessionLogFinalizer from './SessionLogFinalizer';
 import { type ChangeEvent, type ChangeEventKind, makeEvent } from '@/lib/sessionEvents';
@@ -48,6 +49,7 @@ import {
   makeCharacterId,
   normalizeCharacter,
 } from '@/lib/character-schema';
+import { pushSnapshot, popSnapshot, type Snapshot } from '@/lib/undoStack';
 
 const M = {
   shea: { label: 'Lazy DM', color: 'border-moss/40 bg-moss/5 text-moss' },
@@ -140,6 +142,37 @@ function getTarget(key: string, soloMode: boolean): number {
   if (!t) return 0;
   return soloMode ? t.solo : t.standard;
 }
+
+// Map each prep target key (TARGETS) to the Section/anchor id it renders under.
+// Used by the Prep Flow's "Next Up" pill to scroll the lowest-progress section
+// into view. "clocks" has no <Section> wrapper, so it points to an id we
+// inject inside Phase 4.
+const SECTION_ID_BY_KEY: Record<string, string> = {
+  gWorld: 'g-world',
+  gFNL: 'g-fnl',
+  lines: 'g-lines',
+  facts: 'facts',
+  factions: 'factions',
+  conflicts: 'conflicts',
+  pcGoals: 'goals',
+  scenes: 's3-scenes',
+  secrets: 's4-secrets',
+  locations: 's5-loc',
+  npcs: 's6-npc',
+  monsters: 's7-mon',
+  items: 's8-rew',
+  clocks: 'clocks',
+};
+
+// Parent Phase id for each prep target — used to ensure the right Phase is
+// expanded before scrolling.
+const PHASE_ID_BY_KEY: Record<string, string> = {
+  gWorld: 'p0', gFNL: 'p0', lines: 'p0',
+  facts: 'p1', factions: 'p1', conflicts: 'p1',
+  pcGoals: 'p2',
+  scenes: 'p3', secrets: 'p3', locations: 'p3', npcs: 'p3', monsters: 'p3', items: 'p3',
+  clocks: 'p4',
+};
 
 const Tag = ({ m }: { m: keyof typeof M }) => (
   <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider ${M[m].color}`}>{M[m].label}</span>
@@ -346,15 +379,14 @@ const ListField = ({
           <button onClick={() => remove(i)} className="text-ink-mute hover:text-crimson px-1"><X size={14} /></button>
         </div>
       ))}
-      {Array.from({ length: remaining }).map((_, i) => (
-        <div key={`ghost-${i}`} className="flex gap-2 items-center opacity-50">
-          <span className="text-ink-faint font-display text-xs w-5 text-right">{items.length + i + 1}.</span>
-          <div className="flex-1 border-b border-dashed border-rule px-1 py-1 text-xs text-ink-faint italic font-serif">
-            {placeholder}…
-          </div>
-          <div className="px-1 w-6" />
+      {target > 0 && items.length < target && (
+        <div className="ml-7 text-[11px] text-ink-mute italic font-serif">
+          {remaining} more to reach target
+          {items.length === 0 && (
+            <span className="text-ink-faint"> (target: {target})</span>
+          )}
         </div>
-      ))}
+      )}
       <button onClick={add} className="ml-7 text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
         <Plus size={12} /> Add
       </button>
@@ -363,7 +395,7 @@ const ListField = ({
 };
 
 const Section = ({ id, title, methods, children, done, onToggle, open, onToggleOpen, icon: Icon }: any) => (
-  <div data-cp-anchor={`section:${id}`} className={`rounded border ${done ? 'border-brass/60 bg-brass/5' : 'border-rule bg-parchment-soft'} shadow-card`}>
+  <div id={`section-${id}`} data-cp-anchor={`section:${id}`} className={`rounded border ${done ? 'border-brass/60 bg-brass/5' : 'border-rule bg-parchment-soft'} shadow-card`}>
     <div className="flex items-center gap-2 p-2.5 sm:p-3">
       <button onClick={() => onToggle(id)} className={`w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${done ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment'}`}>
         {done && <Check size={10} strokeWidth={3} />}
@@ -1111,6 +1143,31 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const initialLoadRef = useRef(true);
 
+  const undoStackRef = useRef<Snapshot[]>([]);
+  const previousSnapRef = useRef<Snapshot | null>(null);
+  const skipNextSnapshotRef = useRef(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [undoToast, setUndoToast] = useState('');
+
+  // Session 0 wizard — auto-shown on first open of a fresh campaign, also
+  // launchable from AccountMenu's Campaign Actions. Tracked via
+  // data.__session0Done so it never re-prompts unless the user explicitly
+  // re-runs it.
+  const [session0Open, setSession0Open] = useState<boolean>(() => {
+    if (campaign.data?.__session0Done) return false;
+    const d = campaign.data || {};
+    const noPitch = !d.pitch;
+    const noWorld = !Array.isArray(d.gWorld) || d.gWorld.length === 0;
+    const noClocks = !Array.isArray(d.clocks) || d.clocks.length === 0;
+    return noPitch && noWorld && noClocks;
+  });
+  const undoToastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const showUndoToast = useCallback((msg: string, ms = 2000) => {
+    if (undoToastTimerRef.current) clearTimeout(undoToastTimerRef.current);
+    setUndoToast(msg);
+    undoToastTimerRef.current = setTimeout(() => setUndoToast(''), ms);
+  }, []);
+
   const saveToDB = useCallback(async (payload: { name: string; data: Record<string, any>; done: Record<string, boolean> }) => {
     setSyncState('saving');
     try {
@@ -1124,7 +1181,21 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   }, [campaign.id]);
 
   useEffect(() => {
-    if (initialLoadRef.current) { initialLoadRef.current = false; return; }
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      previousSnapRef.current = { state, done, name, ts: Date.now() };
+      return;
+    }
+    // Push the previous state as the snapshot the user would undo *to* —
+    // unless this change is itself an undo (we don't want to re-snapshot
+    // what we just restored).
+    if (!skipNextSnapshotRef.current && previousSnapRef.current) {
+      undoStackRef.current = pushSnapshot(undoStackRef.current, previousSnapRef.current);
+      setCanUndo(undoStackRef.current.length > 0);
+    }
+    skipNextSnapshotRef.current = false;
+    previousSnapRef.current = { state, done, name, ts: Date.now() };
+
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     setSyncState('pending');
     saveTimeoutRef.current = setTimeout(() => { saveToDB({ name, data: { ...state, __soloMode: soloMode }, done }); }, 1500);
@@ -1163,6 +1234,47 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
   const completedCount = Object.values(done).filter(Boolean).length;
 
+  // Lowest-progress prep target — drives the "Next Up" pill at the top of the
+  // Prep Flow tab. Picks the section with the largest gap to target, with
+  // ties broken toward the lower current count.
+  const nextUp = useMemo(() => {
+    type Candidate = { id: string; label: string; current: number; target: number; sectionId: string; phaseId: string };
+    const candidates: Candidate[] = [];
+    for (const [key, t] of Object.entries(TARGETS)) {
+      const target = soloMode ? t.solo : t.standard;
+      if (target === 0) continue;
+      const items = state[key];
+      const current = Array.isArray(items) ? items.length : 0;
+      if (current < target) {
+        candidates.push({
+          id: key,
+          label: t.label,
+          current,
+          target,
+          sectionId: SECTION_ID_BY_KEY[key] ?? key,
+          phaseId: PHASE_ID_BY_KEY[key] ?? 'p0',
+        });
+      }
+    }
+    candidates.sort((a, b) => {
+      const gapA = a.target - a.current;
+      const gapB = b.target - b.current;
+      if (gapA !== gapB) return gapB - gapA;
+      return a.current - b.current;
+    });
+    return candidates[0] ?? null;
+  }, [state, soloMode]);
+
+  const jumpToNextUp = useCallback(() => {
+    if (!nextUp) return;
+    setPhaseOpen(p => ({ ...p, [nextUp.phaseId]: true }));
+    setOpen(o => ({ ...o, [nextUp.sectionId]: true }));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const el = document.getElementById(`section-${nextUp.sectionId}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }));
+  }, [nextUp]);
+
   const sessionLogs = (state.sessionLogs as SessionLog[]) || [];
   const sortedSessionLogs = [...sessionLogs].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const addSessionLog = () => {
@@ -1176,9 +1288,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   };
   const removeSessionLog = (id: string) => {
     const log = sessionLogs.find(l => l.id === id);
-    if (log && (log.body || '').trim() && !confirm(`Delete "${log.title || 'this session log'}"? This cannot be undone.`)) return;
     setVal('sessionLogs', sessionLogs.filter(l => l.id !== id));
     setOpenLogs(o => { const next = { ...o }; delete next[id]; return next; });
+    const title = log?.title || 'session log';
+    showUndoToast(`Deleted "${title}" — Press ⌘Z to undo`, 5000);
   };
 
   const characters = (state.characters as Character[]) || [];
@@ -1192,10 +1305,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   };
   const removeCharacter = (id: string) => {
     const c = characters.find(x => x.id === id);
-    const label = c?.name || 'this character';
-    if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
+    const label = c?.name || 'character';
     setVal('characters', characters.filter(x => x.id !== id));
     setOpenChars(o => { const next = { ...o }; delete next[id]; return next; });
+    showUndoToast(`Deleted "${label}" — Press ⌘Z to undo`, 5000);
   };
 
   const uploadCharacterSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1421,6 +1534,24 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setPaletteOpen(p => !p);
+        return;
+      }
+      // Cmd/Ctrl+Z outside an editable element steps back through the in-memory
+      // snapshot stack. Inside inputs/textareas we let the browser's native
+      // undo handle the field instead.
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        if (isTyping(e.target)) return;
+        const { snap, next } = popSnapshot(undoStackRef.current);
+        if (snap) {
+          skipNextSnapshotRef.current = true;
+          setState(snap.state);
+          setDone(snap.done);
+          setName(snap.name);
+          undoStackRef.current = next;
+          setCanUndo(next.length > 0);
+          showUndoToast(snap.description || 'Undid last change');
+        }
+        e.preventDefault();
         return;
       }
       if (isTyping(e.target)) return;
@@ -1886,6 +2017,54 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     );
   }
 
+  if (session0Open) {
+    return (
+      <Session0Wizard
+        initialName={name}
+        initialSoloMode={soloMode}
+        onClose={() => {
+          // Closing without finishing still marks done so the user is not
+          // re-prompted on every load. They can re-run from the menu.
+          setState(s => ({ ...s, __session0Done: true }));
+          setSession0Open(false);
+        }}
+        onFinish={(patch) => {
+          if (patch.name) setName(patch.name);
+          setState(s => {
+            const next: Record<string, any> = { ...s, __session0Done: true };
+            if (patch.pitch) next.pitch = patch.pitch;
+            if (patch.truths && patch.truths.length > 0) {
+              const existing = Array.isArray(s.gWorld) ? (s.gWorld as string[]) : [];
+              next.gWorld = [...existing, ...patch.truths];
+            }
+            if (patch.pc) {
+              const existingChars = Array.isArray(s.characters) ? (s.characters as Character[]) : [];
+              next.characters = [...existingChars, makeWizardPC(patch.pc.name, patch.pc.concept)];
+              if (patch.pc.goal) {
+                const existingGoals = Array.isArray(s.pcGoals) ? (s.pcGoals as any[]) : [];
+                next.pcGoals = [...existingGoals, { text: patch.pc.goal, timeframe: 'short', success: '', failure: '', linked: '' }];
+              }
+            }
+            if (patch.front) {
+              const existingClocks = Array.isArray(s.clocks) ? (s.clocks as any[]) : [];
+              const firstSignNote = patch.front.firstSign ? `First sign: ${patch.front.firstSign}` : '';
+              next.clocks = [...existingClocks, {
+                text: patch.front.goal || '',
+                faction: patch.front.name,
+                max: 6,
+                filled: 0,
+                notes: firstSignNote,
+              }];
+            }
+            return next;
+          });
+          setSession0Open(false);
+          setTab('prep');
+        }}
+      />
+    );
+  }
+
   return (
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
       <div className="max-w-5xl mx-auto flex flex-col md:flex-row md:items-start gap-3 md:gap-4">
@@ -1965,6 +2144,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   onArchive={handleArchive}
                   isArchived={isArchived}
                   onDelete={handleDelete}
+                  onRerunSession0={() => setSession0Open(true)}
                 />
               </div>
             </div>
@@ -2055,6 +2235,29 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
         {tab === 'prep' && (
           <div className="space-y-3">
+            {nextUp ? (
+              <div className="rounded border border-brass/40 bg-brass/5 p-3 flex items-center gap-3 shadow-card">
+                <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep flex-shrink-0">
+                  Next Up
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-display text-ink text-sm">{nextUp.label}</div>
+                  <div className="text-xs text-ink-soft font-serif italic">
+                    {nextUp.current} of {nextUp.target} — {nextUp.target - nextUp.current} to go
+                  </div>
+                </div>
+                <button
+                  onClick={jumpToNextUp}
+                  className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass font-display uppercase tracking-wider flex-shrink-0 transition-colors"
+                >
+                  Jump To
+                </button>
+              </div>
+            ) : completedCount > 0 ? (
+              <div className="rounded border border-moss/40 bg-moss/5 p-3 text-sm font-serif italic text-moss text-center">
+                All prep targets met. Ready to run.
+              </div>
+            ) : null}
             <Phase n="0" title="Givens & Pitch" sub="Decide What's Non-Negotiable" methods={['ccd']} icon={Layers} expanded={phaseOpen.p0} onToggle={() => togglePhase('p0')}>
               <BookQuote source="CCD ch. 1">Givens are a set of things your group agrees will feature regardless of how worldbuilding ends up.</BookQuote>
               <Section id="g-world" title="World Facts" methods={['ccd']} done={done['g-world']} onToggle={toggleDone} open={open['g-world']} onToggleOpen={toggleOpen}>
@@ -2379,6 +2582,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   <p>16 — arc-defining</p>
                 </div>
               </div>
+              <div id="section-clocks" />
               <TargetBar current={(get('clocks', []) as any[]).length} target={getTarget('clocks', soloMode)} source={TARGETS.clocks.source} />
               {(get('clocks', []) as any[]).map((c: any, i: number) => (
                 <ClockCard key={i} data={c} onChange={(v: any) => {
@@ -2624,9 +2828,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           };
           const removeEntry = (id: string) => {
             const entry = downtime.find(e => e.id === id);
-            const typeLabel = DOWNTIME_TYPES.find(t => t.id === entry?.type)?.label || 'this entry';
-            if (!confirm(`Delete "${typeLabel}"? This cannot be undone.`)) return;
+            const typeLabel = DOWNTIME_TYPES.find(t => t.id === entry?.type)?.label || 'entry';
             setVal('downtime', downtime.filter(e => e.id !== id));
+            showUndoToast(`Deleted "${typeLabel}" — Press ⌘Z to undo`, 5000);
           };
 
           const groupedActive = DOWNTIME_TYPES
@@ -2889,6 +3093,15 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       </button>
 
       <SyncPill />
+
+      {undoToast && (
+        <div
+          role="status"
+          className="fixed bottom-4 left-16 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2"
+        >
+          {undoToast}
+        </div>
+      )}
     </main>
   );
 }
