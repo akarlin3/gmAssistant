@@ -41,6 +41,7 @@ import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
 import CommandPalette, { type CommandItem } from './CommandPalette';
+import KeyboardShortcuts from './KeyboardShortcuts';
 import {
   type Character,
   emptyCharacter,
@@ -53,6 +54,32 @@ const M = {
   ccd: { label: 'CCD', color: 'border-brass/40 bg-brass/5 text-brass-deep' },
   pr: { label: 'Proactive', color: 'border-wine/40 bg-wine/5 text-wine' },
 };
+
+// Module-level tab order — shared by the sidebar renderer and the
+// arrow-key navigation handler so a single edit moves both together.
+export type TabId =
+  | 'prep' | 'ref' | 'track' | 'down' | 'log'
+  | 'dice' | 'spells' | 'generators' | 'names'
+  | 'locations' | 'monsters' | 'vivify'
+  | 'dmref' | 'traps' | 'chase';
+
+const TAB_LIST: ReadonlyArray<readonly [TabId, string]> = [
+  ['prep', 'Prep Flow'],
+  ['ref', 'Reference'],
+  ['track', 'Tracking'],
+  ['down', 'Downtime'],
+  ['log', 'Sessions'],
+  ['dice', 'Dice'],
+  ['spells', 'Spells'],
+  ['generators', 'Generators'],
+  ['names', 'Names'],
+  ['locations', 'Locations'],
+  ['monsters', 'Monsters'],
+  ['vivify', 'Vivify'],
+  ['traps', 'Traps'],
+  ['dmref', 'DM Ref'],
+  ['chase', 'Chase'],
+] as const;
 
 // Prep item targets — book-grounded with solo adaptations
 // Keys match section ids / state keys used throughout the editor
@@ -1034,8 +1061,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'log' | 'dice' | 'spells' | 'generators' | 'names' | 'locations' | 'monsters' | 'vivify' | 'dmref' | 'traps' | 'chase'>('prep');
+  const [tab, setTab] = useState<TabId>('prep');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -1321,18 +1349,50 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     if (target.anchor) scrollToAnchor(target.anchor);
   };
 
-  // Cmd/Ctrl-K opens the palette. Works from any focus including text inputs
-  // because the palette is the entire app's global "go anywhere" affordance.
+  // Global keyboard shortcuts:
+  //  - Cmd/Ctrl-K: open the command palette (works even inside text inputs —
+  //    the palette is the entire app's "go anywhere" affordance).
+  //  - ?: open the keyboard cheatsheet (suppressed inside text inputs so the
+  //    glyph still types into prose fields).
+  //  - ←/→: previous / next tab (suppressed inside text inputs and while any
+  //    modal — palette, cheatsheet, prep wizard, run session — is open).
   useEffect(() => {
+    const isTyping = (el: EventTarget | null) => {
+      const node = el as HTMLElement | null;
+      if (!node) return false;
+      const tag = node.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || node.isContentEditable;
+    };
+
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setPaletteOpen(p => !p);
+        return;
+      }
+      if (isTyping(e.target)) return;
+      if (paletteOpen || shortcutsOpen) return;
+
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        if (!confirmUnsavedNav()) return;
+        e.preventDefault();
+        setTab(current => {
+          const i = TAB_LIST.findIndex(([id]) => id === current);
+          if (i < 0) return current;
+          const step = e.key === 'ArrowRight' ? 1 : -1;
+          const next = (i + step + TAB_LIST.length) % TAB_LIST.length;
+          return TAB_LIST[next][0];
+        });
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [paletteOpen, shortcutsOpen, syncState, syncError]);
 
   const TAB_META: Array<{ id: typeof tab; label: string; icon: any; keywords?: string[] }> = [
     { id: 'prep', label: 'Prep Flow', icon: ScrollText, keywords: ['lazy dm', 'ccd', 'pitch', 'givens'] },
@@ -1667,23 +1727,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             aria-label="Campaign sections"
             className="flex md:flex-col border border-rule rounded font-display uppercase tracking-wider text-xs bg-parchment-soft overflow-x-auto md:overflow-x-visible"
           >
-            {([
-              ['prep', 'Prep Flow'],
-              ['ref', 'Reference'],
-              ['track', 'Tracking'],
-              ['down', 'Downtime'],
-              ['log', 'Sessions'],
-              ['dice', 'Dice'],
-              ['spells', 'Spells'],
-              ['generators', 'Generators'],
-              ['names', 'Names'],
-              ['locations', 'Locations'],
-              ['monsters', 'Monsters'],
-              ['vivify', 'Vivify'],
-              ['traps', 'Traps'],
-              ['dmref', 'DM Ref'],
-              ['chase', 'Chase'],
-            ] as const).map(([id, label], i) => (
+            {TAB_LIST.map(([id, label], i) => (
               <button
                 key={id}
                 type="button"
@@ -2621,6 +2665,18 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         onClose={() => setPaletteOpen(false)}
         items={paletteItems}
       />
+
+      <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+
+      <button
+        type="button"
+        onClick={() => setShortcutsOpen(true)}
+        title="Keyboard shortcuts (press ?)"
+        aria-label="Keyboard shortcuts"
+        className="fixed bottom-4 left-4 z-30 w-8 h-8 rounded-full border border-rule bg-parchment-soft text-brass-deep hover:bg-brass hover:text-parchment shadow-page font-display text-sm leading-none flex items-center justify-center"
+      >
+        ?
+      </button>
 
       <SyncPill />
     </main>
