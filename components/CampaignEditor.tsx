@@ -2350,6 +2350,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           <SessionLogTab
             entries={(get('sessionLogV2', []) as SessionLogEntry[])}
             onChange={(v) => setVal('sessionLogV2', v)}
+            campaignId={campaign.id}
           />
         )}
 
