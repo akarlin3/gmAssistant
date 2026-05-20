@@ -196,3 +196,41 @@ export const ROOM_NAME_NOUNS: readonly string[] = [
 
 export type RoomKind = keyof typeof ROOM_DESCRIPTIONS_BY_KIND;
 export type DungeonRoomDraft = DungeonResult['details']['rooms'][number];
+
+// Exit-type weights used by the map layout. `states` is the door-state table
+// rolled when the exit is a door variant; non-door exits leave it undefined.
+export const EXIT_TYPE_WEIGHTS: readonly {
+  type: string;
+  weight: number;
+  states?: readonly string[];
+}[] = [
+  {
+    type: 'door',
+    weight: 32,
+    states: [
+      'closed, unlocked',
+      'closed and locked from this side',
+      'closed and locked from the other side',
+      'stuck — forced open with effort',
+      'ajar, swinging slightly',
+      'lock recently pried open',
+    ] as const,
+  },
+  { type: 'archway', weight: 22 },
+  { type: 'corridor', weight: 22 },
+  {
+    type: 'secret door',
+    weight: 8,
+    states: [
+      'concealed behind a tapestry',
+      'flush with the masonry, no seam visible',
+      'opens to the right pressure on a flagstone',
+      'triggered by a counterweight elsewhere',
+    ] as const,
+  },
+  { type: 'stairs up', weight: 6 },
+  { type: 'stairs down', weight: 6 },
+  { type: 'ladder', weight: 2 },
+  { type: 'shaft', weight: 1 },
+  { type: 'portal', weight: 1 },
+];
