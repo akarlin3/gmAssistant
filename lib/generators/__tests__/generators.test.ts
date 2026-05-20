@@ -162,7 +162,6 @@ describe('generateDungeon', () => {
       }
     }
   });
-
   it('placed rooms have unique, non-overlapping spatial footprints', () => {
     for (let seed = 0; seed < 20; seed++) {
       const r = generateDungeon({ size: 'medium', theme: 'cave', challengeTier: '5-10' }, makeRng(seed));
