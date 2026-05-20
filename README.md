@@ -33,6 +33,7 @@ A few features call paid inference APIs and will be gated behind a $2.99/month P
 - **Character sheet parser** — drop a PDF or screenshot, get a structured character entry
 - **Name generator** — themed NPC name lists
 - **NPC trait inspires** — generated personality hooks
+- **Vivify** — streaming, campaign-aware prose (places, NPCs, scene openings, rumors, aftermath, magic-item flavor, foreshadowing, plus a free-form option). Saved generations persist under `data.vivifyHistory` (capped at the 50 most recent).
 
 A small allowlist in `lib/pro-status.ts` (`PRO_EMAILS`) gets pro access for free without a subscription. See `CLAUDE.md` for the pro-gating pattern (server-side `verifyPro` + client-side `isPro` from auth context, with `LockedInline` / `LockedPanel` waitlist CTAs).
 
