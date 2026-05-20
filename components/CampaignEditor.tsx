@@ -9,7 +9,7 @@ import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff,
-  FileUp, Sparkles,
+  FileUp, Sparkles, Play,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounterMath';
@@ -27,6 +27,8 @@ import ChaseTracker from './ChaseTracker';
 import type { Chase } from '@/lib/chaseTables';
 import TrapBuilder from './TrapBuilder';
 import type { Trap } from '@/lib/trapTables';
+import InitiativePanel from './InitiativePanel';
+import type { InitiativeState } from '@/lib/initiative';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
@@ -2020,6 +2022,26 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         </footer>
         </div>
       </div>
+
+      {get('__runSessionOpen', false) && !get('__initiativeOpen', false) && (
+        <button
+          onClick={() => setVal('__initiativeOpen', true)}
+          className="fixed bottom-3 right-3 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full border border-crimson/60 bg-parchment shadow-page text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider text-xs"
+          title="Open initiative tracker"
+        >
+          <Swords size={14} /> Initiative
+        </button>
+      )}
+
+      {get('__runSessionOpen', false) && get('__initiativeOpen', false) && (
+        <InitiativePanel
+          state={(get('__initiative', null) as InitiativeState | null)}
+          onChange={(next) => setVal('__initiative', next)}
+          monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
+          pcs={characters}
+          onClose={() => setVal('__initiativeOpen', false)}
+        />
+      )}
     </main>
   );
 }
