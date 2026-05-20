@@ -68,19 +68,19 @@ export default function TrapBuilder({ traps, onChange }: Props) {
   if (traps.length === 0) {
     return (
       <div className="space-y-3">
-        <div className="text-xs text-zinc-400 italic">
+        <div className="text-xs font-serif italic text-ink-mute">
           Design traps for your dungeons. Build one parameter at a time, or click &ldquo;Roll All&rdquo; to generate a complete trap and edit from there.
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => addNew('roll')}
-            className="flex-1 p-4 rounded border border-dashed border-amber-900/40 bg-amber-950/10 text-amber-300 hover:bg-amber-950/30 flex items-center justify-center gap-2 text-sm"
+            className="flex-1 p-4 rounded border border-dashed border-brass/40 bg-brass-soft/10 text-brass-deep hover:bg-brass-soft/30 flex items-center justify-center gap-2 text-sm font-display uppercase tracking-wider"
           >
             <Dices size={16} /> Roll a Trap
           </button>
           <button
             onClick={() => addNew('empty')}
-            className="flex-1 p-4 rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 hover:bg-zinc-900/30 flex items-center justify-center gap-2 text-sm"
+            className="flex-1 p-4 rounded border border-dashed border-rule text-ink-soft hover:text-ink hover:border-brass hover:bg-parchment-deep flex items-center justify-center gap-2 text-sm font-display uppercase tracking-wider"
           >
             <Plus size={16} /> Build from Scratch
           </button>
@@ -97,10 +97,10 @@ export default function TrapBuilder({ traps, onChange }: Props) {
           <button
             key={t.id}
             onClick={() => setActiveId(t.id)}
-            className={`text-xs px-2.5 py-1 rounded border flex items-center gap-1.5 ${
+            className={`text-xs px-2.5 py-1 rounded border flex items-center gap-1.5 font-display uppercase tracking-wider transition-colors ${
               t.id === activeId
-                ? 'bg-zinc-800 border-zinc-600 text-zinc-100'
-                : 'border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                ? 'bg-crimson border-crimson text-parchment'
+                : 'border-rule bg-parchment-soft text-ink-soft hover:bg-parchment-deep'
             }`}
           >
             <SeverityIcon severity={t.severity} />
@@ -109,14 +109,14 @@ export default function TrapBuilder({ traps, onChange }: Props) {
         ))}
         <button
           onClick={() => addNew('roll')}
-          className="text-xs px-2.5 py-1 rounded border border-amber-900/40 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40 flex items-center gap-1"
+          className="text-xs px-2.5 py-1 rounded border border-brass/40 bg-brass-soft/20 text-brass-deep hover:bg-brass-soft/40 flex items-center gap-1 font-display uppercase tracking-wider"
           title="Roll a new random trap"
         >
           <Dices size={12} /> Roll
         </button>
         <button
           onClick={() => addNew('empty')}
-          className="text-xs px-2.5 py-1 rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-zinc-200 flex items-center gap-1"
+          className="text-xs px-2.5 py-1 rounded border border-dashed border-rule text-ink-soft hover:text-ink hover:bg-parchment-deep flex items-center gap-1 font-display uppercase tracking-wider"
         >
           <Plus size={12} /> New
         </button>
@@ -125,18 +125,18 @@ export default function TrapBuilder({ traps, onChange }: Props) {
       {active && (
         <>
           {/* Header: name + actions */}
-          <div className="rounded border border-zinc-800 bg-zinc-900/30 p-3 space-y-2">
+          <div className="rounded border border-rule bg-parchment-soft p-3 space-y-2 shadow-card">
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={active.name}
                 onChange={(e) => updateActive({ name: e.target.value })}
                 placeholder="Trap Name"
-                className="flex-1 bg-transparent border-b border-zinc-800 text-base font-medium text-zinc-50 placeholder-zinc-700 focus:border-zinc-600 focus:outline-none pb-0.5"
+                className="flex-1 bg-transparent border-b border-rule text-base font-display tracking-wider text-ink placeholder-ink-faint focus:border-brass focus:outline-none pb-0.5"
               />
               <button
                 onClick={() => setDetailed(d => !d)}
-                className="text-xs px-2.5 py-1 rounded border border-zinc-800 text-zinc-300 hover:bg-zinc-900 flex items-center gap-1"
+                className="text-xs px-2.5 py-1 rounded border border-rule bg-parchment text-ink-soft hover:bg-parchment-deep flex items-center gap-1 font-display uppercase tracking-wider"
                 title={detailed ? 'Switch to simplified view' : 'Switch to detailed view'}
               >
                 {detailed ? <Eye size={12} /> : <EyeOff size={12} />}
@@ -146,7 +146,7 @@ export default function TrapBuilder({ traps, onChange }: Props) {
             <div className="flex flex-wrap gap-1.5">
               <button
                 onClick={rollAll}
-                className="text-xs px-2.5 py-1 rounded border border-amber-900/40 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40 flex items-center gap-1"
+                className="text-xs px-2.5 py-1 rounded border border-brass/40 bg-brass-soft/20 text-brass-deep hover:bg-brass-soft/40 flex items-center gap-1 font-display uppercase tracking-wider"
                 title="Re-roll all fields (preserves name + notes)"
               >
                 <Dices size={12} /> Roll All
@@ -154,7 +154,7 @@ export default function TrapBuilder({ traps, onChange }: Props) {
               <div className="flex-1" />
               <button
                 onClick={() => deleteTrap(active.id)}
-                className="text-xs px-2.5 py-1 rounded border border-red-950 text-red-400 hover:bg-red-950/30 flex items-center gap-1"
+                className="text-xs px-2.5 py-1 rounded border border-crimson/40 bg-crimson/5 text-crimson-deep hover:bg-crimson/15 flex items-center gap-1 font-display uppercase tracking-wider"
               >
                 <Trash2 size={12} /> Delete
               </button>
@@ -173,27 +173,27 @@ export default function TrapBuilder({ traps, onChange }: Props) {
           {/* Tier and severity (these drive the numbers) */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <div className="text-xs text-zinc-500 mb-0.5">Character Tier</div>
+              <div className="text-xs font-display uppercase tracking-wider text-ink-mute mb-0.5">Character Tier</div>
               <select
                 value={active.tier}
                 onChange={(e) => {
                   const numbers = recomputeNumbersFromTier(e.target.value, active.severity);
                   updateActive({ tier: e.target.value, ...numbers });
                 }}
-                className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200"
+                className="w-full bg-parchment border border-rule rounded px-2 py-1 text-xs font-serif text-ink focus:border-brass focus:outline-none"
               >
                 {TIERS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
               </select>
             </div>
             <div>
-              <div className="text-xs text-zinc-500 mb-0.5">Severity</div>
+              <div className="text-xs font-display uppercase tracking-wider text-ink-mute mb-0.5">Severity</div>
               <select
                 value={active.severity}
                 onChange={(e) => {
                   const numbers = recomputeNumbersFromTier(active.tier, e.target.value);
                   updateActive({ severity: e.target.value, ...numbers });
                 }}
-                className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200"
+                className="w-full bg-parchment border border-rule rounded px-2 py-1 text-xs font-serif text-ink focus:border-brass focus:outline-none"
               >
                 {SEVERITIES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
@@ -227,7 +227,7 @@ export default function TrapBuilder({ traps, onChange }: Props) {
           {!detailed && (
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <div className="text-xs text-zinc-500 mb-0.5">DC (used for save / detection / disarm)</div>
+                <div className="text-xs font-display uppercase tracking-wider text-ink-mute mb-0.5">DC (used for save / detection / disarm)</div>
                 <input
                   type="number"
                   value={active.saveDC}
@@ -236,16 +236,16 @@ export default function TrapBuilder({ traps, onChange }: Props) {
                     detectionDC: Number(e.target.value),
                     disarmDC: Number(e.target.value),
                   })}
-                  className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-200"
+                  className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm font-serif tabular-nums text-ink focus:border-brass focus:outline-none"
                 />
               </div>
               <div>
-                <div className="text-xs text-zinc-500 mb-0.5">Damage</div>
+                <div className="text-xs font-display uppercase tracking-wider text-ink-mute mb-0.5">Damage</div>
                 <input
                   type="text"
                   value={active.damageDice}
                   onChange={(e) => updateActive({ damageDice: e.target.value })}
-                  className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-200"
+                  className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm font-serif text-ink focus:border-brass focus:outline-none"
                 />
               </div>
             </div>
@@ -256,43 +256,43 @@ export default function TrapBuilder({ traps, onChange }: Props) {
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <div className="text-xs text-zinc-500 mb-0.5">Save Type</div>
+                  <div className="text-xs font-display uppercase tracking-wider text-ink-mute mb-0.5">Save Type</div>
                   <select
                     value={active.saveType}
                     onChange={(e) => updateActive({ saveType: e.target.value })}
-                    className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200"
+                    className="w-full bg-parchment border border-rule rounded px-2 py-1 text-xs font-serif text-ink focus:border-brass focus:outline-none"
                   >
                     {SAVES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <div className="text-xs text-zinc-500 mb-0.5">Save DC</div>
+                  <div className="text-xs font-display uppercase tracking-wider text-ink-mute mb-0.5">Save DC</div>
                   <input
                     type="number"
                     value={active.saveDC}
                     onChange={(e) => updateActive({ saveDC: Number(e.target.value) })}
-                    className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-200"
+                    className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm font-serif tabular-nums text-ink focus:border-brass focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <div className="text-xs text-zinc-500 mb-0.5">Damage Dice</div>
+                  <div className="text-xs font-display uppercase tracking-wider text-ink-mute mb-0.5">Damage Dice</div>
                   <input
                     type="text"
                     value={active.damageDice}
                     onChange={(e) => updateActive({ damageDice: e.target.value })}
-                    className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-200"
+                    className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm font-serif text-ink focus:border-brass focus:outline-none"
                   />
                 </div>
                 <div>
-                  <div className="text-xs text-zinc-500 mb-0.5">Damage Type</div>
+                  <div className="text-xs font-display uppercase tracking-wider text-ink-mute mb-0.5">Damage Type</div>
                   <input
                     type="text"
                     value={active.damageType}
                     onChange={(e) => updateActive({ damageType: e.target.value })}
-                    className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-200"
+                    className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm font-serif text-ink focus:border-brass focus:outline-none"
                   />
                 </div>
               </div>
@@ -306,12 +306,12 @@ export default function TrapBuilder({ traps, onChange }: Props) {
                 rows={2}
               />
               <div>
-                <div className="text-xs text-zinc-500 mb-0.5">Detection DC</div>
+                <div className="text-xs font-display uppercase tracking-wider text-ink-mute mb-0.5">Detection DC</div>
                 <input
                   type="number"
                   value={active.detectionDC}
                   onChange={(e) => updateActive({ detectionDC: Number(e.target.value) })}
-                  className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-200"
+                  className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm font-serif tabular-nums text-ink focus:border-brass focus:outline-none"
                 />
               </div>
 
@@ -324,12 +324,12 @@ export default function TrapBuilder({ traps, onChange }: Props) {
                 rows={2}
               />
               <div>
-                <div className="text-xs text-zinc-500 mb-0.5">Disarm DC</div>
+                <div className="text-xs font-display uppercase tracking-wider text-ink-mute mb-0.5">Disarm DC</div>
                 <input
                   type="number"
                   value={active.disarmDC}
                   onChange={(e) => updateActive({ disarmDC: Number(e.target.value) })}
-                  className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-200"
+                  className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm font-serif tabular-nums text-ink focus:border-brass focus:outline-none"
                 />
               </div>
 
@@ -364,9 +364,9 @@ export default function TrapBuilder({ traps, onChange }: Props) {
 // ---- Subcomponents ----
 
 function SeverityIcon({ severity }: { severity: string }) {
-  if (severity === 'deadly')    return <Skull size={11} className="text-red-400" />;
-  if (severity === 'dangerous') return <AlertTriangle size={11} className="text-orange-400" />;
-  return <Sliders size={11} className="text-zinc-500" />;
+  if (severity === 'deadly')    return <Skull size={11} className="text-crimson" />;
+  if (severity === 'dangerous') return <AlertTriangle size={11} className="text-orange-700" />;
+  return <Sliders size={11} className="text-ink-mute" />;
 }
 
 function FieldRow({
@@ -374,14 +374,14 @@ function FieldRow({
 }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; rows?: number }) {
   return (
     <div>
-      <div className="text-xs text-zinc-500 mb-0.5">{label}</div>
+      <div className="text-xs font-display uppercase tracking-wider text-ink-mute mb-0.5">{label}</div>
       {rows > 1 ? (
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           rows={rows}
-          className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 focus:border-zinc-600 focus:outline-none resize-y"
+          className="w-full bg-parchment-soft border border-rule rounded px-2 py-1.5 text-sm font-serif text-ink placeholder-ink-faint focus:border-brass focus:outline-none resize-y"
         />
       ) : (
         <input
@@ -389,7 +389,7 @@ function FieldRow({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 focus:border-zinc-600 focus:outline-none"
+          className="w-full bg-parchment-soft border border-rule rounded px-2 py-1.5 text-sm font-serif text-ink placeholder-ink-faint focus:border-brass focus:outline-none"
         />
       )}
     </div>
@@ -402,10 +402,10 @@ function RollableField({
   return (
     <div>
       <div className="flex items-center justify-between mb-0.5">
-        <span className="text-xs text-zinc-500">{label}</span>
+        <span className="text-xs font-display uppercase tracking-wider text-ink-mute">{label}</span>
         <button
           onClick={onRoll}
-          className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-0.5"
+          className="text-[10px] text-brass-deep hover:text-brass flex items-center gap-0.5 font-display uppercase tracking-wider"
         >
           <RefreshCw size={10} /> Roll
         </button>
@@ -416,7 +416,7 @@ function RollableField({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           rows={rows}
-          className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 focus:border-zinc-600 focus:outline-none resize-y"
+          className="w-full bg-parchment-soft border border-rule rounded px-2 py-1.5 text-sm font-serif text-ink placeholder-ink-faint focus:border-brass focus:outline-none resize-y"
         />
       ) : (
         <input
@@ -424,7 +424,7 @@ function RollableField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 focus:border-zinc-600 focus:outline-none"
+          className="w-full bg-parchment-soft border border-rule rounded px-2 py-1.5 text-sm font-serif text-ink placeholder-ink-faint focus:border-brass focus:outline-none"
         />
       )}
     </div>
@@ -438,24 +438,24 @@ function SummaryCard({ trap }: { trap: Trap }) {
   const save = SAVES.find(s => s.id === trap.saveType);
 
   return (
-    <div className="rounded border border-zinc-700 bg-zinc-900/50 mt-2">
+    <div className="rounded border border-rule bg-parchment-soft mt-2 shadow-card">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-2 p-2.5 hover:bg-zinc-900/40 text-left"
+        className="w-full flex items-center gap-2 p-2.5 hover:bg-parchment-deep text-left text-ink-soft"
       >
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        <span className="text-sm font-medium text-zinc-100">At-a-glance Reference</span>
+        <span className="text-sm font-display uppercase tracking-wider text-brass-deep">At-a-glance Reference</span>
       </button>
       {open && (
-        <div className="px-3 pb-3 border-t border-zinc-800 pt-3 space-y-1 text-xs text-zinc-300 leading-relaxed">
-          <div><span className="text-zinc-500">Tier:</span> {tier?.label}</div>
-          <div><span className="text-zinc-500">Severity:</span> {severity?.label} — <span className="italic text-zinc-500">{severity?.note}</span></div>
-          <div><span className="text-zinc-500">Trigger:</span> {trap.trigger || <em className="text-zinc-600">unset</em>}</div>
-          <div><span className="text-zinc-500">Effect:</span> {trap.effect || <em className="text-zinc-600">unset</em>}</div>
-          <div><span className="text-zinc-500">Save:</span> DC {trap.saveDC} {save?.label} {trap.damageDice && `→ ${trap.damageDice} ${trap.damageType}`}</div>
-          <div><span className="text-zinc-500">Detection:</span> DC {trap.detectionDC} — {trap.detection || <em className="text-zinc-600">unset</em>}</div>
-          <div><span className="text-zinc-500">Disarm:</span> DC {trap.disarmDC} — {trap.disarm || <em className="text-zinc-600">unset</em>}</div>
-          {trap.location && <div><span className="text-zinc-500">Location:</span> {trap.location}</div>}
+        <div className="px-3 pb-3 border-t border-rule pt-3 space-y-1 text-xs font-serif text-ink leading-relaxed">
+          <div><span className="text-ink-mute font-display uppercase tracking-wider text-[10px]">Tier:</span> {tier?.label}</div>
+          <div><span className="text-ink-mute font-display uppercase tracking-wider text-[10px]">Severity:</span> {severity?.label} — <span className="italic text-ink-mute">{severity?.note}</span></div>
+          <div><span className="text-ink-mute font-display uppercase tracking-wider text-[10px]">Trigger:</span> {trap.trigger || <em className="text-ink-faint">unset</em>}</div>
+          <div><span className="text-ink-mute font-display uppercase tracking-wider text-[10px]">Effect:</span> {trap.effect || <em className="text-ink-faint">unset</em>}</div>
+          <div><span className="text-ink-mute font-display uppercase tracking-wider text-[10px]">Save:</span> DC {trap.saveDC} {save?.label} {trap.damageDice && `→ ${trap.damageDice} ${trap.damageType}`}</div>
+          <div><span className="text-ink-mute font-display uppercase tracking-wider text-[10px]">Detection:</span> DC {trap.detectionDC} — {trap.detection || <em className="text-ink-faint">unset</em>}</div>
+          <div><span className="text-ink-mute font-display uppercase tracking-wider text-[10px]">Disarm:</span> DC {trap.disarmDC} — {trap.disarm || <em className="text-ink-faint">unset</em>}</div>
+          {trap.location && <div><span className="text-ink-mute font-display uppercase tracking-wider text-[10px]">Location:</span> {trap.location}</div>}
         </div>
       )}
     </div>
