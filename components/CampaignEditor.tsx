@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateCampaign, deleteCampaign as deleteCampaignDoc, type Campaign } from '@/lib/firebase/campaigns';
 import { getFirebaseAuth } from '@/lib/firebase/client';
@@ -63,23 +63,49 @@ export type TabId =
   | 'locations' | 'monsters' | 'vivify'
   | 'dmref' | 'traps' | 'chase';
 
-const TAB_LIST: ReadonlyArray<readonly [TabId, string]> = [
-  ['prep', 'Prep Flow'],
-  ['ref', 'Reference'],
-  ['track', 'Tracking'],
-  ['down', 'Downtime'],
-  ['log', 'Sessions'],
-  ['dice', 'Dice'],
-  ['spells', 'Spells'],
-  ['generators', 'Generators'],
-  ['names', 'Names'],
-  ['locations', 'Locations'],
-  ['monsters', 'Monsters'],
-  ['vivify', 'Vivify'],
-  ['traps', 'Traps'],
-  ['dmref', 'DM Ref'],
-  ['chase', 'Chase'],
+type TabGroupId = 'prep' | 'run' | 'tools';
+
+type TabGroup = {
+  id: TabGroupId;
+  label: string;
+  tabs: ReadonlyArray<readonly [TabId, string]>;
+};
+
+const TAB_GROUPS: ReadonlyArray<TabGroup> = [
+  { id: 'prep', label: 'Prep', tabs: [
+    ['prep', 'Prep Flow'],
+    ['ref', 'Reference'],
+    ['track', 'Tracking'],
+    ['down', 'Downtime'],
+  ]},
+  { id: 'run', label: 'Run', tabs: [
+    ['dice', 'Dice'],
+    ['spells', 'Spells'],
+    ['dmref', 'DM Ref'],
+    ['chase', 'Chase'],
+  ]},
+  { id: 'tools', label: 'Tools', tabs: [
+    ['generators', 'Generators'],
+    ['names', 'Names'],
+    ['locations', 'Locations'],
+    ['monsters', 'Monsters'],
+    ['traps', 'Traps'],
+    ['vivify', 'Vivify'],
+    ['log', 'Sessions'],
+  ]},
 ] as const;
+
+// Flat order used by ←/→ arrow-key tab cycling. Derived from the group
+// order so adding/reordering a group automatically updates cycling.
+const TAB_LIST: ReadonlyArray<readonly [TabId, string]> =
+  TAB_GROUPS.flatMap(g => g.tabs);
+
+function groupForTab(tab: TabId): TabGroupId {
+  for (const g of TAB_GROUPS) {
+    if (g.tabs.some(([id]) => id === tab)) return g.id;
+  }
+  return 'prep';
+}
 
 // Prep item targets — book-grounded with solo adaptations
 // Keys match section ids / state keys used throughout the editor
@@ -1064,6 +1090,17 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   const [tab, setTab] = useState<TabId>('prep');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Group expand/collapse for the sidebar. Initial state is empty; the
+  // renderer treats "not explicitly set" as "expanded if it contains the
+  // active tab", so the right group always shows on first render. When
+  // `tab` changes (arrow keys, Cmd+K), the effect below force-expands the
+  // group containing the new active tab so users never end up with an
+  // active tab hidden behind a collapsed header.
+  const [openGroups, setOpenGroups] = useState<Partial<Record<TabGroupId, boolean>>>({});
+  useEffect(() => {
+    const g = groupForTab(tab);
+    setOpenGroups(o => (o[g] === true ? o : { ...o, [g]: true }));
+  }, [tab]);
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -1840,26 +1877,58 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           <nav
             role="tablist"
             aria-label="Campaign sections"
-            className="flex md:flex-col border border-rule rounded font-display uppercase tracking-wider text-xs bg-parchment-soft overflow-x-auto md:overflow-x-visible"
+            className="flex md:flex-col border border-rule rounded font-display uppercase tracking-wider text-xs bg-parchment-soft overflow-x-auto md:overflow-x-visible md:overflow-hidden"
           >
-            {TAB_LIST.map(([id, label], i) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={tab === id}
-                onClick={() => { if (confirmUnsavedNav()) setTab(id); }}
-                className={`px-3 py-2 text-left whitespace-nowrap transition-colors ${
-                  i > 0 ? 'border-l md:border-l-0 md:border-t border-rule' : ''
-                } ${
-                  tab === id
-                    ? 'bg-crimson text-parchment'
-                    : 'text-ink-soft hover:bg-parchment-deep'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            {TAB_GROUPS.map((group, gIdx) => {
+              const containsActive = group.tabs.some(([id]) => id === tab);
+              const isExpanded = openGroups[group.id] ?? containsActive;
+              return (
+                <Fragment key={group.id}>
+                  {/* Mobile group label — small inline divider between groups */}
+                  <div
+                    className={`md:hidden flex items-center px-2 text-[9px] font-display uppercase tracking-wider text-brass-deep whitespace-nowrap ${
+                      gIdx > 0 ? 'border-l border-rule' : ''
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {group.label}
+                  </div>
+                  {/* Desktop group header — collapsible accordion */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenGroups(o => ({ ...o, [group.id]: !(o[group.id] ?? containsActive) }))
+                    }
+                    aria-expanded={isExpanded}
+                    className={`hidden md:flex w-full items-center justify-between px-3 py-1.5 font-display uppercase tracking-wider text-[10px] text-brass-deep hover:bg-parchment-deep/40 transition-colors ${
+                      gIdx > 0 ? 'border-t border-rule' : ''
+                    }`}
+                  >
+                    <span>{group.label}</span>
+                    {isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                  </button>
+                  {/* Sub-tabs — always visible on mobile (flat scroll); on desktop, collapsed when the group is. */}
+                  {group.tabs.map(([id, label], i) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === id}
+                      onClick={() => { if (confirmUnsavedNav()) setTab(id); }}
+                      className={`px-3 py-2 text-left whitespace-nowrap transition-colors border-l md:border-l-0 md:border-t border-rule ${
+                        !isExpanded ? 'md:hidden' : ''
+                      } ${
+                        tab === id
+                          ? 'bg-crimson text-parchment'
+                          : 'text-ink-soft hover:bg-parchment-deep'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </Fragment>
+              );
+            })}
           </nav>
         </aside>
         <div className="flex-1 min-w-0 bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
