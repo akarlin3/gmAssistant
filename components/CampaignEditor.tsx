@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { updateCampaign, deleteCampaign as deleteCampaignDoc, type Campaign } from '@/lib/firebase/campaigns';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
@@ -1209,6 +1208,61 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     return <span className="text-xs text-brass-deep flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} /> Saved</span>;
   };
 
+  // Manual retry — uses current state, bypasses the debounce timer. Wired to
+  // the bottom-pill in error state so the user can recover from a failed save
+  // without making another change first.
+  const retrySave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    saveToDB({ name, data: { ...state, __soloMode: soloMode }, done });
+  }, [saveToDB, name, state, soloMode, done]);
+
+  // Bottom-pill overlay for risky sync states. The header SyncIndicator is the
+  // calm baseline; this pill is the urgent reminder when something is unsaved
+  // or has failed. Hidden once we're back to 'synced'.
+  const SyncPill = () => {
+    if (syncState === 'synced') return null;
+    const base = 'fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border text-xs font-display uppercase tracking-wider flex items-center gap-2 transition-opacity';
+    if (syncState === 'pending') {
+      return (
+        <div className={`${base} border-brass-deep/60 bg-parchment text-brass-deep`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-brass-deep animate-pulse" />
+          Saving in 1.5s…
+        </div>
+      );
+    }
+    if (syncState === 'saving') {
+      return (
+        <div className={`${base} border-moss/60 bg-moss/10 text-moss`}>
+          <Cloud size={12} className="animate-pulse" />
+          Saving…
+        </div>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={retrySave}
+        title={syncError || 'Click to retry'}
+        className={`${base} border-crimson/70 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment cursor-pointer`}
+      >
+        <CloudOff size={12} />
+        Save failed — click to retry
+      </button>
+    );
+  };
+
+  // Confirm tab/route changes while a save error is outstanding. Returns true
+  // if the navigation should proceed.
+  const confirmUnsavedNav = (): boolean => {
+    if (syncState !== 'error') return true;
+    return window.confirm(
+      'Your last change failed to save. Switching may lose unsaved data. Switch anyway?',
+    );
+  };
+
   const ToolBtn = ({ onClick, children, danger = false, title }: { onClick: () => void; children: React.ReactNode; danger?: boolean; title?: string }) => (
     <button onClick={onClick} title={title} className={`text-xs px-3 py-1 rounded border font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
       danger
@@ -1635,7 +1689,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 type="button"
                 role="tab"
                 aria-selected={tab === id}
-                onClick={() => setTab(id)}
+                onClick={() => { if (confirmUnsavedNav()) setTab(id); }}
                 className={`px-3 py-2 text-left whitespace-nowrap transition-colors ${
                   i > 0 ? 'border-l md:border-l-0 md:border-t border-rule' : ''
                 } ${
@@ -1652,9 +1706,13 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         <div className="flex-1 min-w-0 bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
           <header className="pb-3 border-b border-rule">
             <div className="flex items-center justify-between gap-2 mb-2">
-              <Link href="/campaign" className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => { if (confirmUnsavedNav()) router.push('/campaign'); }}
+                className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1"
+              >
                 <ArrowLeft size={12} /> All Campaigns
-              </Link>
+              </button>
               <div className="flex items-center gap-2">
                 <SyncIndicator />
                 <AccountMenu
@@ -2563,6 +2621,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         onClose={() => setPaletteOpen(false)}
         items={paletteItems}
       />
+
+      <SyncPill />
     </main>
   );
 }
