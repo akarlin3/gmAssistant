@@ -30,7 +30,10 @@ import type { Trap } from '@/lib/trapTables';
 import InitiativePanel from './InitiativePanel';
 import type { InitiativeState } from '@/lib/initiative';
 import RunSessionView from './RunSessionView';
+import SessionLogTab from './SessionLogTab';
+import SessionLogFinalizer from './SessionLogFinalizer';
 import { type ChangeEvent, type ChangeEventKind, makeEvent } from '@/lib/sessionEvents';
+import type { SessionLogEntry } from '@/lib/sessionLog';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
@@ -1010,7 +1013,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'generators' | 'names' | 'locations' | 'monsters' | 'vivify' | 'dmref' | 'traps' | 'chase'>('prep');
+  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'log' | 'dice' | 'spells' | 'generators' | 'names' | 'locations' | 'monsters' | 'vivify' | 'dmref' | 'traps' | 'chase'>('prep');
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -1193,15 +1196,55 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     </button>
   );
 
+  const sessionEndedAt = get('__sessionEndedAt', 0) as number;
+  const finalizerOpen = sessionEndedAt > 0;
+  const clearSessionState = () => {
+    setState(s => {
+      const next = { ...s };
+      delete next.__activeSessionId;
+      delete next.__sessionStartedAt;
+      delete next.__sessionEndedAt;
+      delete next.__sessionChangeEvents;
+      delete next.__sessionScratchpad;
+      delete next.__sessionUsedScenes;
+      next.__runSessionOpen = false;
+      return next;
+    });
+  };
+  const saveSessionLog = (entry: SessionLogEntry) => {
+    const existing = (state.sessionLogV2 as SessionLogEntry[]) || [];
+    setVal('sessionLogV2', [...existing, entry]);
+    clearSessionState();
+  };
+  const discardSession = () => {
+    clearSessionState();
+  };
+
+  const finalizerModal = finalizerOpen ? (
+    <SessionLogFinalizer
+      sessionId={(get('__activeSessionId', `session_${Date.now()}`) as string)}
+      startedAt={(get('__sessionStartedAt', sessionEndedAt) as number)}
+      endedAt={sessionEndedAt}
+      scratchpad={(get('__sessionScratchpad', '') as string)}
+      events={(get('__sessionChangeEvents', []) as ChangeEvent[])}
+      existingEntries={(get('sessionLogV2', []) as SessionLogEntry[])}
+      onSave={saveSessionLog}
+      onDiscard={discardSession}
+    />
+  ) : null;
+
   if (get('__runSessionOpen', false)) {
     return (
-      <RunSessionView
-        get={get}
-        setVal={setVal}
-        characters={characters}
-        onEndSession={() => setVal('__sessionEndedAt', Date.now())}
-        onExitWithoutEnding={() => setVal('__runSessionOpen', false)}
-      />
+      <>
+        <RunSessionView
+          get={get}
+          setVal={setVal}
+          characters={characters}
+          onEndSession={() => setVal('__sessionEndedAt', Date.now())}
+          onExitWithoutEnding={() => setVal('__runSessionOpen', false)}
+        />
+        {finalizerModal}
+      </>
     );
   }
 
@@ -1219,6 +1262,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               ['ref', 'Reference'],
               ['track', 'Tracking'],
               ['down', 'Downtime'],
+              ['log', 'Sessions'],
               ['dice', 'Dice'],
               ['spells', 'Spells'],
               ['generators', 'Generators'],
@@ -1969,6 +2013,13 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           );
         })()}
 
+        {tab === 'log' && (
+          <SessionLogTab
+            entries={(get('sessionLogV2', []) as SessionLogEntry[])}
+            onChange={(v) => setVal('sessionLogV2', v)}
+          />
+        )}
+
         {tab === 'dice' && (
           <DiceRoller
             macros={get('macros', []) as Macro[]}
@@ -2119,6 +2170,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           onClose={() => setVal('__initiativeOpen', false)}
         />
       )}
+
+      {finalizerModal}
     </main>
   );
 }
