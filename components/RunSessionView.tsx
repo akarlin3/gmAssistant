@@ -1,0 +1,558 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import {
+  ArrowLeft, Flag, Dice5, Sparkles, ChevronDown, ChevronRight, Check,
+  Eye, EyeOff, Plus, Swords, NotebookPen, Target, Map, Users, ScrollText,
+} from 'lucide-react';
+import { TABLES, rollTable } from '@/lib/inspirationTables';
+import InitiativePanel from './InitiativePanel';
+import type { InitiativeState } from '@/lib/initiative';
+import type { HomebrewMonster } from './MonstersTab';
+import type { Character } from '@/lib/character-schema';
+import { makeEvent, type ChangeEvent } from '@/lib/sessionEvents';
+
+type Get = (k: string, fb: any) => any;
+type SetVal = (k: string, v: any) => void;
+
+type Props = {
+  get: Get;
+  setVal: SetVal;
+  characters: Character[];
+  onEndSession: () => void;
+  onExitWithoutEnding: () => void;
+};
+
+const SECTION_KEYS = [
+  'scenes', 'secrets', 'npcs', 'locations', 'goals', 'clocks',
+] as const;
+
+type SectionKey = typeof SECTION_KEYS[number];
+
+const SECTION_META: Record<SectionKey, { label: string; icon: any }> = {
+  scenes:   { label: 'Potential Scenes',  icon: NotebookPen },
+  secrets:  { label: 'Secrets & Clues',   icon: Eye },
+  npcs:     { label: 'NPCs',              icon: Users },
+  locations:{ label: 'Locations',         icon: Map },
+  goals:    { label: 'PC Goals',          icon: Target },
+  clocks:   { label: 'Faction Clocks',    icon: ScrollText },
+};
+
+export default function RunSessionView({
+  get, setVal, characters, onEndSession, onExitWithoutEnding,
+}: Props) {
+  const [section, setSection] = useState<Record<SectionKey, boolean>>({
+    scenes: true, secrets: true, npcs: true, locations: true, goals: true, clocks: true,
+  });
+  const toggleSection = (k: SectionKey) => setSection(s => ({ ...s, [k]: !s[k] }));
+
+  const events = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
+  const pushEvent = (e: ChangeEvent) => {
+    setVal('__sessionChangeEvents', [...events, e]);
+  };
+
+  const usedScenes = (get('__sessionUsedScenes', []) as string[]) || [];
+  const toggleSceneUsed = (text: string) => {
+    if (usedScenes.includes(text)) {
+      setVal('__sessionUsedScenes', usedScenes.filter(s => s !== text));
+      return;
+    }
+    setVal('__sessionUsedScenes', [...usedScenes, text]);
+    pushEvent(makeEvent('scene_used', `Used scene: ${text}`));
+  };
+
+  const revSec = (get('revSec', {}) as Record<number, boolean>) || {};
+  const setRevSec = (i: number, value: boolean, text: string) => {
+    const next = { ...revSec, [i]: value };
+    setVal('revSec', next);
+    if (value && !revSec[i]) pushEvent(makeEvent('secret_revealed', text));
+  };
+
+  const pcGoals = (get('pcGoals', []) as any[]) || [];
+  const updateGoalStatus = (i: number, status: string) => {
+    const goal = pcGoals[i];
+    const fromStatus = goal?.status || 'Active';
+    if (fromStatus === status) return;
+    const next = [...pcGoals];
+    next[i] = { ...goal, status };
+    setVal('pcGoals', next);
+    pushEvent(makeEvent(
+      'goal_status',
+      `${goal?.text || `Goal ${i + 1}`}: ${fromStatus} → ${status}`,
+      fromStatus, status,
+    ));
+  };
+
+  const clocks = (get('clocks', []) as any[]) || [];
+  const tickClock = (i: number, delta: number) => {
+    const c = clocks[i];
+    if (!c) return;
+    const max = c.max || 6;
+    const filledNew = Math.max(0, Math.min(max, (c.filled || 0) + delta));
+    if (filledNew === c.filled) return;
+    const next = [...clocks];
+    next[i] = { ...c, filled: filledNew };
+    setVal('clocks', next);
+    pushEvent(makeEvent(
+      'faction_clock_ticked',
+      `${c.faction || 'Faction'}: ${c.text || 'clock'} ${c.filled || 0} → ${filledNew} / ${max}`,
+      c.filled || 0, filledNew,
+    ));
+  };
+
+  const factions = (get('factions', []) as any[]) || [];
+  const adjustRenown = (i: number, delta: number) => {
+    const f = factions[i];
+    if (!f) return;
+    const fromV = typeof f.renown === 'number' ? f.renown : 0;
+    const toV = fromV + delta;
+    const next = [...factions];
+    next[i] = { ...f, renown: toV };
+    setVal('factions', next);
+    pushEvent(makeEvent(
+      'renown_changed',
+      `${f.name || `Faction ${i + 1}`} renown: ${fromV} → ${toV}`,
+      fromV, toV,
+    ));
+  };
+
+  const scenes = (get('scenes', []) as string[]) || [];
+  const secrets = (get('secrets', []) as string[]) || [];
+  const npcs = (get('npcs', []) as any[]) || [];
+  const locations = (get('locations', []) as any[]) || [];
+
+  const scratchpad = (get('__sessionScratchpad', '') as string) || '';
+  const setScratchpad = (v: string) => setVal('__sessionScratchpad', v);
+
+  const initiativeOpen = !!get('__initiativeOpen', false);
+  const setInitiativeOpen = (v: boolean) => setVal('__initiativeOpen', v);
+
+  return (
+    <main className="min-h-screen p-3 sm:p-5 md:p-6 pb-32">
+      <div className="max-w-7xl mx-auto space-y-3">
+        <header className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-rule">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onExitWithoutEnding}
+              className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1"
+              title="Hide run mode without ending the session"
+            >
+              <ArrowLeft size={12} /> Hide
+            </button>
+            <h1 className="font-display text-lg sm:text-xl tracking-wide text-ink flex items-center gap-2">
+              <Swords size={18} className="text-crimson" /> Run Session
+            </h1>
+            <span className="text-xs text-ink-mute font-serif italic">
+              Started {new Date(get('__sessionStartedAt', Date.now()) as number).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+          <button
+            onClick={onEndSession}
+            className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+          >
+            <Flag size={12} /> End Session
+          </button>
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3">
+          <div className="space-y-3">
+            <SectionShell title={SECTION_META.scenes.label} icon={SECTION_META.scenes.icon} open={section.scenes} onToggle={() => toggleSection('scenes')} count={scenes.length}>
+              {scenes.length === 0 ? <Empty>No scenes prepped.</Empty> : (
+                <ul className="space-y-1">
+                  {scenes.map((s, i) => {
+                    const used = usedScenes.includes(s);
+                    return (
+                      <li key={i} className={`flex items-start gap-2 px-2 py-1.5 rounded border ${used ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
+                        <button
+                          onClick={() => toggleSceneUsed(s)}
+                          className={`mt-0.5 w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${used ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment'}`}
+                          title={used ? 'Unmark used' : 'Mark used this session'}
+                        >
+                          {used && <Check size={10} strokeWidth={3} />}
+                        </button>
+                        <span className={`text-sm font-serif ${used ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{s}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </SectionShell>
+
+            <SectionShell title={SECTION_META.secrets.label} icon={SECTION_META.secrets.icon} open={section.secrets} onToggle={() => toggleSection('secrets')} count={secrets.length}>
+              {secrets.length === 0 ? <Empty>No secrets prepped.</Empty> : (
+                <ul className="space-y-1">
+                  {secrets.map((s, i) => {
+                    const revealed = !!revSec[i];
+                    return (
+                      <li key={i} className={`flex items-start gap-2 px-2 py-1.5 rounded border ${revealed ? 'border-emerald-700/40 bg-emerald-100/30' : 'border-rule bg-parchment'}`}>
+                        <button
+                          onClick={() => setRevSec(i, !revealed, s)}
+                          className="mt-0.5 text-ink-mute hover:text-emerald-700 flex-shrink-0"
+                          title={revealed ? 'Unmark revealed' : 'Mark revealed'}
+                        >
+                          {revealed ? <Eye size={14} className="text-emerald-700" /> : <EyeOff size={14} />}
+                        </button>
+                        <span className={`text-sm font-serif ${revealed ? 'text-ink-mute' : 'text-ink-soft'}`}>{s}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </SectionShell>
+
+            <SectionShell title={SECTION_META.npcs.label} icon={SECTION_META.npcs.icon} open={section.npcs} onToggle={() => toggleSection('npcs')} count={npcs.length}>
+              {npcs.length === 0 ? <Empty>No NPCs prepped.</Empty> : (
+                <ul className="space-y-1.5">
+                  {npcs.map((n: any, i: number) => (
+                    <NPCRow key={i} npc={n} />
+                  ))}
+                </ul>
+              )}
+            </SectionShell>
+
+            <SectionShell title={SECTION_META.locations.label} icon={SECTION_META.locations.icon} open={section.locations} onToggle={() => toggleSection('locations')} count={locations.length}>
+              {locations.length === 0 ? <Empty>No locations prepped.</Empty> : (
+                <ul className="space-y-1">
+                  {locations.map((l: any, i: number) => (
+                    <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif">
+                      <div className="text-ink">{l.name || `Location ${i + 1}`}</div>
+                      {l.type && <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">{l.type}</div>}
+                      {Array.isArray(l.aspects) && l.aspects.filter(Boolean).length > 0 && (
+                        <ul className="mt-0.5 ml-3 list-disc text-ink-soft text-[11px] italic">
+                          {l.aspects.filter(Boolean).map((a: string, j: number) => <li key={j}>{a}</li>)}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SectionShell>
+
+            <SectionShell title={SECTION_META.goals.label} icon={SECTION_META.goals.icon} open={section.goals} onToggle={() => toggleSection('goals')} count={pcGoals.length}>
+              {pcGoals.length === 0 ? <Empty>No PC goals prepped.</Empty> : (
+                <ul className="space-y-1.5">
+                  {pcGoals.map((g: any, i: number) => (
+                    <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif">
+                      <div className="text-ink-soft">{g.text || `Goal ${i + 1}`}</div>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {['Active', 'Progressed', 'Completed', 'Failed'].map(s => (
+                          <button
+                            key={s}
+                            onClick={() => updateGoalStatus(i, s)}
+                            className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider ${g.status === s ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'}`}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SectionShell>
+
+            <SectionShell title={SECTION_META.clocks.label} icon={SECTION_META.clocks.icon} open={section.clocks} onToggle={() => toggleSection('clocks')} count={clocks.length}>
+              {clocks.length === 0 ? <Empty>No clocks prepped.</Empty> : (
+                <ul className="space-y-1.5">
+                  {clocks.map((c: any, i: number) => {
+                    const max = c.max || 6;
+                    const filled = c.filled || 0;
+                    return (
+                      <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-ink">{c.text || `Clock ${i + 1}`}</span>
+                          <span className="text-[11px] text-brass-deep font-display">{filled}/{max}</span>
+                        </div>
+                        {c.faction && <div className="text-[10px] text-ink-mute italic">{c.faction}</div>}
+                        <div className="flex gap-0.5">
+                          {Array.from({ length: max }).map((_, j) => (
+                            <button
+                              key={j}
+                              onClick={() => tickClock(i, j + 1 === filled ? -filled : (j + 1) - filled)}
+                              className={`flex-1 h-3 rounded-sm transition-colors ${j < filled ? 'bg-crimson' : 'bg-parchment-deep hover:bg-parchment-deep/70'}`}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex gap-1">
+                          <button onClick={() => tickClock(i, -1)} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">−1</button>
+                          <button onClick={() => tickClock(i, 1)} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">+1</button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </SectionShell>
+
+            {factions.length > 0 && (
+              <SectionShell title="Faction Renown" icon={Users} open={true} onToggle={() => {}} count={factions.length}>
+                <ul className="space-y-1.5">
+                  {factions.map((f: any, i: number) => (
+                    <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif flex items-center gap-2">
+                      <span className="flex-1 text-ink">{f.name || `Faction ${i + 1}`}</span>
+                      <span className="text-xs text-brass-deep font-display tabular-nums">{typeof f.renown === 'number' ? f.renown : 0}</span>
+                      <button onClick={() => adjustRenown(i, -1)} className="text-[11px] w-6 h-6 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display">−</button>
+                      <button onClick={() => adjustRenown(i, 1)} className="text-[11px] w-6 h-6 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display">+</button>
+                    </li>
+                  ))}
+                </ul>
+              </SectionShell>
+            )}
+          </div>
+
+          <div className="space-y-3 lg:sticky lg:top-3 lg:self-start lg:max-h-[calc(100vh-1.5rem)] lg:overflow-y-auto pr-1">
+            <PanelShell title="Initiative" icon={Swords} open={initiativeOpen} onToggle={() => setInitiativeOpen(!initiativeOpen)}>
+              {initiativeOpen ? (
+                <InitiativePanel
+                  variant="inline"
+                  state={(get('__initiative', null) as InitiativeState | null)}
+                  onChange={(next) => setVal('__initiative', next)}
+                  monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
+                  pcs={characters}
+                  onClose={() => setInitiativeOpen(false)}
+                  onEnded={(summary) => {
+                    pushEvent(makeEvent('other', summary));
+                  }}
+                />
+              ) : (
+                <p className="text-xs text-ink-mute italic font-serif px-1">Tap to expand and track turns, HP, conditions.</p>
+              )}
+            </PanelShell>
+
+            <PanelShell title="Quick Dice" icon={Dice5} open={true} onToggle={() => {}}>
+              <QuickDice />
+            </PanelShell>
+
+            <PanelShell title="Quick Inspire" icon={Sparkles} open={true} onToggle={() => {}}>
+              <QuickInspire />
+            </PanelShell>
+          </div>
+        </div>
+
+        <NoteSeed pushEvent={pushEvent} />
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-parchment border-t border-rule shadow-page z-10">
+        <div className="max-w-7xl mx-auto p-2 sm:p-3 flex items-start gap-2">
+          <NotebookPen size={14} className="text-brass-deep flex-shrink-0 mt-1.5" />
+          <textarea
+            value={scratchpad}
+            onChange={(e) => setScratchpad(e.target.value)}
+            placeholder="Session scratchpad — what happened, threads, open questions. Seeds the log when you end the session."
+            rows={2}
+            className="flex-1 bg-parchment-soft border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y"
+          />
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function SectionShell({
+  title, icon: Icon, open, onToggle, count, children,
+}: {
+  title: string; icon: any; open: boolean; onToggle: () => void; count?: number; children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded border border-rule bg-parchment-soft shadow-card">
+      <button onClick={onToggle} className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-parchment-deep/30">
+        <Icon size={14} className="text-brass-deep flex-shrink-0" />
+        <span className="font-display tracking-wide text-sm text-ink flex-1">{title}</span>
+        {typeof count === 'number' && <span className="text-[11px] text-ink-mute font-serif">{count}</span>}
+        {open ? <ChevronDown size={14} className="text-ink-mute" /> : <ChevronRight size={14} className="text-ink-mute" />}
+      </button>
+      {open && <div className="px-3 pb-3 pt-1 border-t border-rule">{children}</div>}
+    </section>
+  );
+}
+
+function PanelShell({
+  title, icon: Icon, open, onToggle, children,
+}: {
+  title: string; icon: any; open: boolean; onToggle: () => void; children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded border border-rule bg-parchment-soft shadow-card">
+      <button onClick={onToggle} className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-parchment-deep/30">
+        <Icon size={14} className="text-crimson flex-shrink-0" />
+        <span className="font-display tracking-wide text-sm text-ink flex-1">{title}</span>
+        {open ? <ChevronDown size={14} className="text-ink-mute" /> : <ChevronRight size={14} className="text-ink-mute" />}
+      </button>
+      {open && <div className="px-3 pb-3 pt-1 border-t border-rule">{children}</div>}
+    </section>
+  );
+}
+
+function Empty({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs text-ink-mute italic font-serif">{children}</p>;
+}
+
+function NPCRow({ npc }: { npc: any }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <li className="rounded border border-rule bg-parchment text-sm font-serif">
+      <button onClick={() => setOpen(o => !o)} className="w-full text-left px-2 py-1.5 flex items-center gap-2 hover:bg-parchment-deep/30">
+        {open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />}
+        <span className="flex-1 text-ink truncate">{npc.name || 'Unnamed NPC'}</span>
+        {npc.type && <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">{npc.type}</span>}
+      </button>
+      {open && (
+        <div className="px-3 pb-2 pt-1 border-t border-rule text-[12px] text-ink-soft space-y-0.5">
+          {npc.faction && <div><span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Faction · </span>{npc.faction}</div>}
+          {npc.archetype && <div><span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Archetype · </span>{npc.archetype}</div>}
+          {npc.goal && <div><span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Goal · </span>{npc.goal}</div>}
+          {npc.method && <div><span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Method · </span>{npc.method}</div>}
+          {npc.mannerism && <div><span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Mannerism · </span>{npc.mannerism}</div>}
+          {npc.appearance && <div><span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Appearance · </span>{npc.appearance}</div>}
+        </div>
+      )}
+    </li>
+  );
+}
+
+type DiceRoll = { id: string; expr: string; result: number; breakdown: string; ts: number };
+
+function rollDice(expr: string): { result: number; breakdown: string } | null {
+  const cleaned = expr.replace(/\s+/g, '').toLowerCase();
+  const match = cleaned.match(/^(\d*)d(\d+)([+\-]\d+)?$/);
+  if (!match) return null;
+  const count = Math.max(1, Math.min(99, parseInt(match[1] || '1', 10)));
+  const sides = Math.max(2, parseInt(match[2], 10));
+  const mod = match[3] ? parseInt(match[3], 10) : 0;
+  const rolls: number[] = [];
+  for (let i = 0; i < count; i++) rolls.push(Math.floor(Math.random() * sides) + 1);
+  const sum = rolls.reduce((a, b) => a + b, 0);
+  const breakdown = `${count}d${sides}${mod ? (mod > 0 ? `+${mod}` : mod) : ''} = [${rolls.join(', ')}]${mod ? ` ${mod > 0 ? '+' : ''}${mod}` : ''}`;
+  return { result: sum + mod, breakdown };
+}
+
+function QuickDice() {
+  const [history, setHistory] = useState<DiceRoll[]>([]);
+  const [formula, setFormula] = useState('2d6+3');
+
+  const doRoll = (expr: string) => {
+    const r = rollDice(expr);
+    if (!r) return;
+    setHistory(h => [{ id: `r${Date.now()}_${Math.random().toString(36).slice(2, 5)}`, expr, ...r, ts: Date.now() }, ...h].slice(0, 10));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1">
+        {[4, 6, 8, 10, 12, 20, 100].map(s => (
+          <button
+            key={s}
+            onClick={() => doRoll(`1d${s}`)}
+            className="text-[11px] px-2 py-1 rounded border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider"
+          >
+            d{s}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-1">
+        <input
+          value={formula}
+          onChange={(e) => setFormula(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') doRoll(formula); }}
+          placeholder="2d6+3"
+          className="flex-1 bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+        />
+        <button
+          onClick={() => doRoll(formula)}
+          className="text-[11px] px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider"
+        >
+          Roll
+        </button>
+      </div>
+      {history.length > 0 && (
+        <ul className="space-y-0.5 max-h-32 overflow-y-auto">
+          {history.map(r => (
+            <li key={r.id} className="text-[11px] font-serif text-ink-soft flex items-baseline gap-2">
+              <span className="text-brass-deep font-display tabular-nums w-6 text-right">{r.result}</span>
+              <span className="text-ink-mute truncate">{r.breakdown}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+type InspireResult = { id: string; tableId: string; tableTitle: string; entry: string; ts: number };
+
+function QuickInspire() {
+  const [tableId, setTableId] = useState<string>('villainSchemes');
+  const [history, setHistory] = useState<InspireResult[]>([]);
+
+  const tableEntries = useMemo(() => {
+    return Object.values(TABLES).map(t => ({ id: t.id, title: t.title })).sort((a, b) => a.title.localeCompare(b.title));
+  }, []);
+
+  const doRoll = () => {
+    const entry = rollTable(tableId);
+    if (!entry) return;
+    const t = TABLES[tableId];
+    setHistory(h => [{
+      id: `i${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      tableId, tableTitle: t.title, entry, ts: Date.now(),
+    }, ...h].slice(0, 5));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1">
+        <select
+          value={tableId}
+          onChange={(e) => setTableId(e.target.value)}
+          className="flex-1 bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+        >
+          {tableEntries.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+        </select>
+        <button
+          onClick={doRoll}
+          className="text-[11px] px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider"
+        >
+          Roll
+        </button>
+      </div>
+      {history.length === 0 ? (
+        <p className="text-[11px] text-ink-mute italic font-serif">No rolls yet.</p>
+      ) : (
+        <ul className="space-y-1 max-h-40 overflow-y-auto">
+          {history.map(r => (
+            <li key={r.id} className="text-[11px] font-serif text-ink-soft border-l-2 border-brass/40 pl-2">
+              <div className="text-[9px] text-brass-deep font-display uppercase tracking-wider">{r.tableTitle}</div>
+              {r.entry}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function NoteSeed({ pushEvent }: { pushEvent: (e: ChangeEvent) => void }) {
+  const [text, setText] = useState('');
+  return (
+    <details className="rounded border border-rule bg-parchment-soft shadow-card">
+      <summary className="px-3 py-2 cursor-pointer font-display tracking-wide text-sm text-ink hover:bg-parchment-deep/30 flex items-center gap-2">
+        <Plus size={12} className="text-brass-deep" /> Add Session Note
+      </summary>
+      <div className="px-3 pb-3 pt-1 border-t border-rule space-y-1.5">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="A moment to remember…"
+          className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+        />
+        <button
+          disabled={!text.trim()}
+          onClick={() => { pushEvent(makeEvent('other', text.trim())); setText(''); }}
+          className="text-xs px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed font-display uppercase tracking-wider"
+        >
+          Mark as Session Note
+        </button>
+      </div>
+    </details>
+  );
+}
