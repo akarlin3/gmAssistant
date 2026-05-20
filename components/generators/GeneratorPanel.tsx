@@ -43,6 +43,10 @@ export type GeneratorPanelProps<Inputs extends Record<string, string | number>, 
       onReroll: () => void;
       onEnhance?: () => Promise<void>;
       isPro: boolean;
+      // Mutate the active result in place — used by interactive generators
+      // (e.g. dungeon map click-to-grow). Undefined when the renderer is
+      // rendering a saved log entry, where mutation is not allowed.
+      onUpdate?: (next: R) => void;
     },
   ) => React.ReactNode;
   onEnhanced?: (next: R) => void;
@@ -250,6 +254,7 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
               onReroll,
               onEnhance: enhance && isPro ? onEnhanceClick : undefined,
               isPro,
+              onUpdate: setResult,
             })}
           </div>
         </div>

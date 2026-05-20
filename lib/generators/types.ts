@@ -80,11 +80,38 @@ export type TavernDetails = {
   owner: { name: string; descriptor: string; npcId?: GenericId };
 };
 
+export type DungeonRoomKind =
+  | 'empty'
+  | 'monster'
+  | 'trap'
+  | 'hazard'
+  | 'treasure'
+  | 'feature'
+  | 'puzzle';
+
+export type DungeonExitDirection = 'N' | 'S' | 'E' | 'W';
+
+export type DungeonExit = {
+  id: string;
+  direction: DungeonExitDirection;
+  type: string;
+  state?: string;
+  toRoomIndex: number | null;
+};
+
 export type DungeonRoom = {
   index: number;
   name: string;
   contents: string;
   dressing: string;
+  // Optional map-layer fields. Existing saved dungeons predate these and
+  // simply omit them; the SVG map view auto-lays-out as a fallback.
+  kind?: DungeonRoomKind;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  exits?: DungeonExit[];
 };
 
 export type DungeonDetails = {
