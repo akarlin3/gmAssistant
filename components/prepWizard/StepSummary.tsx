@@ -4,12 +4,17 @@ import { Check, Circle, Swords, ArrowLeft, Save, AlertTriangle } from 'lucide-re
 import type { SessionLogEntry } from '@/lib/sessionLog';
 import { nextSessionNumber } from '@/lib/sessionLog';
 import { unrevealedSecrets } from '@/lib/prepWizard';
-import { PHASE_GROUPS, TARGETS, getTarget, countFilled, isFilled, type PrepTargetKey } from '@/lib/prepTargets';
+import {
+  PHASE_GROUPS, TARGETS, getTarget, countFilled, isFilled,
+  type PrepTargetKey, type PrepTargetOverrides,
+} from '@/lib/prepTargets';
 
 type Get = (k: string, fb: any) => any;
 
 type Props = {
   get: Get;
+  soloMode: boolean;
+  overrides: PrepTargetOverrides;
   onBack: () => void;
   onSaveAndClose: () => void;
   onStartSession: () => void;
@@ -53,10 +58,9 @@ function CountLine({ label, current, target, detail }: { label: string; current:
   );
 }
 
-export default function StepSummary({ get, onBack, onSaveAndClose, onStartSession }: Props) {
+export default function StepSummary({ get, soloMode, overrides, onBack, onSaveAndClose, onStartSession }: Props) {
   const logs = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
   const sessionNumber = nextSessionNumber(logs);
-  const soloMode = get('soloMode', false) as boolean;
 
   const strongStart = ((get('strongStart', '') as string) || '').trim();
   const pcGoals = (get('pcGoals', []) as Array<{ text?: string; status?: string }>) || [];
@@ -67,7 +71,7 @@ export default function StepSummary({ get, onBack, onSaveAndClose, onStartSessio
     phase: group.phase,
     title: group.title,
     rows: group.keys.map<Row>(key => {
-      const target = getTarget(key, soloMode);
+      const target = getTarget(key, soloMode, overrides);
       const { current, detail } = countFor(key, get, logs);
       return { key, label: TARGETS[key].label, current, target, detail };
     }),

@@ -9,7 +9,7 @@ import {
   unrevealedSecrets,
   makePrepWizardRunId,
 } from '@/lib/prepWizard';
-import { TARGETS } from '@/lib/prepTargets';
+import { resolveTarget, type PrepTargetOverrides } from '@/lib/prepTargets';
 import Step1ReviewCharacters from './prepWizard/Step1ReviewCharacters';
 import Step2StrongStart from './prepWizard/Step2StrongStart';
 import Step3Scenes from './prepWizard/Step3Scenes';
@@ -27,6 +27,7 @@ type Props = {
   get: Get;
   setVal: SetVal;
   soloMode: boolean;
+  overrides: PrepTargetOverrides;
   onExit: () => void;
   onClose: () => void;
   onStartSession: () => void;
@@ -36,15 +37,8 @@ const TOTAL_STEPS = 8;
 const SUMMARY_STEP = 9;
 const RUN_CAP = 20;
 
-const SCENE_TARGETS    = TARGETS.scenes;
-const SECRET_TARGETS   = TARGETS.secrets;
-const LOCATION_TARGETS = TARGETS.locations;
-const NPC_TARGETS      = TARGETS.npcs;
-const MONSTER_TARGETS  = TARGETS.monsters;
-const ITEM_TARGETS     = TARGETS.items;
-
 export default function PrepWizardView({
-  get, setVal, soloMode, onExit, onClose, onStartSession,
+  get, setVal, soloMode, overrides, onExit, onClose, onStartSession,
 }: Props) {
   const step = (get('__prepWizardStep', 1) as number) || 1;
   const completed = (get('__prepWizardCompleted', []) as number[]) || [];
@@ -170,6 +164,7 @@ export default function PrepWizardView({
             get={get}
             setVal={setVal}
             soloMode={soloMode}
+            overrides={overrides}
             onBackToStep8={() => setStep(TOTAL_STEPS)}
             onSaveAndClose={handleSaveAndClose}
             onStartSession={handleStartSession}
@@ -236,58 +231,66 @@ function ProgressStrip({ step, completed, onJump }: { step: number; completed: n
 }
 
 function StepBody({
-  step, get, setVal, soloMode, onBackToStep8, onSaveAndClose, onStartSession,
+  step, get, setVal, soloMode, overrides, onBackToStep8, onSaveAndClose, onStartSession,
 }: {
   step: number;
   get: Get;
   setVal: SetVal;
   soloMode: boolean;
+  overrides: PrepTargetOverrides;
   onBackToStep8: () => void;
   onSaveAndClose: () => void;
   onStartSession: () => void;
 }) {
+  const std = (k: 'scenes' | 'secrets' | 'locations' | 'npcs' | 'monsters' | 'items') =>
+    resolveTarget(k, 'standard', overrides);
+  const solo = (k: 'scenes' | 'secrets' | 'locations' | 'npcs' | 'monsters' | 'items') =>
+    resolveTarget(k, 'solo', overrides);
+
   switch (step) {
     case 1: return <Step1ReviewCharacters get={get} setVal={setVal} />;
     case 2: return <Step2StrongStart get={get} setVal={setVal} />;
     case 3: return (
       <Step3Scenes
         get={get} setVal={setVal} soloMode={soloMode}
-        standardTarget={SCENE_TARGETS.standard} soloTarget={SCENE_TARGETS.solo}
+        standardTarget={std('scenes')} soloTarget={solo('scenes')}
       />
     );
     case 4: return (
       <Step4Secrets
         get={get} setVal={setVal} soloMode={soloMode}
-        standardTarget={SECRET_TARGETS.standard} soloTarget={SECRET_TARGETS.solo}
+        standardTarget={std('secrets')} soloTarget={solo('secrets')}
       />
     );
     case 5: return (
       <Step5Locations
         get={get} setVal={setVal} soloMode={soloMode}
-        standardTarget={LOCATION_TARGETS.standard} soloTarget={LOCATION_TARGETS.solo}
+        standardTarget={std('locations')} soloTarget={solo('locations')}
       />
     );
     case 6: return (
       <Step6NPCs
         get={get} setVal={setVal} soloMode={soloMode}
-        standardTarget={NPC_TARGETS.standard} soloTarget={NPC_TARGETS.solo}
+        standardTarget={std('npcs')} soloTarget={solo('npcs')}
       />
     );
     case 7: return (
       <Step7Monsters
         get={get} setVal={setVal} soloMode={soloMode}
-        standardTarget={MONSTER_TARGETS.standard} soloTarget={MONSTER_TARGETS.solo}
+        standardTarget={std('monsters')} soloTarget={solo('monsters')}
       />
     );
     case 8: return (
       <Step8MagicItems
         get={get} setVal={setVal} soloMode={soloMode}
-        standardTarget={ITEM_TARGETS.standard} soloTarget={ITEM_TARGETS.solo}
+        standardTarget={std('items')} soloTarget={solo('items')}
       />
     );
     case SUMMARY_STEP: return (
       <StepSummary
         get={get}
+        soloMode={soloMode}
+        overrides={overrides}
         onBack={onBackToStep8}
         onSaveAndClose={onSaveAndClose}
         onStartSession={onStartSession}

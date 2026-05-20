@@ -1,6 +1,9 @@
 // Book-grounded prep targets with solo adaptations.
 // Single source of truth shared by CampaignEditor (per-section TargetBar) and
 // the pre-session PrepWizard (Ready-for-Session summary + gate).
+//
+// Per-campaign overrides live at `data.__prepTargetOverrides` and tune the
+// `standard` (group) and `solo` counts independently. See `resolveTarget`.
 
 export type PrepTargetKey =
   | 'gWorld' | 'gFNL' | 'lines'
@@ -20,7 +23,9 @@ export const TARGETS: Record<PrepTargetKey, PrepTargetSpec> = {
   // CCD ch. 1 — Givens
   gWorld:    { standard: 10, solo: 5,  label: 'World Facts',         source: 'CCD ch. 1' },
   gFNL:      { standard: 5,  solo: 3,  label: 'Required Entities',   source: 'CCD ch. 1' },
-  lines:     { standard: 3,  solo: 3,  label: 'Content Lines',       source: 'Safety tools' },
+  // Safety tools are personal — 0 by default, users can raise if they want
+  // a hard checklist before starting.
+  lines:     { standard: 0,  solo: 0,  label: 'Content Lines',       source: 'Safety tools' },
 
   // CCD ch. 2 — Session −1
   facts:     { standard: 15, solo: 8,  label: 'Setting Facts',       source: 'CCD ch. 2' },
@@ -42,10 +47,42 @@ export const TARGETS: Record<PrepTargetKey, PrepTargetSpec> = {
   clocks:    { standard: 4,  solo: 3,  label: 'Active Faction Clocks', source: 'CCD ch. 6' },
 };
 
-export function getTarget(key: PrepTargetKey, soloMode: boolean): number {
-  const t = TARGETS[key];
-  if (!t) return 0;
-  return soloMode ? t.solo : t.standard;
+export const ALL_TARGET_KEYS: PrepTargetKey[] = Object.keys(TARGETS) as PrepTargetKey[];
+
+export type PrepTargetOverride = { standard?: number; solo?: number };
+export type PrepTargetOverrides = Partial<Record<PrepTargetKey, PrepTargetOverride>>;
+
+export const OVERRIDES_STATE_KEY = '__prepTargetOverrides';
+
+function clampCount(n: unknown): number | undefined {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return undefined;
+  const i = Math.floor(n);
+  if (i < 0) return 0;
+  if (i > 99) return 99;
+  return i;
+}
+
+// Pulls the effective count for one key in one mode, honoring per-campaign
+// overrides when present. Pass `undefined` for overrides to get the book
+// default — used by tests and by the modal's "Reset to default" preview.
+export function resolveTarget(
+  key: PrepTargetKey,
+  mode: 'solo' | 'standard',
+  overrides: PrepTargetOverrides | undefined,
+): number {
+  const spec = TARGETS[key];
+  if (!spec) return 0;
+  const override = overrides?.[key]?.[mode];
+  const clamped = clampCount(override);
+  return clamped ?? spec[mode];
+}
+
+export function getTarget(
+  key: PrepTargetKey,
+  soloMode: boolean,
+  overrides?: PrepTargetOverrides,
+): number {
+  return resolveTarget(key, soloMode ? 'solo' : 'standard', overrides);
 }
 
 // Section/anchor id each target renders under, for the "Next Up" pill and
@@ -92,19 +129,18 @@ export const PHASE_GROUPS: Array<{ phase: PhaseId; title: string; keys: PrepTarg
 // Object-shape targets carry default values (e.g. `timeframe: 'short'`,
 // `max: 6`) that are present even on a freshly-added blank row. Counting raw
 // length would let those blanks satisfy targets — so we explicitly name the
-// fields that have to be authored before a row counts as filled. Every field
-// listed is required; a row only counts once all of them have content.
+// fields that have to be authored before a row counts as filled.
 const FILLED_FIELDS: Partial<Record<PrepTargetKey, string[]>> = {
   factions:  ['name', 'identity', 'archetype', 'area', 'ideology', 'longGoal'],
   pcGoals:   ['text'],
-  locations: ['name', 'type', 'aspects', 'factions'],
+  locations: ['name', 'type', 'aspects'],
   npcs:      ['name', 'archetype', 'goal', 'method'],
   clocks:    ['text', 'faction'],
 };
 
 function fieldHasContent(v: unknown): boolean {
   if (typeof v === 'string') return v.trim().length > 0;
-  if (Array.isArray(v)) return v.length > 0 && v.every(x => typeof x === 'string' && x.trim().length > 0);
+  if (Array.isArray(v)) return v.some(x => typeof x === 'string' && x.trim().length > 0);
   return false;
 }
 
@@ -113,11 +149,11 @@ export function isFilled(key: PrepTargetKey, item: unknown): boolean {
   if (!item || typeof item !== 'object') return false;
   const fields = FILLED_FIELDS[key];
   if (!fields) {
-    // Unexpected shape — fall back to "every string field has content".
-    return Object.values(item as Record<string, unknown>).every(fieldHasContent);
+    // Unexpected shape — fall back to "any non-empty string field".
+    return Object.values(item as Record<string, unknown>).some(fieldHasContent);
   }
   const obj = item as Record<string, unknown>;
-  return fields.every(f => fieldHasContent(obj[f]));
+  return fields.some(f => fieldHasContent(obj[f]));
 }
 
 export function countFilled(key: PrepTargetKey, items: unknown): number {

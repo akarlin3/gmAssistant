@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   ChevronDown, LogOut, Sparkles, Settings, ExternalLink, MailCheck,
   Download, Upload, Trash2, Info, X, Archive, ArchiveRestore, RotateCcw,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/lib/firebase/auth-context';
@@ -21,9 +22,10 @@ export type AccountMenuProps = {
   isArchived?: boolean;
   onDelete?: () => void;
   onRerunSession0?: () => void;
+  onOpenPrepTargets?: () => void;
 };
 
-export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelete, onRerunSession0 }: AccountMenuProps = {}) {
+export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelete, onRerunSession0, onOpenPrepTargets }: AccountMenuProps = {}) {
   const { user, isPro, proSource, subscriptionStatus, currentPeriodEndMs, cancelAtPeriodEnd, isOnWaitlist, logout } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -198,11 +200,20 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
 
             {error && <p className="text-[11px] text-crimson font-serif italic">{error}</p>}
 
-            {(onExport || onImport || onArchive || onDelete || onRerunSession0) && (
+            {(onExport || onImport || onArchive || onDelete || onRerunSession0 || onOpenPrepTargets) && (
               <div className="pt-1 border-t border-rule space-y-1">
                 <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep px-1">
                   Campaign Actions
                 </div>
+                {onOpenPrepTargets && (
+                  <button
+                    type="button"
+                    onClick={fireAndClose(onOpenPrepTargets)}
+                    className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
+                  >
+                    <SlidersHorizontal size={12} className="text-brass-deep" /> Prep Target Settings
+                  </button>
+                )}
                 {onRerunSession0 && (
                   <button
                     type="button"

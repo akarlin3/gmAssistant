@@ -8,7 +8,7 @@ import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, ArrowLeft, Cloud, CloudOff,
-  FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench,
+  FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench, SlidersHorizontal,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounterMath';
@@ -70,8 +70,11 @@ import {
   countFilled,
   SECTION_ID_BY_KEY,
   PHASE_ID_BY_KEY,
+  OVERRIDES_STATE_KEY,
   type PrepTargetKey,
+  type PrepTargetOverrides,
 } from '@/lib/prepTargets';
+import PrepTargetsModal from './PrepTargetsModal';
 
 const M = {
   shea: { label: 'Lazy DM', color: 'border-moss/40 bg-moss/5 text-moss' },
@@ -1110,6 +1113,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     setOpenGroups(o => (o[g] === true ? o : { ...o, [g]: true }));
   }, [tab]);
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
+  const [prepTargetsOpen, setPrepTargetsOpen] = useState(false);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
   const [uploadingChar, setUploadingChar] = useState(false);
@@ -1255,6 +1259,11 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
   const get = (k: string, fb: any) => state[k] !== undefined ? state[k] : fb;
   const setVal = (k: string, v: any) => setState(s => ({ ...s, [k]: v }));
+  const prepTargetOverrides = (state[OVERRIDES_STATE_KEY] as PrepTargetOverrides | undefined) || {};
+  const tgt = useCallback(
+    (key: PrepTargetKey) => getTarget(key, soloMode, prepTargetOverrides),
+    [soloMode, prepTargetOverrides],
+  );
   const trackEvent = useCallback((kind: ChangeEventKind, summary: string, before?: unknown, after?: unknown) => {
     setState(s => {
       if (!s.__runSessionOpen) return s;
@@ -1314,7 +1323,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     const candidates: Candidate[] = [];
     for (const [k, t] of Object.entries(TARGETS)) {
       const key = k as PrepTargetKey;
-      const target = soloMode ? t.solo : t.standard;
+      const target = getTarget(key, soloMode, prepTargetOverrides);
       if (target === 0) continue;
       const current = countFilled(key, state[key]);
       if (current < target) {
@@ -1335,7 +1344,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       return a.current - b.current;
     });
     return candidates[0] ?? null;
-  }, [state, soloMode]);
+  }, [state, soloMode, prepTargetOverrides]);
 
   const jumpToNextUp = useCallback(() => {
     if (!nextUp) return;
@@ -1716,6 +1725,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       { id: 'act:import', label: 'Import campaign JSON', group: 'Actions', icon: Upload, run: () => fileInputRef.current?.click() },
       { id: 'act:add-character', label: 'Add character', group: 'Actions', icon: User, run: () => { addCharacter(); navigateTo({ tab: 'prep', sectionId: 'pc' }); } },
       { id: 'act:solo-toggle', label: soloMode ? 'Switch to Group prep targets' : 'Switch to Solo prep targets', group: 'Actions', icon: Users, run: () => setSoloMode(s => !s) },
+      { id: 'act:prep-targets', label: 'Customize prep target counts…', group: 'Actions', icon: SlidersHorizontal, run: () => setPrepTargetsOpen(true) },
     );
 
     for (const s of PREP_SECTION_META) {
@@ -2083,6 +2093,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         get={get}
         setVal={setVal}
         soloMode={soloMode}
+        overrides={prepTargetOverrides}
         onExit={closePrepWizard}
         onClose={closePrepWizard}
         onStartSession={startSessionFromPrep}
@@ -2218,6 +2229,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   isArchived={isArchived}
                   onDelete={handleDelete}
                   onRerunSession0={() => setSession0Open(true)}
+                  onOpenPrepTargets={() => setPrepTargetsOpen(true)}
                 />
               </div>
             </div>
@@ -2335,10 +2347,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <BookQuote source="CCD ch. 1">Givens are a set of things your group agrees will feature regardless of how worldbuilding ends up.</BookQuote>
               <Section id="g-world" title="World Facts" methods={['ccd']} done={done['g-world']} onToggle={toggleDone} open={open['g-world']} onToggleOpen={toggleOpen}>
                 <Example title="from CCD">"Post-apocalyptic." "The sun has gone out." "Magic has died."</Example>
-                <ListField items={get('gWorld', [])} onChange={(v) => setVal('gWorld', v)} placeholder="A world fact" target={getTarget('gWorld', soloMode)} />
+                <ListField items={get('gWorld', [])} onChange={(v) => setVal('gWorld', v)} placeholder="A world fact" target={tgt('gWorld')} />
               </Section>
               <Section id="g-fnl" title="Required Factions, NPCs & Locations" methods={['ccd']} done={done['g-fnl']} onToggle={toggleDone} open={open['g-fnl']} onToggleOpen={toggleOpen}>
-                <ListField items={get('gFNL', [])} onChange={(v) => setVal('gFNL', v)} placeholder="A specific entity" target={getTarget('gFNL', soloMode)} />
+                <ListField items={get('gFNL', [])} onChange={(v) => setVal('gFNL', v)} placeholder="A specific entity" target={tgt('gFNL')} />
               </Section>
               <Section id="g-mech" title="Mechanics & System" methods={['ccd']} done={done['g-mech']} onToggle={toggleDone} open={open['g-mech']} onToggleOpen={toggleOpen}>
                 <Field value={get('system', '')} onChange={(v) => setVal('system', v)} placeholder="System (e.g. 5e)" />
@@ -2346,7 +2358,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <ListField items={get('tone', [])} onChange={(v) => setVal('tone', v)} placeholder="A tone word" />
               </Section>
               <Section id="g-lines" title="Content Lines (Hard Nos)" methods={['ccd']} done={done['g-lines']} onToggle={toggleDone} open={open['g-lines']} onToggleOpen={toggleOpen}>
-                <ListField items={get('lines', [])} onChange={(v) => setVal('lines', v)} placeholder="A topic to avoid" target={getTarget('lines', soloMode)} />
+                <ListField items={get('lines', [])} onChange={(v) => setVal('lines', v)} placeholder="A topic to avoid" target={tgt('lines')} />
               </Section>
               <Section id="pitch" title="Quick Pitch" methods={['ccd']} done={done.pitch} onToggle={toggleDone} open={open.pitch} onToggleOpen={toggleOpen}>
                 <BookQuote source="CCD case study">Pitch the results, not the concept.</BookQuote>
@@ -2378,12 +2390,12 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </Section>
               <Section id="facts" title="Setting Facts" methods={['ccd']} done={done.facts} onToggle={toggleDone} open={open.facts} onToggleOpen={toggleOpen}>
                 <Pitfall>Don't pre-load all the secrets. Players still need new ones to discover.</Pitfall>
-                <ListField items={get('facts', [])} onChange={(v) => setVal('facts', v)} placeholder="A fact about the world" rows={2} target={getTarget('facts', soloMode)} />
+                <ListField items={get('facts', [])} onChange={(v) => setVal('facts', v)} placeholder="A fact about the world" rows={2} target={tgt('facts')} />
               </Section>
               <Section id="factions" title="Factions" methods={['pr', 'ccd']} done={done.factions} onToggle={toggleDone} open={open.factions} onToggleOpen={toggleOpen} icon={Users}>
                 <BookQuote source="PR ch. 2">Think of factions, not individual NPCs, as the GM-controlled counterparts of the party.</BookQuote>
                 <Pitfall>Factions whose goals don't overlap with PC goals are just colour.</Pitfall>
-                <TargetBar current={countFilled('factions', get('factions', []))} target={getTarget('factions', soloMode)} source={TARGETS.factions.source} />
+                <TargetBar current={countFilled('factions', get('factions', []))} target={tgt('factions')} source={TARGETS.factions.source} />
                 {(get('factions', []) as any[]).map((f: any, i: number) => (
                   <div key={i} data-cp-anchor={`faction:${i}`}>
                     <FactionCard data={f} onChange={(v: any) => {
@@ -2418,7 +2430,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </Section>
               <Section id="conflicts" title="Active Conflicts" methods={['ccd', 'pr']} done={done.conflicts} onToggle={toggleDone} open={open.conflicts} onToggleOpen={toggleOpen}>
                 <BookQuote source="CCD ch. 2">Conflicts are the end goal of worldbuilding.</BookQuote>
-                <ListField items={get('conflicts', [])} onChange={(v) => setVal('conflicts', v)} placeholder="Faction A vs Faction B over X" rows={2} target={getTarget('conflicts', soloMode)} />
+                <ListField items={get('conflicts', [])} onChange={(v) => setVal('conflicts', v)} placeholder="Faction A vs Faction B over X" rows={2} target={tgt('conflicts')} />
                 <InspireGroup>
                   <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
                   <Inspire tableId="twists" label="Twist" onPick={(e) => {
@@ -2518,7 +2530,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 </div>
                 <Example title="Bad → Good">"Become powerful" → "Win a duel against the captain of the guard"</Example>
                 <Pitfall>Long-term goals locked in Session 0 are usually worse than ones locked after Session 1.</Pitfall>
-                <TargetBar current={countFilled('pcGoals', get('pcGoals', []))} target={getTarget('pcGoals', soloMode)} source={TARGETS.pcGoals.source} />
+                <TargetBar current={countFilled('pcGoals', get('pcGoals', []))} target={tgt('pcGoals')} source={TARGETS.pcGoals.source} />
                 {(get('pcGoals', []) as any[]).map((g: any, i: number) => (
                   <GoalCard key={i} data={g} onChange={(v: any) => {
                     const next = [...(get('pcGoals', []) as any[])]; next[i] = v; setVal('pcGoals', next);
@@ -2553,7 +2565,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </Section>
               <Section id="s3-scenes" title="3 · Outline Potential Scenes" methods={['shea']} done={done['s3-scenes']} onToggle={toggleDone} open={open['s3-scenes']} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM (Perkins)">Be prepared to throw what you have away.</BookQuote>
-                <ListField items={get('scenes', [])} onChange={(v) => setVal('scenes', v)} placeholder="A scene" target={getTarget('scenes', soloMode)} />
+                <ListField items={get('scenes', [])} onChange={(v) => setVal('scenes', v)} placeholder="A scene" target={tgt('scenes')} />
                 <InspireGroup>
                   <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
                   <Inspire tableId="sideQuests" label="Side Quest" onPick={(e) => {
@@ -2567,7 +2579,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="s4-secrets" title="4 · Define Secrets & Clues" methods={['shea']} done={done['s4-secrets']} onToggle={toggleDone} open={open['s4-secrets']} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM ch. 6">Secrets and clues are the connective tissue of an adventure.</BookQuote>
                 <Pitfall>Tying a secret to a specific NPC means if players skip them, the secret never surfaces.</Pitfall>
-                <ListField items={get('secrets', [])} onChange={(v) => setVal('secrets', v)} placeholder="A single-sentence secret" rows={2} target={getTarget('secrets', soloMode)} />
+                <ListField items={get('secrets', [])} onChange={(v) => setVal('secrets', v)} placeholder="A single-sentence secret" rows={2} target={tgt('secrets')} />
                 <InspireGroup>
                   <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
                   <Inspire tableId="villainSchemes" label="Scheme" onPick={(e) => {
@@ -2583,7 +2595,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </Section>
               <Section id="s5-loc" title="5 · Develop Fantastic Locations" methods={['shea']} done={done['s5-loc']} onToggle={toggleDone} open={open['s5-loc']} onToggleOpen={toggleOpen} icon={Map}>
                 <BookQuote source="Lazy DM ch. 7">When in doubt, go for scale.</BookQuote>
-                <TargetBar current={countFilled('locations', get('locations', []))} target={getTarget('locations', soloMode)} source={TARGETS.locations.source} />
+                <TargetBar current={countFilled('locations', get('locations', []))} target={tgt('locations')} source={TARGETS.locations.source} />
                 {(get('locations', []) as any[]).map((l: any, i: number) => {
                   const entityId = l?.id ?? `loc-${i}`;
                   const highlighted = highlightEntityId === entityId;
@@ -2623,7 +2635,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </Section>
               <Section id="s6-npc" title="6 · Outline Important NPCs" methods={['shea', 'pr']} done={done['s6-npc']} onToggle={toggleDone} open={open['s6-npc']} onToggleOpen={toggleOpen}>
                 <BookQuote source="PR ch. 3">Villains form goals in response to PC goals.</BookQuote>
-                <TargetBar current={countFilled('npcs', get('npcs', []))} target={getTarget('npcs', soloMode)} source={TARGETS.npcs.source} />
+                <TargetBar current={countFilled('npcs', get('npcs', []))} target={tgt('npcs')} source={TARGETS.npcs.source} />
                 {(get('npcs', []) as any[]).map((n: any, i: number) => {
                   const entityId = n?.id ?? `npc-${i}`;
                   const highlighted = highlightEntityId === entityId;
@@ -2682,7 +2694,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   items={get('monsters', [])}
                   onChange={(v) => setVal('monsters', v)}
                   placeholder="Monster — CR — use case"
-                  target={getTarget('monsters', soloMode)}
+                  target={tgt('monsters')}
                   rowIdFor={(i) => `monsters-${i}`}
                   highlightId={highlightEntityId}
                 />
@@ -2713,7 +2725,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   onChange={(v) => setVal('items', v)}
                   placeholder="Item · what +1 hook it delivers"
                   rows={2}
-                  target={getTarget('items', soloMode)}
+                  target={tgt('items')}
                   rowIdFor={(i) => `items-${i}`}
                   highlightId={highlightEntityId}
                 />
@@ -2759,7 +2771,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 </div>
               </div>
               <div id="section-clocks" />
-              <TargetBar current={countFilled('clocks', get('clocks', []))} target={getTarget('clocks', soloMode)} source={TARGETS.clocks.source} />
+              <TargetBar current={countFilled('clocks', get('clocks', []))} target={tgt('clocks')} source={TARGETS.clocks.source} />
               {(get('clocks', []) as any[]).map((c: any, i: number) => (
                 <ClockCard key={i} data={c} onChange={(v: any) => {
                   const next = [...(get('clocks', []) as any[])]; next[i] = v; setVal('clocks', next);
@@ -3271,6 +3283,12 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       />
 
       <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <PrepTargetsModal
+        open={prepTargetsOpen}
+        initialOverrides={prepTargetOverrides}
+        onClose={() => setPrepTargetsOpen(false)}
+        onSave={(next) => setVal(OVERRIDES_STATE_KEY, next)}
+      />
 
       <button
         type="button"
