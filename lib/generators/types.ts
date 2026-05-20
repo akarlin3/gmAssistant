@@ -351,3 +351,27 @@ export type SavePipelineResult = {
   refs: EntityRef[]; // one save can produce multiple entities (e.g. shop + owner NPC + items)
   historyEntryId: GenericId;
 };
+
+// ── Campaign context (for AI-enhance grounding) ─────────────────────────────
+// Optional snapshot of the campaign's premise/theme fields, passed into the
+// enhance endpoint so Claude can weave them into prose (rumors, hooks,
+// descriptors) without changing deterministic data.
+
+export type CampaignContext = {
+  genre?: string;
+  tone?: string[];
+  pitch?: string;
+  worldFacts?: string[];
+  settingFacts?: string[];
+};
+
+export function hasCampaignContext(c: CampaignContext | undefined | null): c is CampaignContext {
+  if (!c) return false;
+  return Boolean(
+    (c.genre && c.genre.trim()) ||
+      (c.tone && c.tone.length) ||
+      (c.pitch && c.pitch.trim()) ||
+      (c.worldFacts && c.worldFacts.length) ||
+      (c.settingFacts && c.settingFacts.length),
+  );
+}

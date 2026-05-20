@@ -3,7 +3,7 @@
 import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
 import { generateMagicShop } from '@/lib/generators/magic-shop';
 import type { MagicShopArchetype } from '@/lib/generators/tables/shop-tables';
-import type { ItemRarity, MagicShopResult, SettlementSizeClass } from '@/lib/generators/types';
+import type { CampaignContext, ItemRarity, MagicShopResult, SettlementSizeClass } from '@/lib/generators/types';
 import type { LogEntry } from '@/lib/generators/log';
 
 const SETTLEMENT_OPTIONS: { value: SettlementSizeClass; label: string }[] = [
@@ -50,9 +50,11 @@ function copyText(r: MagicShopResult): string {
 export default function MagicShopGenerator({
   entries,
   onEntriesChange,
+  campaignContext,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
+  campaignContext?: CampaignContext;
 }) {
   return (
     <GeneratorPanel<{ archetype: string; maxRarity: string; settlementSize: string }, MagicShopResult>
@@ -70,6 +72,7 @@ export default function MagicShopGenerator({
         )
       }
       enhance={{ kind: 'magic-shop' }}
+      campaignContext={campaignContext}
       log={{
         kind: 'magic-shop',
         entries,

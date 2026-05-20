@@ -3,7 +3,7 @@
 import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
 import { generateMundaneShop } from '@/lib/generators/mundane-shop';
 import { SHOP_TYPES, type ShopType } from '@/lib/generators/tables/shop-tables';
-import type { MundaneShopResult, SettlementSizeClass } from '@/lib/generators/types';
+import type { CampaignContext, MundaneShopResult, SettlementSizeClass } from '@/lib/generators/types';
 import type { LogEntry } from '@/lib/generators/log';
 
 const SETTLEMENT_OPTIONS: { value: SettlementSizeClass; label: string }[] = [
@@ -42,9 +42,11 @@ function copyText(r: MundaneShopResult): string {
 export default function MundaneShopGenerator({
   entries,
   onEntriesChange,
+  campaignContext,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
+  campaignContext?: CampaignContext;
 }) {
   return (
     <GeneratorPanel<{ shopType: string; settlementSize: string }, MundaneShopResult>
@@ -58,6 +60,7 @@ export default function MundaneShopGenerator({
         }, rng)
       }
       enhance={{ kind: 'mundane-shop' }}
+      campaignContext={campaignContext}
       log={{
         kind: 'mundane-shop',
         entries,

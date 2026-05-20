@@ -2,7 +2,7 @@
 
 import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
 import { generateTreasureHoard } from '@/lib/generators/treasure-hoard';
-import type { TreasureHoardResult } from '@/lib/generators/types';
+import type { CampaignContext, TreasureHoardResult } from '@/lib/generators/types';
 import type { CrTier, HoardType } from '@/lib/generators/tables/treasure-hoard-tables';
 import type { LogEntry } from '@/lib/generators/log';
 
@@ -44,9 +44,11 @@ function copyText(r: TreasureHoardResult): string {
 export default function TreasureHoardGenerator({
   entries,
   onEntriesChange,
+  campaignContext,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
+  campaignContext?: CampaignContext;
 }) {
   return (
     <GeneratorPanel<{ crTier: string; hoardType: string }, TreasureHoardResult>
@@ -55,6 +57,7 @@ export default function TreasureHoardGenerator({
       inputs={INPUTS}
       generate={(inputs, rng) => generateTreasureHoard({ crTier: inputs.crTier as CrTier, hoardType: inputs.hoardType as HoardType }, rng)}
       enhance={{ kind: 'treasure-hoard' }}
+      campaignContext={campaignContext}
       log={{
         kind: 'treasure-hoard',
         entries,

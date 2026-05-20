@@ -2,7 +2,7 @@
 
 import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
 import { generateSettlement } from '@/lib/generators/settlement';
-import type { SettlementResult, SettlementSizeClass } from '@/lib/generators/types';
+import type { CampaignContext, SettlementResult, SettlementSizeClass } from '@/lib/generators/types';
 import type { LogEntry } from '@/lib/generators/log';
 
 const SIZE_OPTIONS: { value: SettlementSizeClass; label: string }[] = [
@@ -47,9 +47,11 @@ function copyText(r: SettlementResult): string {
 export default function SettlementGenerator({
   entries,
   onEntriesChange,
+  campaignContext,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
+  campaignContext?: CampaignContext;
 }) {
   return (
     <GeneratorPanel<{ sizeClass: string; region: string; government: string }, SettlementResult>
@@ -67,6 +69,7 @@ export default function SettlementGenerator({
         )
       }
       enhance={{ kind: 'settlement' }}
+      campaignContext={campaignContext}
       log={{
         kind: 'settlement',
         entries,

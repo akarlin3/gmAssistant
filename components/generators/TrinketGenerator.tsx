@@ -2,7 +2,7 @@
 
 import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
 import { generateTrinkets } from '@/lib/generators/trinket';
-import type { TrinketResult } from '@/lib/generators/types';
+import type { CampaignContext, TrinketResult } from '@/lib/generators/types';
 import type { LogEntry } from '@/lib/generators/log';
 
 const INPUTS: InputSpec[] = [
@@ -18,9 +18,11 @@ function copyText(r: TrinketResult): string {
 export default function TrinketGenerator({
   entries,
   onEntriesChange,
+  campaignContext,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
+  campaignContext?: CampaignContext;
 }) {
   return (
     <GeneratorPanel<{ count: number }, TrinketResult>
@@ -29,6 +31,7 @@ export default function TrinketGenerator({
       inputs={INPUTS}
       generate={(inputs, rng) => generateTrinkets({ count: inputs.count }, rng)}
       enhance={{ kind: 'trinket' }}
+      campaignContext={campaignContext}
       log={{
         kind: 'trinket',
         entries,

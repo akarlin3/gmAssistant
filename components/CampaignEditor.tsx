@@ -1041,6 +1041,17 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     setVal('generatorLogs', { ...generatorLogs, [kind]: next });
   };
 
+  // Snapshot of the campaign's premise/theme fields for AI-enhance grounding.
+  // Each field is read out of `state`; the helper inside GeneratorPanel hides
+  // the "Use campaign context" checkbox when every field is empty.
+  const generatorCampaignContext = {
+    genre: typeof state.genre === 'string' ? state.genre : '',
+    tone: Array.isArray(state.tone) ? (state.tone as string[]) : [],
+    pitch: typeof state.pitch === 'string' ? state.pitch : '',
+    worldFacts: Array.isArray(state.gWorld) ? (state.gWorld as string[]) : [],
+    settingFacts: Array.isArray(state.facts) ? (state.facts as string[]) : [],
+  };
+
   const completedCount = Object.values(done).filter(Boolean).length;
 
   const sessionLogs = (state.sessionLogs as SessionLog[]) || [];
@@ -1898,6 +1909,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           <GeneratorsTab
             logs={generatorLogs}
             onLogsChange={(next) => setVal('generatorLogs', next)}
+            campaignContext={generatorCampaignContext}
             renderNames={() => (isPro ? (
               <NamesTab
                 logEntries={logEntriesFor('names')}

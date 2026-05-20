@@ -3,7 +3,7 @@
 import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
 import { generateTavern } from '@/lib/generators/tavern';
 import type { TavernVibe } from '@/lib/generators/tables/tavern-tables';
-import type { SettlementSizeClass, TavernResult } from '@/lib/generators/types';
+import type { CampaignContext, SettlementSizeClass, TavernResult } from '@/lib/generators/types';
 import type { LogEntry } from '@/lib/generators/log';
 
 const SETTLEMENT_OPTIONS: { value: SettlementSizeClass; label: string }[] = [
@@ -49,9 +49,11 @@ function copyText(r: TavernResult): string {
 export default function TavernGenerator({
   entries,
   onEntriesChange,
+  campaignContext,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
+  campaignContext?: CampaignContext;
 }) {
   return (
     <GeneratorPanel<{ vibe: string; settlementSize: string; themeKeyword: string }, TavernResult>
@@ -69,6 +71,7 @@ export default function TavernGenerator({
         )
       }
       enhance={{ kind: 'tavern' }}
+      campaignContext={campaignContext}
       log={{
         kind: 'tavern',
         entries,

@@ -7,6 +7,7 @@
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type {
+  CampaignContext,
   DungeonResult,
   GeneratorResult,
   MagicShopResult,
@@ -16,11 +17,36 @@ import type {
   TreasureHoardResult,
   TrinketResult,
 } from './types';
+import { hasCampaignContext } from './types';
 
 export type EnhanceableKind = GeneratorResult['kind'];
 
 const MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 1500;
+
+// Appended to every system prompt when a non-empty campaignContext is
+// supplied. Tells Claude to lean into the campaign's tone without
+// contradicting or rewriting deterministic facts.
+const CAMPAIGN_GUIDANCE = `
+A "campaignContext" object may be supplied in the user message (genre, tone keywords, pitch, world facts, setting facts). When present, lean into that tone and reference those facts where natural — but never contradict the deterministic data you were given, invent new factions/NPCs from the campaign, or change names, prices, rarities, room counts, or other numeric/structural values.`;
+
+function withCampaignGuidance(system: string, ctx?: CampaignContext): string {
+  return hasCampaignContext(ctx) ? `${system}${CAMPAIGN_GUIDANCE}` : system;
+}
+
+function trimContext(ctx?: CampaignContext): CampaignContext | undefined {
+  if (!hasCampaignContext(ctx)) return undefined;
+  const out: CampaignContext = {};
+  if (ctx.genre && ctx.genre.trim()) out.genre = ctx.genre.trim();
+  const tone = ctx.tone?.filter((t) => t && t.trim());
+  if (tone && tone.length) out.tone = tone;
+  if (ctx.pitch && ctx.pitch.trim()) out.pitch = ctx.pitch.trim();
+  const world = ctx.worldFacts?.filter((t) => t && t.trim());
+  if (world && world.length) out.worldFacts = world;
+  const setting = ctx.settingFacts?.filter((t) => t && t.trim());
+  if (setting && setting.length) out.settingFacts = setting;
+  return out;
+}
 
 async function callJson<T>(
   client: Anthropic,
@@ -46,28 +72,30 @@ export async function enhanceResult(
   client: Anthropic,
   kind: EnhanceableKind,
   raw: unknown,
+  campaignContext?: CampaignContext,
 ): Promise<GeneratorResult> {
   if (!raw || typeof raw !== 'object') throw new Error('Missing result');
+  const ctx = trimContext(campaignContext);
   switch (kind) {
-    case 'treasure-hoard': return enhanceTreasureHoard(client, raw as TreasureHoardResult);
-    case 'trinket': return enhanceTrinket(client, raw as TrinketResult);
-    case 'mundane-shop': return enhanceMundaneShop(client, raw as MundaneShopResult);
-    case 'magic-shop': return enhanceMagicShop(client, raw as MagicShopResult);
-    case 'tavern': return enhanceTavern(client, raw as TavernResult);
-    case 'dungeon': return enhanceDungeon(client, raw as DungeonResult);
-    case 'settlement': return enhanceSettlement(client, raw as SettlementResult);
+    case 'treasure-hoard': return enhanceTreasureHoard(client, raw as TreasureHoardResult, ctx);
+    case 'trinket': return enhanceTrinket(client, raw as TrinketResult, ctx);
+    case 'mundane-shop': return enhanceMundaneShop(client, raw as MundaneShopResult, ctx);
+    case 'magic-shop': return enhanceMagicShop(client, raw as MagicShopResult, ctx);
+    case 'tavern': return enhanceTavern(client, raw as TavernResult, ctx);
+    case 'dungeon': return enhanceDungeon(client, raw as DungeonResult, ctx);
+    case 'settlement': return enhanceSettlement(client, raw as SettlementResult, ctx);
     default: throw new Error(`Unknown enhance kind: ${String(kind)}`);
   }
 }
 
 // ── Treasure Hoard ──────────────────────────────────────────────────────────
-async function enhanceTreasureHoard(client: Anthropic, r: TreasureHoardResult): Promise<TreasureHoardResult> {
-  const system = `You enhance a TTRPG treasure-hoard generator result. You receive a JSON hoard.
+async function enhanceTreasureHoard(client: Anthropic, r: TreasureHoardResult, ctx?: CampaignContext): Promise<TreasureHoardResult> {
+  const system = withCampaignGuidance(`You enhance a TTRPG treasure-hoard generator result. You receive a JSON hoard.
 Output a JSON object with:
 - "narrative": one evocative sentence (≤22 words) describing how the hoard is presented (chest, cairn, scattered, etc.) and one arresting detail.
 - "magicItemNotes": array of one-sentence (≤18 words) atmospheric notes, one per magic item, in the same order as the input. Each note hints at provenance, condition, or marking without inventing mechanical effects.
-Do not rename items, change values, or invent new items.`;
-  const user = JSON.stringify({ coins: r.coins, gems: r.gems, artObjects: r.artObjects, magicItems: r.magicItems });
+Do not rename items, change values, or invent new items.`, ctx);
+  const user = JSON.stringify({ coins: r.coins, gems: r.gems, artObjects: r.artObjects, magicItems: r.magicItems, campaignContext: ctx });
   const schema = {
     type: 'object', additionalProperties: false,
     properties: {
@@ -86,10 +114,10 @@ Do not rename items, change values, or invent new items.`;
 }
 
 // ── Trinkets ────────────────────────────────────────────────────────────────
-async function enhanceTrinket(client: Anthropic, r: TrinketResult): Promise<TrinketResult> {
-  const system = `You enhance TTRPG trinket descriptions. You receive a list of trinket strings.
-For each, write a one-sentence (≤22 words) hook: who might want it, where it came from, or what oddity it whispers of. Do not rewrite the trinket itself.`;
-  const user = JSON.stringify(r.trinkets.map((t) => t.description));
+async function enhanceTrinket(client: Anthropic, r: TrinketResult, ctx?: CampaignContext): Promise<TrinketResult> {
+  const system = withCampaignGuidance(`You enhance TTRPG trinket descriptions. You receive a list of trinket strings and optionally a campaignContext.
+For each, write a one-sentence (≤22 words) hook: who might want it, where it came from, or what oddity it whispers of. Do not rewrite the trinket itself.`, ctx);
+  const user = JSON.stringify({ trinkets: r.trinkets.map((t) => t.description), campaignContext: ctx });
   const schema = {
     type: 'object', additionalProperties: false,
     properties: { hooks: { type: 'array', items: { type: 'string' } } },
@@ -104,14 +132,14 @@ For each, write a one-sentence (≤22 words) hook: who might want it, where it c
 }
 
 // ── Mundane Shops ──────────────────────────────────────────────────────────
-async function enhanceMundaneShop(client: Anthropic, r: MundaneShopResult): Promise<MundaneShopResult> {
-  const system = `You enhance a TTRPG mundane shop. You receive name, owner, inventory.
+async function enhanceMundaneShop(client: Anthropic, r: MundaneShopResult, ctx?: CampaignContext): Promise<MundaneShopResult> {
+  const system = withCampaignGuidance(`You enhance a TTRPG mundane shop. You receive name, owner, inventory.
 Output JSON with:
 - "ownerDescriptor": rewritten one-line descriptor for the owner (≤18 words), keeping their name.
 - "flavorItems": two additional inventory entries (objects with "name", "price", "note"), priced in copper/silver/gold, that read like quirky, in-character offerings (e.g. "a chipped mug that supposedly belonged to a saint, 4 gp"). Use the local currency convention shown in inventory.
 - "rumor": one rumor (one sentence, ≤24 words) the patrons might overhear.
-Do not change the existing inventory.`;
-  const user = JSON.stringify({ shopName: r.shopName, owner: r.owner, shopType: r.inputs.shopType, settlementSize: r.inputs.settlementSize, inventory: r.inventory.slice(0, 8) });
+Do not change the existing inventory.`, ctx);
+  const user = JSON.stringify({ shopName: r.shopName, owner: r.owner, shopType: r.inputs.shopType, settlementSize: r.inputs.settlementSize, inventory: r.inventory.slice(0, 8), campaignContext: ctx });
   const schema = {
     type: 'object', additionalProperties: false,
     properties: {
@@ -135,13 +163,13 @@ Do not change the existing inventory.`;
 }
 
 // ── Magic Item Shops ───────────────────────────────────────────────────────
-async function enhanceMagicShop(client: Anthropic, r: MagicShopResult): Promise<MagicShopResult> {
-  const system = `You enhance a TTRPG magic item shop. You receive shop archetype, owner, and inventory.
+async function enhanceMagicShop(client: Anthropic, r: MagicShopResult, ctx?: CampaignContext): Promise<MagicShopResult> {
+  const system = withCampaignGuidance(`You enhance a TTRPG magic item shop. You receive shop archetype, owner, and inventory.
 Output JSON with:
 - "ownerDescriptor": rewritten owner descriptor (≤18 words), name unchanged.
 - "itemConstraints": for each inventory entry in order, a single constraint string (≤22 words) that begins "The seller will only part with this if…" — a price-of-soul or quest-style trade rather than coin alone.
-Do not change names, rarities, or base prices.`;
-  const user = JSON.stringify({ shopName: r.shopName, owner: r.owner, archetype: r.inputs.archetype, inventory: r.inventory });
+Do not change names, rarities, or base prices.`, ctx);
+  const user = JSON.stringify({ shopName: r.shopName, owner: r.owner, archetype: r.inputs.archetype, inventory: r.inventory, campaignContext: ctx });
   const schema = {
     type: 'object', additionalProperties: false,
     properties: {
@@ -160,12 +188,12 @@ Do not change names, rarities, or base prices.`;
 }
 
 // ── Taverns ────────────────────────────────────────────────────────────────
-async function enhanceTavern(client: Anthropic, r: TavernResult): Promise<TavernResult> {
-  const system = `You enhance a TTRPG tavern. You receive name, vibe, owner, patrons, rumors.
+async function enhanceTavern(client: Anthropic, r: TavernResult, ctx?: CampaignContext): Promise<TavernResult> {
+  const system = withCampaignGuidance(`You enhance a TTRPG tavern. You receive name, vibe, owner, patrons, rumors.
 Output JSON with:
 - "rumors": rewritten list of rumors (same count, same order), each ≤24 words, sharper and more grounded; if any campaignContext is supplied, weave it in naturally.
-Do not invent NPCs or rename the tavern.`;
-  const user = JSON.stringify({ name: r.name, vibe: r.inputs.vibe, owner: r.details.owner, patrons: r.details.patrons, rumors: r.details.rumors });
+Do not invent NPCs or rename the tavern.`, ctx);
+  const user = JSON.stringify({ name: r.name, vibe: r.inputs.vibe, owner: r.details.owner, patrons: r.details.patrons, rumors: r.details.rumors, campaignContext: ctx });
   const schema = {
     type: 'object', additionalProperties: false,
     properties: { rumors: { type: 'array', items: { type: 'string' } } },
@@ -180,14 +208,14 @@ Do not invent NPCs or rename the tavern.`;
 }
 
 // ── Dungeons ───────────────────────────────────────────────────────────────
-async function enhanceDungeon(client: Anthropic, r: DungeonResult): Promise<DungeonResult> {
-  const system = `You enhance a TTRPG dungeon. You receive a name, theme, and room list.
+async function enhanceDungeon(client: Anthropic, r: DungeonResult, ctx?: CampaignContext): Promise<DungeonResult> {
+  const system = withCampaignGuidance(`You enhance a TTRPG dungeon. You receive a name, theme, and room list.
 Output JSON with:
 - "hook": one paragraph (3-4 sentences) explaining why adventurers come here now.
 - "vividRoomIndices": pick three of the most interesting room indices.
 - "vividRoomDescriptions": three vivid descriptions (2-3 sentences each) in the same order, each painting senses + danger + a small detail.
-Do not invent new rooms or alter the room list.`;
-  const user = JSON.stringify({ name: r.name, theme: r.inputs.theme, hazards: r.details.hazards, inhabitants: r.details.inhabitants, rooms: r.details.rooms });
+Do not invent new rooms or alter the room list.`, ctx);
+  const user = JSON.stringify({ name: r.name, theme: r.inputs.theme, hazards: r.details.hazards, inhabitants: r.details.inhabitants, rooms: r.details.rooms, campaignContext: ctx });
   const schema = {
     type: 'object', additionalProperties: false,
     properties: {
@@ -214,12 +242,12 @@ Do not invent new rooms or alter the room list.`;
 }
 
 // ── Settlements ────────────────────────────────────────────────────────────
-async function enhanceSettlement(client: Anthropic, r: SettlementResult): Promise<SettlementResult> {
-  const system = `You enhance a TTRPG settlement. You receive name, sizeClass, government, economy, hooks.
+async function enhanceSettlement(client: Anthropic, r: SettlementResult, ctx?: CampaignContext): Promise<SettlementResult> {
+  const system = withCampaignGuidance(`You enhance a TTRPG settlement. You receive name, sizeClass, government, economy, hooks.
 Output JSON with:
 - "currentSituation": exactly three sentences weaving the supplied hooks into a single "what's happening right now" paragraph. Reference the settlement's economy or government when natural.
-Do not invent NPCs, factions, or new hooks.`;
-  const user = JSON.stringify({ name: r.name, sizeClass: r.details.sizeClass, government: r.details.government, economy: r.details.economy, hooks: r.details.hooks });
+Do not invent NPCs, factions, or new hooks.`, ctx);
+  const user = JSON.stringify({ name: r.name, sizeClass: r.details.sizeClass, government: r.details.government, economy: r.details.economy, hooks: r.details.hooks, campaignContext: ctx });
   const schema = {
     type: 'object', additionalProperties: false,
     properties: { currentSituation: { type: 'string' } },

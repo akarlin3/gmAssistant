@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { readBearerToken, verifyPro } from '@/lib/verify-pro';
 import { enhanceResult, type EnhanceableKind } from '@/lib/generators/enhance';
+import type { CampaignContext } from '@/lib/generators/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return NextResponse.json({ error: 'Server missing ANTHROPIC_API_KEY' }, { status: 500 });
 
-  let body: { kind?: unknown; result?: unknown };
+  let body: { kind?: unknown; result?: unknown; campaignContext?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -29,10 +30,13 @@ export async function POST(req: NextRequest) {
   }
   const kind = typeof body.kind === 'string' ? (body.kind as EnhanceableKind) : null;
   if (!kind) return NextResponse.json({ error: 'Missing kind' }, { status: 400 });
+  const campaignContext = body.campaignContext && typeof body.campaignContext === 'object'
+    ? (body.campaignContext as CampaignContext)
+    : undefined;
 
   const client = new Anthropic({ apiKey });
   try {
-    const enhanced = await enhanceResult(client, kind, body.result);
+    const enhanced = await enhanceResult(client, kind, body.result, campaignContext);
     return NextResponse.json({ result: enhanced });
   } catch (err) {
     if (err instanceof Anthropic.APIError) {

@@ -15,7 +15,7 @@ import { Sparkles, Save, Shuffle, RefreshCw, Wand2, Check } from 'lucide-react';
 import { LockedInline } from '@/components/LockedFeature';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { makeRng, type SeededRng } from '@/lib/generators/rng';
-import type { GeneratorResult } from '@/lib/generators/types';
+import { hasCampaignContext, type CampaignContext, type GeneratorResult } from '@/lib/generators/types';
 import GeneratorLog from './GeneratorLog';
 import {
   appendToLog,
@@ -59,6 +59,10 @@ export type GeneratorPanelProps<Inputs extends Record<string, string | number>, 
     titleFor: (result: R) => string;
     copyText?: (result: R) => string;
   };
+  // Optional snapshot of the campaign premise/theme. When present and the user
+  // is Pro, a "Use campaign context" checkbox appears next to Enhance with AI
+  // and is passed through to the enhance endpoint.
+  campaignContext?: CampaignContext;
 };
 
 function deriveInputs<I extends Record<string, string | number>>(specs: InputSpec[], state: Record<string, string | number>): I {
@@ -78,8 +82,9 @@ function deriveInputs<I extends Record<string, string | number>>(specs: InputSpe
 export function GeneratorPanel<I extends Record<string, string | number>, R extends GeneratorResult>(
   props: GeneratorPanelProps<I, R>,
 ) {
-  const { title, description, inputs, generate, enhance, renderResult, onEnhanced, log } = props;
+  const { title, description, inputs, generate, enhance, renderResult, onEnhanced, log, campaignContext } = props;
   const { isPro } = useAuth();
+  const hasContext = hasCampaignContext(campaignContext);
 
   const [state, setState] = useState<Record<string, string | number>>(() => {
     const s: Record<string, string | number> = {};
@@ -89,6 +94,7 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
   const [result, setResult] = useState<R | null>(null);
   const [saved, setSaved] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
+  const [useCampaign, setUseCampaign] = useState(true);
   const [error, setError] = useState('');
   const lastSeedRef = useRef<number | null>(null);
 
@@ -125,7 +131,11 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
       const res = await fetch('/api/generators/enhance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ kind: enhance.kind, result }),
+        body: JSON.stringify({
+          kind: enhance.kind,
+          result,
+          campaignContext: useCampaign && hasContext ? campaignContext : undefined,
+        }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.error || `Enhance failed (${res.status})`);
@@ -137,7 +147,7 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
     } finally {
       setEnhancing(false);
     }
-  }, [result, enhance, isPro, onEnhanced]);
+  }, [result, enhance, isPro, onEnhanced, useCampaign, hasContext, campaignContext]);
 
   const inputControls = useMemo(() => inputs.map((spec) => {
     if (spec.kind === 'select') {
@@ -235,13 +245,29 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
             </button>
             {enhance && (
               isPro ? (
-                <button
-                  onClick={onEnhanceClick}
-                  disabled={enhancing}
-                  className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-crimson hover:text-parchment hover:border-crimson disabled:opacity-50 transition-colors"
-                >
-                  <Wand2 size={12} /> {enhancing ? 'Enhancing…' : 'Enhance with AI'}
-                </button>
+                <>
+                  <button
+                    onClick={onEnhanceClick}
+                    disabled={enhancing}
+                    className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-crimson hover:text-parchment hover:border-crimson disabled:opacity-50 transition-colors"
+                  >
+                    <Wand2 size={12} /> {enhancing ? 'Enhancing…' : 'Enhance with AI'}
+                  </button>
+                  {hasContext && (
+                    <label
+                      className="text-[11px] text-ink-soft font-serif flex items-center gap-1.5 select-none cursor-pointer"
+                      title="Pass your campaign's genre, tone, pitch, and world/setting facts to the AI so its prose fits your premise."
+                    >
+                      <input
+                        type="checkbox"
+                        checked={useCampaign}
+                        onChange={(e) => setUseCampaign(e.target.checked)}
+                        className="accent-crimson"
+                      />
+                      Use campaign context
+                    </label>
+                  )}
+                </>
               ) : (
                 <LockedInline label="Enhance with AI" />
               )

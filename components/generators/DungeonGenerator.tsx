@@ -15,6 +15,7 @@ import type {
   DungeonTheme,
 } from '@/lib/generators/tables/dungeon-tables';
 import type {
+  CampaignContext,
   DungeonExit,
   DungeonExitDirection,
   DungeonResult,
@@ -110,9 +111,11 @@ function copyText(r: DungeonResult): string {
 export default function DungeonGenerator({
   entries,
   onEntriesChange,
+  campaignContext,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
+  campaignContext?: CampaignContext;
 }) {
   return (
     <GeneratorPanel<{ size: string; theme: string; challengeTier: string }, DungeonResult>
@@ -127,6 +130,7 @@ export default function DungeonGenerator({
         }, rng)
       }
       enhance={{ kind: 'dungeon' }}
+      campaignContext={campaignContext}
       log={{
         kind: 'dungeon',
         entries,
