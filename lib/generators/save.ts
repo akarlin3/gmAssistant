@@ -252,6 +252,9 @@ export function summariseTitle(result: GeneratorResult): string {
     case 'tavern-name': return `${result.names.length} tavern name${result.names.length === 1 ? '' : 's'}`;
     case 'dungeon': return result.name;
     case 'settlement': return result.name;
+    case 'plot-segue': return result.segues.length === 1
+      ? `Plot segue · ${result.segues[0].arcFlavor}`
+      : `${result.segues.length} plot segues`;
   }
 }
 

@@ -12,6 +12,7 @@ import type {
   GeneratorResult,
   MagicShopResult,
   MundaneShopResult,
+  PlotSegueResult,
   SettlementResult,
   TavernResult,
   TreasureHoardResult,
@@ -84,6 +85,7 @@ export async function enhanceResult(
     case 'tavern': return enhanceTavern(client, raw as TavernResult, ctx);
     case 'dungeon': return enhanceDungeon(client, raw as DungeonResult, ctx);
     case 'settlement': return enhanceSettlement(client, raw as SettlementResult, ctx);
+    case 'plot-segue': return enhancePlotSegue(client, raw as PlotSegueResult, ctx);
     default: throw new Error(`Unknown enhance kind: ${String(kind)}`);
   }
 }
@@ -242,6 +244,54 @@ Do not invent new rooms or alter the room list.`, ctx);
 }
 
 // ── Settlements ────────────────────────────────────────────────────────────
+// ── Plot Segues ────────────────────────────────────────────────────────────
+async function enhancePlotSegue(client: Anthropic, r: PlotSegueResult, ctx?: CampaignContext): Promise<PlotSegueResult> {
+  const system = withCampaignGuidance(`You enhance TTRPG "plot segue" beats — short bridging moments that dangle a new plot arc into an active scene.
+You receive an array of segues (each with trigger, hook, arcSeed, plus tags: mode, delivery, arcFlavor, urgency).
+For each segue in order, rewrite the "hook" paragraph (2-4 sentences, ≤80 words) in the same voice: second-person, present tense, evocative but grounded. Preserve the segue's tags and beats — do not contradict the trigger, change the named details, or invent NPCs/locations with proper names. If campaignContext is supplied, weave in its genre, tone, and world/setting facts so the prose fits the campaign.
+Also rewrite the "arcSeed" (one sentence, ≤24 words) to be a sharper one-line teaser of the arc the segue could open, in the same tone.
+Do not rewrite the "trigger" line.`, ctx);
+  const user = JSON.stringify({
+    segues: r.segues.map((s) => ({
+      mode: s.mode,
+      delivery: s.delivery,
+      arcFlavor: s.arcFlavor,
+      urgency: s.urgency,
+      trigger: s.trigger,
+      hook: s.hook,
+      arcSeed: s.arcSeed,
+    })),
+    campaignContext: ctx,
+  });
+  const schema = {
+    type: 'object', additionalProperties: false,
+    properties: {
+      segues: {
+        type: 'array',
+        items: {
+          type: 'object', additionalProperties: false,
+          properties: {
+            hook: { type: 'string' },
+            arcSeed: { type: 'string' },
+          },
+          required: ['hook', 'arcSeed'],
+        },
+      },
+    },
+    required: ['segues'],
+  };
+  const out = await callJson<{ segues: { hook: string; arcSeed: string }[] }>(client, system, user, schema);
+  return {
+    ...r,
+    segues: r.segues.map((s, i) => ({
+      ...s,
+      hook: out.segues[i]?.hook ?? s.hook,
+      arcSeed: out.segues[i]?.arcSeed ?? s.arcSeed,
+    })),
+    enhanced: true,
+  };
+}
+
 async function enhanceSettlement(client: Anthropic, r: SettlementResult, ctx?: CampaignContext): Promise<SettlementResult> {
   const system = withCampaignGuidance(`You enhance a TTRPG settlement. You receive name, sizeClass, government, economy, hooks.
 Output JSON with:

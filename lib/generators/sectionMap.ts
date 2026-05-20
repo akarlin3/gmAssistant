@@ -80,6 +80,7 @@ const PRIMARY_ENTITY_TYPE: Record<SummonableKind, EntityRef['entityType']> = {
   'treasure-hoard': 'item',
   trinket: 'item',
   'tavern-name': 'note',
+  'plot-segue': 'note',
   'names-ai': 'npc',
   'locations-ai': 'location',
   'monster-ai': 'note',

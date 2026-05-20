@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { Coins, Gem, Shirt, Sparkles, Beer, MountainSnow, MapPinned, Map, ScrollText, Wand2, Signpost } from 'lucide-react';
+import { Coins, Gem, Shirt, Sparkles, Beer, MountainSnow, MapPinned, Map, ScrollText, Wand2, Signpost, Waypoints } from 'lucide-react';
 import type { CampaignContext, GeneratorKind } from '@/lib/generators/types';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
@@ -13,6 +13,7 @@ import TavernGenerator from './TavernGenerator';
 import TavernNameGenerator from './TavernNameGenerator';
 import DungeonGenerator from './DungeonGenerator';
 import SettlementGenerator from './SettlementGenerator';
+import PlotSegueGenerator from './PlotSegueGenerator';
 
 type GenSlug = GeneratorKind | 'names' | 'locations';
 
@@ -33,6 +34,12 @@ const GROUPS: { label: string; entries: { slug: GenSlug; label: string; icon: ty
       { slug: 'tavern-name', label: 'Tavern Names', icon: Signpost },
       { slug: 'dungeon', label: 'Dungeons', icon: MountainSnow },
       { slug: 'settlement', label: 'Settlements', icon: MapPinned },
+    ],
+  },
+  {
+    label: 'Narrative',
+    entries: [
+      { slug: 'plot-segue', label: 'Plot Segues', icon: Waypoints },
     ],
   },
   {
@@ -115,6 +122,8 @@ export default function GeneratorsTab({
         return <DungeonGenerator entries={entriesFor('dungeon')} onEntriesChange={setEntriesFor('dungeon')} campaignContext={campaignContext} onAddToCampaign={addFor('dungeon')} />;
       case 'settlement':
         return <SettlementGenerator entries={entriesFor('settlement')} onEntriesChange={setEntriesFor('settlement')} campaignContext={campaignContext} onAddToCampaign={addFor('settlement')} />;
+      case 'plot-segue':
+        return <PlotSegueGenerator entries={entriesFor('plot-segue')} onEntriesChange={setEntriesFor('plot-segue')} campaignContext={campaignContext} onAddToCampaign={addFor('plot-segue')} />;
       case 'names': return renderNames();
       case 'locations': return renderLocations();
       default: return null;

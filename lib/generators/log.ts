@@ -15,6 +15,7 @@ export type LogKind =
   | 'tavern-name'
   | 'dungeon'
   | 'settlement'
+  | 'plot-segue'
   // AI / external generators living on their own tabs
   | 'names'
   | 'locations'

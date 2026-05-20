@@ -327,6 +327,46 @@ export type SettlementResult = {
   enhanced: boolean;
 };
 
+export type SegueMode = 'pivot' | 'aftermath';
+export type SegueDelivery =
+  | 'messenger'
+  | 'rumor'
+  | 'discovery'
+  | 'environmental'
+  | 'npc-interrupt';
+export type SegueArcFlavor =
+  | 'mystery'
+  | 'threat'
+  | 'faction'
+  | 'personal'
+  | 'wonder';
+export type SegueUrgency = 'slow-burn' | 'pressing' | 'now';
+
+export type PlotSegueEntry = {
+  mode: SegueMode;
+  delivery: SegueDelivery;
+  arcFlavor: SegueArcFlavor;
+  urgency: SegueUrgency;
+  trigger: string;
+  hook: string;
+  arcSeed: string;
+};
+
+export type PlotSegueResult = {
+  kind: 'plot-segue';
+  id: GenericId;
+  seed: number;
+  inputs: {
+    count: number;
+    mode: 'auto' | SegueMode;
+    delivery: 'auto' | SegueDelivery;
+    arcFlavor: 'auto' | SegueArcFlavor;
+    urgency: 'auto' | SegueUrgency;
+  };
+  segues: PlotSegueEntry[];
+  enhanced: boolean;
+};
+
 export type GeneratorResult =
   | TreasureHoardResult
   | TrinketResult
@@ -335,7 +375,8 @@ export type GeneratorResult =
   | TavernResult
   | TavernNameResult
   | DungeonResult
-  | SettlementResult;
+  | SettlementResult
+  | PlotSegueResult;
 
 export type GeneratorKind = GeneratorResult['kind'];
 

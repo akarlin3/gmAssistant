@@ -15,12 +15,14 @@ import type {
   GeneratorResult,
   MagicShopResult,
   MundaneShopResult,
+  PlotSegueResult,
   SettlementResult,
   TavernResult,
   TavernNameResult,
   TreasureHoardResult,
   TrinketResult,
 } from './types';
+import { SEGUE_ARC_LABELS, SEGUE_MODE_LABELS } from './tables/plot-segue-tables';
 
 // ── Destinations ─────────────────────────────────────────────────────────────
 
@@ -205,6 +207,18 @@ const CONFIG: Record<LogKind, KindConfig | null> = {
         label: `${r.name} — ${r.inputs.sizeClass}`,
         payload: r,
       }];
+    },
+  },
+  'plot-segue': {
+    allowed: ['scenes', 'secrets', 'facts'],
+    defaultDest: 'scenes',
+    itemsFor: (payload) => {
+      const r = payload as PlotSegueResult;
+      return (r.segues || []).map((s, i) => ({
+        id: `${r.id}:${i}`,
+        label: `${SEGUE_ARC_LABELS[s.arcFlavor]} · ${SEGUE_MODE_LABELS[s.mode]} — ${s.arcSeed}`,
+        payload: { trigger: s.trigger, hook: s.hook, arcSeed: s.arcSeed, arcFlavor: s.arcFlavor, mode: s.mode },
+      }));
     },
   },
   names: {

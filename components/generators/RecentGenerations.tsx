@@ -13,6 +13,7 @@ const KIND_LABEL: Record<GenerationHistoryEntry['kind'], string> = {
   'tavern-name': 'Tavern Names',
   'dungeon': 'Dungeon',
   'settlement': 'Settlement',
+  'plot-segue': 'Plot Segue',
 };
 
 function timeAgo(ms: number): string {
