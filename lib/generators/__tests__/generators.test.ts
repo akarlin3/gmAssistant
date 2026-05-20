@@ -6,7 +6,7 @@ import { generateTrinkets } from '../trinket';
 import { generateMundaneShop } from '../mundane-shop';
 import { generateMagicShop } from '../magic-shop';
 import { generateTavern } from '../tavern';
-import { generateDungeon } from '../dungeon';
+import { expandFromExit, generateDungeon } from '../dungeon';
 import { generateSettlement } from '../settlement';
 import { TRINKETS } from '../tables/trinket-tables';
 import { MUNDANE_INVENTORY } from '../tables/shop-tables';
@@ -141,6 +141,74 @@ describe('generateDungeon', () => {
       assert.ok(rm.contents);
       assert.ok(rm.dressing);
     });
+  });
+
+  it('placed rooms have unique, non-overlapping spatial footprints', () => {
+    for (let seed = 0; seed < 20; seed++) {
+      const r = generateDungeon({ size: 'medium', theme: 'cave', challengeTier: '5-10' }, makeRng(seed));
+      const placed = r.details.rooms.filter((rm) =>
+        rm.x != null && rm.y != null && rm.w != null && rm.h != null,
+      );
+      assert.ok(placed.length >= 1, `seed ${seed}: no rooms placed`);
+      for (let i = 0; i < placed.length; i++) {
+        for (let j = i + 1; j < placed.length; j++) {
+          const a = placed[i];
+          const b = placed[j];
+          const overlapX = a.x! < b.x! + b.w! && a.x! + a.w! > b.x!;
+          const overlapY = a.y! < b.y! + b.h! && a.y! + a.h! > b.y!;
+          assert.ok(
+            !(overlapX && overlapY),
+            `seed ${seed}: rooms ${a.index} and ${b.index} overlap`,
+          );
+        }
+      }
+    }
+  });
+
+  it('produces at least one unexplored exit on a fresh dungeon', () => {
+    for (let seed = 0; seed < 10; seed++) {
+      const r = generateDungeon({ size: 'medium', theme: 'ruin', challengeTier: '5-10' }, makeRng(seed));
+      const unexplored = r.details.rooms.flatMap((rm) =>
+        (rm.exits ?? []).filter((e) => e.toRoomIndex === null),
+      );
+      assert.ok(unexplored.length >= 1, `seed ${seed}: no unexplored exits`);
+    }
+  });
+});
+
+describe('expandFromExit', () => {
+  it('placed outcome appends one room and links the exit', () => {
+    const r = generateDungeon({ size: 'small', theme: 'temple', challengeTier: '0-4' }, makeRng(99));
+    const beforeCount = r.details.rooms.length;
+    const sourceWithExit = r.details.rooms.find((rm) =>
+      (rm.exits ?? []).some((e) => e.toRoomIndex === null),
+    );
+    assert.ok(sourceWithExit, 'expected at least one unexplored exit');
+    const exit = sourceWithExit!.exits!.find((e) => e.toRoomIndex === null)!;
+    const result = expandFromExit(r, sourceWithExit!.index, exit.id);
+    if (result.outcome === 'placed') {
+      assert.equal(result.dungeon.details.rooms.length, beforeCount + 1);
+      const updatedSource = result.dungeon.details.rooms.find((rm) => rm.index === sourceWithExit!.index);
+      const updatedExit = updatedSource!.exits!.find((e) => e.id === exit.id)!;
+      assert.ok(updatedExit.toRoomIndex !== null && updatedExit.toRoomIndex !== -1);
+    } else if (result.outcome === 'collapsed') {
+      // Acceptable: a tight layout marked the exit as a dead end.
+      assert.equal(result.dungeon.details.rooms.length, beforeCount);
+    } else {
+      assert.fail(`unexpected outcome: ${result.outcome}`);
+    }
+  });
+
+  it('noop when the exit is already explored', () => {
+    const r = generateDungeon({ size: 'small', theme: 'sewer', challengeTier: '0-4' }, makeRng(3));
+    const sourceWithLink = r.details.rooms.find((rm) =>
+      (rm.exits ?? []).some((e) => e.toRoomIndex !== null && e.toRoomIndex !== -1),
+    );
+    assert.ok(sourceWithLink, 'expected at least one connected exit');
+    const exit = sourceWithLink!.exits!.find((e) => e.toRoomIndex !== null && e.toRoomIndex !== -1)!;
+    const result = expandFromExit(r, sourceWithLink!.index, exit.id);
+    assert.equal(result.outcome, 'noop');
+    assert.equal(result.dungeon, r);
   });
 });
 
