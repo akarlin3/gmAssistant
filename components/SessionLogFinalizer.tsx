@@ -14,6 +14,7 @@ type Props = {
   scratchpad: string;
   events: ChangeEvent[];
   existingEntries: SessionLogEntry[];
+  hasPrepWizardRun?: boolean;
   onSave: (entry: SessionLogEntry) => void;
   onDiscard: () => void;
 };
@@ -40,7 +41,7 @@ function eventsToScenes(events: ChangeEvent[]): string[] {
 }
 
 export default function SessionLogFinalizer({
-  sessionId, startedAt, endedAt, scratchpad, events, existingEntries, onSave, onDiscard,
+  sessionId, startedAt, endedAt, scratchpad, events, existingEntries, hasPrepWizardRun, onSave, onDiscard,
 }: Props) {
   const initialNumber = useMemo(() => nextSessionNumber(existingEntries), [existingEntries]);
   const [title, setTitle] = useState(`Session ${initialNumber}`);
@@ -203,6 +204,13 @@ export default function SessionLogFinalizer({
             )}
           </div>
         </div>
+
+        {hasPrepWizardRun && (
+          <div className="px-4 py-2 border-t border-rule bg-moss/5 text-xs text-ink-soft font-serif italic">
+            <span className="text-moss font-display uppercase tracking-wider text-[10px] not-italic">Prep · </span>
+            Prep notes from your wizard run are available in the Sessions tab.
+          </div>
+        )}
 
         <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-rule bg-parchment">
           <button

@@ -36,6 +36,8 @@ import SessionLogTab from './SessionLogTab';
 import SessionLogFinalizer from './SessionLogFinalizer';
 import { type ChangeEvent, type ChangeEventKind, makeEvent } from '@/lib/sessionEvents';
 import type { SessionLogEntry } from '@/lib/sessionLog';
+import { nextSessionNumber } from '@/lib/sessionLog';
+import type { PrepWizardRun } from '@/lib/prepWizard';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
@@ -1531,18 +1533,25 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     clearSessionState();
   };
 
-  const finalizerModal = finalizerOpen ? (
-    <SessionLogFinalizer
-      sessionId={(get('__activeSessionId', `session_${Date.now()}`) as string)}
-      startedAt={(get('__sessionStartedAt', sessionEndedAt) as number)}
-      endedAt={sessionEndedAt}
-      scratchpad={(get('__sessionScratchpad', '') as string)}
-      events={(get('__sessionChangeEvents', []) as ChangeEvent[])}
-      existingEntries={(get('sessionLogV2', []) as SessionLogEntry[])}
-      onSave={saveSessionLog}
-      onDiscard={discardSession}
-    />
-  ) : null;
+  const finalizerModal = finalizerOpen ? (() => {
+    const existingEntries = (get('sessionLogV2', []) as SessionLogEntry[]);
+    const nextNumber = nextSessionNumber(existingEntries);
+    const runs = (get('prepWizardRuns', []) as PrepWizardRun[]) || [];
+    const matchingRun = runs.find(r => r.forSessionNumber === nextNumber) || null;
+    return (
+      <SessionLogFinalizer
+        sessionId={(get('__activeSessionId', `session_${Date.now()}`) as string)}
+        startedAt={(get('__sessionStartedAt', sessionEndedAt) as number)}
+        endedAt={sessionEndedAt}
+        scratchpad={(get('__sessionScratchpad', '') as string)}
+        events={(get('__sessionChangeEvents', []) as ChangeEvent[])}
+        existingEntries={existingEntries}
+        hasPrepWizardRun={!!matchingRun}
+        onSave={saveSessionLog}
+        onDiscard={discardSession}
+      />
+    );
+  })() : null;
 
   if (get('__runSessionOpen', false)) {
     return (
@@ -1569,6 +1578,22 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       return next;
     });
   };
+  const startSessionFromPrep = () => {
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    setState(s => {
+      const next = { ...s };
+      delete next.__prepWizardOpen;
+      delete next.__prepWizardStep;
+      delete next.__prepWizardCompleted;
+      delete next.__prepWizardStepNotes;
+      next.__activeSessionId = sessionId;
+      next.__sessionStartedAt = Date.now();
+      next.__sessionChangeEvents = [];
+      next.__sessionUsedScenes = [];
+      next.__runSessionOpen = true;
+      return next;
+    });
+  };
 
   if (get('__prepWizardOpen', false)) {
     return (
@@ -1577,7 +1602,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         setVal={setVal}
         soloMode={soloMode}
         onExit={closePrepWizard}
-        onFinish={closePrepWizard}
+        onClose={closePrepWizard}
+        onStartSession={startSessionFromPrep}
       />
     );
   }
