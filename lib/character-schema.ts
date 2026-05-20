@@ -1,4 +1,5 @@
 import type { SidekickClass, SidekickBaseId, SpellList } from './sidekicks';
+import { normalizePointBuy, type PointBuy } from './pointBuy';
 
 export type Attack = {
   name: string;
@@ -61,6 +62,7 @@ export type Character = {
   };
   spells: string;
   notes: string;
+  pointBuy?: PointBuy;
 };
 
 export function makeCharacterId(): string {
@@ -217,5 +219,6 @@ export function normalizeCharacter(input: unknown): Character {
     },
     spells: asStr(o.spells),
     notes: asStr(o.notes),
+    ...(o.pointBuy ? { pointBuy: normalizePointBuy(o.pointBuy) } : {}),
   };
 }

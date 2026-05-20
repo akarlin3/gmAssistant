@@ -8,7 +8,7 @@ import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, ArrowLeft, Cloud, CloudOff,
-  FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList,
+  FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounterMath';
@@ -36,6 +36,7 @@ import { applyGeneratorResultToData } from '@/lib/generators/save';
 import type { EntityRef, GeneratorResult } from '@/lib/generators/types';
 import VivifyPanel, { type VivifyHistoryEntry } from './VivifyPanel';
 import ChaseTracker from './ChaseTracker';
+import ToolsTab from './ToolsTab';
 import type { Chase } from '@/lib/chaseTables';
 import TrapBuilder from './TrapBuilder';
 import type { Trap } from '@/lib/trapTables';
@@ -75,7 +76,7 @@ export type TabId =
   | 'prep' | 'ref' | 'track' | 'down' | 'log'
   | 'dice' | 'spells' | 'generators' | 'names'
   | 'locations' | 'monsters' | 'vivify'
-  | 'dmref' | 'traps' | 'chase';
+  | 'dmref' | 'traps' | 'chase' | 'pointbuy';
 
 type TabGroupId = 'prep' | 'run' | 'tools';
 
@@ -104,6 +105,7 @@ const TAB_GROUPS: ReadonlyArray<TabGroup> = [
     ['locations', 'Locations'],
     ['monsters', 'Monsters'],
     ['traps', 'Traps'],
+    ['pointbuy', 'Point-Buy'],
     ['vivify', 'Vivify'],
     ['log', 'Sessions'],
   ]},
@@ -1676,6 +1678,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     { id: 'traps', label: 'Traps', icon: Hash },
     { id: 'dmref', label: 'DM Ref', icon: BookOpen, keywords: ['rules', 'madness', 'travel'] },
     { id: 'chase', label: 'Chase', icon: Footprints, keywords: ['chase tracker'] },
+    { id: 'pointbuy', label: 'Point-Buy', icon: Wrench, keywords: ['point buy', 'ability scores', 'calculator', 'stats'] },
   ];
 
   const PREP_SECTION_META: Array<{ id: string; label: string }> = [
@@ -3143,6 +3146,13 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           <ChaseTracker
             chases={(get('chases', []) as Chase[])}
             onChange={(chases) => setVal('chases', chases)}
+          />
+        )}
+
+        {tab === 'pointbuy' && (
+          <ToolsTab
+            characters={characters}
+            onChangeCharacter={updateCharacter}
           />
         )}
 
