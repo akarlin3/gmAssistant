@@ -346,15 +346,14 @@ const ListField = ({
           <button onClick={() => remove(i)} className="text-ink-mute hover:text-crimson px-1"><X size={14} /></button>
         </div>
       ))}
-      {Array.from({ length: remaining }).map((_, i) => (
-        <div key={`ghost-${i}`} className="flex gap-2 items-center opacity-50">
-          <span className="text-ink-faint font-display text-xs w-5 text-right">{items.length + i + 1}.</span>
-          <div className="flex-1 border-b border-dashed border-rule px-1 py-1 text-xs text-ink-faint italic font-serif">
-            {placeholder}…
-          </div>
-          <div className="px-1 w-6" />
+      {target > 0 && items.length < target && (
+        <div className="ml-7 text-[11px] text-ink-mute italic font-serif">
+          {remaining} more to reach target
+          {items.length === 0 && (
+            <span className="text-ink-faint"> (target: {target})</span>
+          )}
         </div>
-      ))}
+      )}
       <button onClick={add} className="ml-7 text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
         <Plus size={12} /> Add
       </button>
