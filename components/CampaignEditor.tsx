@@ -31,6 +31,7 @@ import InitiativePanel from './InitiativePanel';
 import type { InitiativeState } from '@/lib/initiative';
 import RunSessionView from './RunSessionView';
 import PrepWizardView from './PrepWizardView';
+import Session0Wizard, { makeWizardPC } from './Session0Wizard';
 import SessionLogTab from './SessionLogTab';
 import SessionLogFinalizer from './SessionLogFinalizer';
 import { type ChangeEvent, type ChangeEventKind, makeEvent } from '@/lib/sessionEvents';
@@ -1147,6 +1148,19 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   const skipNextSnapshotRef = useRef(false);
   const [canUndo, setCanUndo] = useState(false);
   const [undoToast, setUndoToast] = useState('');
+
+  // Session 0 wizard — auto-shown on first open of a fresh campaign, also
+  // launchable from AccountMenu's Campaign Actions. Tracked via
+  // data.__session0Done so it never re-prompts unless the user explicitly
+  // re-runs it.
+  const [session0Open, setSession0Open] = useState<boolean>(() => {
+    if (campaign.data?.__session0Done) return false;
+    const d = campaign.data || {};
+    const noPitch = !d.pitch;
+    const noWorld = !Array.isArray(d.gWorld) || d.gWorld.length === 0;
+    const noClocks = !Array.isArray(d.clocks) || d.clocks.length === 0;
+    return noPitch && noWorld && noClocks;
+  });
   const undoToastTimerRef = useRef<NodeJS.Timeout | null>(null);
   const showUndoToast = useCallback((msg: string, ms = 2000) => {
     if (undoToastTimerRef.current) clearTimeout(undoToastTimerRef.current);
@@ -2003,6 +2017,54 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     );
   }
 
+  if (session0Open) {
+    return (
+      <Session0Wizard
+        initialName={name}
+        initialSoloMode={soloMode}
+        onClose={() => {
+          // Closing without finishing still marks done so the user is not
+          // re-prompted on every load. They can re-run from the menu.
+          setState(s => ({ ...s, __session0Done: true }));
+          setSession0Open(false);
+        }}
+        onFinish={(patch) => {
+          if (patch.name) setName(patch.name);
+          setState(s => {
+            const next: Record<string, any> = { ...s, __session0Done: true };
+            if (patch.pitch) next.pitch = patch.pitch;
+            if (patch.truths && patch.truths.length > 0) {
+              const existing = Array.isArray(s.gWorld) ? (s.gWorld as string[]) : [];
+              next.gWorld = [...existing, ...patch.truths];
+            }
+            if (patch.pc) {
+              const existingChars = Array.isArray(s.characters) ? (s.characters as Character[]) : [];
+              next.characters = [...existingChars, makeWizardPC(patch.pc.name, patch.pc.concept)];
+              if (patch.pc.goal) {
+                const existingGoals = Array.isArray(s.pcGoals) ? (s.pcGoals as any[]) : [];
+                next.pcGoals = [...existingGoals, { text: patch.pc.goal, timeframe: 'short', success: '', failure: '', linked: '' }];
+              }
+            }
+            if (patch.front) {
+              const existingClocks = Array.isArray(s.clocks) ? (s.clocks as any[]) : [];
+              const firstSignNote = patch.front.firstSign ? `First sign: ${patch.front.firstSign}` : '';
+              next.clocks = [...existingClocks, {
+                text: patch.front.goal || '',
+                faction: patch.front.name,
+                max: 6,
+                filled: 0,
+                notes: firstSignNote,
+              }];
+            }
+            return next;
+          });
+          setSession0Open(false);
+          setTab('prep');
+        }}
+      />
+    );
+  }
+
   return (
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
       <div className="max-w-5xl mx-auto flex flex-col md:flex-row md:items-start gap-3 md:gap-4">
@@ -2082,6 +2144,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   onArchive={handleArchive}
                   isArchived={isArchived}
                   onDelete={handleDelete}
+                  onRerunSession0={() => setSession0Open(true)}
                 />
               </div>
             </div>

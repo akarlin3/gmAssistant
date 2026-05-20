@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ChevronDown, LogOut, Sparkles, Settings, ExternalLink, MailCheck,
-  Download, Upload, Trash2, Info, X, Archive, ArchiveRestore,
+  Download, Upload, Trash2, Info, X, Archive, ArchiveRestore, RotateCcw,
 } from 'lucide-react';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/lib/firebase/auth-context';
@@ -20,9 +20,10 @@ export type AccountMenuProps = {
   onArchive?: () => void;
   isArchived?: boolean;
   onDelete?: () => void;
+  onRerunSession0?: () => void;
 };
 
-export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelete }: AccountMenuProps = {}) {
+export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelete, onRerunSession0 }: AccountMenuProps = {}) {
   const { user, isPro, proSource, subscriptionStatus, currentPeriodEndMs, cancelAtPeriodEnd, isOnWaitlist, logout } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -197,11 +198,20 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
 
             {error && <p className="text-[11px] text-crimson font-serif italic">{error}</p>}
 
-            {(onExport || onImport || onArchive || onDelete) && (
+            {(onExport || onImport || onArchive || onDelete || onRerunSession0) && (
               <div className="pt-1 border-t border-rule space-y-1">
                 <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep px-1">
                   Campaign Actions
                 </div>
+                {onRerunSession0 && (
+                  <button
+                    type="button"
+                    onClick={fireAndClose(onRerunSession0)}
+                    className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
+                  >
+                    <RotateCcw size={12} className="text-brass-deep" /> Re-run Session 0 Setup
+                  </button>
+                )}
                 {onExport && (
                   <button
                     type="button"
