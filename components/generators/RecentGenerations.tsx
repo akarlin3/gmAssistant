@@ -10,6 +10,7 @@ const KIND_LABEL: Record<GenerationHistoryEntry['kind'], string> = {
   'mundane-shop': 'Mundane Shop',
   'magic-shop': 'Magic Shop',
   'tavern': 'Tavern',
+  'tavern-name': 'Tavern Names',
   'dungeon': 'Dungeon',
   'settlement': 'Settlement',
 };

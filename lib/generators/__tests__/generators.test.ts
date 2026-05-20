@@ -6,11 +6,13 @@ import { generateTrinkets } from '../trinket';
 import { generateMundaneShop } from '../mundane-shop';
 import { generateMagicShop } from '../magic-shop';
 import { generateTavern } from '../tavern';
+import { generateTavernNames } from '../tavern-name';
 import { expandFromExit, generateDungeon } from '../dungeon';
 import { generateSettlement } from '../settlement';
 import { TRINKETS } from '../tables/trinket-tables';
 import { MUNDANE_INVENTORY } from '../tables/shop-tables';
 import { MAGIC_ITEMS } from '../tables/treasure-hoard-tables';
+import { TAVERN_NAMES, TAVERN_NAMES_MIN_COUNT } from '../tables/tavern-name-tables';
 
 describe('generateTreasureHoard', () => {
   it('determinism: same seed -> same result', () => {
@@ -106,6 +108,44 @@ describe('generateMagicShop', () => {
   it('inventory of unique items', () => {
     const r = generateMagicShop({ archetype: 'curio shop', maxRarity: 'rare', settlementSize: 'large city' }, makeRng(7));
     assert.equal(new Set(r.inventory.map((i) => i.name)).size, r.inventory.length);
+  });
+});
+
+describe('TAVERN_NAMES table', () => {
+  it('has at least the documented minimum of curated names', () => {
+    assert.ok(
+      TAVERN_NAMES.length >= TAVERN_NAMES_MIN_COUNT,
+      `expected >= ${TAVERN_NAMES_MIN_COUNT} names, got ${TAVERN_NAMES.length}`,
+    );
+  });
+
+  it('has no duplicate entries', () => {
+    assert.equal(new Set(TAVERN_NAMES).size, TAVERN_NAMES.length);
+  });
+});
+
+describe('generateTavernNames', () => {
+  it('determinism: same seed -> same result', () => {
+    const a = generateTavernNames({ count: 8 }, makeRng(42));
+    const b = generateTavernNames({ count: 8 }, makeRng(42));
+    assert.deepEqual(a, b);
+  });
+
+  it('returns the requested count, clamped to 1..20', () => {
+    assert.equal(generateTavernNames({ count: 0 }, makeRng(1)).names.length, 1);
+    assert.equal(generateTavernNames({ count: 25 }, makeRng(1)).names.length, 20);
+    assert.equal(generateTavernNames({ count: 6 }, makeRng(1)).names.length, 6);
+  });
+
+  it('returns distinct names from the curated pool', () => {
+    const pool = new Set(TAVERN_NAMES);
+    for (let s = 0; s < 30; s++) {
+      const r = generateTavernNames({ count: 10 }, makeRng(s));
+      assert.equal(new Set(r.names).size, r.names.length, `seed ${s}: duplicate names`);
+      for (const n of r.names) {
+        assert.ok(pool.has(n), `unknown tavern name: ${n}`);
+      }
+    }
   });
 });
 

@@ -249,6 +249,7 @@ export function summariseTitle(result: GeneratorResult): string {
     case 'mundane-shop': return result.shopName;
     case 'magic-shop': return result.shopName;
     case 'tavern': return result.name;
+    case 'tavern-name': return `${result.names.length} tavern name${result.names.length === 1 ? '' : 's'}`;
     case 'dungeon': return result.name;
     case 'settlement': return result.name;
   }

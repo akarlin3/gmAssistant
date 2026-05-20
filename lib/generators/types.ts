@@ -273,6 +273,15 @@ export type TavernResult = {
   enhanced: boolean;
 };
 
+export type TavernNameResult = {
+  kind: 'tavern-name';
+  id: GenericId;
+  seed: number;
+  inputs: { count: number };
+  names: string[];
+  enhanced: boolean;
+};
+
 export type DungeonResult = {
   kind: 'dungeon';
   id: GenericId;
@@ -324,6 +333,7 @@ export type GeneratorResult =
   | MundaneShopResult
   | MagicShopResult
   | TavernResult
+  | TavernNameResult
   | DungeonResult
   | SettlementResult;
 

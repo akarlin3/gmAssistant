@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { Coins, Gem, Shirt, Sparkles, Beer, MountainSnow, MapPinned, Map, ScrollText, Wand2 } from 'lucide-react';
+import { Coins, Gem, Shirt, Sparkles, Beer, MountainSnow, MapPinned, Map, ScrollText, Wand2, Signpost } from 'lucide-react';
 import type { CampaignContext, GeneratorKind } from '@/lib/generators/types';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import TreasureHoardGenerator from './TreasureHoardGenerator';
@@ -9,6 +9,7 @@ import TrinketGenerator from './TrinketGenerator';
 import MundaneShopGenerator from './MundaneShopGenerator';
 import MagicShopGenerator from './MagicShopGenerator';
 import TavernGenerator from './TavernGenerator';
+import TavernNameGenerator from './TavernNameGenerator';
 import DungeonGenerator from './DungeonGenerator';
 import SettlementGenerator from './SettlementGenerator';
 
@@ -28,6 +29,7 @@ const GROUPS: { label: string; entries: { slug: GenSlug; label: string; icon: ty
     label: 'World',
     entries: [
       { slug: 'tavern', label: 'Taverns', icon: Beer },
+      { slug: 'tavern-name', label: 'Tavern Names', icon: Signpost },
       { slug: 'dungeon', label: 'Dungeons', icon: MountainSnow },
       { slug: 'settlement', label: 'Settlements', icon: MapPinned },
     ],
@@ -99,6 +101,8 @@ export default function GeneratorsTab({
         return <MagicShopGenerator entries={entriesFor('magic-shop')} onEntriesChange={setEntriesFor('magic-shop')} campaignContext={campaignContext} />;
       case 'tavern':
         return <TavernGenerator entries={entriesFor('tavern')} onEntriesChange={setEntriesFor('tavern')} campaignContext={campaignContext} />;
+      case 'tavern-name':
+        return <TavernNameGenerator entries={entriesFor('tavern-name')} onEntriesChange={setEntriesFor('tavern-name')} />;
       case 'dungeon':
         return <DungeonGenerator entries={entriesFor('dungeon')} onEntriesChange={setEntriesFor('dungeon')} campaignContext={campaignContext} />;
       case 'settlement':

@@ -12,6 +12,7 @@ export type LogKind =
   | 'mundane-shop'
   | 'magic-shop'
   | 'tavern'
+  | 'tavern-name'
   | 'dungeon'
   | 'settlement'
   // AI / external generators living on their own tabs
