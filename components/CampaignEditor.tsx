@@ -16,6 +16,7 @@ import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounte
 import DiceRoller, { type Macro } from './DiceRoller';
 import SpellsTab, { type Spell } from './SpellsTab';
 import DMRefTab from './DMRefTab';
+import StrongStartPicker from './StrongStartPicker';
 import CharacterCard from './CharacterCard';
 import SidekickAddPanel from './SidekickAddPanel';
 import NamesTab from './NamesTab';
@@ -1903,6 +1904,11 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     const cur = (get('strongStart', '') as string).trim();
                     if (cur && !confirm('Replace the current strong start?')) return;
                     setVal('strongStart', e);
+                  }} />
+                  <StrongStartPicker onUse={(body) => {
+                    const cur = (get('strongStart', '') as string).trim();
+                    if (cur && !confirm('Replace the current strong start?')) return;
+                    setVal('strongStart', body);
                   }} />
                 </InspireGroup>
               </Section>
