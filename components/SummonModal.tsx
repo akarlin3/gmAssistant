@@ -1,12 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
-import { X, Wand2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X, Wand2, Sparkles, Plus, Check, Loader2 } from 'lucide-react';
 import TavernGenerator from './generators/TavernGenerator';
 import DungeonGenerator from './generators/DungeonGenerator';
 import SettlementGenerator from './generators/SettlementGenerator';
 import MundaneShopGenerator from './generators/MundaneShopGenerator';
 import MagicShopGenerator from './generators/MagicShopGenerator';
+import TreasureHoardGenerator from './generators/TreasureHoardGenerator';
+import TrinketGenerator from './generators/TrinketGenerator';
+import { LockedInline } from './LockedFeature';
+import { getFirebaseAuth } from '@/lib/firebase/client';
+import { CULTURE_GROUPS, ALL_CULTURES } from '@/lib/cultures';
+import { LOCATION_TYPE_GROUPS, ALL_LOCATION_TYPES } from '@/lib/locations';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import type {
   CampaignContext,
@@ -16,14 +22,27 @@ import type {
   MundaneShopResult,
   SettlementResult,
   TavernResult,
+  TreasureHoardResult,
+  TrinketResult,
 } from '@/lib/generators/types';
-import type { GeneratorMeta, PrepSection, SummonableKind } from '@/lib/generators/sectionMap';
+import type {
+  GeneratorMeta,
+  PrepSection,
+  SummonableKind,
+} from '@/lib/generators/sectionMap';
+import type {
+  GeneratedLocationPayload,
+  GeneratedNamePayload,
+  ScaledMonsterPayload,
+  SummonSaveAction,
+} from '@/lib/generators/summon-actions';
 
 type Props = {
   section: PrepSection;
   generator: GeneratorMeta;
+  isPro: boolean;
   onClose: () => void;
-  onSave: (result: GeneratorResult) => void;
+  onSave: (action: SummonSaveAction) => void;
   campaignContext?: CampaignContext;
   logs: GeneratorLogs;
   setLogEntries: (kind: LogKind) => (next: LogEntry[]) => void;
@@ -39,6 +58,7 @@ const SECTION_LABEL: Record<PrepSection, string> = {
 export default function SummonModal({
   section,
   generator,
+  isPro,
   onClose,
   onSave,
   campaignContext,
@@ -60,22 +80,24 @@ export default function SummonModal({
 
   const entriesFor = (k: LogKind): LogEntry[] => logs[k] ?? [];
 
-  // The Save-to-Campaign click triggers onSave then we close the modal —
-  // letting the parent commit data, scroll, and surface a toast.
-  const wrap = <R extends GeneratorResult>(handler: (r: R) => void) => ({
-    onSave: (r: R) => {
-      handler(r);
-      onClose();
-    },
-  });
+  // For deterministic generators, save-to-campaign also closes the modal.
+  // For per-item AI generators (names/locations), the modal stays open so the
+  // user can pick more entries from the same batch.
+  const closingSave = <R extends GeneratorResult>(r: R) => {
+    onSave({ type: 'generator-result', result: r });
+    onClose();
+  };
 
-  const inner = renderGenerator(
-    generator.kind,
-    entriesFor,
-    setLogEntries,
-    campaignContext,
-    wrap(onSave),
-  );
+  const stayingSaveNpc = (n: GeneratedNamePayload) => {
+    onSave({ type: 'add-npc-from-name', name: n });
+  };
+  const stayingSaveLoc = (l: GeneratedLocationPayload) => {
+    onSave({ type: 'add-location-from-ai', loc: l });
+  };
+  const closingSaveMonster = (m: ScaledMonsterPayload) => {
+    onSave({ type: 'add-monster-scaled', scaled: m });
+    onClose();
+  };
 
   return (
     <div
@@ -107,19 +129,48 @@ export default function SummonModal({
             <X size={16} />
           </button>
         </header>
-        <div className="flex-1 overflow-y-auto p-3">{inner}</div>
+        <div className="flex-1 overflow-y-auto p-3">
+          {renderBody({
+            kind: generator.kind,
+            isPro,
+            campaignContext,
+            entriesFor,
+            setLogEntries,
+            closingSave,
+            stayingSaveNpc,
+            stayingSaveLoc,
+            closingSaveMonster,
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
-function renderGenerator(
-  kind: SummonableKind,
-  entriesFor: (k: LogKind) => LogEntry[],
-  setLogEntries: (k: LogKind) => (next: LogEntry[]) => void,
-  campaignContext: CampaignContext | undefined,
-  save: { onSave: (r: GeneratorResult) => void },
-): React.ReactNode {
+type BodyArgs = {
+  kind: SummonableKind;
+  isPro: boolean;
+  campaignContext: CampaignContext | undefined;
+  entriesFor: (k: LogKind) => LogEntry[];
+  setLogEntries: (k: LogKind) => (next: LogEntry[]) => void;
+  closingSave: <R extends GeneratorResult>(r: R) => void;
+  stayingSaveNpc: (n: GeneratedNamePayload) => void;
+  stayingSaveLoc: (l: GeneratedLocationPayload) => void;
+  closingSaveMonster: (m: ScaledMonsterPayload) => void;
+};
+
+function renderBody(args: BodyArgs): React.ReactNode {
+  const {
+    kind,
+    isPro,
+    campaignContext,
+    entriesFor,
+    setLogEntries,
+    closingSave,
+    stayingSaveNpc,
+    stayingSaveLoc,
+    closingSaveMonster,
+  } = args;
   switch (kind) {
     case 'tavern':
       return (
@@ -127,7 +178,7 @@ function renderGenerator(
           entries={entriesFor('tavern')}
           onEntriesChange={setLogEntries('tavern')}
           campaignContext={campaignContext}
-          saveToCampaign={{ onSave: (r: TavernResult) => save.onSave(r) }}
+          saveToCampaign={{ onSave: (r: TavernResult) => closingSave(r) }}
         />
       );
     case 'dungeon':
@@ -136,7 +187,7 @@ function renderGenerator(
           entries={entriesFor('dungeon')}
           onEntriesChange={setLogEntries('dungeon')}
           campaignContext={campaignContext}
-          saveToCampaign={{ onSave: (r: DungeonResult) => save.onSave(r) }}
+          saveToCampaign={{ onSave: (r: DungeonResult) => closingSave(r) }}
         />
       );
     case 'settlement':
@@ -145,7 +196,7 @@ function renderGenerator(
           entries={entriesFor('settlement')}
           onEntriesChange={setLogEntries('settlement')}
           campaignContext={campaignContext}
-          saveToCampaign={{ onSave: (r: SettlementResult) => save.onSave(r) }}
+          saveToCampaign={{ onSave: (r: SettlementResult) => closingSave(r) }}
         />
       );
     case 'mundane-shop':
@@ -154,7 +205,7 @@ function renderGenerator(
           entries={entriesFor('mundane-shop')}
           onEntriesChange={setLogEntries('mundane-shop')}
           campaignContext={campaignContext}
-          saveToCampaign={{ onSave: (r: MundaneShopResult) => save.onSave(r) }}
+          saveToCampaign={{ onSave: (r: MundaneShopResult) => closingSave(r) }}
         />
       );
     case 'magic-shop':
@@ -163,16 +214,473 @@ function renderGenerator(
           entries={entriesFor('magic-shop')}
           onEntriesChange={setLogEntries('magic-shop')}
           campaignContext={campaignContext}
-          saveToCampaign={{ onSave: (r: MagicShopResult) => save.onSave(r) }}
+          saveToCampaign={{ onSave: (r: MagicShopResult) => closingSave(r) }}
         />
       );
-    // Treasure/Trinket would be wired here once items prep rendering is reworked.
     case 'treasure-hoard':
+      return (
+        <TreasureHoardGenerator
+          entries={entriesFor('treasure-hoard')}
+          onEntriesChange={setLogEntries('treasure-hoard')}
+          campaignContext={campaignContext}
+          saveToCampaign={{ onSave: (r: TreasureHoardResult) => closingSave(r) }}
+        />
+      );
     case 'trinket':
       return (
+        <TrinketGenerator
+          entries={entriesFor('trinket')}
+          onEntriesChange={setLogEntries('trinket')}
+          campaignContext={campaignContext}
+          saveToCampaign={{ onSave: (r: TrinketResult) => closingSave(r) }}
+        />
+      );
+    case 'tavern-name':
+      // tavern-name doesn't have a "save to entity" path — only logs.
+      return (
         <div className="text-sm text-ink-soft italic font-serif">
-          This generator isn&apos;t wired into Summon yet.
+          Tavern names are saved to the generator log only; use Tavern to summon a full tavern.
         </div>
       );
+    case 'names-ai':
+      return isPro ? (
+        <NamesAiPanel onAdd={stayingSaveNpc} />
+      ) : (
+        <ProGate label="AI Name Generator" />
+      );
+    case 'locations-ai':
+      return isPro ? (
+        <LocationsAiPanel onAdd={stayingSaveLoc} />
+      ) : (
+        <ProGate label="AI Location Generator" />
+      );
+    case 'monster-ai':
+      return isPro ? (
+        <MonsterScalerPanel onSave={closingSaveMonster} />
+      ) : (
+        <ProGate label="AI Monster Scaler" />
+      );
   }
+}
+
+function ProGate({ label }: { label: string }) {
+  return (
+    <div className="rounded border border-rule bg-parchment-soft/40 p-4 text-sm font-serif text-ink-soft space-y-2">
+      <p>
+        <span className="font-display tracking-wide text-ink">{label}</span> is a Pro feature.
+      </p>
+      <p className="text-xs italic">
+        Join the Pro waitlist on{' '}
+        <a href="/account" className="text-crimson underline hover:no-underline">
+          your account page
+        </a>{' '}
+        to use AI generation.
+      </p>
+      <LockedInline label={label} />
+    </div>
+  );
+}
+
+// ── AI Names panel ──────────────────────────────────────────────────────────
+
+const GENDERS = ['Any', 'Masculine', 'Feminine', 'Androgynous'] as const;
+
+function NamesAiPanel({ onAdd }: { onAdd: (n: GeneratedNamePayload) => void }) {
+  const [firstCulture, setFirstCulture] = useState('Random');
+  const [lastCulture, setLastCulture] = useState('Random');
+  const [gender, setGender] = useState<(typeof GENDERS)[number]>('Any');
+  const [count, setCount] = useState(8);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+  const [names, setNames] = useState<GeneratedNamePayload[]>([]);
+  const [added, setAdded] = useState<Record<number, boolean>>({});
+
+  const generate = async () => {
+    setGenerating(true);
+    setError('');
+    setAdded({});
+    try {
+      const user = getFirebaseAuth().currentUser;
+      if (!user) throw new Error('Not signed in');
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/generate-names', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ firstCulture, lastCulture, gender, count }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `Generate failed (${res.status})`);
+      setNames(Array.isArray(body.names) ? body.names : []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Generate failed');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 text-sm">
+      <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
+        <div className="flex items-center gap-2">
+          <Sparkles size={14} className="text-crimson" />
+          <h3 className="font-display tracking-wide text-ink">AI Name Generator</h3>
+        </div>
+        <p className="text-xs text-ink-soft italic font-serif">
+          Generate first / surname pairs from any culture, then add the ones you like as NPCs.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <CultureSelect label="First Name Culture" value={firstCulture} onChange={setFirstCulture} />
+          <CultureSelect label="Surname Culture" value={lastCulture} onChange={setLastCulture} />
+          <SelectField label="Gender" value={gender} onChange={(v) => setGender(v as (typeof GENDERS)[number])}>
+            {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
+          </SelectField>
+          <SelectField label="How Many" value={String(count)} onChange={(v) => setCount(Number(v))}>
+            {[4, 6, 8, 12, 16].map((n) => <option key={n} value={n}>{n}</option>)}
+          </SelectField>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={generate}
+            disabled={generating}
+            className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-wine hover:border-wine disabled:opacity-50 disabled:cursor-wait transition-colors"
+          >
+            {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+            {generating ? 'Generating…' : 'Generate'}
+          </button>
+          <button
+            onClick={() => {
+              const pick = () => ALL_CULTURES[Math.floor(Math.random() * ALL_CULTURES.length)];
+              setFirstCulture(pick());
+              setLastCulture(pick());
+            }}
+            disabled={generating}
+            className="text-xs px-3 py-1.5 rounded border border-brass-deep/50 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
+          >
+            Shuffle Cultures
+          </button>
+        </div>
+        {error && <p className="text-xs text-crimson italic" title={error}>{error}</p>}
+      </div>
+
+      {names.length > 0 && (
+        <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
+          <p className="text-[11px] text-ink-mute italic font-serif">
+            Click <span className="text-crimson font-display uppercase tracking-wider">+ Add</span> next to each name to add it as an NPC.
+          </p>
+          <div className="space-y-1.5">
+            {names.map((n, i) => {
+              const full = [n.first, n.last].filter(Boolean).join(' ');
+              const sameCulture = n.firstCulture && n.firstCulture === n.lastCulture;
+              const tag = sameCulture
+                ? n.firstCulture
+                : [n.firstCulture, n.lastCulture].filter(Boolean).join(' · ');
+              const isAdded = !!added[i];
+              return (
+                <div key={i} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded border border-rule bg-parchment-soft">
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-serif text-ink truncate">{full}</span>
+                    {tag && <span className="text-[10px] text-ink-mute italic">{tag}</span>}
+                  </div>
+                  <button
+                    onClick={() => {
+                      onAdd(n);
+                      setAdded((a) => ({ ...a, [i]: true }));
+                    }}
+                    disabled={isAdded}
+                    className="text-[11px] px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment hover:border-crimson disabled:opacity-50 font-display uppercase tracking-wider flex items-center gap-1 flex-shrink-0"
+                  >
+                    {isAdded ? <Check size={11} /> : <Plus size={11} />}
+                    {isAdded ? 'Added' : 'Add as NPC'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── AI Locations panel ──────────────────────────────────────────────────────
+
+function LocationsAiPanel({ onAdd }: { onAdd: (l: GeneratedLocationPayload) => void }) {
+  const [locationType, setLocationType] = useState('Random');
+  const [culture, setCulture] = useState('Random');
+  const [count, setCount] = useState(6);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+  const [locations, setLocations] = useState<GeneratedLocationPayload[]>([]);
+  const [added, setAdded] = useState<Record<number, boolean>>({});
+
+  const generate = async () => {
+    setGenerating(true);
+    setError('');
+    setAdded({});
+    try {
+      const user = getFirebaseAuth().currentUser;
+      if (!user) throw new Error('Not signed in');
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/generate-locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ locationType, culture, count }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `Generate failed (${res.status})`);
+      setLocations(Array.isArray(body.locations) ? body.locations : []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Generate failed');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 text-sm">
+      <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
+        <div className="flex items-center gap-2">
+          <Sparkles size={14} className="text-crimson" />
+          <h3 className="font-display tracking-wide text-ink">AI Location Generator</h3>
+        </div>
+        <p className="text-xs text-ink-soft italic font-serif">
+          Generate evocative location names, then add the ones you like to your Fantastic Locations.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <SelectField label="Location Type" value={locationType} onChange={setLocationType}>
+            <option value="Random">Random</option>
+            {LOCATION_TYPE_GROUPS.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.types.map((t) => <option key={t} value={t}>{t}</option>)}
+              </optgroup>
+            ))}
+          </SelectField>
+          <CultureSelect label="Cultural Tradition" value={culture} onChange={setCulture} />
+          <SelectField label="How Many" value={String(count)} onChange={(v) => setCount(Number(v))}>
+            {[4, 6, 8, 12].map((n) => <option key={n} value={n}>{n}</option>)}
+          </SelectField>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={generate}
+            disabled={generating}
+            className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-wine hover:border-wine disabled:opacity-50 disabled:cursor-wait transition-colors"
+          >
+            {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+            {generating ? 'Generating…' : 'Generate'}
+          </button>
+          <button
+            onClick={() => {
+              setLocationType(ALL_LOCATION_TYPES[Math.floor(Math.random() * ALL_LOCATION_TYPES.length)]);
+              setCulture(ALL_CULTURES[Math.floor(Math.random() * ALL_CULTURES.length)]);
+            }}
+            disabled={generating}
+            className="text-xs px-3 py-1.5 rounded border border-brass-deep/50 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
+          >
+            Shuffle
+          </button>
+        </div>
+        {error && <p className="text-xs text-crimson italic" title={error}>{error}</p>}
+      </div>
+
+      {locations.length > 0 && (
+        <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
+          <p className="text-[11px] text-ink-mute italic font-serif">
+            Click <span className="text-crimson font-display uppercase tracking-wider">+ Add</span> next to a location to drop it into your Fantastic Locations list.
+          </p>
+          <div className="space-y-1.5">
+            {locations.map((l, i) => {
+              const tag = [l.type, l.culture].filter(Boolean).join(' · ');
+              const isAdded = !!added[i];
+              return (
+                <div key={i} className="flex items-start justify-between gap-2 px-2.5 py-2 rounded border border-rule bg-parchment-soft">
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-serif text-ink truncate">{l.name}</span>
+                      {tag && <span className="text-[10px] text-ink-mute italic flex-shrink-0">{tag}</span>}
+                    </div>
+                    {l.blurb && <span className="text-xs text-ink-soft italic font-serif leading-snug">{l.blurb}</span>}
+                  </div>
+                  <button
+                    onClick={() => {
+                      onAdd(l);
+                      setAdded((a) => ({ ...a, [i]: true }));
+                    }}
+                    disabled={isAdded}
+                    className="text-[11px] px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment hover:border-crimson disabled:opacity-50 font-display uppercase tracking-wider flex items-center gap-1 flex-shrink-0"
+                  >
+                    {isAdded ? <Check size={11} /> : <Plus size={11} />}
+                    {isAdded ? 'Added' : 'Add'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── AI Monster Scaler panel ────────────────────────────────────────────────
+
+const CR_OPTIONS = [
+  '0', '1/8', '1/4', '1/2', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+  '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
+];
+
+function MonsterScalerPanel({ onSave }: { onSave: (m: ScaledMonsterPayload) => void }) {
+  const [description, setDescription] = useState('');
+  const [cr, setCr] = useState('5');
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+  const [monster, setMonster] = useState<ScaledMonsterPayload | null>(null);
+
+  const generate = async () => {
+    const desc = description.trim();
+    if (!desc) {
+      setError('Describe the monster you want.');
+      return;
+    }
+    setGenerating(true);
+    setError('');
+    try {
+      const user = getFirebaseAuth().currentUser;
+      if (!user) throw new Error('Not signed in');
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/generate-monster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ description: desc, cr }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `Generate failed (${res.status})`);
+      if (!body?.monster) throw new Error('Empty response');
+      setMonster(body.monster as ScaledMonsterPayload);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Generate failed');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 text-sm">
+      <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
+        <div className="flex items-center gap-2">
+          <Sparkles size={14} className="text-crimson" />
+          <h3 className="font-display tracking-wide text-ink">Scale a Monster</h3>
+        </div>
+        <p className="text-xs text-ink-soft italic font-serif">
+          Describe a creature and pick a target CR. Claude finds the closest existing bestiary
+          entry and scales it into a full statblock at the CR you asked for. Saving adds it to
+          your Relevant Monsters list and your Homebrew Monsters bestiary.
+        </p>
+        <div className="space-y-2">
+          <label className="text-xs text-brass-deep font-display uppercase tracking-wider block">
+            Monster Concept
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g. A coral-armored sea wraith that drowns sailors in their dreams."
+            rows={3}
+            maxLength={600}
+            className="w-full bg-parchment-soft border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif placeholder-ink-faint focus:border-crimson focus:outline-none resize-y"
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+          <SelectField label="Target CR" value={cr} onChange={setCr}>
+            {CR_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+          </SelectField>
+          <button
+            onClick={generate}
+            disabled={generating || !description.trim()}
+            className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-wine hover:border-wine disabled:opacity-50 disabled:cursor-wait transition-colors"
+          >
+            {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+            {generating ? 'Generating…' : 'Scale Monster'}
+          </button>
+        </div>
+        {error && <p className="text-xs text-crimson italic font-serif" title={error}>{error}</p>}
+      </div>
+
+      {monster && (
+        <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="min-w-0">
+              <div className="font-display tracking-wide text-base">{monster.name}</div>
+              <div className="text-[11px] text-ink-mute italic font-serif">
+                CR {monster.cr} · scaled from {monster.sourceMonster}
+              </div>
+            </div>
+            <button
+              onClick={() => onSave(monster)}
+              className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-wine hover:border-wine transition-colors"
+            >
+              <Plus size={12} /> Save to Campaign
+            </button>
+          </div>
+          <div className="text-xs font-serif text-ink-soft italic border-l-2 border-rule pl-2">
+            {monster.scalingNote}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 text-xs font-serif">
+            <div><span className="font-display uppercase text-[10px] tracking-wider text-brass-deep">AC</span> {monster.ac}</div>
+            <div><span className="font-display uppercase text-[10px] tracking-wider text-brass-deep">HP</span> {monster.hp}</div>
+            <div><span className="font-display uppercase text-[10px] tracking-wider text-brass-deep">Speed</span> {monster.speed}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── shared mini-inputs ─────────────────────────────────────────────────────
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5 block">
+        {label}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+      >
+        {children}
+      </select>
+    </div>
+  );
+}
+
+function CultureSelect({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <SelectField label={label} value={value} onChange={onChange}>
+      <option value="Random">Random</option>
+      {CULTURE_GROUPS.map((group) => (
+        <optgroup key={group.label} label={group.label}>
+          {group.cultures.map((c) => <option key={c} value={c}>{c}</option>)}
+        </optgroup>
+      ))}
+    </SelectField>
+  );
 }

@@ -3,21 +3,16 @@
 // Each section in CampaignEditor has a Summon affordance whose options are
 // drawn from this map. The user's last-used generator per section is stored
 // under `data.__lastUsedGenerator` and surfaces as the primary button label.
-//
-// Scope (initial ship): deterministic generators only. The AI-backed
-// Names/Locations and the Sidekick/Monster builders live on separate tabs
-// with different UIs and are not (yet) routed through the summon modal.
 
 import type { EntityRef, GeneratorKind } from './types';
 
 export type PrepSection = 'locations' | 'npcs' | 'magicItems' | 'monsters';
 
-// Generators wired into the summon modal. A strict subset of GeneratorKind
-// — only those whose `applyGeneratorResultToData` save path is implemented.
-export type SummonableKind = Extract<
-  GeneratorKind,
-  'tavern' | 'dungeon' | 'settlement' | 'mundane-shop' | 'magic-shop' | 'treasure-hoard' | 'trinket'
->;
+// Deterministic generators come straight from GeneratorKind. AI generators
+// don't have a GeneratorResult shape and live as separate panels in the
+// summon modal; we slot them in by widening the union.
+export type AiKind = 'names-ai' | 'locations-ai' | 'monster-ai';
+export type SummonableKind = GeneratorKind | AiKind;
 
 export type GeneratorMeta = {
   kind: SummonableKind;
@@ -33,12 +28,18 @@ export const SECTION_GENERATORS: Record<PrepSection, GeneratorMeta[]> = {
     { kind: 'settlement', label: 'Settlement', shortLabel: 'Settlement', pro: false },
     { kind: 'mundane-shop', label: 'Mundane Shop', shortLabel: 'Shop', pro: false },
     { kind: 'magic-shop', label: 'Magic Shop', shortLabel: 'Magic Shop', pro: false },
+    { kind: 'locations-ai', label: 'AI Location (Pro)', shortLabel: 'AI Place', pro: true },
   ],
-  // Reserved for future wiring (Sidekick + AI Names). Empty arrays render
-  // no SummonButton so the section is unaffected.
-  npcs: [],
-  magicItems: [],
-  monsters: [],
+  npcs: [
+    { kind: 'names-ai', label: 'AI Name (Pro)', shortLabel: 'AI Name', pro: true },
+  ],
+  magicItems: [
+    { kind: 'treasure-hoard', label: 'Treasure Hoard', shortLabel: 'Hoard', pro: false },
+    { kind: 'trinket', label: 'Trinket(s)', shortLabel: 'Trinket', pro: false },
+  ],
+  monsters: [
+    { kind: 'monster-ai', label: 'AI Monster Scaler (Pro)', shortLabel: 'AI Monster', pro: true },
+  ],
 };
 
 export type LastUsedMap = Partial<Record<PrepSection, SummonableKind>>;
@@ -66,10 +67,10 @@ export function setLastUsed(
   return { ...data, __lastUsedGenerator: { ...cur, [section]: kind } };
 }
 
-// Most generators produce multiple entities (e.g. tavern → location + owner
-// NPC + patron NPCs). The "primary" entity is the one a user expects the
-// post-save scroll to focus on. Save order in lib/generators/save.ts puts
-// NPCs first for tavern/shop/settlement, so we cannot just take refs[0].
+// Each generator's "primary" entity — the one a user expects post-save scroll
+// to focus on. save.ts writes NPCs before locations for tavern/shop/settlement
+// (so the location ref is not at refs[0]); the AI generators each produce a
+// single entity type, so the choice is trivial there.
 const PRIMARY_ENTITY_TYPE: Record<SummonableKind, EntityRef['entityType']> = {
   tavern: 'location',
   dungeon: 'location',
@@ -78,6 +79,10 @@ const PRIMARY_ENTITY_TYPE: Record<SummonableKind, EntityRef['entityType']> = {
   'magic-shop': 'location',
   'treasure-hoard': 'item',
   trinket: 'item',
+  'tavern-name': 'note',
+  'names-ai': 'npc',
+  'locations-ai': 'location',
+  'monster-ai': 'note',
 };
 
 export function pickPrimaryRef(

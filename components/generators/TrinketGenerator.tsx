@@ -19,10 +19,12 @@ export default function TrinketGenerator({
   entries,
   onEntriesChange,
   campaignContext,
+  saveToCampaign,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
+  saveToCampaign?: { label?: string; onSave: (result: TrinketResult) => void };
 }) {
   return (
     <GeneratorPanel<{ count: number }, TrinketResult>
@@ -32,6 +34,7 @@ export default function TrinketGenerator({
       generate={(inputs, rng) => generateTrinkets({ count: inputs.count }, rng)}
       enhance={{ kind: 'trinket' }}
       campaignContext={campaignContext}
+      saveToCampaign={saveToCampaign}
       log={{
         kind: 'trinket',
         entries,
