@@ -74,6 +74,76 @@ const RESTS: Array<{ name: string; desc: string }> = [
   { name: 'Long Rest', desc: '8 hours, at most 2 hours of light activity. Restores all HP and half of total Hit Dice (min 1). Once per 24 hours.' },
 ];
 
+const TRAVEL_PACE: Array<{ pace: string; perMin: string; perHour: string; perDay: string; effect: string }> = [
+  { pace: 'Fast',   perMin: '400 ft', perHour: '4 mi', perDay: '30 mi', effect: '−5 to passive WIS (Perception)' },
+  { pace: 'Normal', perMin: '300 ft', perHour: '3 mi', perDay: '24 mi', effect: '—' },
+  { pace: 'Slow',   perMin: '200 ft', perHour: '2 mi', perDay: '18 mi', effect: 'Able to use stealth' },
+];
+
+const TRAVEL_ACTIVITIES: Array<{ name: string; desc: string }> = [
+  { name: 'Navigate', desc: 'Try to keep the group from getting lost — WIS (Survival). Only one navigator at a time.' },
+  { name: 'Draw a Map', desc: 'Record the route and significant landmarks as the party travels.' },
+  { name: 'Track', desc: 'Follow the trail of a creature — WIS (Survival). DC varies with the surface and age of the tracks.' },
+  { name: 'Forage', desc: 'Search for food, water, or fuel while traveling — WIS (Survival), see Foraging below.' },
+  { name: 'Stealth', desc: 'Each traveler attempts a DEX (Stealth) check — only at Slow pace, and only when there is cover or concealment.' },
+  { name: 'Lookout', desc: 'Watch for danger; the default activity when nothing else is chosen. Bonus to noticing trouble and avoiding surprise.' },
+];
+
+const GETTING_LOST: Array<{ terrain: string; dc: string }> = [
+  { terrain: 'Forest, swamp, or jungle', dc: '15' },
+  { terrain: 'Mountains', dc: '12' },
+  { terrain: 'Arctic, coast, desert, grassland, hills, or farmland', dc: '10' },
+];
+
+const FORAGING: Array<{ region: string; dc: string }> = [
+  { region: 'Abundant food and water', dc: '10' },
+  { region: 'Limited food and water',  dc: '15' },
+  { region: 'Very little food or water', dc: '20' },
+];
+
+const FALLING_BREATH: Array<{ name: string; desc: string }> = [
+  { name: 'Falling', desc: '1d6 bludgeoning damage per 10 ft fallen, to a maximum of 20d6. Land prone unless the fall was less than 10 ft or damage was reduced to 0.' },
+  { name: 'Holding Breath', desc: 'A creature can hold its breath for 1 + CON modifier minutes (minimum 30 seconds).' },
+  { name: 'Suffocating', desc: 'After breath runs out, survives for rounds equal to CON modifier (minimum 1). At the start of the next turn, drops to 0 HP and is dying — and cannot regain HP until it can breathe again.' },
+];
+
+const VISION_OUTDOORS: Array<{ name: string; desc: string }> = [
+  { name: 'Open Terrain', desc: 'See up to about 2 miles in clear weather — far less in dim light, twilight, or moonlight.' },
+  { name: 'Forest or Jungle', desc: 'Visibility usually limited to 60–120 ft by foliage and terrain.' },
+  { name: 'Mountain Peak', desc: 'See up to about 40 miles in clear conditions.' },
+  { name: 'Light Precipitation', desc: 'Light rain or snow. Disadvantage on WIS (Perception) checks that rely on sight; open flames may sputter.' },
+  { name: 'Heavy Precipitation', desc: 'Heavy rain or snowfall lightly obscures the area; sight beyond 100 ft is heavily obscured. Open flames extinguish; WIS (Perception) checks relying on hearing are at disadvantage.' },
+  { name: 'Fog', desc: 'Heavily obscures everything within it. Treat targets as if blinded for attacks made into or through fog.' },
+];
+
+const WEATHER_HAZARDS: Array<{ name: string; desc: string }> = [
+  { name: 'Extreme Heat (above 100°F)', desc: 'CON save at the end of each hour (DC 5, +1 per previous save this day) or gain 1 level of exhaustion. Disadvantage on the save when wearing medium or heavy armor, or heavy clothing. Resistance or immunity to fire damage ignores this.' },
+  { name: 'Extreme Cold (below 0°F)', desc: 'CON save at the end of each hour (DC 10) or gain 1 level of exhaustion. Resistance or immunity to cold damage ignores this.' },
+  { name: 'Strong Wind', desc: 'Disadvantage on ranged attacks and on WIS (Perception) checks that rely on hearing. Extinguishes open flames, disperses fog, and forces flying creatures to land at the end of their turn or fall.' },
+  { name: 'Heavy Precipitation', desc: 'Each foot of fallen snow counts as 2 ft of movement. See Vision Outdoors for sight effects.' },
+  { name: 'High Altitude (above 10,000 ft)', desc: 'Each hour of travel counts as 2 hours for exhaustion purposes. Creatures acclimate after 30 days at altitude. Above 20,000 ft, no creature can acclimate.' },
+];
+
+const MOUNTS: Array<{ name: string; speed: string; notes: string }> = [
+  { name: 'Riding Horse', speed: '60 ft', notes: 'Standard mount; can carry an adult human.' },
+  { name: 'Warhorse',     speed: '60 ft', notes: 'Trained for combat.' },
+  { name: 'Pony',         speed: '40 ft', notes: 'Mount for Small races.' },
+  { name: 'Mule',         speed: '40 ft', notes: 'Surefooted; doubled carrying capacity.' },
+  { name: 'Camel',        speed: '50 ft', notes: 'Desert travel; resists thirst.' },
+  { name: 'Elephant',     speed: '40 ft', notes: 'Huge; can carry a howdah.' },
+  { name: 'Mastiff',      speed: '40 ft', notes: 'Mount for halflings and other Small folk.' },
+];
+
+const VEHICLES: Array<{ name: string; perHour: string; perDay: string }> = [
+  { name: 'Carriage or Wagon', perHour: '—',      perDay: '~9 mi' },
+  { name: 'Rowboat',           perHour: '1.5 mi', perDay: '36 mi' },
+  { name: 'Keelboat',          perHour: '1 mi',   perDay: '24 mi' },
+  { name: 'Sailing Ship',      perHour: '2 mi',   perDay: '48 mi' },
+  { name: 'Longship',          perHour: '3 mi',   perDay: '72 mi' },
+  { name: 'Warship',           perHour: '2.5 mi', perDay: '60 mi' },
+  { name: 'Galley',            perHour: '4 mi',   perDay: '96 mi' },
+];
+
 const SHORT_MADNESS: Array<{ range: string; effect: string }> = [
   { range: '01–20',  effect: 'Wanders aimlessly for 1 minute; cannot take actions or reactions.' },
   { range: '21–30',  effect: 'Falls prone and weeps uncontrollably for 1 minute.' },
@@ -320,6 +390,163 @@ export default function DMRefTab() {
 
       <Section title="Rests">
         <KVList rows={RESTS} />
+      </Section>
+
+      <Section title="Travel Pace">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+              <tr>
+                <th className="text-left font-normal pb-1 pr-3">Pace</th>
+                <th className="text-left font-normal pb-1 pr-3">Per Min</th>
+                <th className="text-left font-normal pb-1 pr-3">Per Hour</th>
+                <th className="text-left font-normal pb-1 pr-3">Per Day</th>
+                <th className="text-left font-normal pb-1">Effect</th>
+              </tr>
+            </thead>
+            <tbody>
+              {TRAVEL_PACE.map((r) => (
+                <tr key={r.pace} className="border-t border-rule/60">
+                  <td className="py-1 pr-3 font-display text-ink">{r.pace}</td>
+                  <td className="py-1 pr-3 text-ink-soft whitespace-nowrap">{r.perMin}</td>
+                  <td className="py-1 pr-3 text-ink-soft whitespace-nowrap">{r.perHour}</td>
+                  <td className="py-1 pr-3 text-ink-soft whitespace-nowrap">{r.perDay}</td>
+                  <td className="py-1 text-ink-soft italic">{r.effect}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-ink-mute italic">
+          Difficult terrain halves these distances. A vehicle or mount may impose a different pace.
+        </p>
+      </Section>
+
+      <Section title="Travel Activities">
+        <KVList rows={TRAVEL_ACTIVITIES} />
+        <p className="text-ink-mute italic">
+          A traveler can do one activity at a time (lookout is the default). Talking and remaining alert do not count as activities.
+        </p>
+      </Section>
+
+      <Section title="Forced March">
+        <p>
+          Travel beyond 8 hours in a day is a forced march. At the end of each additional hour, each traveler makes a CON save (DC 10 + 1 per extra hour) or gains 1 level of exhaustion. Mounts and vehicles cannot avoid the save unless rules state otherwise.
+        </p>
+      </Section>
+
+      <Section title="Getting Lost">
+        <p className="text-ink-mute italic">
+          When the party lacks a reliable route, the navigator makes a WIS (Survival) check against the terrain DC. On a failure, the party travels in the wrong direction (DM picks).
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+              <tr>
+                <th className="text-left font-normal pb-1 pr-3">Terrain</th>
+                <th className="text-left font-normal pb-1">DC</th>
+              </tr>
+            </thead>
+            <tbody>
+              {GETTING_LOST.map((r) => (
+                <tr key={r.terrain} className="border-t border-rule/60 align-top">
+                  <td className="py-1 pr-3 text-ink-soft">{r.terrain}</td>
+                  <td className="py-1 font-display text-ink whitespace-nowrap">{r.dc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      <Section title="Foraging">
+        <p className="text-ink-mute italic">
+          One forager at a time may make a WIS (Survival) check while traveling. On a success, they find 1d6 + WIS modifier pounds of food and gallons of water that day.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+              <tr>
+                <th className="text-left font-normal pb-1 pr-3">Region</th>
+                <th className="text-left font-normal pb-1">DC</th>
+              </tr>
+            </thead>
+            <tbody>
+              {FORAGING.map((r) => (
+                <tr key={r.region} className="border-t border-rule/60 align-top">
+                  <td className="py-1 pr-3 text-ink-soft">{r.region}</td>
+                  <td className="py-1 font-display text-ink whitespace-nowrap">{r.dc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-ink-mute italic">
+          A character needs 1 lb of food and 1 gallon of water per day (½ gal in cool climates, 2 gal in hot).
+        </p>
+      </Section>
+
+      <Section title="Falling, Holding Breath, &amp; Suffocation">
+        <KVList rows={FALLING_BREATH} />
+      </Section>
+
+      <Section title="Vision Outdoors">
+        <KVList rows={VISION_OUTDOORS} />
+      </Section>
+
+      <Section title="Weather Hazards">
+        <KVList rows={WEATHER_HAZARDS} />
+      </Section>
+
+      <Section title="Mounts &amp; Vehicles">
+        <div className="font-display tracking-wide text-ink">Mounts</div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+              <tr>
+                <th className="text-left font-normal pb-1 pr-3">Mount</th>
+                <th className="text-left font-normal pb-1 pr-3">Speed</th>
+                <th className="text-left font-normal pb-1">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {MOUNTS.map((r) => (
+                <tr key={r.name} className="border-t border-rule/60 align-top">
+                  <td className="py-1 pr-3 font-display text-ink whitespace-nowrap">{r.name}</td>
+                  <td className="py-1 pr-3 text-ink-soft whitespace-nowrap">{r.speed}</td>
+                  <td className="py-1 text-ink-soft">{r.notes}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-ink-mute italic">
+          A mount may move at twice its speed (gallop) for up to 1 hour, then must rest.
+        </p>
+        <div className="font-display tracking-wide text-ink pt-1">Vehicles</div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+              <tr>
+                <th className="text-left font-normal pb-1 pr-3">Vehicle</th>
+                <th className="text-left font-normal pb-1 pr-3">Per Hour</th>
+                <th className="text-left font-normal pb-1">Per Day</th>
+              </tr>
+            </thead>
+            <tbody>
+              {VEHICLES.map((r) => (
+                <tr key={r.name} className="border-t border-rule/60 align-top">
+                  <td className="py-1 pr-3 font-display text-ink whitespace-nowrap">{r.name}</td>
+                  <td className="py-1 pr-3 text-ink-soft whitespace-nowrap">{r.perHour}</td>
+                  <td className="py-1 text-ink-soft whitespace-nowrap">{r.perDay}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-ink-mute italic">
+          Ship daily distances assume favorable wind and crew. Galleys and longships may be rowed at reduced pace when becalmed.
+        </p>
       </Section>
 
       <Section title="Madness — Short-Term">
