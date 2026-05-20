@@ -1,4 +1,4 @@
-# Gamemaster Builder
+# Gamemaster Assistant
 
 A TTRPG campaign prep webapp that integrates three published prep methodologies into a single workflow:
 

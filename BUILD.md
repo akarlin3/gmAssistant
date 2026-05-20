@@ -1,4 +1,4 @@
-# Gamemaster Builder — TTRPG webapp (Firebase + Railway)
+# Gamemaster Assistant — TTRPG webapp (Firebase + Railway)
 
 A Next.js webapp that integrates three TTRPG prep methodologies: Lazy Dungeon Master's 8-step checklist, Collaborative Campaign Design's Session −1 worldbuilding, and Proactive Roleplaying's 5 Rules of Proactive Fun.
 
@@ -101,7 +101,7 @@ The pro AI features (character-sheet parser, name generator, NPC inspires) will 
 **Pro is currently waitlist-only.** The non-pro UI shows "Join the Pro waitlist" instead of "Upgrade to Pro" — joining writes a doc to the `proWaitlist` Firestore collection via `POST /api/waitlist/join`. The Stripe steps below remain so existing subscribers can still manage their subscription and so you can flip the upgrade flow back on when you launch. Skip this section entirely if you don't have any existing subscribers.
 
 26. **Stripe account.** Sign up at https://stripe.com if you don't already have one. Stay in **Test mode** until you're ready to take real payments.
-27. **Create the product.** Stripe Dashboard → **Products** → **Add product**. Name "Gamemaster Builder Pro", recurring price **$2.99 USD / month**. Save. Copy the price ID (looks like `price_1ABCxyz…`) — you'll paste it as `STRIPE_PRICE_ID`.
+27. **Create the product.** Stripe Dashboard → **Products** → **Add product**. Name "Gamemaster Assistant Pro", recurring price **$2.99 USD / month**. Save. Copy the price ID (looks like `price_1ABCxyz…`) — you'll paste it as `STRIPE_PRICE_ID`.
 28. **Get the API secret key.** Dashboard → **Developers** → **API keys** → copy the **Secret key** (`sk_test_…` in test mode). Paste it as `STRIPE_SECRET_KEY`.
 29. **Webhook.** Dashboard → **Developers** → **Webhooks** → **Add endpoint**. URL is `https://<your-railway-domain>/api/stripe/webhook`. Subscribe to:
     - `checkout.session.completed`

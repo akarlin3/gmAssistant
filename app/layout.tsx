@@ -19,7 +19,7 @@ const garamond = EB_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: 'Gamemaster Builder',
+  title: 'Gamemaster Assistant',
   description: 'TTRPG campaign prep — Lazy DM · CCD · Proactive Roleplaying',
 };
 

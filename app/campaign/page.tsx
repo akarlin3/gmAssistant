@@ -55,7 +55,7 @@ export default function CampaignListPage() {
           <header className="pb-4 border-b border-rule flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-xs text-brass-deep font-display uppercase tracking-[0.3em]">
-                Gamemaster Builder
+                Gamemaster Assistant
               </div>
               <h1 className="font-display text-2xl sm:text-3xl text-crimson tracking-wide mt-1">Your Campaigns</h1>
             </div>
