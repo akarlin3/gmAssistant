@@ -51,10 +51,12 @@ export default function MagicShopGenerator({
   entries,
   onEntriesChange,
   campaignContext,
+  saveToCampaign,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
+  saveToCampaign?: { label?: string; onSave: (result: MagicShopResult) => void };
 }) {
   return (
     <GeneratorPanel<{ archetype: string; maxRarity: string; settlementSize: string }, MagicShopResult>
@@ -73,6 +75,7 @@ export default function MagicShopGenerator({
       }
       enhance={{ kind: 'magic-shop' }}
       campaignContext={campaignContext}
+      saveToCampaign={saveToCampaign}
       log={{
         kind: 'magic-shop',
         entries,

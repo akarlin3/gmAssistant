@@ -22,6 +22,18 @@ import NamesTab from './NamesTab';
 import LocationsTab from './LocationsTab';
 import MonstersTab, { type HomebrewMonster } from './MonstersTab';
 import GeneratorsTab from './generators/GeneratorsTab';
+import SummonButton from './SummonButton';
+import SummonModal from './SummonModal';
+import {
+  SECTION_GENERATORS,
+  getLastUsed,
+  pickPrimaryRef,
+  setLastUsed,
+  type GeneratorMeta,
+  type PrepSection,
+} from '@/lib/generators/sectionMap';
+import { applyGeneratorResultToData } from '@/lib/generators/save';
+import type { EntityRef, GeneratorResult } from '@/lib/generators/types';
 import VivifyPanel, { type VivifyHistoryEntry } from './VivifyPanel';
 import ChaseTracker from './ChaseTracker';
 import type { Chase } from '@/lib/chaseTables';
@@ -1167,6 +1179,77 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     setUndoToast(msg);
     undoToastTimerRef.current = setTimeout(() => setUndoToast(''), ms);
   }, []);
+
+  // Summon affordance — opens a modal hosting the chosen generator in the
+  // context of a prep section. After Save, the new entity is appended to
+  // `data` and the section auto-scrolls + highlights it (Phase 2 / Phase 3).
+  const [summonState, setSummonState] = useState<{
+    section: PrepSection;
+    generator: GeneratorMeta;
+  } | null>(null);
+  const [highlightEntityId, setHighlightEntityId] = useState<string | null>(null);
+  const highlightTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [summonToast, setSummonToast] = useState<{
+    text: string;
+    primaryEntityId: string;
+  } | null>(null);
+  const summonToastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const scrollToEntity = useCallback((entityId: string) => {
+    setTimeout(() => {
+      const el = document.getElementById(`entity-${entityId}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+  }, []);
+
+  const flashHighlight = useCallback((entityId: string) => {
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    setHighlightEntityId(entityId);
+    highlightTimerRef.current = setTimeout(() => setHighlightEntityId(null), 1500);
+  }, []);
+
+  const handlePostSummonSave = useCallback(
+    (section: PrepSection, generator: GeneratorMeta, refs: EntityRef[]) => {
+      const primary = pickPrimaryRef(refs, generator.kind);
+      if (!primary) return;
+      scrollToEntity(primary.entityId);
+      flashHighlight(primary.entityId);
+      const counts = refs.reduce<Record<string, number>>((acc, r) => {
+        acc[r.entityType] = (acc[r.entityType] || 0) + 1;
+        return acc;
+      }, {});
+      const parts: string[] = [];
+      const order: Array<[string, string]> = [
+        ['location', 'Location'],
+        ['npc', 'NPC'],
+        ['item', 'Item'],
+        ['note', 'Note'],
+      ];
+      for (const [key, label] of order) {
+        const n = counts[key];
+        if (n) parts.push(`${n} ${label}${n > 1 ? 's' : ''}`);
+      }
+      const text = `Saved: ${parts.join(', ')}`;
+      if (summonToastTimerRef.current) clearTimeout(summonToastTimerRef.current);
+      setSummonToast({ text, primaryEntityId: primary.entityId });
+      summonToastTimerRef.current = setTimeout(() => setSummonToast(null), 3000);
+    },
+    [scrollToEntity, flashHighlight],
+  );
+
+  const onSummonSave = useCallback(
+    (section: PrepSection, generator: GeneratorMeta, result: GeneratorResult) => {
+      let savedRefs: EntityRef[] = [];
+      setState((s) => {
+        const { data, saved } = applyGeneratorResultToData(s, result);
+        savedRefs = saved.refs;
+        return setLastUsed(data, section, generator.kind) as typeof s;
+      });
+      // Defer post-save UI so the new entity is in the DOM before scrolling.
+      requestAnimationFrame(() => handlePostSummonSave(section, generator, savedRefs));
+    },
+    [handlePostSummonSave],
+  );
 
   const saveToDB = useCallback(async (payload: { name: string; data: Record<string, any>; done: Record<string, boolean> }) => {
     setSyncState('saving');
@@ -2511,19 +2594,42 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="s5-loc" title="5 · Develop Fantastic Locations" methods={['shea']} done={done['s5-loc']} onToggle={toggleDone} open={open['s5-loc']} onToggleOpen={toggleOpen} icon={Map}>
                 <BookQuote source="Lazy DM ch. 7">When in doubt, go for scale.</BookQuote>
                 <TargetBar current={(get('locations', []) as any[]).length} target={getTarget('locations', soloMode)} source={TARGETS.locations.source} />
-                {(get('locations', []) as any[]).map((l: any, i: number) => (
-                  <div key={i} data-cp-anchor={`location:${i}`}>
-                    <LocationCard data={l} onChange={(v: any) => {
-                      const next = [...(get('locations', []) as any[])]; next[i] = v; setVal('locations', next);
-                    }} onRemove={() => setVal('locations', (get('locations', []) as any[]).filter((_: any, j: number) => j !== i))} />
-                  </div>
-                ))}
-                <button onClick={() => {
-                  setVal('locations', [...(get('locations', []) as any[]), { name: '', type: '', aspects: ['', '', ''], factions: '' }]);
-                  trackEvent('location_added', 'Added a new location');
-                }} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
-                  <Plus size={12} /> Add Location
-                </button>
+                {(get('locations', []) as any[]).map((l: any, i: number) => {
+                  const entityId = l?.id ?? `loc-${i}`;
+                  const highlighted = highlightEntityId === entityId;
+                  return (
+                    <div
+                      key={i}
+                      id={`entity-${entityId}`}
+                      data-cp-anchor={`location:${i}`}
+                      className={`transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
+                    >
+                      <LocationCard data={l} onChange={(v: any) => {
+                        const next = [...(get('locations', []) as any[])]; next[i] = v; setVal('locations', next);
+                      }} onRemove={() => setVal('locations', (get('locations', []) as any[]).filter((_: any, j: number) => j !== i))} />
+                    </div>
+                  );
+                })}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button onClick={() => {
+                    setVal('locations', [...(get('locations', []) as any[]), { name: '', type: '', aspects: ['', '', ''], factions: '' }]);
+                    trackEvent('location_added', 'Added a new location');
+                  }} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                    <Plus size={12} /> Add Location
+                  </button>
+                  {SECTION_GENERATORS.locations.length > 0 && (() => {
+                    const lastUsed = getLastUsed(state, 'locations');
+                    if (!lastUsed) return null;
+                    return (
+                      <SummonButton
+                        section="locations"
+                        lastUsed={lastUsed}
+                        options={SECTION_GENERATORS.locations}
+                        onSummon={(meta) => setSummonState({ section: 'locations', generator: meta })}
+                      />
+                    );
+                  })()}
+                </div>
               </Section>
               <Section id="s6-npc" title="6 · Outline Important NPCs" methods={['shea', 'pr']} done={done['s6-npc']} onToggle={toggleDone} open={open['s6-npc']} onToggleOpen={toggleOpen}>
                 <BookQuote source="PR ch. 3">Villains form goals in response to PC goals.</BookQuote>
@@ -3101,6 +3207,34 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         >
           {undoToast}
         </div>
+      )}
+
+      {summonToast && (
+        <button
+          type="button"
+          onClick={() => {
+            scrollToEntity(summonToast.primaryEntityId);
+            flashHighlight(summonToast.primaryEntityId);
+          }}
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 hover:bg-brass hover:text-parchment"
+          title="Click to re-scroll"
+        >
+          <Check size={12} /> {summonToast.text}
+        </button>
+      )}
+
+      {summonState && (
+        <SummonModal
+          section={summonState.section}
+          generator={summonState.generator}
+          onClose={() => setSummonState(null)}
+          onSave={(result) =>
+            onSummonSave(summonState.section, summonState.generator, result)
+          }
+          campaignContext={generatorCampaignContext}
+          logs={generatorLogs}
+          setLogEntries={setLogEntriesFor}
+        />
       )}
     </main>
   );

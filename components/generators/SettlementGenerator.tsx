@@ -48,10 +48,12 @@ export default function SettlementGenerator({
   entries,
   onEntriesChange,
   campaignContext,
+  saveToCampaign,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
+  saveToCampaign?: { label?: string; onSave: (result: SettlementResult) => void };
 }) {
   return (
     <GeneratorPanel<{ sizeClass: string; region: string; government: string }, SettlementResult>
@@ -70,6 +72,7 @@ export default function SettlementGenerator({
       }
       enhance={{ kind: 'settlement' }}
       campaignContext={campaignContext}
+      saveToCampaign={saveToCampaign}
       log={{
         kind: 'settlement',
         entries,

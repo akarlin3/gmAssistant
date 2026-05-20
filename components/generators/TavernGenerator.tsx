@@ -50,10 +50,12 @@ export default function TavernGenerator({
   entries,
   onEntriesChange,
   campaignContext,
+  saveToCampaign,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
+  saveToCampaign?: { label?: string; onSave: (result: TavernResult) => void };
 }) {
   return (
     <GeneratorPanel<{ vibe: string; settlementSize: string; themeKeyword: string }, TavernResult>
@@ -72,6 +74,7 @@ export default function TavernGenerator({
       }
       enhance={{ kind: 'tavern' }}
       campaignContext={campaignContext}
+      saveToCampaign={saveToCampaign}
       log={{
         kind: 'tavern',
         entries,

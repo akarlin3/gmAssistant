@@ -112,10 +112,12 @@ export default function DungeonGenerator({
   entries,
   onEntriesChange,
   campaignContext,
+  saveToCampaign,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
+  saveToCampaign?: { label?: string; onSave: (result: DungeonResult) => void };
 }) {
   return (
     <GeneratorPanel<{ size: string; theme: string; challengeTier: string }, DungeonResult>
@@ -131,6 +133,7 @@ export default function DungeonGenerator({
       }
       enhance={{ kind: 'dungeon' }}
       campaignContext={campaignContext}
+      saveToCampaign={saveToCampaign}
       log={{
         kind: 'dungeon',
         entries,

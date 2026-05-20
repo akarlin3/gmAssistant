@@ -43,10 +43,12 @@ export default function MundaneShopGenerator({
   entries,
   onEntriesChange,
   campaignContext,
+  saveToCampaign,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
+  saveToCampaign?: { label?: string; onSave: (result: MundaneShopResult) => void };
 }) {
   return (
     <GeneratorPanel<{ shopType: string; settlementSize: string }, MundaneShopResult>
@@ -61,6 +63,7 @@ export default function MundaneShopGenerator({
       }
       enhance={{ kind: 'mundane-shop' }}
       campaignContext={campaignContext}
+      saveToCampaign={saveToCampaign}
       log={{
         kind: 'mundane-shop',
         entries,
