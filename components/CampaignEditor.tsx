@@ -32,8 +32,8 @@ import {
   type GeneratorMeta,
   type PrepSection,
 } from '@/lib/generators/sectionMap';
-import { applyGeneratorResultToData } from '@/lib/generators/save';
-import type { EntityRef, GeneratorResult } from '@/lib/generators/types';
+import type { EntityRef } from '@/lib/generators/types';
+import { applySummonAction, type SummonSaveAction } from '@/lib/generators/summon-actions';
 import VivifyPanel, { type VivifyHistoryEntry } from './VivifyPanel';
 import ChaseTracker from './ChaseTracker';
 import ToolsTab from './ToolsTab';
@@ -372,12 +372,16 @@ const ListField = ({
   placeholder,
   rows = 1,
   target = 0,
+  rowIdFor,
+  highlightId,
 }: {
   items: string[];
   onChange: (v: string[]) => void;
   placeholder: string;
   rows?: number;
   target?: number;
+  rowIdFor?: (i: number) => string;
+  highlightId?: string | null;
 }) => {
   const update = (i: number, v: string) => { const next = [...items]; next[i] = v; onChange(next); };
   const add = () => onChange([...items, '']);
@@ -386,13 +390,21 @@ const ListField = ({
 
   return (
     <div className="space-y-2">
-      {items.map((item, i) => (
-        <div key={i} className="flex gap-2 items-center">
-          <span className="text-brass-deep font-display text-xs w-5 text-right">{i + 1}.</span>
-          <div className="flex-1"><Field value={item} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} /></div>
-          <button onClick={() => remove(i)} className="text-ink-mute hover:text-crimson px-1"><X size={14} /></button>
-        </div>
-      ))}
+      {items.map((item, i) => {
+        const rid = rowIdFor ? rowIdFor(i) : undefined;
+        const highlighted = !!rid && highlightId === rid;
+        return (
+          <div
+            key={i}
+            id={rid ? `entity-${rid}` : undefined}
+            className={`flex gap-2 items-center transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
+          >
+            <span className="text-brass-deep font-display text-xs w-5 text-right">{i + 1}.</span>
+            <div className="flex-1"><Field value={item} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} /></div>
+            <button onClick={() => remove(i)} className="text-ink-mute hover:text-crimson px-1"><X size={14} /></button>
+          </div>
+        );
+      })}
       {target > 0 && items.length < target && (
         <div className="ml-7 text-[11px] text-ink-mute italic font-serif">
           {remaining} more to reach target
@@ -1216,22 +1228,26 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       if (!primary) return;
       scrollToEntity(primary.entityId);
       flashHighlight(primary.entityId);
+      // Count by entityKey (not entityType) so we can say "1 Monster, 1
+      // Bestiary Entry" instead of "2 Notes". Order is the display order in
+      // the toast.
       const counts = refs.reduce<Record<string, number>>((acc, r) => {
-        acc[r.entityType] = (acc[r.entityType] || 0) + 1;
+        acc[r.entityKey] = (acc[r.entityKey] || 0) + 1;
         return acc;
       }, {});
-      const parts: string[] = [];
-      const order: Array<[string, string]> = [
-        ['location', 'Location'],
-        ['npc', 'NPC'],
-        ['item', 'Item'],
-        ['note', 'Note'],
+      const order: Array<[string, string, string]> = [
+        ['locations', 'Location', 'Locations'],
+        ['npcs', 'NPC', 'NPCs'],
+        ['items', 'Item', 'Items'],
+        ['monsters', 'Monster', 'Monsters'],
+        ['homebrewMonsters', 'Bestiary Entry', 'Bestiary Entries'],
       ];
-      for (const [key, label] of order) {
+      const parts: string[] = [];
+      for (const [key, sing, plur] of order) {
         const n = counts[key];
-        if (n) parts.push(`${n} ${label}${n > 1 ? 's' : ''}`);
+        if (n) parts.push(`${n} ${n === 1 ? sing : plur}`);
       }
-      const text = `Saved: ${parts.join(', ')}`;
+      const text = parts.length ? `Saved: ${parts.join(', ')}` : 'Saved';
       if (summonToastTimerRef.current) clearTimeout(summonToastTimerRef.current);
       setSummonToast({ text, primaryEntityId: primary.entityId });
       summonToastTimerRef.current = setTimeout(() => setSummonToast(null), 3000);
@@ -1240,12 +1256,12 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
 
   const onSummonSave = useCallback(
-    (section: PrepSection, generator: GeneratorMeta, result: GeneratorResult) => {
+    (section: PrepSection, generator: GeneratorMeta, action: SummonSaveAction) => {
       let savedRefs: EntityRef[] = [];
       setState((s) => {
-        const { data, saved } = applyGeneratorResultToData(s, result);
-        savedRefs = saved.refs;
-        return setLastUsed(data, section, generator.kind) as typeof s;
+        const { next, refs } = applySummonAction(s, action);
+        savedRefs = refs;
+        return setLastUsed(next, section, generator.kind) as typeof s;
       });
       // Defer post-save UI so the new entity is in the DOM before scrolling.
       requestAnimationFrame(() => handlePostSummonSave(section, generator, savedRefs));
@@ -2637,13 +2653,22 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="s6-npc" title="6 · Outline Important NPCs" methods={['shea', 'pr']} done={done['s6-npc']} onToggle={toggleDone} open={open['s6-npc']} onToggleOpen={toggleOpen}>
                 <BookQuote source="PR ch. 3">Villains form goals in response to PC goals.</BookQuote>
                 <TargetBar current={(get('npcs', []) as any[]).length} target={getTarget('npcs', soloMode)} source={TARGETS.npcs.source} />
-                {(get('npcs', []) as any[]).map((n: any, i: number) => (
-                  <div key={i} data-cp-anchor={`npc:${i}`}>
-                    <NPCCard data={n} onChange={(v: any) => {
-                      const next = [...(get('npcs', []) as any[])]; next[i] = v; setVal('npcs', next);
-                    }} onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== i))} />
-                  </div>
-                ))}
+                {(get('npcs', []) as any[]).map((n: any, i: number) => {
+                  const entityId = n?.id ?? `npc-${i}`;
+                  const highlighted = highlightEntityId === entityId;
+                  return (
+                    <div
+                      key={i}
+                      id={`entity-${entityId}`}
+                      data-cp-anchor={`npc:${i}`}
+                      className={`transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
+                    >
+                      <NPCCard data={n} onChange={(v: any) => {
+                        const next = [...(get('npcs', []) as any[])]; next[i] = v; setVal('npcs', next);
+                      }} onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== i))} />
+                    </div>
+                  );
+                })}
                 <InspireGroup>
                   <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add new NPC seeded by:</span>
                   <Inspire tableId="villainArchetypes" label="Villain" onPick={(e) => {
@@ -2659,16 +2684,51 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <p className="text-[10px] text-ink-mute italic font-serif -mt-1">
                   Trait inspirations (mannerism, talent, ideal, bond, etc.) live inside each NPC card under &quot;Show Details&quot;.
                 </p>
-                <button onClick={() => {
-                  setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '' }]);
-                  trackEvent('npc_added', 'Added a new NPC');
-                }} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
-                  <Plus size={12} /> Add NPC
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button onClick={() => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '' }]);
+                    trackEvent('npc_added', 'Added a new NPC');
+                  }} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                    <Plus size={12} /> Add NPC
+                  </button>
+                  {SECTION_GENERATORS.npcs.length > 0 && (() => {
+                    const lastUsed = getLastUsed(state, 'npcs');
+                    if (!lastUsed) return null;
+                    return (
+                      <SummonButton
+                        section="npcs"
+                        lastUsed={lastUsed}
+                        options={SECTION_GENERATORS.npcs}
+                        onSummon={(meta) => setSummonState({ section: 'npcs', generator: meta })}
+                      />
+                    );
+                  })()}
+                </div>
               </Section>
               <Section id="s7-mon" title="7 · Choose Relevant Monsters" methods={['shea']} done={done['s7-mon']} onToggle={toggleDone} open={open['s7-mon']} onToggleOpen={toggleOpen} icon={Swords}>
                 <SoloNote>Solo level-1 ~8-12 HP. CR 1/8 one-at-a-time. Narrative outs always.</SoloNote>
-                <ListField items={get('monsters', [])} onChange={(v) => setVal('monsters', v)} placeholder="Monster — CR — use case" target={getTarget('monsters', soloMode)} />
+                <ListField
+                  items={get('monsters', [])}
+                  onChange={(v) => setVal('monsters', v)}
+                  placeholder="Monster — CR — use case"
+                  target={getTarget('monsters', soloMode)}
+                  rowIdFor={(i) => `monsters-${i}`}
+                  highlightId={highlightEntityId}
+                />
+                {SECTION_GENERATORS.monsters.length > 0 && (() => {
+                  const lastUsed = getLastUsed(state, 'monsters');
+                  if (!lastUsed) return null;
+                  return (
+                    <div className="flex">
+                      <SummonButton
+                        section="monsters"
+                        lastUsed={lastUsed}
+                        options={SECTION_GENERATORS.monsters}
+                        onSummon={(meta) => setSummonState({ section: 'monsters', generator: meta })}
+                      />
+                    </div>
+                  );
+                })()}
                 <EncounterHelper
                   state={(get('__encounterCalc', { pcLevel: 1, monsters: [] })) as EncounterCalcState}
                   onChange={(s) => setVal('__encounterCalc', s)}
@@ -2677,7 +2737,29 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="s8-rew" title="8 · Select Magic Item Rewards" methods={['shea', 'pr']} done={done['s8-rew']} onToggle={toggleDone} open={open['s8-rew']} onToggleOpen={toggleOpen} icon={Gift}>
                 <BookQuote source="PR ch. 6">Your +1 needs to be actionable.</BookQuote>
                 <Example title="from PR">Sword from a stone. +1: right to rule Albion.</Example>
-                <ListField items={get('items', [])} onChange={(v) => setVal('items', v)} placeholder="Item · what +1 hook it delivers" rows={2} target={getTarget('items', soloMode)} />
+                <ListField
+                  items={get('items', [])}
+                  onChange={(v) => setVal('items', v)}
+                  placeholder="Item · what +1 hook it delivers"
+                  rows={2}
+                  target={getTarget('items', soloMode)}
+                  rowIdFor={(i) => `items-${i}`}
+                  highlightId={highlightEntityId}
+                />
+                {SECTION_GENERATORS.magicItems.length > 0 && (() => {
+                  const lastUsed = getLastUsed(state, 'magicItems');
+                  if (!lastUsed) return null;
+                  return (
+                    <div className="flex">
+                      <SummonButton
+                        section="magicItems"
+                        lastUsed={lastUsed}
+                        options={SECTION_GENERATORS.magicItems}
+                        onSummon={(meta) => setSummonState({ section: 'magicItems', generator: meta })}
+                      />
+                    </div>
+                  );
+                })()}
               </Section>
             </Phase>
 
@@ -3237,9 +3319,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         <SummonModal
           section={summonState.section}
           generator={summonState.generator}
+          isPro={isPro}
           onClose={() => setSummonState(null)}
-          onSave={(result) =>
-            onSummonSave(summonState.section, summonState.generator, result)
+          onSave={(action) =>
+            onSummonSave(summonState.section, summonState.generator, action)
           }
           campaignContext={generatorCampaignContext}
           logs={generatorLogs}

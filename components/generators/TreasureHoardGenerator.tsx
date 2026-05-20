@@ -45,10 +45,12 @@ export default function TreasureHoardGenerator({
   entries,
   onEntriesChange,
   campaignContext,
+  saveToCampaign,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
+  saveToCampaign?: { label?: string; onSave: (result: TreasureHoardResult) => void };
 }) {
   return (
     <GeneratorPanel<{ crTier: string; hoardType: string }, TreasureHoardResult>
@@ -58,6 +60,7 @@ export default function TreasureHoardGenerator({
       generate={(inputs, rng) => generateTreasureHoard({ crTier: inputs.crTier as CrTier, hoardType: inputs.hoardType as HoardType }, rng)}
       enhance={{ kind: 'treasure-hoard' }}
       campaignContext={campaignContext}
+      saveToCampaign={saveToCampaign}
       log={{
         kind: 'treasure-hoard',
         entries,
