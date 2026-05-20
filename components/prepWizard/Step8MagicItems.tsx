@@ -76,7 +76,7 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-display tracking-wide text-sm text-ink">Magic Item Rewards</h3>
         <span className="text-[11px] text-ink-mute font-serif">
-          {items.length} / {target} target
+          {items.filter(s => s.trim().length > 0).length} / {target} target
         </span>
       </div>
       <StringListEditor

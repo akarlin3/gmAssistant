@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import type { SessionLogEntry } from '@/lib/sessionLog';
 import { getLastSessionLog, recentlyUsedScenes } from '@/lib/prepWizard';
 import StepShell from './StepShell';
+import { countFilled } from '@/lib/prepTargets';
 
 type Get = (k: string, fb: any) => any;
 type SetVal = (k: string, v: any) => void;
@@ -89,7 +90,7 @@ export default function Step5Locations({ get, setVal, soloTarget, standardTarget
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-display tracking-wide text-sm text-ink">Locations</h3>
         <span className="text-[11px] text-ink-mute font-serif">
-          {locations.length} / {target} target
+          {countFilled('locations', locations)} / {target} target
         </span>
       </div>
 

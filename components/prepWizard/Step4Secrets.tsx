@@ -69,7 +69,7 @@ export default function Step4Secrets({ get, setVal, soloTarget, standardTarget, 
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-display tracking-wide text-sm text-ink">Secrets & Clues</h3>
         <span className="text-[11px] text-ink-mute font-serif">
-          {secrets.length} / {target} target
+          {secrets.filter(s => s.trim().length > 0).length} / {target} target
         </span>
       </div>
       {carrying.length > 0 && (

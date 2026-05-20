@@ -66,6 +66,7 @@ import { pushSnapshot, popSnapshot, type Snapshot } from '@/lib/undoStack';
 import {
   TARGETS,
   getTarget,
+  countFilled,
   SECTION_ID_BY_KEY,
   PHASE_ID_BY_KEY,
   type PrepTargetKey,
@@ -331,7 +332,10 @@ const ListField = ({
   const update = (i: number, v: string) => { const next = [...items]; next[i] = v; onChange(next); };
   const add = () => onChange([...items, '']);
   const remove = (i: number) => onChange(items.filter((_, j) => j !== i));
-  const remaining = Math.max(0, target - items.length);
+  // Count only authored rows toward the target — empty rows are scaffolding,
+  // not progress.
+  const filled = items.filter(s => s.trim().length > 0).length;
+  const remaining = Math.max(0, target - filled);
 
   return (
     <div className="space-y-2">
@@ -350,10 +354,10 @@ const ListField = ({
           </div>
         );
       })}
-      {target > 0 && items.length < target && (
+      {target > 0 && filled < target && (
         <div className="ml-7 text-[11px] text-ink-mute italic font-serif">
           {remaining} more to reach target
-          {items.length === 0 && (
+          {filled === 0 && (
             <span className="text-ink-faint"> (target: {target})</span>
           )}
         </div>
@@ -1290,8 +1294,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       const key = k as PrepTargetKey;
       const target = soloMode ? t.solo : t.standard;
       if (target === 0) continue;
-      const items = state[key];
-      const current = Array.isArray(items) ? items.length : 0;
+      const current = countFilled(key, state[key]);
       if (current < target) {
         candidates.push({
           id: key,
@@ -2358,7 +2361,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="factions" title="Factions" methods={['pr', 'ccd']} done={done.factions} onToggle={toggleDone} open={open.factions} onToggleOpen={toggleOpen} icon={Users}>
                 <BookQuote source="PR ch. 2">Think of factions, not individual NPCs, as the GM-controlled counterparts of the party.</BookQuote>
                 <Pitfall>Factions whose goals don't overlap with PC goals are just colour.</Pitfall>
-                <TargetBar current={(get('factions', []) as any[]).length} target={getTarget('factions', soloMode)} source={TARGETS.factions.source} />
+                <TargetBar current={countFilled('factions', get('factions', []))} target={getTarget('factions', soloMode)} source={TARGETS.factions.source} />
                 {(get('factions', []) as any[]).map((f: any, i: number) => (
                   <div key={i} data-cp-anchor={`faction:${i}`}>
                     <FactionCard data={f} onChange={(v: any) => {
@@ -2493,7 +2496,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 </div>
                 <Example title="Bad → Good">"Become powerful" → "Win a duel against the captain of the guard"</Example>
                 <Pitfall>Long-term goals locked in Session 0 are usually worse than ones locked after Session 1.</Pitfall>
-                <TargetBar current={(get('pcGoals', []) as any[]).length} target={getTarget('pcGoals', soloMode)} source={TARGETS.pcGoals.source} />
+                <TargetBar current={countFilled('pcGoals', get('pcGoals', []))} target={getTarget('pcGoals', soloMode)} source={TARGETS.pcGoals.source} />
                 {(get('pcGoals', []) as any[]).map((g: any, i: number) => (
                   <GoalCard key={i} data={g} onChange={(v: any) => {
                     const next = [...(get('pcGoals', []) as any[])]; next[i] = v; setVal('pcGoals', next);
@@ -2558,7 +2561,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </Section>
               <Section id="s5-loc" title="5 · Develop Fantastic Locations" methods={['shea']} done={done['s5-loc']} onToggle={toggleDone} open={open['s5-loc']} onToggleOpen={toggleOpen} icon={Map}>
                 <BookQuote source="Lazy DM ch. 7">When in doubt, go for scale.</BookQuote>
-                <TargetBar current={(get('locations', []) as any[]).length} target={getTarget('locations', soloMode)} source={TARGETS.locations.source} />
+                <TargetBar current={countFilled('locations', get('locations', []))} target={getTarget('locations', soloMode)} source={TARGETS.locations.source} />
                 {(get('locations', []) as any[]).map((l: any, i: number) => {
                   const entityId = l?.id ?? `loc-${i}`;
                   const highlighted = highlightEntityId === entityId;
@@ -2598,7 +2601,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </Section>
               <Section id="s6-npc" title="6 · Outline Important NPCs" methods={['shea', 'pr']} done={done['s6-npc']} onToggle={toggleDone} open={open['s6-npc']} onToggleOpen={toggleOpen}>
                 <BookQuote source="PR ch. 3">Villains form goals in response to PC goals.</BookQuote>
-                <TargetBar current={(get('npcs', []) as any[]).length} target={getTarget('npcs', soloMode)} source={TARGETS.npcs.source} />
+                <TargetBar current={countFilled('npcs', get('npcs', []))} target={getTarget('npcs', soloMode)} source={TARGETS.npcs.source} />
                 {(get('npcs', []) as any[]).map((n: any, i: number) => {
                   const entityId = n?.id ?? `npc-${i}`;
                   const highlighted = highlightEntityId === entityId;
@@ -2720,7 +2723,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 </div>
               </div>
               <div id="section-clocks" />
-              <TargetBar current={(get('clocks', []) as any[]).length} target={getTarget('clocks', soloMode)} source={TARGETS.clocks.source} />
+              <TargetBar current={countFilled('clocks', get('clocks', []))} target={getTarget('clocks', soloMode)} source={TARGETS.clocks.source} />
               {(get('clocks', []) as any[]).map((c: any, i: number) => (
                 <ClockCard key={i} data={c} onChange={(v: any) => {
                   const next = [...(get('clocks', []) as any[])]; next[i] = v; setVal('clocks', next);

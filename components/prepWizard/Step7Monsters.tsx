@@ -60,7 +60,7 @@ export default function Step7Monsters({ get, setVal, soloTarget, standardTarget,
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-display tracking-wide text-sm text-ink">Monsters</h3>
         <span className="text-[11px] text-ink-mute font-serif">
-          {monsters.length} / {target} target
+          {monsters.filter(s => s.trim().length > 0).length} / {target} target
         </span>
       </div>
       <StringListEditor

@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import type { SessionLogEntry } from '@/lib/sessionLog';
 import { getLastSessionLog, eventsOfKind } from '@/lib/prepWizard';
 import StepShell from './StepShell';
+import { countFilled } from '@/lib/prepTargets';
 
 type Get = (k: string, fb: any) => any;
 type SetVal = (k: string, v: any) => void;
@@ -100,7 +101,7 @@ export default function Step6NPCs({ get, setVal, soloTarget, standardTarget, sol
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-display tracking-wide text-sm text-ink">NPCs</h3>
         <span className="text-[11px] text-ink-mute font-serif">
-          {npcs.length} / {target} target
+          {countFilled('npcs', npcs)} / {target} target
         </span>
       </div>
 

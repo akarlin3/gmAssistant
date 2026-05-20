@@ -71,7 +71,7 @@ export default function Step3Scenes({ get, setVal, soloTarget, standardTarget, s
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-display tracking-wide text-sm text-ink">Scenes</h3>
         <span className="text-[11px] text-ink-mute font-serif">
-          {scenes.length} / {target} target
+          {scenes.filter(s => s.trim().length > 0).length} / {target} target
         </span>
       </div>
       <StringListEditor

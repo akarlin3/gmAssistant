@@ -4,7 +4,7 @@ import { Check, Circle, Swords, ArrowLeft, Save, AlertTriangle } from 'lucide-re
 import type { SessionLogEntry } from '@/lib/sessionLog';
 import { nextSessionNumber } from '@/lib/sessionLog';
 import { unrevealedSecrets } from '@/lib/prepWizard';
-import { PHASE_GROUPS, TARGETS, getTarget, type PrepTargetKey } from '@/lib/prepTargets';
+import { PHASE_GROUPS, TARGETS, getTarget, countFilled, isFilled, type PrepTargetKey } from '@/lib/prepTargets';
 
 type Get = (k: string, fb: any) => any;
 
@@ -23,16 +23,18 @@ type Row = {
   detail?: string;
 };
 
-// "Secrets" counts *unrevealed* against the target — already-revealed secrets
-// no longer count as fresh prep — while still surfacing the raw total for context.
+// "Secrets" counts *unrevealed and non-blank* against the target — already-
+// revealed secrets no longer count as fresh prep — while still surfacing the
+// raw total for context. Every other key counts only items with authored
+// content (blank rows / freshly-added empty cards don't satisfy the target).
 function countFor(key: PrepTargetKey, get: Get, logs: SessionLogEntry[]): { current: number; detail?: string } {
   if (key === 'secrets') {
     const all = (get('secrets', []) as string[]) || [];
-    const unrevealed = unrevealedSecrets(all, logs);
-    return { current: unrevealed.length, detail: `${all.length} total` };
+    const allFilled = all.filter(s => isFilled('secrets', s));
+    const unrevealedFilled = unrevealedSecrets(allFilled, logs);
+    return { current: unrevealedFilled.length, detail: `${allFilled.length} written` };
   }
-  const items = get(key, []);
-  return { current: Array.isArray(items) ? items.length : 0 };
+  return { current: countFilled(key, get(key, [])) };
 }
 
 function CountLine({ label, current, target, detail }: { label: string; current: number; target: number; detail?: string }) {
@@ -58,7 +60,8 @@ export default function StepSummary({ get, onBack, onSaveAndClose, onStartSessio
 
   const strongStart = ((get('strongStart', '') as string) || '').trim();
   const pcGoals = (get('pcGoals', []) as Array<{ text?: string; status?: string }>) || [];
-  const goalsActive = pcGoals.filter(g => !g.status || g.status === 'Active' || g.status === 'Progressed').length;
+  const filledGoals = pcGoals.filter(g => isFilled('pcGoals', g));
+  const goalsActive = filledGoals.filter(g => !g.status || g.status === 'Active' || g.status === 'Progressed').length;
 
   const phaseRows = PHASE_GROUPS.map(group => ({
     phase: group.phase,
@@ -147,7 +150,7 @@ export default function StepSummary({ get, onBack, onSaveAndClose, onStartSessio
               : <Circle size={12} className="text-brass flex-shrink-0" />}
             <span className="text-sm font-serif text-ink flex-1">PC Goals tracked (active)</span>
             <span className="text-xs font-display tabular-nums text-brass-deep">
-              {goalsActive} active / {pcGoals.length} total
+              {goalsActive} active / {filledGoals.length} written
             </span>
           </li>
         </ul>
