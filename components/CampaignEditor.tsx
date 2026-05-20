@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { updateCampaign, deleteCampaign as deleteCampaignDoc, type Campaign } from '@/lib/firebase/campaigns';
@@ -9,7 +9,7 @@ import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff,
-  FileUp, Sparkles,
+  FileUp, Sparkles, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounterMath';
@@ -30,6 +30,7 @@ import type { Trap } from '@/lib/trapTables';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
+import CommandPalette, { type CommandItem } from './CommandPalette';
 import {
   type Character,
   emptyCharacter,
@@ -303,7 +304,7 @@ const ListField = ({
 };
 
 const Section = ({ id, title, methods, children, done, onToggle, open, onToggleOpen, icon: Icon }: any) => (
-  <div className={`rounded border ${done ? 'border-brass/60 bg-brass/5' : 'border-rule bg-parchment-soft'} shadow-card`}>
+  <div data-cp-anchor={`section:${id}`} className={`rounded border ${done ? 'border-brass/60 bg-brass/5' : 'border-rule bg-parchment-soft'} shadow-card`}>
     <div className="flex items-center gap-2 p-2.5 sm:p-3">
       <button onClick={() => onToggle(id)} className={`w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${done ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment'}`}>
         {done && <Check size={10} strokeWidth={3} />}
@@ -1007,6 +1008,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
   const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'generators' | 'names' | 'locations' | 'monsters' | 'vivify' | 'dmref' | 'traps' | 'chase'>('prep');
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -1172,8 +1174,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     return <span className="text-xs text-brass-deep flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} /> Saved</span>;
   };
 
-  const ToolBtn = ({ onClick, children, danger = false }: { onClick: () => void; children: React.ReactNode; danger?: boolean }) => (
-    <button onClick={onClick} className={`text-xs px-3 py-1 rounded border font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
+  const ToolBtn = ({ onClick, children, danger = false, title }: { onClick: () => void; children: React.ReactNode; danger?: boolean; title?: string }) => (
+    <button onClick={onClick} title={title} className={`text-xs px-3 py-1 rounded border font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
       danger
         ? 'border-crimson/50 text-crimson hover:bg-crimson hover:text-parchment'
         : 'border-brass-deep/50 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass'
@@ -1181,6 +1183,292 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       {children}
     </button>
   );
+
+  // Each prep section sits inside one Phase; the palette uses this to
+  // re-expand the right phase before scrolling to a section. Phase 4 has no
+  // direct sections (only faction clocks), so it's intentionally absent.
+  const SECTION_TO_PHASE: Record<string, string> = {
+    'g-world': 'p0', 'g-fnl': 'p0', 'g-mech': 'p0', 'g-lines': 'p0', 'pitch': 'p0',
+    'genre': 'p1', 'facts': 'p1', 'factions': 'p1', 'conflicts': 'p1',
+    'pc': 'p2', 'goals': 'p2',
+    's1-review': 'p3', 's2-start': 'p3', 's3-scenes': 'p3', 's4-secrets': 'p3',
+    's5-loc': 'p3', 's6-npc': 'p3', 's7-mon': 'p3', 's8-rew': 'p3',
+    'audit-goals': 'p5', 'audit-factions': 'p5', 'audit-secrets': 'p5',
+    'end-ready': 'p6', 'end-collect': 'p6', 'end-catalyst': 'p6',
+  };
+
+  const scrollToAnchor = (anchor: string) => {
+    // requestAnimationFrame x2 lets React commit the tab/expand state before
+    // we try to find the now-mounted element. One frame is usually enough,
+    // but a slow render can push the element render to the next paint.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(`[data-cp-anchor="${anchor}"]`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('cp-highlight');
+      setTimeout(() => el.classList.remove('cp-highlight'), 1600);
+    }));
+  };
+
+  const navigateTo = (target: {
+    tab: typeof tab;
+    sectionId?: string;
+    sessionId?: string;
+    characterId?: string;
+    anchor?: string;
+  }) => {
+    setTab(target.tab);
+    if (target.sectionId) {
+      const phase = SECTION_TO_PHASE[target.sectionId];
+      if (phase) setPhaseOpen(p => ({ ...p, [phase]: true }));
+      setOpen(o => ({ ...o, [target.sectionId!]: true }));
+    }
+    if (target.sessionId) {
+      setOpenLogs(o => ({ ...o, [target.sessionId!]: true }));
+    }
+    if (target.characterId) {
+      setOpenChars(o => ({ ...o, [target.characterId!]: true }));
+    }
+    if (target.anchor) scrollToAnchor(target.anchor);
+  };
+
+  // Cmd/Ctrl-K opens the palette. Works from any focus including text inputs
+  // because the palette is the entire app's global "go anywhere" affordance.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen(p => !p);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const TAB_META: Array<{ id: typeof tab; label: string; icon: any; keywords?: string[] }> = [
+    { id: 'prep', label: 'Prep Flow', icon: ScrollText, keywords: ['lazy dm', 'ccd', 'pitch', 'givens'] },
+    { id: 'ref', label: 'Reference', icon: BookOpen },
+    { id: 'track', label: 'Tracking', icon: Target, keywords: ['session log', 'secrets', 'goals'] },
+    { id: 'down', label: 'Downtime', icon: Calendar },
+    { id: 'dice', label: 'Dice', icon: Dice5 },
+    { id: 'spells', label: 'Spells', icon: Sparkles },
+    { id: 'generators', label: 'Generators', icon: Wand2, keywords: ['tavern', 'treasure', 'shop', 'dungeon', 'settlement', 'trinket'] },
+    { id: 'names', label: 'Names', icon: User, keywords: ['npc names'] },
+    { id: 'locations', label: 'Locations', icon: Map },
+    { id: 'monsters', label: 'Monsters', icon: Skull, keywords: ['stat block', 'bestiary'] },
+    { id: 'vivify', label: 'Vivify', icon: Sparkles, keywords: ['ai description', 'prose'] },
+    { id: 'traps', label: 'Traps', icon: Hash },
+    { id: 'dmref', label: 'DM Ref', icon: BookOpen, keywords: ['rules', 'madness', 'travel'] },
+    { id: 'chase', label: 'Chase', icon: Footprints, keywords: ['chase tracker'] },
+  ];
+
+  const PREP_SECTION_META: Array<{ id: string; label: string }> = [
+    { id: 'g-world', label: 'World Facts' },
+    { id: 'g-fnl', label: 'Required Factions, NPCs & Locations' },
+    { id: 'g-mech', label: 'Mechanics & System' },
+    { id: 'g-lines', label: 'Content Lines (Hard Nos)' },
+    { id: 'pitch', label: 'Quick Pitch' },
+    { id: 'genre', label: 'Genre Statement' },
+    { id: 'facts', label: 'Setting Facts' },
+    { id: 'factions', label: 'Factions' },
+    { id: 'conflicts', label: 'Active Conflicts' },
+    { id: 'pc', label: 'Player Characters' },
+    { id: 'goals', label: 'PC Goals (5 Rules of Proactive Fun)' },
+    { id: 's1-review', label: '1 · Review the Characters' },
+    { id: 's2-start', label: '2 · Create a Strong Start' },
+    { id: 's3-scenes', label: '3 · Outline Potential Scenes' },
+    { id: 's4-secrets', label: '4 · Define Secrets & Clues' },
+    { id: 's5-loc', label: '5 · Develop Fantastic Locations' },
+    { id: 's6-npc', label: '6 · Outline Important NPCs' },
+    { id: 's7-mon', label: '7 · Choose Relevant Monsters' },
+    { id: 's8-rew', label: '8 · Select Magic Item Rewards' },
+    { id: 'audit-goals', label: 'PC Goal Audit' },
+    { id: 'audit-factions', label: 'Faction Audit' },
+    { id: 'audit-secrets', label: 'Secrets Audit' },
+    { id: 'end-ready', label: 'Is the Campaign Ready to End?' },
+    { id: 'end-collect', label: 'Collect Every Thread' },
+    { id: 'end-catalyst', label: 'Add Catalysts' },
+  ];
+
+  const paletteItems: CommandItem[] = useMemo(() => {
+    const items: CommandItem[] = [];
+
+    for (const t of TAB_META) {
+      items.push({
+        id: `tab:${t.id}`,
+        label: `Go to ${t.label}`,
+        group: 'Navigation',
+        keywords: t.keywords,
+        icon: t.icon,
+        run: () => navigateTo({ tab: t.id }),
+      });
+    }
+
+    items.push(
+      { id: 'act:new-session', label: 'New session log', group: 'Actions', icon: Plus, run: () => { addSessionLog(); navigateTo({ tab: 'track' }); } },
+      { id: 'act:export', label: 'Export campaign JSON', group: 'Actions', icon: Download, run: () => exportJSON() },
+      { id: 'act:import', label: 'Import campaign JSON', group: 'Actions', icon: Upload, run: () => fileInputRef.current?.click() },
+      { id: 'act:add-character', label: 'Add character', group: 'Actions', icon: User, run: () => { addCharacter(); navigateTo({ tab: 'prep', sectionId: 'pc' }); } },
+      { id: 'act:solo-toggle', label: soloMode ? 'Switch to Group prep targets' : 'Switch to Solo prep targets', group: 'Actions', icon: Users, run: () => setSoloMode(s => !s) },
+    );
+
+    for (const s of PREP_SECTION_META) {
+      items.push({
+        id: `sec:${s.id}`,
+        label: s.label,
+        sublabel: 'Prep',
+        group: 'Prep section',
+        icon: ScrollText,
+        run: () => navigateTo({ tab: 'prep', sectionId: s.id, anchor: `section:${s.id}` }),
+      });
+    }
+
+    const npcs = (get('npcs', []) as Array<{ name?: string; type?: string; archetype?: string; faction?: string }>);
+    npcs.forEach((n, i) => {
+      const label = (n.name || '').trim() || (n.archetype || '').trim() || `Unnamed NPC #${i + 1}`;
+      const tag = [n.type, n.faction].filter(Boolean).join(' · ');
+      items.push({
+        id: `npc:${i}`,
+        label,
+        sublabel: tag || undefined,
+        group: 'NPCs',
+        keywords: [n.archetype || '', n.faction || ''],
+        icon: User,
+        run: () => navigateTo({ tab: 'prep', sectionId: 's6-npc', anchor: `npc:${i}` }),
+      });
+    });
+
+    const locs = (get('locations', []) as Array<{ name?: string; type?: string; factions?: string }>);
+    locs.forEach((l, i) => {
+      const label = (l.name || '').trim() || `Unnamed Location #${i + 1}`;
+      items.push({
+        id: `loc:${i}`,
+        label,
+        sublabel: l.type || undefined,
+        group: 'Locations',
+        keywords: [l.factions || ''],
+        icon: Map,
+        run: () => navigateTo({ tab: 'prep', sectionId: 's5-loc', anchor: `location:${i}` }),
+      });
+    });
+
+    const facs = (get('factions', []) as Array<{ name?: string; archetype?: string; identity?: string; area?: string }>);
+    facs.forEach((f, i) => {
+      const label = (f.name || '').trim() || (f.identity || '').trim() || `Unnamed Faction #${i + 1}`;
+      items.push({
+        id: `fac:${i}`,
+        label,
+        sublabel: f.archetype || f.area || undefined,
+        group: 'Factions',
+        icon: Users,
+        run: () => navigateTo({ tab: 'prep', sectionId: 'factions', anchor: `faction:${i}` }),
+      });
+    });
+
+    const scenes = (get('scenes', []) as string[]);
+    scenes.forEach((s, i) => {
+      const text = (s || '').trim();
+      if (!text) return;
+      items.push({
+        id: `sce:${i}`,
+        label: text.length > 80 ? `${text.slice(0, 77)}…` : text,
+        sublabel: `Scene ${i + 1}`,
+        group: 'Scenes',
+        icon: Calendar,
+        run: () => navigateTo({ tab: 'prep', sectionId: 's3-scenes', anchor: 'section:s3-scenes' }),
+      });
+    });
+
+    const secrets = (get('secrets', []) as string[]);
+    secrets.forEach((s, i) => {
+      const text = (s || '').trim();
+      if (!text) return;
+      items.push({
+        id: `sec-clue:${i}`,
+        label: text.length > 80 ? `${text.slice(0, 77)}…` : text,
+        sublabel: `Secret ${i + 1}`,
+        group: 'Secrets',
+        icon: ScrollText,
+        run: () => navigateTo({ tab: 'prep', sectionId: 's4-secrets', anchor: 'section:s4-secrets' }),
+      });
+    });
+
+    characters.forEach((c) => {
+      if (c.isSidekick) return;
+      const label = (c.name || '').trim() || (c.player ? `${c.player}'s character` : 'Unnamed character');
+      const tag = [c.classLevel, c.race].filter(Boolean).join(' · ');
+      items.push({
+        id: `char:${c.id}`,
+        label,
+        sublabel: tag || undefined,
+        group: 'Characters',
+        keywords: [c.player || '', c.background || ''],
+        icon: User,
+        run: () => navigateTo({ tab: 'prep', sectionId: 'pc', characterId: c.id, anchor: `character:${c.id}` }),
+      });
+    });
+
+    characters.forEach((c) => {
+      if (!c.isSidekick) return;
+      const label = (c.name || '').trim() || 'Unnamed sidekick';
+      items.push({
+        id: `side:${c.id}`,
+        label,
+        sublabel: c.sidekickClass || undefined,
+        group: 'Sidekicks',
+        icon: Users,
+        run: () => navigateTo({ tab: 'prep', sectionId: 'pc', characterId: c.id, anchor: `character:${c.id}` }),
+      });
+    });
+
+    sortedSessionLogs.forEach((log) => {
+      const label = (log.title || '').trim() || 'Untitled session';
+      items.push({
+        id: `ses:${log.id}`,
+        label,
+        sublabel: log.date || undefined,
+        group: 'Sessions',
+        icon: Calendar,
+        run: () => navigateTo({ tab: 'track', sessionId: log.id, anchor: `session:${log.id}` }),
+      });
+    });
+
+    // Generator log: surface the most recent few per kind. Title is whatever
+    // the generator stored — usually a name or one-line summary.
+    const LOG_LABEL: Record<string, string> = {
+      'treasure-hoard': 'Treasure', 'trinket': 'Trinket', 'mundane-shop': 'Mundane shop',
+      'magic-shop': 'Magic shop', 'tavern': 'Tavern', 'tavern-name': 'Tavern name',
+      'dungeon': 'Dungeon', 'settlement': 'Settlement', 'names': 'Names',
+      'locations': 'Location', 'monster-roll': 'Monster', 'monster-scale': 'Scaled monster',
+      'dice': 'Dice',
+    };
+    const LOG_TO_TAB: Record<string, typeof tab> = {
+      'names': 'names', 'locations': 'locations',
+      'monster-roll': 'monsters', 'monster-scale': 'monsters',
+      'dice': 'dice',
+    };
+    for (const kind of Object.keys(generatorLogs) as Array<keyof typeof generatorLogs>) {
+      const entries = (generatorLogs[kind] || []).slice(0, 5);
+      const destTab = (LOG_TO_TAB[kind] || 'generators') as typeof tab;
+      entries.forEach((entry) => {
+        const title = (entry.title || '').trim();
+        if (!title) return;
+        items.push({
+          id: `log:${entry.id}`,
+          label: title.length > 70 ? `${title.slice(0, 67)}…` : title,
+          sublabel: LOG_LABEL[kind] || kind,
+          group: 'Generator log',
+          icon: Wand2,
+          run: () => navigateTo({ tab: destTab }),
+        });
+      });
+    }
+
+    return items;
+    // navigateTo and the action callbacks close over the latest state via the
+    // setter callbacks they call; the deps below cover the fields we read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, soloMode, sortedSessionLogs, characters, generatorLogs]);
 
   return (
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
@@ -1248,6 +1536,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 justify-between">
               <div className="flex flex-wrap items-center gap-1.5">
+                <ToolBtn onClick={() => setPaletteOpen(true)} title="Open command palette (⌘K)">
+                  <Search size={12} /> Search
+                  <kbd className="ml-1 text-[10px] font-display uppercase tracking-wider border border-rule rounded px-1 py-px text-ink-mute">⌘K</kbd>
+                </ToolBtn>
                 <ToolBtn onClick={exportJSON}><Download size={12} /> Export</ToolBtn>
                 <ToolBtn onClick={() => fileInputRef.current?.click()}><Upload size={12} /> Import</ToolBtn>
                 <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
@@ -1345,9 +1637,11 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <Pitfall>Factions whose goals don't overlap with PC goals are just colour.</Pitfall>
                 <TargetBar current={(get('factions', []) as any[]).length} target={getTarget('factions', soloMode)} source={TARGETS.factions.source} />
                 {(get('factions', []) as any[]).map((f: any, i: number) => (
-                  <FactionCard key={i} data={f} onChange={(v: any) => {
-                    const next = [...(get('factions', []) as any[])]; next[i] = v; setVal('factions', next);
-                  }} onRemove={() => setVal('factions', (get('factions', []) as any[]).filter((_: any, j: number) => j !== i))} />
+                  <div key={i} data-cp-anchor={`faction:${i}`}>
+                    <FactionCard data={f} onChange={(v: any) => {
+                      const next = [...(get('factions', []) as any[])]; next[i] = v; setVal('factions', next);
+                    }} onRemove={() => setVal('factions', (get('factions', []) as any[]).filter((_: any, j: number) => j !== i))} />
+                  </div>
                 ))}
                 <InspireGroup>
                   <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add faction from:</span>
@@ -1392,15 +1686,16 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <BookQuote source="Lazy DM (Chris Perkins)">Nothing's more important to a campaign than the stories of the player characters.</BookQuote>
                 <div className="space-y-2">
                   {characters.map((c) => (
-                    <CharacterCard
-                      key={c.id}
-                      data={c}
-                      open={!!openChars[c.id]}
-                      soloMode={soloMode}
-                      onToggleOpen={() => setOpenChars(o => ({ ...o, [c.id]: !o[c.id] }))}
-                      onChange={(v) => updateCharacter(c.id, v)}
-                      onRemove={() => removeCharacter(c.id)}
-                    />
+                    <div key={c.id} data-cp-anchor={`character:${c.id}`}>
+                      <CharacterCard
+                        data={c}
+                        open={!!openChars[c.id]}
+                        soloMode={soloMode}
+                        onToggleOpen={() => setOpenChars(o => ({ ...o, [c.id]: !o[c.id] }))}
+                        onChange={(v) => updateCharacter(c.id, v)}
+                        onRemove={() => removeCharacter(c.id)}
+                      />
+                    </div>
                   ))}
                   {characters.length === 0 && (
                     <p className="text-sm text-ink-mute italic font-serif">
@@ -1528,9 +1823,11 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <BookQuote source="Lazy DM ch. 7">When in doubt, go for scale.</BookQuote>
                 <TargetBar current={(get('locations', []) as any[]).length} target={getTarget('locations', soloMode)} source={TARGETS.locations.source} />
                 {(get('locations', []) as any[]).map((l: any, i: number) => (
-                  <LocationCard key={i} data={l} onChange={(v: any) => {
-                    const next = [...(get('locations', []) as any[])]; next[i] = v; setVal('locations', next);
-                  }} onRemove={() => setVal('locations', (get('locations', []) as any[]).filter((_: any, j: number) => j !== i))} />
+                  <div key={i} data-cp-anchor={`location:${i}`}>
+                    <LocationCard data={l} onChange={(v: any) => {
+                      const next = [...(get('locations', []) as any[])]; next[i] = v; setVal('locations', next);
+                    }} onRemove={() => setVal('locations', (get('locations', []) as any[]).filter((_: any, j: number) => j !== i))} />
+                  </div>
                 ))}
                 <button onClick={() => setVal('locations', [...(get('locations', []) as any[]), { name: '', type: '', aspects: ['', '', ''], factions: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> Add Location
@@ -1540,9 +1837,11 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <BookQuote source="PR ch. 3">Villains form goals in response to PC goals.</BookQuote>
                 <TargetBar current={(get('npcs', []) as any[]).length} target={getTarget('npcs', soloMode)} source={TARGETS.npcs.source} />
                 {(get('npcs', []) as any[]).map((n: any, i: number) => (
-                  <NPCCard key={i} data={n} onChange={(v: any) => {
-                    const next = [...(get('npcs', []) as any[])]; next[i] = v; setVal('npcs', next);
-                  }} onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== i))} />
+                  <div key={i} data-cp-anchor={`npc:${i}`}>
+                    <NPCCard data={n} onChange={(v: any) => {
+                      const next = [...(get('npcs', []) as any[])]; next[i] = v; setVal('npcs', next);
+                    }} onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== i))} />
+                  </div>
                 ))}
                 <InspireGroup>
                   <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add new NPC seeded by:</span>
@@ -1737,14 +2036,15 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   <p className="text-sm text-ink-mute italic font-serif">No sessions yet. Click "New Session" to start a log.</p>
                 )}
                 {sortedSessionLogs.map((log) => (
-                  <SessionLogCard
-                    key={log.id}
-                    data={log}
-                    open={!!openLogs[log.id]}
-                    onToggleOpen={() => setOpenLogs(o => ({ ...o, [log.id]: !o[log.id] }))}
-                    onChange={(v) => updateSessionLog(log.id, v)}
-                    onRemove={() => removeSessionLog(log.id)}
-                  />
+                  <div key={log.id} data-cp-anchor={`session:${log.id}`}>
+                    <SessionLogCard
+                      data={log}
+                      open={!!openLogs[log.id]}
+                      onToggleOpen={() => setOpenLogs(o => ({ ...o, [log.id]: !o[log.id] }))}
+                      onChange={(v) => updateSessionLog(log.id, v)}
+                      onRemove={() => removeSessionLog(log.id)}
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -2020,6 +2320,11 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         </footer>
         </div>
       </div>
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        items={paletteItems}
+      />
     </main>
   );
 }
