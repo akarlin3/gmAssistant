@@ -14,6 +14,7 @@ export type Campaign = {
   done: Record<string, boolean>;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
+  archivedAt?: Timestamp | null;
 };
 
 const campaignsCol = () => collection(getDb(), 'campaigns');
@@ -73,6 +74,16 @@ export async function updateCampaign(
 
 export async function deleteCampaign(campaignId: string) {
   await deleteDoc(doc(getDb(), 'campaigns', campaignId));
+}
+
+export async function archiveCampaign(campaignId: string) {
+  const ref = doc(getDb(), 'campaigns', campaignId);
+  await updateDoc(ref, { archivedAt: serverTimestamp() });
+}
+
+export async function unarchiveCampaign(campaignId: string) {
+  const ref = doc(getDb(), 'campaigns', campaignId);
+  await updateDoc(ref, { archivedAt: null });
 }
 
 export async function getCampaignOnce(campaignId: string) {

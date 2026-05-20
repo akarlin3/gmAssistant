@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateCampaign, deleteCampaign as deleteCampaignDoc, type Campaign } from '@/lib/firebase/campaigns';
+import { updateCampaign, deleteCampaign as deleteCampaignDoc, archiveCampaign, unarchiveCampaign, type Campaign } from '@/lib/firebase/campaigns';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
@@ -1266,6 +1266,22 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     }
   };
 
+  const isArchived = Boolean(campaign.archivedAt);
+
+  const handleArchive = async () => {
+    try {
+      if (isArchived) {
+        await unarchiveCampaign(campaign.id);
+      } else {
+        if (!confirm(`Archive "${name}"? It will be hidden from your main list — you can restore it from the Archived section.`)) return;
+        await archiveCampaign(campaign.id);
+        router.push('/campaign');
+      }
+    } catch (err: any) {
+      alert(`${isArchived ? 'Unarchive' : 'Archive'} failed: ${err?.message || err}`);
+    }
+  };
+
   const SyncIndicator = () => {
     if (syncState === 'saving') return <span className="text-xs text-ink-soft flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} className="animate-pulse" /> Saving…</span>;
     if (syncState === 'pending') return <span className="text-xs text-ink-mute flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} /> Pending</span>;
@@ -1946,6 +1962,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <AccountMenu
                   onExport={exportJSON}
                   onImport={() => fileInputRef.current?.click()}
+                  onArchive={handleArchive}
+                  isArchived={isArchived}
                   onDelete={handleDelete}
                 />
               </div>
@@ -1954,6 +1972,14 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <ScrollText size={20} className="text-crimson flex-shrink-0" />
               <textarea rows={1} value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign Name"
                 className="flex-1 min-w-[12rem] bg-transparent border-b border-rule font-display text-xl sm:text-2xl tracking-wide text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none pb-1 resize-none whitespace-pre-wrap break-words [field-sizing:content]" />
+              {isArchived && (
+                <span
+                  title="This campaign is archived — hidden from your main list. Unarchive from the Account menu."
+                  className="text-[10px] not-italic px-1.5 py-0.5 rounded-sm border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex-shrink-0"
+                >
+                  Archived
+                </span>
+              )}
               <div
                 role="group"
                 aria-label="Prep target mode"

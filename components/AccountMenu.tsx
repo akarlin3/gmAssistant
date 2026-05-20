@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ChevronDown, LogOut, Sparkles, Settings, ExternalLink, MailCheck,
-  Download, Upload, Trash2, Info, X,
+  Download, Upload, Trash2, Info, X, Archive, ArchiveRestore,
 } from 'lucide-react';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/lib/firebase/auth-context';
@@ -17,10 +17,12 @@ const GITHUB_URL = 'https://github.com/akarlin3/campaign-prep';
 export type AccountMenuProps = {
   onExport?: () => void;
   onImport?: () => void;
+  onArchive?: () => void;
+  isArchived?: boolean;
   onDelete?: () => void;
 };
 
-export function AccountMenu({ onExport, onImport, onDelete }: AccountMenuProps = {}) {
+export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelete }: AccountMenuProps = {}) {
   const { user, isPro, proSource, subscriptionStatus, currentPeriodEndMs, cancelAtPeriodEnd, isOnWaitlist, logout } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -195,7 +197,7 @@ export function AccountMenu({ onExport, onImport, onDelete }: AccountMenuProps =
 
             {error && <p className="text-[11px] text-crimson font-serif italic">{error}</p>}
 
-            {(onExport || onImport || onDelete) && (
+            {(onExport || onImport || onArchive || onDelete) && (
               <div className="pt-1 border-t border-rule space-y-1">
                 <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep px-1">
                   Campaign Actions
@@ -216,6 +218,19 @@ export function AccountMenu({ onExport, onImport, onDelete }: AccountMenuProps =
                     className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
                   >
                     <Upload size={12} className="text-brass-deep" /> Import JSON
+                  </button>
+                )}
+                {onArchive && (
+                  <button
+                    type="button"
+                    onClick={fireAndClose(onArchive)}
+                    className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
+                  >
+                    {isArchived ? (
+                      <><ArchiveRestore size={12} className="text-brass-deep" /> Unarchive Campaign</>
+                    ) : (
+                      <><Archive size={12} className="text-brass-deep" /> Archive Campaign</>
+                    )}
                   </button>
                 )}
                 {onDelete && (
