@@ -74,6 +74,49 @@ const RESTS: Array<{ name: string; desc: string }> = [
   { name: 'Long Rest', desc: '8 hours, at most 2 hours of light activity. Restores all HP and half of total Hit Dice (min 1). Once per 24 hours.' },
 ];
 
+const SHORT_MADNESS: Array<{ range: string; effect: string }> = [
+  { range: '01–20',  effect: 'Wanders aimlessly for 1 minute; cannot take actions or reactions.' },
+  { range: '21–30',  effect: 'Falls prone and weeps uncontrollably for 1 minute.' },
+  { range: '31–40',  effect: 'Frightened; must use its action and movement each round to flee the source of its fear.' },
+  { range: '41–50',  effect: 'Babbles incoherently for 1 minute; cannot speak or cast spells with verbal components.' },
+  { range: '51–60',  effect: 'Must use its action each round to attack the nearest creature.' },
+  { range: '61–70',  effect: 'Suffers vivid hallucinations; disadvantage on ability checks for 1 minute.' },
+  { range: '71–75',  effect: 'Does whatever anyone tells it to do that is not obviously self-destructive, for 1 minute.' },
+  { range: '76–80',  effect: 'Overpowering urge to eat something strange (dirt, slime, offal) for 1 minute.' },
+  { range: '81–90',  effect: 'Stunned for 1 minute.' },
+  { range: '91–100', effect: 'Falls unconscious for 1 minute.' },
+];
+
+const LONG_MADNESS: Array<{ range: string; effect: string }> = [
+  { range: '01–10',  effect: 'Compelled to repeat a specific activity over and over — washing hands, counting coins, praying, sorting objects.' },
+  { range: '11–20',  effect: 'Vivid hallucinations; disadvantage on ability checks.' },
+  { range: '21–30',  effect: 'Extreme paranoia; disadvantage on WIS and CHA checks.' },
+  { range: '31–40',  effect: 'Strong revulsion toward something (usually the source of the madness).' },
+  { range: '41–45',  effect: 'Powerful delusion — chooses a potion type and believes they are constantly under its effects.' },
+  { range: '46–55',  effect: 'Attaches to a "lucky charm" (object or person); disadvantage on rolls while more than 30 ft from it.' },
+  { range: '56–65',  effect: 'Blind (25%) or deaf (75%).' },
+  { range: '66–75',  effect: 'Involuntary tremors — disadvantage on attack rolls, ability checks, and saves using STR or DEX.' },
+  { range: '76–85',  effect: 'Partial amnesia; knows their own identity but cannot recall others or what happened in the last day.' },
+  { range: '86–90',  effect: 'On taking damage, must make a DC 15 WIS save or be affected as by the confusion spell for 1 minute.' },
+  { range: '91–95',  effect: 'Loses the ability to speak.' },
+  { range: '96–100', effect: 'Falls unconscious; cannot be roused by jostling or damage.' },
+];
+
+const INDEFINITE_MADNESS: Array<{ range: string; effect: string }> = [
+  { range: '01–15',  effect: '"I must eat strange food."' },
+  { range: '16–25',  effect: '"I believe odd theories and see hidden significance in mundane events."' },
+  { range: '26–30',  effect: '"I am driven by a compulsion I cannot resist."' },
+  { range: '31–35',  effect: '"I suffer from an extreme phobia."' },
+  { range: '36–45',  effect: '"I am filled with unreasoning hatred toward a specific kind of creature."' },
+  { range: '46–55',  effect: '"I have a powerful urge to lie, even when there is no reason to."' },
+  { range: '56–65',  effect: '"I attempt bizarre things for no reason."' },
+  { range: '66–75',  effect: '"I cannot bear to be parted from any of my possessions."' },
+  { range: '76–85',  effect: '"I see things that are not there."' },
+  { range: '86–90',  effect: '"I cannot tell the difference between dreams and waking life."' },
+  { range: '91–95',  effect: '"I refuse to acknowledge a particular person as the person they claim to be."' },
+  { range: '96–100', effect: '"I cannot shake the feeling that everything around me is a hallucination."' },
+];
+
 function Section({
   title,
   defaultOpen = false,
@@ -143,6 +186,29 @@ function KVList({ rows }: { rows: Array<{ name: string; desc: string }> }) {
           <span className="text-ink-soft">{r.desc}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+function RangeTable({ rows }: { rows: Array<{ range: string; effect: string }> }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+          <tr>
+            <th className="text-left font-normal pb-1 pr-3 whitespace-nowrap">d100</th>
+            <th className="text-left font-normal pb-1">Effect</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.range} className="border-t border-rule/60 align-top">
+              <td className="py-1 pr-3 font-display text-ink whitespace-nowrap">{r.range}</td>
+              <td className="py-1 text-ink-soft">{r.effect}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -254,6 +320,27 @@ export default function DMRefTab() {
 
       <Section title="Rests">
         <KVList rows={RESTS} />
+      </Section>
+
+      <Section title="Madness — Short-Term">
+        <p className="text-ink-mute italic">
+          Triggered by a brief shock (frightful sight, magical effect). Lasts 1 minute.
+        </p>
+        <RangeTable rows={SHORT_MADNESS} />
+      </Section>
+
+      <Section title="Madness — Long-Term">
+        <p className="text-ink-mute italic">
+          Caused by prolonged exposure to a maddening influence or a deeply traumatic event. Lasts 1d10 × 10 hours.
+        </p>
+        <RangeTable rows={LONG_MADNESS} />
+      </Section>
+
+      <Section title="Madness — Indefinite">
+        <p className="text-ink-mute italic">
+          A new flaw the character takes on after a profound mental insult. Lasts until removed by <span className="not-italic">greater restoration</span>, <span className="not-italic">heal</span>, or similar magic.
+        </p>
+        <RangeTable rows={INDEFINITE_MADNESS} />
       </Section>
 
       <p className="text-[10px] text-ink-mute italic font-serif text-center">
