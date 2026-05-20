@@ -63,6 +63,13 @@ export type GeneratorPanelProps<Inputs extends Record<string, string | number>, 
   // is Pro, a "Use campaign context" checkbox appears next to Enhance with AI
   // and is passed through to the enhance endpoint.
   campaignContext?: CampaignContext;
+  // When present, a "Save to Campaign" button appears on each result; clicking
+  // it fires onSave with the active result. The caller is responsible for
+  // routing the result through `applyGeneratorResultToData` and committing.
+  saveToCampaign?: {
+    label?: string;
+    onSave: (result: R) => void;
+  };
 };
 
 function deriveInputs<I extends Record<string, string | number>>(specs: InputSpec[], state: Record<string, string | number>): I {
@@ -82,7 +89,7 @@ function deriveInputs<I extends Record<string, string | number>>(specs: InputSpe
 export function GeneratorPanel<I extends Record<string, string | number>, R extends GeneratorResult>(
   props: GeneratorPanelProps<I, R>,
 ) {
-  const { title, description, inputs, generate, enhance, renderResult, onEnhanced, log, campaignContext } = props;
+  const { title, description, inputs, generate, enhance, renderResult, onEnhanced, log, campaignContext, saveToCampaign } = props;
   const { isPro } = useAuth();
   const hasContext = hasCampaignContext(campaignContext);
 
@@ -93,6 +100,7 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
   });
   const [result, setResult] = useState<R | null>(null);
   const [saved, setSaved] = useState(false);
+  const [savedToCampaign, setSavedToCampaign] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [useCampaign, setUseCampaign] = useState(true);
   const [error, setError] = useState('');
@@ -101,6 +109,7 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
   const runGenerate = useCallback((seed?: number) => {
     setError('');
     setSaved(false);
+    setSavedToCampaign(false);
     const rng = makeRng(seed);
     lastSeedRef.current = rng.seed;
     try {
@@ -119,6 +128,12 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
     log.onEntriesChange(appendToLog(log.entries, entry));
     setSaved(true);
   }, [result, log]);
+
+  const onSaveToCampaignClick = useCallback(() => {
+    if (!result || !saveToCampaign) return;
+    saveToCampaign.onSave(result);
+    setSavedToCampaign(true);
+  }, [result, saveToCampaign]);
 
   const onEnhanceClick = useCallback(async () => {
     if (!result || !enhance || !isPro) return;
@@ -227,6 +242,16 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
       {result && (
         <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
+            {saveToCampaign && (
+              <button
+                onClick={onSaveToCampaignClick}
+                disabled={savedToCampaign}
+                className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-wine hover:border-wine disabled:opacity-50 transition-colors"
+              >
+                {savedToCampaign ? <Check size={12} /> : <Save size={12} />}
+                {savedToCampaign ? 'Saved' : (saveToCampaign.label ?? 'Save to Campaign')}
+              </button>
+            )}
             {log && (
               <button
                 onClick={onSaveToLogClick}
