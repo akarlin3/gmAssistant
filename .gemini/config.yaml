@@ -1,0 +1,7 @@
+# Gemini Code Assist repository configuration
+styleguide:
+  path: ".gemini/styleguide.md"
+  enabled: true
+features:
+  code_review:
+    enabled: true

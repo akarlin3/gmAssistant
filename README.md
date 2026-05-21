@@ -45,9 +45,3 @@ Next.js 15 (App Router) · TypeScript · Tailwind · Firebase (Auth + Firestore)
 
 Setup, deployment, costs, file structure, and troubleshooting live in [BUILD.md](./BUILD.md).
 
-## AI Coding Assistant Guidelines
-
-This repository defines strict guidelines for AI coding assistants and agentic workflows (e.g. Cursor, Claude Code, Windsurf):
-- Technical and pro-gating guidelines live in [CLAUDE.md](./CLAUDE.md).
-- Global git rules are declared in [.cursorrules](./.cursorrules). Any AI agent completing a task MUST automatically stage, commit, and push its changes (`git add`, `git commit`, `git push`) to the remote repository and report the commit hash to the user.
-
