@@ -1287,10 +1287,17 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   // `buildCampaignPatch`, then commits with a single setVal.
   const addToCampaignFor = useCallback(
     (kind: LogKind) => (dest: CampaignDestKey, items: SelectableItem[]) => {
-      const current = (state as Record<string, unknown>)[dest];
+      // session-log is a virtual dest — it appends ChangeEvents to the live
+      // session log array, not a top-level data field. Source/target the
+      // __sessionChangeEvents key explicitly.
+      const stateKey = dest === 'session-log' ? '__sessionChangeEvents' : dest;
+      const current = (state as Record<string, unknown>)[stateKey];
       const { patch, added } = buildCampaignPatch(current, kind, dest, items);
       if (added === 0) return;
-      setVal(patch.key, patch.value);
+      setVal(stateKey, patch.value);
+      // Skip the meta "Added N from X" trackEvent for session-log writes;
+      // the segue ChangeEvents themselves are already in the log.
+      if (dest === 'session-log') return;
       const eventKind: ChangeEventKind =
         dest === 'locations' ? 'location_added' :
         dest === 'npcs' ? 'npc_added' :
@@ -1300,6 +1307,14 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       trackEvent(eventKind, `Added ${added} from ${kind} → ${dest}`);
     },
     [state, trackEvent],
+  );
+
+  // Per-kind disabled destinations passed down to AddToCampaignPicker. Plot
+  // segues offer the live Session Log; that option is unavailable until a
+  // Run Session is open.
+  const generatorDisabledDests: Partial<Record<LogKind, readonly CampaignDestKey[]>> = useMemo(
+    () => ({ 'plot-segue': state.__runSessionOpen ? [] : (['session-log'] as const) }),
+    [state.__runSessionOpen],
   );
 
   // Snapshot of the campaign's premise/theme fields for AI-enhance grounding.
@@ -2054,6 +2069,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           characters={characters}
           onEndSession={() => setVal('__sessionEndedAt', Date.now())}
           onExitWithoutEnding={() => setVal('__runSessionOpen', false)}
+          campaignContext={generatorCampaignContext}
         />
         {finalizerModal}
       </>
@@ -3133,6 +3149,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             onLogsChange={(next) => setVal('generatorLogs', next)}
             campaignContext={generatorCampaignContext}
             onAddToCampaign={addToCampaignFor}
+            disabledDestsByKind={generatorDisabledDests}
             renderNames={() => (isPro ? (
               <NamesTab
                 logEntries={logEntriesFor('names')}

@@ -21,6 +21,8 @@ export type GeneratorLogProps = {
   // When provided, each expanded row shows a picker that hands the user's
   // selection to this callback. The caller folds the result into campaign data.
   onAddToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
+  // Destinations that the picker should render but not allow as a target.
+  disabledDests?: readonly CampaignDestKey[];
 };
 
 export default function GeneratorLog({
@@ -31,6 +33,7 @@ export default function GeneratorLog({
   emptyHint = "Click 'Save to log' on a result to keep it here.",
   copyText,
   onAddToCampaign,
+  disabledDests,
 }: GeneratorLogProps) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState<string | null>(null);
@@ -138,6 +141,7 @@ export default function GeneratorLog({
                         kind={kind}
                         payload={e.payload}
                         onAdd={onAddToCampaign}
+                        disabledDests={disabledDests}
                       />
                     )}
                   </div>

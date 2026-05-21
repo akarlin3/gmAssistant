@@ -327,44 +327,31 @@ export type SettlementResult = {
   enhanced: boolean;
 };
 
-export type SegueMode = 'pivot' | 'aftermath';
-export type SegueDelivery =
-  | 'messenger'
-  | 'rumor'
-  | 'discovery'
-  | 'environmental'
-  | 'npc-interrupt';
-export type SegueArcFlavor =
-  | 'mystery'
-  | 'threat'
-  | 'faction'
-  | 'personal'
-  | 'wonder';
-export type SegueUrgency = 'slow-burn' | 'pressing' | 'now';
+// ── Plot Segues — pure-AI generator (no curated tables) ────────────────────
+// Output: 1-5 short narrative beats the DM can read at the table to bridge
+// between scenes (bridge), twist the current one (complication), or end a
+// session (cliffhanger). Every roll calls Claude — no deterministic shape.
 
-export type PlotSegueEntry = {
-  mode: SegueMode;
-  delivery: SegueDelivery;
-  arcFlavor: SegueArcFlavor;
-  urgency: SegueUrgency;
-  trigger: string;
-  hook: string;
-  arcSeed: string;
+export type PlotSegueType = 'bridge' | 'complication' | 'cliffhanger';
+export type PlotSegueTone = 'gentle' | 'escalating' | 'dire';
+
+export type PlotSegue = {
+  title: string;     // 3-6 words, e.g. "A Knock at Midnight"
+  readAloud: string; // 1-3 sentences for the table
+  gmNote?: string;   // optional one-line mechanics or pacing cue
 };
 
 export type PlotSegueResult = {
   kind: 'plot-segue';
   id: GenericId;
-  seed: number;
   inputs: {
+    segueType: PlotSegueType;
     count: number;
-    mode: 'auto' | SegueMode;
-    delivery: 'auto' | SegueDelivery;
-    arcFlavor: 'auto' | SegueArcFlavor;
-    urgency: 'auto' | SegueUrgency;
+    tone: PlotSegueTone;
+    currentScene: string;
   };
-  segues: PlotSegueEntry[];
-  enhanced: boolean;
+  segues: PlotSegue[];
+  enhanced: true; // pure-AI generator is always "enhanced"
 };
 
 export type GeneratorResult =
@@ -383,7 +370,7 @@ export type GeneratorKind = GeneratorResult['kind'];
 export type GenerationHistoryEntry = {
   id: GenericId;
   kind: GeneratorKind;
-  seed: number;
+  seed?: number; // omitted for pure-AI results (plot-segue) which have no rng seed
   title: string;
   createdAtMs: number;
   result: GeneratorResult;

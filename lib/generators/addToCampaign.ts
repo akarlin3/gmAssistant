@@ -10,6 +10,7 @@
 // items, and then calls `mapItem(dest, item)` for each one before appending.
 
 import type { LogKind } from './log';
+import { makeEvent, type ChangeEvent } from '../sessionEvents';
 import type {
   DungeonResult,
   GeneratorResult,
@@ -22,7 +23,6 @@ import type {
   TreasureHoardResult,
   TrinketResult,
 } from './types';
-import { SEGUE_ARC_LABELS, SEGUE_MODE_LABELS } from './tables/plot-segue-tables';
 
 // ── Destinations ─────────────────────────────────────────────────────────────
 
@@ -34,7 +34,8 @@ export type CampaignDestKey =
   | 'treasure'
   | 'facts'
   | 'scenes'
-  | 'secrets';
+  | 'secrets'
+  | 'session-log'; // virtual dest: appends a ChangeEvent to __sessionChangeEvents
 
 export const DEST_LABEL: Record<CampaignDestKey, string> = {
   locations: 'Locations',
@@ -45,6 +46,7 @@ export const DEST_LABEL: Record<CampaignDestKey, string> = {
   facts: 'Setting Facts',
   scenes: 'Potential Scenes',
   secrets: 'Secrets & Clues',
+  'session-log': 'Session Log (live)',
 };
 
 // ── Selectable items ─────────────────────────────────────────────────────────
@@ -210,14 +212,14 @@ const CONFIG: Record<LogKind, KindConfig | null> = {
     },
   },
   'plot-segue': {
-    allowed: ['scenes', 'secrets', 'facts'],
+    allowed: ['scenes', 'secrets', 'facts', 'session-log'],
     defaultDest: 'scenes',
     itemsFor: (payload) => {
       const r = payload as PlotSegueResult;
       return (r.segues || []).map((s, i) => ({
         id: `${r.id}:${i}`,
-        label: `${SEGUE_ARC_LABELS[s.arcFlavor]} · ${SEGUE_MODE_LABELS[s.mode]} — ${s.arcSeed}`,
-        payload: { trigger: s.trigger, hook: s.hook, arcSeed: s.arcSeed, arcFlavor: s.arcFlavor, mode: s.mode },
+        label: s.title,
+        payload: { title: s.title, readAloud: s.readAloud, gmNote: s.gmNote },
       }));
     },
   },
@@ -348,7 +350,7 @@ export function mapItem(
   kind: LogKind,
   dest: CampaignDestKey,
   item: SelectableItem,
-): LocationRow | NpcRow | string | null {
+): LocationRow | NpcRow | ChangeEvent | string | null {
   const p = item.payload as Record<string, unknown>;
 
   if (dest === 'locations') {
@@ -481,12 +483,29 @@ export function mapItem(
     return null;
   }
 
-  // facts / scenes / secrets — generic free-form string sinks.
+  // facts / scenes / secrets — generic free-form string sinks. Plot segues
+  // get a richer "<title> — <readAloud>" formatting; other kinds fall back
+  // to the picker label.
   if (dest === 'facts' || dest === 'scenes' || dest === 'secrets') {
+    if (kind === 'plot-segue') return formatSegueText(p);
     return item.label;
   }
 
+  // session-log — virtual dest. Caller (CampaignEditor) routes the resulting
+  // ChangeEvent[] into state.__sessionChangeEvents.
+  if (dest === 'session-log') {
+    if (kind !== 'plot-segue') return null;
+    return makeEvent('other', `Segue: ${formatSegueText(p)}`);
+  }
+
   return null;
+}
+
+function formatSegueText(p: Record<string, unknown>): string {
+  const title = safeStr(p.title);
+  const readAloud = safeStr(p.readAloud);
+  if (title && readAloud) return `${title} — ${readAloud}`;
+  return title || readAloud;
 }
 
 // ── Top-level appender ──────────────────────────────────────────────────────

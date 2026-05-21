@@ -12,6 +12,10 @@ import type { InitiativeState } from '@/lib/initiative';
 import type { HomebrewMonster } from './MonstersTab';
 import type { Character } from '@/lib/character-schema';
 import { makeEvent, type ChangeEvent } from '@/lib/sessionEvents';
+import { LockedInline } from '@/components/LockedFeature';
+import { useAuth } from '@/lib/firebase/auth-context';
+import { generatePlotSegues } from '@/lib/generators/plot-segue';
+import type { CampaignContext, PlotSegueType } from '@/lib/generators/types';
 
 type Get = (k: string, fb: any) => any;
 type SetVal = (k: string, v: any) => void;
@@ -22,6 +26,9 @@ type Props = {
   characters: Character[];
   onEndSession: () => void;
   onExitWithoutEnding: () => void;
+  // Campaign genre/tone/pitch/world/setting facts — passed into AI-backed
+  // Quick Inspire segue rolls so prose fits the campaign.
+  campaignContext?: CampaignContext;
 };
 
 const SECTION_KEYS = [
@@ -42,7 +49,7 @@ const SECTION_META: Record<SectionKey, { label: string; icon: any }> = {
 };
 
 export default function RunSessionView({
-  get, setVal, characters, onEndSession, onExitWithoutEnding,
+  get, setVal, characters, onEndSession, onExitWithoutEnding, campaignContext,
 }: Props) {
   const [section, setSection] = useState<Record<SectionKey, boolean>>({
     scenes: true, secrets: true, npcs: true, locations: true,
@@ -409,7 +416,7 @@ export default function RunSessionView({
             </PanelShell>
 
             <PanelShell title="Quick Inspire" icon={Sparkles} open={true} onToggle={() => {}}>
-              <QuickInspire />
+              <QuickInspire campaignContext={campaignContext} />
             </PanelShell>
           </div>
         </div>
@@ -565,22 +572,60 @@ function QuickDice() {
 
 type InspireResult = { id: string; tableId: string; tableTitle: string; entry: string; ts: number };
 
-function QuickInspire() {
+const SEGUE_ENTRIES: { id: string; type: PlotSegueType; title: string }[] = [
+  { id: 'segue:bridge',       type: 'bridge',       title: 'Plot Segue: Bridge' },
+  { id: 'segue:complication', type: 'complication', title: 'Plot Segue: Complication' },
+  { id: 'segue:cliffhanger',  type: 'cliffhanger',  title: 'Plot Segue: Cliffhanger' },
+];
+
+function QuickInspire({ campaignContext }: { campaignContext?: CampaignContext }) {
+  const { isPro } = useAuth();
   const [tableId, setTableId] = useState<string>('villainSchemes');
   const [history, setHistory] = useState<InspireResult[]>([]);
+  const [rolling, setRolling] = useState(false);
+  const [error, setError] = useState('');
 
   const tableEntries = useMemo(() => {
     return Object.values(TABLES).map(t => ({ id: t.id, title: t.title })).sort((a, b) => a.title.localeCompare(b.title));
   }, []);
 
-  const doRoll = () => {
+  const isSegue = tableId.startsWith('segue:');
+  const segueEntry = isSegue ? SEGUE_ENTRIES.find(s => s.id === tableId) : null;
+
+  const pushHistory = (id: string, title: string, entry: string) => {
+    setHistory(h => [{
+      id: `i${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      tableId: id, tableTitle: title, entry, ts: Date.now(),
+    }, ...h].slice(0, 5));
+  };
+
+  const doRoll = async () => {
+    setError('');
+    if (segueEntry) {
+      if (!isPro) return;
+      setRolling(true);
+      try {
+        const user = (await import('@/lib/firebase/client')).getFirebaseAuth().currentUser;
+        if (!user) throw new Error('Not signed in');
+        const idToken = await user.getIdToken();
+        const result = await generatePlotSegues(
+          { segueType: segueEntry.type, count: 1, tone: 'escalating', currentScene: '' },
+          idToken,
+          campaignContext,
+        );
+        const s = result.segues[0];
+        if (s) pushHistory(segueEntry.id, segueEntry.title, `${s.title} — ${s.readAloud}`);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Roll failed');
+      } finally {
+        setRolling(false);
+      }
+      return;
+    }
     const entry = rollTable(tableId);
     if (!entry) return;
     const t = TABLES[tableId];
-    setHistory(h => [{
-      id: `i${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-      tableId, tableTitle: t.title, entry, ts: Date.now(),
-    }, ...h].slice(0, 5));
+    pushHistory(tableId, t.title, entry);
   };
 
   return (
@@ -588,18 +633,29 @@ function QuickInspire() {
       <div className="flex gap-1">
         <select
           value={tableId}
-          onChange={(e) => setTableId(e.target.value)}
+          onChange={(e) => { setTableId(e.target.value); setError(''); }}
           className="flex-1 bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
         >
-          {tableEntries.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+          <optgroup label="AI (Pro)">
+            {SEGUE_ENTRIES.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+          </optgroup>
+          <optgroup label="Curated tables">
+            {tableEntries.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+          </optgroup>
         </select>
-        <button
-          onClick={doRoll}
-          className="text-[11px] px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider"
-        >
-          Roll
-        </button>
+        {isSegue && !isPro ? (
+          <LockedInline label="Roll (Pro)" />
+        ) : (
+          <button
+            onClick={doRoll}
+            disabled={rolling}
+            className="text-[11px] px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-50 font-display uppercase tracking-wider"
+          >
+            {rolling ? 'Rolling…' : 'Roll'}
+          </button>
+        )}
       </div>
+      {error && <p className="text-[10px] text-crimson italic" title={error}>{error}</p>}
       {history.length === 0 ? (
         <p className="text-[11px] text-ink-mute italic font-serif">No rolls yet.</p>
       ) : (

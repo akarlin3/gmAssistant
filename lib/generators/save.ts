@@ -42,7 +42,7 @@ function pushHistory(
   const entry: GenerationHistoryEntry = {
     id: rid('gen'),
     kind: result.kind,
-    seed: result.seed,
+    seed: 'seed' in result ? result.seed : undefined,
     title,
     createdAtMs: Date.now(),
     result,
@@ -253,8 +253,8 @@ export function summariseTitle(result: GeneratorResult): string {
     case 'dungeon': return result.name;
     case 'settlement': return result.name;
     case 'plot-segue': return result.segues.length === 1
-      ? `Plot segue · ${result.segues[0].arcFlavor}`
-      : `${result.segues.length} plot segues`;
+      ? `Plot segue · ${result.inputs.segueType}`
+      : `${result.segues.length} plot segues (${result.inputs.segueType})`;
   }
 }
 

@@ -1,87 +1,54 @@
 'use client';
 
-import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
+import { AIGeneratorPanel } from './AIGeneratorPanel';
+import type { InputSpec } from './GeneratorPanel';
 import { generatePlotSegues } from '@/lib/generators/plot-segue';
-import {
-  SEGUE_ARC_LABELS,
-  SEGUE_DELIVERY_LABELS,
-  SEGUE_MODE_LABELS,
-  SEGUE_URGENCY_LABELS,
-} from '@/lib/generators/tables/plot-segue-tables';
 import type {
   CampaignContext,
   PlotSegueResult,
-  SegueArcFlavor,
-  SegueDelivery,
-  SegueMode,
-  SegueUrgency,
+  PlotSegueTone,
+  PlotSegueType,
 } from '@/lib/generators/types';
 import type { LogEntry } from '@/lib/generators/log';
 import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
 
-const AUTO_OPT = { label: 'Auto (mix)', value: 'auto' };
-
 const INPUTS: InputSpec[] = [
-  { kind: 'number', key: 'count', label: 'How many', min: 1, max: 3, default: 1 },
   {
-    kind: 'select', key: 'mode', label: 'Mode',
+    kind: 'select', key: 'segueType', label: 'Segue type',
     options: [
-      AUTO_OPT,
-      { label: SEGUE_MODE_LABELS.pivot, value: 'pivot' },
-      { label: SEGUE_MODE_LABELS.aftermath, value: 'aftermath' },
+      { label: 'Bridge — move between scenes', value: 'bridge' },
+      { label: 'Complication — twist this scene', value: 'complication' },
+      { label: 'Cliffhanger — end the session', value: 'cliffhanger' },
     ],
-    default: 'auto',
+    default: 'bridge',
   },
+  { kind: 'number', key: 'count', label: 'How many', min: 1, max: 5, default: 3 },
   {
-    kind: 'select', key: 'arcFlavor', label: 'Arc flavor',
+    kind: 'select', key: 'tone', label: 'Tone',
     options: [
-      AUTO_OPT,
-      { label: SEGUE_ARC_LABELS.mystery, value: 'mystery' },
-      { label: SEGUE_ARC_LABELS.threat, value: 'threat' },
-      { label: SEGUE_ARC_LABELS.faction, value: 'faction' },
-      { label: SEGUE_ARC_LABELS.personal, value: 'personal' },
-      { label: SEGUE_ARC_LABELS.wonder, value: 'wonder' },
+      { label: 'Gentle — slow down, breathe', value: 'gentle' },
+      { label: 'Escalating — nudge tension up', value: 'escalating' },
+      { label: 'Dire — name the threat now', value: 'dire' },
     ],
-    default: 'auto',
+    default: 'escalating',
   },
-  {
-    kind: 'select', key: 'delivery', label: 'Delivery',
-    options: [
-      AUTO_OPT,
-      { label: SEGUE_DELIVERY_LABELS.messenger, value: 'messenger' },
-      { label: SEGUE_DELIVERY_LABELS.rumor, value: 'rumor' },
-      { label: SEGUE_DELIVERY_LABELS.discovery, value: 'discovery' },
-      { label: SEGUE_DELIVERY_LABELS.environmental, value: 'environmental' },
-      { label: SEGUE_DELIVERY_LABELS['npc-interrupt'], value: 'npc-interrupt' },
-    ],
-    default: 'auto',
-  },
-  {
-    kind: 'select', key: 'urgency', label: 'Urgency',
-    options: [
-      AUTO_OPT,
-      { label: SEGUE_URGENCY_LABELS['slow-burn'], value: 'slow-burn' },
-      { label: SEGUE_URGENCY_LABELS.pressing, value: 'pressing' },
-      { label: SEGUE_URGENCY_LABELS.now, value: 'now' },
-    ],
-    default: 'auto',
-  },
+  { kind: 'text', key: 'currentScene', label: 'Current scene (optional)', default: '', placeholder: 'The party is…' },
 ];
 
 type Inputs = {
+  segueType: PlotSegueType;
   count: number;
-  mode: 'auto' | SegueMode;
-  arcFlavor: 'auto' | SegueArcFlavor;
-  delivery: 'auto' | SegueDelivery;
-  urgency: 'auto' | SegueUrgency;
+  tone: PlotSegueTone;
+  currentScene: string;
 };
 
 function copyText(r: PlotSegueResult): string {
   return r.segues
-    .map((s, i) => `${r.segues.length > 1 ? `${i + 1}. ` : ''}[${SEGUE_MODE_LABELS[s.mode]} · ${SEGUE_ARC_LABELS[s.arcFlavor]} · ${SEGUE_URGENCY_LABELS[s.urgency]}]
-Trigger: ${s.trigger}
-${s.hook}
-Arc seed: ${s.arcSeed}`)
+    .map((s, i) => {
+      const head = r.segues.length > 1 ? `${i + 1}. ${s.title}` : s.title;
+      const note = s.gmNote ? `\nGM: ${s.gmNote}` : '';
+      return `${head}\n${s.readAloud}${note}`;
+    })
     .join('\n\n');
 }
 
@@ -90,37 +57,39 @@ export default function PlotSegueGenerator({
   onEntriesChange,
   campaignContext,
   onAddToCampaign,
+  disabledDests,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
   onAddToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
+  disabledDests?: readonly CampaignDestKey[];
 }) {
   return (
-    <GeneratorPanel<Inputs, PlotSegueResult>
+    <AIGeneratorPanel<Inputs, PlotSegueResult>
       title="Plot Segues"
-      description="Drop a bridging moment that dangles a new plot arc — a pivot mid-scene, or an aftermath ripple from what the party just did. Each segue gives you the trigger to deliver, a few sentences of read-aloud, and a one-line arc seed to develop later."
+      description="Mid-session narrative beats — bridges between scenes, complications that twist the current one, or cliffhangers that end the night. Every roll calls Claude (Pro only)."
       inputs={INPUTS}
-      generate={(inputs, rng) => generatePlotSegues({
-        count: Number(inputs.count),
-        mode: inputs.mode as Inputs['mode'],
-        arcFlavor: inputs.arcFlavor as Inputs['arcFlavor'],
-        delivery: inputs.delivery as Inputs['delivery'],
-        urgency: inputs.urgency as Inputs['urgency'],
-      }, rng)}
-      enhance={{ kind: 'plot-segue' }}
+      generate={(inputs, idToken, ctx) => generatePlotSegues(
+        {
+          segueType: inputs.segueType,
+          count: Number(inputs.count),
+          tone: inputs.tone,
+          currentScene: String(inputs.currentScene || ''),
+        },
+        idToken,
+        ctx,
+      )}
       campaignContext={campaignContext}
       onAddToCampaign={onAddToCampaign}
+      disabledDests={disabledDests}
       log={{
         kind: 'plot-segue',
         entries,
         onEntriesChange,
         titleFor: (r) => {
-          if (r.segues.length === 1) {
-            const s = r.segues[0];
-            return `${SEGUE_ARC_LABELS[s.arcFlavor]} · ${SEGUE_MODE_LABELS[s.mode]}`;
-          }
-          return `${r.segues.length} segues`;
+          if (r.segues.length === 1) return `Segue · ${r.inputs.segueType}`;
+          return `${r.segues.length} segues · ${r.inputs.segueType}`;
         },
         copyText,
       }}
@@ -128,25 +97,13 @@ export default function PlotSegueGenerator({
         <ol className="space-y-4 list-decimal ml-5 font-serif text-sm text-ink marker:text-brass-deep">
           {r.segues.map((s, i) => (
             <li key={i} className="space-y-1.5">
-              <div className="flex flex-wrap gap-1 text-[10px] uppercase tracking-wider font-display">
-                <span className="px-1.5 py-0.5 rounded border border-crimson/40 bg-crimson/10 text-crimson">
-                  {SEGUE_MODE_LABELS[s.mode]}
-                </span>
-                <span className="px-1.5 py-0.5 rounded border border-brass-deep/40 bg-brass/10 text-brass-deep">
-                  {SEGUE_ARC_LABELS[s.arcFlavor]}
-                </span>
-                <span className="px-1.5 py-0.5 rounded border border-rule text-ink-soft">
-                  {SEGUE_DELIVERY_LABELS[s.delivery]}
-                </span>
-                <span className="px-1.5 py-0.5 rounded border border-rule text-ink-soft">
-                  {SEGUE_URGENCY_LABELS[s.urgency]}
-                </span>
-              </div>
-              <div className="text-xs text-ink-soft italic">Trigger: {s.trigger}</div>
-              <div>{s.hook}</div>
-              <div className="text-xs text-brass-deep font-display tracking-wide">
-                Arc seed: <span className="font-serif text-ink not-italic">{s.arcSeed}</span>
-              </div>
+              <div className="font-display tracking-wide text-ink uppercase text-[11px]">{s.title}</div>
+              <div className="leading-snug">{s.readAloud}</div>
+              {s.gmNote && (
+                <div className="text-xs text-brass-deep font-display tracking-wide">
+                  GM: <span className="font-serif text-ink-soft italic not-italic">{s.gmNote}</span>
+                </div>
+              )}
             </li>
           ))}
         </ol>

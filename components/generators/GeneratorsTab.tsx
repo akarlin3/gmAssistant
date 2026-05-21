@@ -58,6 +58,7 @@ export default function GeneratorsTab({
   renderNames,
   renderLocations,
   onAddToCampaign,
+  disabledDestsByKind,
 }: {
   logs: GeneratorLogs;
   onLogsChange: (next: GeneratorLogs) => void;
@@ -65,6 +66,9 @@ export default function GeneratorsTab({
   renderNames: () => React.ReactNode;
   renderLocations: () => React.ReactNode;
   onAddToCampaign?: (kind: LogKind) => (dest: CampaignDestKey, items: SelectableItem[]) => void;
+  // Map of LogKind → destinations that should appear disabled in the picker.
+  // Plot segues use this for the 'session-log' dest when no session is open.
+  disabledDestsByKind?: Partial<Record<LogKind, readonly CampaignDestKey[]>>;
 }) {
   const [active, setActive] = useState<GenSlug>('treasure-hoard');
 
@@ -123,12 +127,12 @@ export default function GeneratorsTab({
       case 'settlement':
         return <SettlementGenerator entries={entriesFor('settlement')} onEntriesChange={setEntriesFor('settlement')} campaignContext={campaignContext} onAddToCampaign={addFor('settlement')} />;
       case 'plot-segue':
-        return <PlotSegueGenerator entries={entriesFor('plot-segue')} onEntriesChange={setEntriesFor('plot-segue')} campaignContext={campaignContext} onAddToCampaign={addFor('plot-segue')} />;
+        return <PlotSegueGenerator entries={entriesFor('plot-segue')} onEntriesChange={setEntriesFor('plot-segue')} campaignContext={campaignContext} onAddToCampaign={addFor('plot-segue')} disabledDests={disabledDestsByKind?.['plot-segue']} />;
       case 'names': return renderNames();
       case 'locations': return renderLocations();
       default: return null;
     }
-  }, [active, entriesFor, setEntriesFor, renderNames, renderLocations, campaignContext, addFor]);
+  }, [active, entriesFor, setEntriesFor, renderNames, renderLocations, campaignContext, addFor, disabledDestsByKind]);
 
   return (
     <div className="space-y-3">

@@ -25,6 +25,13 @@ export type AddToCampaignPickerProps = {
   onAdd: (dest: CampaignDestKey, items: SelectableItem[]) => void;
   // Optional: pre-tick all items by default. Default = true.
   autoSelectAll?: boolean;
+  // Destinations that are listed but not selectable. Used by plot-segue to
+  // surface the "Session Log" option while a Run Session is not open.
+  disabledDests?: readonly CampaignDestKey[];
+};
+
+const DISABLED_TITLE: Partial<Record<CampaignDestKey, string>> = {
+  'session-log': 'Start a Run Session to enable this',
 };
 
 export default function AddToCampaignPicker({
@@ -32,11 +39,21 @@ export default function AddToCampaignPicker({
   payload,
   onAdd,
   autoSelectAll = true,
+  disabledDests,
 }: AddToCampaignPickerProps) {
   const allowed = allowedDestsFor(kind);
   const items = useMemo(() => itemsFor(kind, payload), [kind, payload]);
+  const isDisabled = (d: CampaignDestKey) => disabledDests?.includes(d) ?? false;
 
-  const [dest, setDest] = useState<CampaignDestKey | null>(defaultDestFor(kind));
+  // Default destination, falling back away from any disabled one.
+  const initialDest = useMemo(() => {
+    const fallback = defaultDestFor(kind);
+    if (fallback && !isDisabled(fallback)) return fallback;
+    const first = allowed.find((d) => !isDisabled(d));
+    return first ?? fallback;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, allowed, disabledDests]);
+  const [dest, setDest] = useState<CampaignDestKey | null>(initialDest);
   const [selected, setSelected] = useState<Set<string>>(() =>
     autoSelectAll ? new Set(items.map((i) => i.id)) : new Set(),
   );
@@ -128,19 +145,23 @@ export default function AddToCampaignPicker({
           className="bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif focus:border-crimson focus:outline-none"
         >
           {allowed.map((d) => (
-            <option key={d} value={d}>{DEST_LABEL[d]}</option>
+            <option key={d} value={d} disabled={isDisabled(d)} title={isDisabled(d) ? DISABLED_TITLE[d] : undefined}>
+              {DEST_LABEL[d]}{isDisabled(d) ? ' — start a session first' : ''}
+            </option>
           ))}
         </select>
         <button
           onClick={handleAdd}
-          disabled={!dest || selected.size === 0}
+          disabled={!dest || isDisabled(dest) || selected.size === 0}
           className="text-[11px] px-2.5 py-1 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           title={
             !dest
               ? 'Choose a destination'
-              : selected.size === 0
-                ? 'Select at least one item'
-                : `Add ${selected.size} to ${DEST_LABEL[dest]}`
+              : isDisabled(dest)
+                ? DISABLED_TITLE[dest] ?? 'Destination unavailable'
+                : selected.size === 0
+                  ? 'Select at least one item'
+                  : `Add ${selected.size} to ${DEST_LABEL[dest]}`
           }
         >
           <Plus size={11} /> Add{isMulti && selected.size > 0 ? ` ${selected.size}` : ''}
