@@ -36,6 +36,7 @@ Modified files:
 - `lib/generators/addToCampaign.ts` — add `'plot-segue'` to `CONFIG`; add `'session-log'` to `CampaignDestKey` + `DEST_LABEL`; extend `mapItem` for `scenes`/`secrets`/`facts`/`session-log` cases handling segue payloads; extend `buildPatch` so `dest === 'session-log'` writes to the `__sessionChangeEvents` array (see §7).
 - `components/generators/GeneratorsTab.tsx` — add a **Story** group at the top with one entry: `{ slug: 'plot-segue', label: 'Plot Segues', icon: Drama }`.
 - `components/CampaignEditor.tsx` — `addToCampaignFor` already passes `current = state[dest]`. We extend it: when `dest === 'session-log'`, source `current` from `state['__sessionChangeEvents']` and target the same key in the resulting patch. Also: if `!state.__runSessionOpen`, the Session Log option must be unavailable in the picker (handled in the picker itself, see §7).
+- `components/RunSessionView.tsx` — extend the `QuickInspire` component to include three AI-segue entries in its dropdown (see §11).
 
 ## 4. Inputs
 
@@ -159,14 +160,52 @@ No retries. No streaming. A single 30s call.
 - **Server route** — light integration: missing token → 401, non-Pro → 403 (mock `verifyPro`), missing `inputs` → 400, happy path round-trips a mocked Anthropic client and returns the parsed shape.
 - **No UI snapshot tests** — matches existing generator conventions.
 
-## 11. Out of scope
+## 11. Quick Inspire integration
+
+`QuickInspire` (in `RunSessionView.tsx:568`) is the small panel inside Run Session that lets the DM roll a random entry from the curated inspiration tables and keeps a 5-roll history. We extend it to surface plot segues as three additional entries in the same dropdown.
+
+### 11a. Dropdown shape
+
+Three virtual entries are prepended to the existing curated-table list (sorted-alphabetically pass remains intact for the curated tables; segue entries sit above as a small grouped block, visually separated by a `<optgroup label="AI">` wrapper):
+
+| `tableId` (virtual) | Label                    |
+|---------------------|--------------------------|
+| `segue:bridge`      | Plot Segue: Bridge       |
+| `segue:complication`| Plot Segue: Complication |
+| `segue:cliffhanger` | Plot Segue: Cliffhanger  |
+
+Each roll on a `segue:*` entry calls `/api/generators/plot-segue` with `count: 1`, default `tone: 'escalating'`, `currentScene: ''`, and the campaign context piped through from `CampaignEditor` (see §13d).
+
+### 11b. Roll button — Pro gating
+
+`QuickInspire` reads `isPro` from `useAuth()`. When the selected `tableId` starts with `segue:` and the user is not Pro, the Roll button is replaced with `<LockedInline label="Roll (Pro)" />`. For Pro users (or any non-segue table), Roll renders as today. Loading state ("Rolling…") disables the button while the AI call is in flight; an inline error matches the existing `text-crimson` pattern from `GeneratorPanel`.
+
+### 11c. History shape
+
+The existing `InspireResult` type stays as-is; for segue rolls:
+
+- `tableId` = `'segue:bridge'` (etc.)
+- `tableTitle` = `'Plot Segue: Bridge'` (etc.)
+- `entry` = `"<title> — <readAloud>"` (the `gmNote` is dropped here to keep Quick Inspire compact; the full-blown panel is the place for `gmNote`)
+
+History continues to cap at 5 entries and remains ephemeral (in-memory, lost when the panel unmounts) — matches the existing behavior.
+
+### 11d. Wiring campaign context into `QuickInspire`
+
+`QuickInspire` currently takes no props. We add an optional `campaignContext?: CampaignContext` prop and thread it through from `RunSessionView` (which already has access to campaign state via its `get`/`setVal` accessors). `RunSessionView`'s caller in `CampaignEditor` already constructs `generatorCampaignContext`; we pass that down. The existing `<QuickInspire />` call site (`RunSessionView.tsx:412`) becomes `<QuickInspire campaignContext={campaignContext} />`.
+
+### 11e. No save-to-log, no add-to-campaign
+
+Quick Inspire is intentionally ephemeral and lightweight. Segue rolls there are *not* persisted to the per-generator log or routed through `AddToCampaignPicker`. The full `PlotSegueGenerator` panel in the Generators tab is the place for batch generation, save-to-log, and Add-to-Campaign. If the DM wants to keep a Quick Inspire segue, they can copy its text into a session note via the existing `NoteSeed` UI in the same panel.
+
+## 12. Out of scope
 
 - Re-rolling a single segue from a 5-item result. (Would require per-item AI calls; we ship the v1 as "reroll regenerates the whole batch".)
 - Streaming partial results.
 - Per-user generation history beyond the existing per-generator log cap.
 - Sharing/exporting segues outside the campaign.
 
-## 12. Open questions resolved during brainstorm
+## 13. Open questions resolved during brainstorm
 
 | Question | Decision |
 |---|---|
@@ -176,3 +215,4 @@ No retries. No streaming. A single 30s call.
 | Inputs? | segueType, count (1–5), tone slider, free-text current scene. |
 | Campaign context? | Always on when present, no checkbox. |
 | Add-to-Campaign destinations? | All four: Potential Scenes (default), Secrets & Clues, Setting Facts, live Session Log. |
+| Quick Inspire integration? | Yes — three dropdown entries (Bridge / Complication / Cliffhanger). Roll button swaps to LockedInline when a segue is selected by a non-Pro user. |
