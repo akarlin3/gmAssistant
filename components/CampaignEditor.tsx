@@ -9,7 +9,7 @@ import {
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, ArrowLeft, Cloud, CloudOff,
   FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench, SlidersHorizontal, Copy,
-  Compass, NotebookPen,
+  Compass, NotebookPen, Zap, Gem,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounterMath';
@@ -1240,6 +1240,15 @@ function RunSessionInlineActive({
   const revSec = (get('revSec', {}) as Record<number, boolean>) || {};
   const scratchpad = (get('__sessionScratchpad', '') as string) || '';
 
+  const monstersList = (get('monsters', []) as string[]) || [];
+  const magicItemsList = (get('items', []) as string[]) || [];
+  const givenItems = (get('__sessionItemsGiven', []) as string[]) || [];
+  const pcGoals = (get('pcGoals', []) as any[]) || [];
+  const clocks = (get('clocks', []) as any[]) || [];
+  const factions = (get('factions', []) as any[]) || [];
+  const strongStart = ((get('strongStart', '') as string) || '').trim();
+  const [strongStartDone, setStrongStartDone] = useState(false);
+
   const elapsed = formatElapsed(Date.now() - startedAt);
   const [, forceTick] = useState(0);
   useEffect(() => {
@@ -1260,6 +1269,60 @@ function RunSessionInlineActive({
     const next = { ...revSec, [i]: value };
     setVal('revSec', next);
     if (value && !revSec[i]) trackEvent('secret_revealed', text);
+  };
+
+  const toggleItemGiven = (text: string) => {
+    if (givenItems.includes(text)) {
+      setVal('__sessionItemsGiven', givenItems.filter(s => s !== text));
+      return;
+    }
+    setVal('__sessionItemsGiven', [...givenItems, text]);
+    trackEvent('magic_item_given', `Magic item given: ${text}`);
+  };
+
+  const updateGoalStatus = (i: number, status: string) => {
+    const goal = pcGoals[i];
+    const fromStatus = goal?.status || 'Active';
+    if (fromStatus === status) return;
+    const next = [...pcGoals];
+    next[i] = { ...goal, status };
+    setVal('pcGoals', next);
+    trackEvent(
+      'goal_status',
+      `${goal?.text || `Goal ${i + 1}`}: ${fromStatus} → ${status}`,
+      fromStatus, status,
+    );
+  };
+
+  const tickClock = (i: number, delta: number) => {
+    const c = clocks[i];
+    if (!c) return;
+    const max = c.max || 6;
+    const filledNew = Math.max(0, Math.min(max, (c.filled || 0) + delta));
+    if (filledNew === c.filled) return;
+    const next = [...clocks];
+    next[i] = { ...c, filled: filledNew };
+    setVal('clocks', next);
+    trackEvent(
+      'faction_clock_ticked',
+      `${c.faction || 'Faction'}: ${c.text || 'clock'} ${c.filled || 0} → ${filledNew} / ${max}`,
+      c.filled || 0, filledNew,
+    );
+  };
+
+  const adjustRenown = (i: number, delta: number) => {
+    const f = factions[i];
+    if (!f) return;
+    const fromV = typeof f.renown === 'number' ? f.renown : 0;
+    const toV = fromV + delta;
+    const next = [...factions];
+    next[i] = { ...f, renown: toV };
+    setVal('factions', next);
+    trackEvent(
+      'renown_changed',
+      `${f.name || `Faction ${i + 1}`} renown: ${fromV} → ${toV}`,
+      fromV, toV,
+    );
   };
 
   const unrevealedSecrets = secrets
@@ -1297,6 +1360,39 @@ function RunSessionInlineActive({
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-3">
         <div className="space-y-3 min-w-0">
+          {strongStart && (
+            <section className="rounded border-2 border-crimson/50 bg-crimson/5 shadow-card p-3 sm:p-4">
+              <div className="flex items-start gap-2 mb-1.5">
+                <Zap size={16} className="text-crimson flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                    <h2 className="font-display tracking-wide text-sm sm:text-base text-crimson uppercase">
+                      Strong Start
+                    </h2>
+                    <button
+                      onClick={() => {
+                        const next = !strongStartDone;
+                        setStrongStartDone(next);
+                        if (next) trackEvent('other', 'Strong start delivered');
+                      }}
+                      className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider flex items-center gap-1 ${
+                        strongStartDone
+                          ? 'bg-brass border-brass-deep text-parchment'
+                          : 'border-brass-deep/60 text-brass-deep hover:bg-brass/10'
+                      }`}
+                    >
+                      {strongStartDone && <Check size={10} strokeWidth={3} />}
+                      {strongStartDone ? 'Delivered' : 'Mark Delivered'}
+                    </button>
+                  </div>
+                  <p className={`mt-1 text-sm sm:text-base font-serif text-ink-soft whitespace-pre-wrap ${strongStartDone ? 'italic opacity-60' : ''}`}>
+                    {strongStart}
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+
           <ActivePrepGroup title="Scenes" icon={NotebookPen} count={scenes.length}>
             {scenes.length === 0 ? <Empty>No scenes prepped.</Empty> : scenes.map((s, i) => {
               const used = usedScenes.includes(s);
@@ -1314,17 +1410,21 @@ function RunSessionInlineActive({
             })}
           </ActivePrepGroup>
 
-          <ActivePrepGroup title="Unrevealed Secrets" icon={ScrollText} count={unrevealedSecrets.length}>
-            {unrevealedSecrets.length === 0 ? <Empty>No unrevealed secrets.</Empty> : unrevealedSecrets.map(({ s, i }) => (
-              <CompactCard
-                key={i}
-                label={s}
-                action={{
-                  label: 'Mark Revealed',
-                  onClick: () => setRevealed(i, true, s),
-                }}
-              />
-            ))}
+          <ActivePrepGroup title="Secrets & Clues" icon={ScrollText} count={secrets.length}>
+            {secrets.length === 0 ? <Empty>No secrets prepped.</Empty> : secrets.map((s, i) => {
+              const revealed = !!revSec[i];
+              return (
+                <CompactCard
+                  key={i}
+                  label={s}
+                  status={revealed ? 'used' : undefined}
+                  action={{
+                    label: revealed ? 'Unmark' : 'Mark Revealed',
+                    onClick: () => setRevealed(i, !revealed, s),
+                  }}
+                />
+              );
+            })}
           </ActivePrepGroup>
 
           <ActivePrepGroup title="NPCs" icon={User} count={npcs.length}>
@@ -1358,6 +1458,106 @@ function RunSessionInlineActive({
               </ExpandableCard>
             ))}
           </ActivePrepGroup>
+
+          <ActivePrepGroup title="Relevant Monsters" icon={Skull} count={monstersList.length}>
+            {monstersList.length === 0 ? <Empty>No monsters prepped.</Empty> : (
+              <ul className="space-y-1">
+                {monstersList.map((m, i) => (
+                  <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif text-ink-soft">
+                    {m}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ActivePrepGroup>
+
+          <ActivePrepGroup title="Magic Items" icon={Gem} count={magicItemsList.length}>
+            {magicItemsList.length === 0 ? <Empty>No magic items prepped.</Empty> : magicItemsList.map((it, i) => {
+              const given = givenItems.includes(it);
+              return (
+                <CompactCard
+                  key={i}
+                  label={it}
+                  status={given ? 'used' : undefined}
+                  action={{
+                    label: given ? 'Unmark' : 'Mark Given',
+                    onClick: () => toggleItemGiven(it),
+                  }}
+                />
+              );
+            })}
+          </ActivePrepGroup>
+
+          <ActivePrepGroup title="PC Goals" icon={Target} count={pcGoals.length}>
+            {pcGoals.length === 0 ? <Empty>No PC goals prepped.</Empty> : (
+              <ul className="space-y-1.5">
+                {pcGoals.map((g: any, i: number) => (
+                  <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif">
+                    <div className="text-ink-soft">{g.text || `Goal ${i + 1}`}</div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {['Active', 'Progressed', 'Completed', 'Failed'].map(s => (
+                        <button
+                          key={s}
+                          onClick={() => updateGoalStatus(i, s)}
+                          className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider ${g.status === s ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'}`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ActivePrepGroup>
+
+          <ActivePrepGroup title="Faction Clocks" icon={ScrollText} count={clocks.length}>
+            {clocks.length === 0 ? <Empty>No clocks prepped.</Empty> : (
+              <ul className="space-y-1.5">
+                {clocks.map((c: any, i: number) => {
+                  const max = c.max || 6;
+                  const filled = c.filled || 0;
+                  return (
+                    <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-ink">{c.text || `Clock ${i + 1}`}</span>
+                        <span className="text-[11px] text-brass-deep font-display">{filled}/{max}</span>
+                      </div>
+                      {c.faction && <div className="text-[10px] text-ink-mute italic">{c.faction}</div>}
+                      <div className="flex gap-0.5">
+                        {Array.from({ length: max }).map((_, j) => (
+                          <button
+                            key={j}
+                            onClick={() => tickClock(i, j + 1 === filled ? -filled : (j + 1) - filled)}
+                            className={`flex-1 h-3 rounded-sm transition-colors ${j < filled ? 'bg-crimson' : 'bg-parchment-deep hover:bg-parchment-deep/70'}`}
+                          />
+                        ))}
+                      </div>
+                      <div className="flex gap-1">
+                        <button onClick={() => tickClock(i, -1)} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">−1</button>
+                        <button onClick={() => tickClock(i, 1)} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">+1</button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </ActivePrepGroup>
+
+          {factions.length > 0 && (
+            <ActivePrepGroup title="Faction Renown" icon={Users} count={factions.length}>
+              <ul className="space-y-1.5">
+                {factions.map((f: any, i: number) => (
+                  <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif flex items-center gap-2">
+                    <span className="flex-1 text-ink">{f.name || `Faction ${i + 1}`}</span>
+                    <span className="text-xs text-brass-deep font-display tabular-nums">{typeof f.renown === 'number' ? f.renown : 0}</span>
+                    <button onClick={() => adjustRenown(i, -1)} className="text-[11px] w-6 h-6 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display">−</button>
+                    <button onClick={() => adjustRenown(i, 1)} className="text-[11px] w-6 h-6 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display">+</button>
+                  </li>
+                ))}
+              </ul>
+            </ActivePrepGroup>
+          )}
         </div>
 
         <div className="space-y-3 lg:sticky lg:top-3 lg:self-start">
@@ -1386,6 +1586,8 @@ function RunSessionInlineActive({
         </div>
       </div>
 
+      <InlineNoteSeed trackEvent={trackEvent} />
+
       <div className="sticky bottom-2 bg-parchment-soft border border-rule rounded shadow-page p-2 flex items-start gap-2">
         <NotebookPen size={14} className="text-brass-deep flex-shrink-0 mt-1.5" />
         <textarea
@@ -1408,6 +1610,32 @@ function formatElapsed(ms: number): string {
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+function InlineNoteSeed({ trackEvent }: { trackEvent: (kind: ChangeEventKind, summary: string) => void }) {
+  const [text, setText] = useState('');
+  return (
+    <details className="rounded border border-rule bg-parchment-soft shadow-card">
+      <summary className="px-3 py-2 cursor-pointer font-display tracking-wide text-sm text-ink hover:bg-parchment-deep/30 flex items-center gap-2">
+        <Plus size={12} className="text-brass-deep" /> Add Session Note
+      </summary>
+      <div className="px-3 pb-3 pt-1 border-t border-rule space-y-1.5">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="A moment to remember…"
+          className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+        />
+        <button
+          disabled={!text.trim()}
+          onClick={() => { trackEvent('other', text.trim()); setText(''); }}
+          className="text-xs px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed font-display uppercase tracking-wider"
+        >
+          Mark as Session Note
+        </button>
+      </div>
+    </details>
+  );
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
