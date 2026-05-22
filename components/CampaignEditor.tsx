@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateCampaign, deleteCampaign as deleteCampaignDoc, archiveCampaign, unarchiveCampaign, copyCampaign, type Campaign } from '@/lib/firebase/campaigns';
 import { getFirebaseAuth } from '@/lib/firebase/client';
@@ -9,6 +9,7 @@ import {
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, ArrowLeft, Cloud, CloudOff,
   FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench, SlidersHorizontal, Copy,
+  Compass, NotebookPen,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounterMath';
@@ -76,6 +77,15 @@ import {
   type PrepTargetOverrides,
 } from '@/lib/prepTargets';
 import PrepTargetsModal from './PrepTargetsModal';
+import ModeNav from './ModeNav';
+import {
+  type Mode,
+  MODES,
+  ALL_SUBVIEWS,
+  defaultSubview,
+  isValidSubview,
+  resolveInitialMode,
+} from '@/lib/modes';
 
 const M = {
   shea: { label: 'Lazy DM', color: 'border-moss/40 bg-moss/5 text-moss' },
@@ -83,58 +93,9 @@ const M = {
   pr: { label: 'Proactive', color: 'border-wine/40 bg-wine/5 text-wine' },
 };
 
-// Module-level tab order — shared by the sidebar renderer and the
-// arrow-key navigation handler so a single edit moves both together.
-export type TabId =
-  | 'prep' | 'ref' | 'track' | 'down' | 'log'
-  | 'dice' | 'spells' | 'generators' | 'names'
-  | 'locations' | 'monsters' | 'vivify'
-  | 'dmref' | 'traps' | 'chase' | 'pointbuy';
-
-type TabGroupId = 'prep' | 'run' | 'tools';
-
-type TabGroup = {
-  id: TabGroupId;
-  label: string;
-  tabs: ReadonlyArray<readonly [TabId, string]>;
-};
-
-const TAB_GROUPS: ReadonlyArray<TabGroup> = [
-  { id: 'prep', label: 'Prep', tabs: [
-    ['prep', 'Prep Flow'],
-    ['ref', 'Reference'],
-    ['track', 'Tracking'],
-    ['down', 'Downtime'],
-  ]},
-  { id: 'run', label: 'Run', tabs: [
-    ['dice', 'Dice'],
-    ['spells', 'Spells'],
-    ['dmref', 'DM Ref'],
-    ['chase', 'Chase'],
-  ]},
-  { id: 'tools', label: 'Tools', tabs: [
-    ['generators', 'Generators'],
-    ['names', 'Names'],
-    ['locations', 'Locations'],
-    ['monsters', 'Monsters'],
-    ['traps', 'Traps'],
-    ['pointbuy', 'Point-Buy'],
-    ['vivify', 'Vivify'],
-    ['log', 'Sessions'],
-  ]},
-] as const;
-
-// Flat order used by ←/→ arrow-key tab cycling. Derived from the group
-// order so adding/reordering a group automatically updates cycling.
-const TAB_LIST: ReadonlyArray<readonly [TabId, string]> =
-  TAB_GROUPS.flatMap(g => g.tabs);
-
-function groupForTab(tab: TabId): TabGroupId {
-  for (const g of TAB_GROUPS) {
-    if (g.tabs.some(([id]) => id === tab)) return g.id;
-  }
-  return 'prep';
-}
+// Mode + subview navigation. The shape of MODES, the legacy migration map,
+// and the helpers all live in lib/modes.ts so other surfaces (palette,
+// future deep-links) share a single source of truth.
 
 // Prep item targets — see lib/prepTargets.ts for the single source of truth
 // (shared with the pre-session PrepWizard).
@@ -1075,6 +1036,215 @@ function renownRank(value: number, custom?: string[]): string {
   return 'Enemy';
 }
 
+type LookupKind = 'all' | 'npcs' | 'locations' | 'secrets' | 'factions' | 'items';
+
+function LookupView({
+  npcs, locations, secrets, factions, magicItems, revealedSecrets,
+}: {
+  npcs: any[];
+  locations: any[];
+  secrets: string[];
+  factions: any[];
+  magicItems: string[];
+  revealedSecrets: Record<number, boolean>;
+}) {
+  const [query, setQuery] = useState('');
+  const [kind, setKind] = useState<LookupKind>('all');
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const q = query.trim().toLowerCase();
+  const matches = (s: string) => !q || s.toLowerCase().includes(q);
+
+  const showNpcs = kind === 'all' || kind === 'npcs';
+  const showLocs = kind === 'all' || kind === 'locations';
+  const showSecrets = kind === 'all' || kind === 'secrets';
+  const showFactions = kind === 'all' || kind === 'factions';
+  const showItems = kind === 'all' || kind === 'items';
+
+  const filteredNpcs = npcs.map((n, i) => ({ n, i })).filter(({ n }) =>
+    matches(n.name || '') || matches(n.archetype || '') || matches(n.faction || '') ||
+    matches(n.goal || '') || matches(n.method || '')
+  );
+  const filteredLocs = locations.map((l, i) => ({ l, i })).filter(({ l }) =>
+    matches(l.name || '') || matches(l.type || '') || (Array.isArray(l.aspects) && l.aspects.some((a: string) => matches(a || '')))
+  );
+  const filteredSecrets = secrets.map((s, i) => ({ s, i })).filter(({ s }) => matches(s || ''));
+  const filteredFactions = factions.map((f, i) => ({ f, i })).filter(({ f }) =>
+    matches(f.name || '') || matches(f.archetype || '') || matches(f.identity || '') || matches(f.area || '')
+  );
+  const filteredItems = magicItems.map((m, i) => ({ m, i })).filter(({ m }) => matches(m || ''));
+
+  const totalCount = filteredNpcs.length + filteredLocs.length + filteredSecrets.length + filteredFactions.length + filteredItems.length;
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
+        <div className="flex items-center gap-2">
+          <Search size={14} className="text-brass-deep flex-shrink-0" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search NPCs, locations, secrets, factions, items…"
+            className="flex-1 bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif placeholder:text-ink-faint focus:border-crimson focus:outline-none"
+          />
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {([
+            ['all', 'All'],
+            ['npcs', `NPCs (${npcs.length})`],
+            ['locations', `Locations (${locations.length})`],
+            ['secrets', `Secrets (${secrets.length})`],
+            ['factions', `Factions (${factions.length})`],
+            ['items', `Items (${magicItems.length})`],
+          ] as [LookupKind, string][]).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setKind(id)}
+              className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider ${
+                kind === id ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="text-[11px] text-ink-mute font-serif italic">
+          {totalCount === 0 && q ? 'No matches.' : totalCount === 0 ? 'Nothing prepped yet.' : `${totalCount} match${totalCount === 1 ? '' : 'es'}`}
+        </div>
+      </div>
+
+      {showNpcs && filteredNpcs.length > 0 && (
+        <LookupGroup title="NPCs" icon={User}>
+          {filteredNpcs.map(({ n, i }) => {
+            const id = `npc-${i}`;
+            const open = openId === id;
+            const label = (n.name || '').trim() || (n.archetype || '').trim() || `NPC ${i + 1}`;
+            return (
+              <LookupCard key={id} label={label} tag={[n.type, n.faction].filter(Boolean).join(' · ')} open={open} onToggle={() => setOpenId(open ? null : id)}>
+                {n.archetype && <Detail label="Archetype">{n.archetype}</Detail>}
+                {n.goal && <Detail label="Goal">{n.goal}</Detail>}
+                {n.method && <Detail label="Method">{n.method}</Detail>}
+                {n.mannerism && <Detail label="Mannerism">{n.mannerism}</Detail>}
+                {n.appearance && <Detail label="Appearance">{n.appearance}</Detail>}
+              </LookupCard>
+            );
+          })}
+        </LookupGroup>
+      )}
+
+      {showLocs && filteredLocs.length > 0 && (
+        <LookupGroup title="Locations" icon={Map}>
+          {filteredLocs.map(({ l, i }) => {
+            const id = `loc-${i}`;
+            const open = openId === id;
+            const label = (l.name || '').trim() || `Location ${i + 1}`;
+            return (
+              <LookupCard key={id} label={label} tag={l.type || ''} open={open} onToggle={() => setOpenId(open ? null : id)}>
+                {Array.isArray(l.aspects) && l.aspects.filter(Boolean).length > 0 && (
+                  <ul className="ml-3 list-disc text-[12px] text-ink-soft italic">
+                    {l.aspects.filter(Boolean).map((a: string, j: number) => <li key={j}>{a}</li>)}
+                  </ul>
+                )}
+                {l.factions && <Detail label="Factions">{l.factions}</Detail>}
+              </LookupCard>
+            );
+          })}
+        </LookupGroup>
+      )}
+
+      {showSecrets && filteredSecrets.length > 0 && (
+        <LookupGroup title="Secrets" icon={ScrollText}>
+          {filteredSecrets.map(({ s, i }) => {
+            const revealed = !!revealedSecrets[i];
+            return (
+              <div
+                key={`sec-${i}`}
+                className={`px-2 py-1.5 rounded border text-sm font-serif ${revealed ? 'border-emerald-700/40 bg-emerald-100/30 text-ink-mute' : 'border-rule bg-parchment text-ink-soft'}`}
+              >
+                <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider mr-2">{revealed ? 'Revealed' : 'Hidden'}</span>
+                {s}
+              </div>
+            );
+          })}
+        </LookupGroup>
+      )}
+
+      {showFactions && filteredFactions.length > 0 && (
+        <LookupGroup title="Factions" icon={Users}>
+          {filteredFactions.map(({ f, i }) => {
+            const id = `fac-${i}`;
+            const open = openId === id;
+            const label = (f.name || '').trim() || (f.identity || '').trim() || `Faction ${i + 1}`;
+            return (
+              <LookupCard key={id} label={label} tag={f.archetype || f.area || ''} open={open} onToggle={() => setOpenId(open ? null : id)}>
+                {f.identity && <Detail label="Identity">{f.identity}</Detail>}
+                {f.area && <Detail label="Area">{f.area}</Detail>}
+                {f.power && <Detail label="Power">{f.power}</Detail>}
+                {f.ideology && <Detail label="Ideology">{f.ideology}</Detail>}
+                {f.longGoal && <Detail label="Long-term goal">{f.longGoal}</Detail>}
+              </LookupCard>
+            );
+          })}
+        </LookupGroup>
+      )}
+
+      {showItems && filteredItems.length > 0 && (
+        <LookupGroup title="Magic Items" icon={Gift}>
+          {filteredItems.map(({ m, i }) => (
+            <div key={`item-${i}`} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif text-ink-soft">
+              {m}
+            </div>
+          ))}
+        </LookupGroup>
+      )}
+    </div>
+  );
+}
+
+function LookupGroup({
+  title, icon: Icon, children,
+}: { title: string; icon: any; children: React.ReactNode }) {
+  return (
+    <section className="rounded border border-rule bg-parchment-soft shadow-card">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-rule">
+        <Icon size={14} className="text-brass-deep" />
+        <span className="font-display tracking-wide text-sm text-ink">{title}</span>
+      </div>
+      <div className="p-3 space-y-1.5">{children}</div>
+    </section>
+  );
+}
+
+function LookupCard({
+  label, tag, open, onToggle, children,
+}: { label: string; tag?: string; open: boolean; onToggle: () => void; children?: React.ReactNode }) {
+  return (
+    <div className="rounded border border-rule bg-parchment text-sm font-serif">
+      <button onClick={onToggle} className="w-full text-left px-2 py-1.5 flex items-center gap-2 hover:bg-parchment-deep/30">
+        {open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />}
+        <span className="flex-1 text-ink truncate">{label}</span>
+        {tag && <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">{tag}</span>}
+      </button>
+      {open && children && (
+        <div className="px-3 pb-2 pt-1 border-t border-rule text-[12px] text-ink-soft space-y-0.5">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Detail({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">{label} · </span>
+      {children}
+    </div>
+  );
+}
+
 const Phase = ({ n, title, sub, methods, children, expanded, onToggle, icon: Icon }: any) => (
   <div className="border border-rule rounded-lg overflow-hidden bg-parchment-soft shadow-page">
     <button onClick={onToggle} className="w-full flex items-center gap-2.5 sm:gap-4 p-3 sm:p-4 hover:bg-parchment-deep/30 text-left transition-colors">
@@ -1106,21 +1276,21 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<TabId>('prep');
+  const initialModeState = useMemo(() => resolveInitialMode(initialMigration.initialState), [initialMigration.initialState]);
+  const [mode, setMode] = useState<Mode>(initialModeState.mode);
+  const [subview, setSubview] = useState<string>(initialModeState.subview);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  // Group expand/collapse for the sidebar. Initial state is empty; the
-  // renderer treats "not explicitly set" as "expanded if it contains the
-  // active tab", so the right group always shows on first render. When
-  // `tab` changes (arrow keys, Cmd+K), the effect below force-expands the
-  // group containing the new active tab so users never end up with an
-  // active tab hidden behind a collapsed header.
-  const [openGroups, setOpenGroups] = useState<Partial<Record<TabGroupId, boolean>>>({});
+  // Persist mode + subview so users return to wherever they left. Skip the
+  // undo snapshot for these — switching tabs shouldn't compete with Cmd+Z.
   useEffect(() => {
-    const g = groupForTab(tab);
-    setOpenGroups(o => (o[g] === true ? o : { ...o, [g]: true }));
+    setState(s => {
+      if (s.__mode === mode && s.__subview === subview) return s;
+      skipNextSnapshotRef.current = true;
+      return { ...s, __mode: mode, __subview: subview };
+    });
     window.scrollTo(0, 0);
-  }, [tab]);
+  }, [mode, subview]);
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [prepTargetsOpen, setPrepTargetsOpen] = useState(false);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
@@ -1627,14 +1797,33 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     }));
   };
 
+  // Each prep section also belongs to a Plan sub-view (Phases 0-2 live there;
+  // Phases 3 is Prep/Flow; Phases 4-6 are Plan/Fronts). Used by the palette
+  // and Next-Up jump so we route to the right tab before scrolling.
+  const PHASE_TO_VIEW: Record<string, { mode: Mode; subview: string }> = {
+    p0: { mode: 'plan', subview: 'pitch' },
+    p1: { mode: 'plan', subview: 'world' },
+    p2: { mode: 'plan', subview: 'pcs' },
+    p3: { mode: 'prep', subview: 'flow' },
+    p4: { mode: 'plan', subview: 'fronts' },
+    p5: { mode: 'plan', subview: 'fronts' },
+    p6: { mode: 'plan', subview: 'fronts' },
+  };
+
   const navigateTo = (target: {
-    tab: typeof tab;
+    mode: Mode;
+    subview?: string;
     sectionId?: string;
     sessionId?: string;
     characterId?: string;
     anchor?: string;
   }) => {
-    setTab(target.tab);
+    const nextSubview =
+      target.subview && isValidSubview(target.mode, target.subview)
+        ? target.subview
+        : defaultSubview(target.mode);
+    setMode(target.mode);
+    setSubview(nextSubview);
     if (target.sectionId) {
       const phase = SECTION_TO_PHASE[target.sectionId];
       if (phase) setPhaseOpen(p => ({ ...p, [phase]: true }));
@@ -1647,6 +1836,26 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       setOpenChars(o => ({ ...o, [target.characterId!]: true }));
     }
     if (target.anchor) scrollToAnchor(target.anchor);
+  };
+
+  // Resolve a prep section ID to its (mode, subview) — used by command-palette
+  // entries that target a specific section.
+  const viewForSection = (sectionId: string): { mode: Mode; subview: string } => {
+    const phase = SECTION_TO_PHASE[sectionId];
+    return PHASE_TO_VIEW[phase] ?? { mode: 'prep', subview: 'flow' };
+  };
+
+  const handleModeChange = (m: Mode) => {
+    if (!confirmUnsavedNav()) return;
+    if (m === mode) return;
+    setMode(m);
+    setSubview(defaultSubview(m));
+  };
+
+  const handleSubviewChange = (sv: string) => {
+    if (!confirmUnsavedNav()) return;
+    if (sv === subview) return;
+    if (isValidSubview(mode, sv)) setSubview(sv);
   };
 
   // Global keyboard shortcuts:
@@ -1699,35 +1908,39 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         if (!confirmUnsavedNav()) return;
         e.preventDefault();
-        setTab(current => {
-          const i = TAB_LIST.findIndex(([id]) => id === current);
-          if (i < 0) return current;
-          const step = e.key === 'ArrowRight' ? 1 : -1;
-          const next = (i + step + TAB_LIST.length) % TAB_LIST.length;
-          return TAB_LIST[next][0];
-        });
+        const idx = ALL_SUBVIEWS.findIndex(p => p.mode === mode && p.subview === subview);
+        if (idx < 0) return;
+        const step = e.key === 'ArrowRight' ? 1 : -1;
+        const next = ALL_SUBVIEWS[(idx + step + ALL_SUBVIEWS.length) % ALL_SUBVIEWS.length];
+        setMode(next.mode);
+        setSubview(next.subview);
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [paletteOpen, shortcutsOpen, syncState, syncError]);
+  }, [paletteOpen, shortcutsOpen, syncState, syncError, mode, subview]);
 
-  const TAB_META: Array<{ id: typeof tab; label: string; icon: any; keywords?: string[] }> = [
-    { id: 'prep', label: 'Prep Flow', icon: ScrollText, keywords: ['lazy dm', 'ccd', 'pitch', 'givens'] },
-    { id: 'ref', label: 'Reference', icon: BookOpen },
-    { id: 'track', label: 'Tracking', icon: Target, keywords: ['session log', 'secrets', 'goals'] },
-    { id: 'down', label: 'Downtime', icon: Calendar },
-    { id: 'dice', label: 'Dice', icon: Dice5 },
-    { id: 'spells', label: 'Spells', icon: Sparkles },
-    { id: 'generators', label: 'Generators', icon: Wand2, keywords: ['tavern', 'treasure', 'shop', 'dungeon', 'settlement', 'trinket'] },
-    { id: 'names', label: 'Names', icon: User, keywords: ['npc names'] },
-    { id: 'locations', label: 'Locations', icon: Map },
-    { id: 'monsters', label: 'Monsters', icon: Skull, keywords: ['stat block', 'bestiary'] },
-    { id: 'vivify', label: 'Vivify', icon: Sparkles, keywords: ['ai description', 'prose'] },
-    { id: 'traps', label: 'Traps', icon: Hash },
-    { id: 'dmref', label: 'DM Ref', icon: BookOpen, keywords: ['rules', 'madness', 'travel'] },
-    { id: 'chase', label: 'Chase', icon: Footprints, keywords: ['chase tracker'] },
-    { id: 'pointbuy', label: 'Point-Buy', icon: Wrench, keywords: ['point buy', 'ability scores', 'calculator', 'stats'] },
+  const VIEW_META: Array<{ mode: Mode; subview: string; label: string; icon: any; keywords?: string[] }> = [
+    { mode: 'plan',    subview: 'pitch',     label: 'Premise',     icon: Compass,         keywords: ['hook', 'givens', 'truths'] },
+    { mode: 'plan',    subview: 'world',     label: 'World',       icon: BookOpen,        keywords: ['setting', 'factions', 'reference', 'downtime'] },
+    { mode: 'plan',    subview: 'pcs',       label: 'Characters',  icon: User,            keywords: ['pc', 'goals', 'sidekick'] },
+    { mode: 'plan',    subview: 'fronts',    label: 'Fronts',      icon: Target,          keywords: ['clocks', 'audits', 'tracking', 'ending', 'secrets revealed'] },
+    { mode: 'prep',    subview: 'flow',      label: 'Prep Flow',   icon: ScrollText,      keywords: ['lazy dm', '8 step', 'next session'] },
+    { mode: 'prep',    subview: 'wizard',    label: 'Prep Wizard', icon: ClipboardList,   keywords: ['guided', 'walkthrough'] },
+    { mode: 'run',     subview: 'session',   label: 'Run Session', icon: Swords,          keywords: ['active', 'table'] },
+    { mode: 'run',     subview: 'lookup',    label: 'Lookup',      icon: Search,          keywords: ['quick reference'] },
+    { mode: 'run',     subview: 'dice',      label: 'Dice',        icon: Dice5 },
+    { mode: 'run',     subview: 'spells',    label: 'Spells',      icon: Sparkles },
+    { mode: 'run',     subview: 'dmref',     label: 'DM Ref',      icon: BookOpen,        keywords: ['rules', 'madness', 'travel'] },
+    { mode: 'run',     subview: 'chase',     label: 'Chase',       icon: Footprints,      keywords: ['chase tracker'] },
+    { mode: 'run',     subview: 'log',       label: 'Sessions',    icon: Calendar,        keywords: ['session log', 'recap'] },
+    { mode: 'library', subview: 'generators',label: 'Generators',  icon: Wand2,           keywords: ['tavern', 'treasure', 'shop', 'dungeon', 'settlement', 'trinket'] },
+    { mode: 'library', subview: 'names',     label: 'Names',       icon: User,            keywords: ['npc names'] },
+    { mode: 'library', subview: 'locations', label: 'Locations',   icon: Map },
+    { mode: 'library', subview: 'monsters',  label: 'Monsters',    icon: Skull,           keywords: ['stat block', 'bestiary'] },
+    { mode: 'library', subview: 'traps',     label: 'Traps',       icon: Hash },
+    { mode: 'library', subview: 'vivify',    label: 'Vivify',      icon: Sparkles,        keywords: ['ai description', 'prose'] },
+    { mode: 'library', subview: 'pointbuy',  label: 'Point-Buy',   icon: Wrench,          keywords: ['point buy', 'ability scores', 'calculator', 'stats'] },
   ];
 
   const PREP_SECTION_META: Array<{ id: string; label: string }> = [
@@ -1761,34 +1974,36 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   const paletteItems: CommandItem[] = useMemo(() => {
     const items: CommandItem[] = [];
 
-    for (const t of TAB_META) {
+    for (const t of VIEW_META) {
       items.push({
-        id: `tab:${t.id}`,
+        id: `view:${t.mode}:${t.subview}`,
         label: `Go to ${t.label}`,
+        sublabel: MODES[t.mode].label,
         group: 'Navigation',
         keywords: t.keywords,
         icon: t.icon,
-        run: () => navigateTo({ tab: t.id }),
+        run: () => navigateTo({ mode: t.mode, subview: t.subview }),
       });
     }
 
     items.push(
-      { id: 'act:new-session', label: 'New session log', group: 'Actions', icon: Plus, run: () => { addSessionLog(); navigateTo({ tab: 'track' }); } },
+      { id: 'act:new-session', label: 'New session log', group: 'Actions', icon: Plus, run: () => { addSessionLog(); navigateTo({ mode: 'run', subview: 'log' }); } },
       { id: 'act:export', label: 'Export campaign JSON', group: 'Actions', icon: Download, run: () => exportJSON() },
       { id: 'act:import', label: 'Import campaign JSON', group: 'Actions', icon: Upload, run: () => fileInputRef.current?.click() },
-      { id: 'act:add-character', label: 'Add character', group: 'Actions', icon: User, run: () => { addCharacter(); navigateTo({ tab: 'prep', sectionId: 'pc' }); } },
+      { id: 'act:add-character', label: 'Add character', group: 'Actions', icon: User, run: () => { addCharacter(); const v = viewForSection('pc'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 'pc' }); } },
       { id: 'act:solo-toggle', label: soloMode ? 'Switch to Group prep targets' : 'Switch to Solo prep targets', group: 'Actions', icon: Users, run: () => setSoloMode(s => !s) },
       { id: 'act:prep-targets', label: 'Customize prep target counts…', group: 'Actions', icon: SlidersHorizontal, run: () => setPrepTargetsOpen(true) },
     );
 
     for (const s of PREP_SECTION_META) {
+      const v = viewForSection(s.id);
       items.push({
         id: `sec:${s.id}`,
         label: s.label,
-        sublabel: 'Prep',
+        sublabel: MODES[v.mode].label,
         group: 'Prep section',
         icon: ScrollText,
-        run: () => navigateTo({ tab: 'prep', sectionId: s.id, anchor: `section:${s.id}` }),
+        run: () => navigateTo({ mode: v.mode, subview: v.subview, sectionId: s.id, anchor: `section:${s.id}` }),
       });
     }
 
@@ -1803,7 +2018,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         group: 'NPCs',
         keywords: [n.archetype || '', n.faction || ''],
         icon: User,
-        run: () => navigateTo({ tab: 'prep', sectionId: 's6-npc', anchor: `npc:${i}` }),
+        run: () => { const v = viewForSection('s6-npc'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 's6-npc', anchor: `npc:${i}` }); },
       });
     });
 
@@ -1817,7 +2032,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         group: 'Locations',
         keywords: [l.factions || ''],
         icon: Map,
-        run: () => navigateTo({ tab: 'prep', sectionId: 's5-loc', anchor: `location:${i}` }),
+        run: () => { const v = viewForSection('s5-loc'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 's5-loc', anchor: `location:${i}` }); },
       });
     });
 
@@ -1830,7 +2045,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         sublabel: f.archetype || f.area || undefined,
         group: 'Factions',
         icon: Users,
-        run: () => navigateTo({ tab: 'prep', sectionId: 'factions', anchor: `faction:${i}` }),
+        run: () => { const v = viewForSection('factions'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 'factions', anchor: `faction:${i}` }); },
       });
     });
 
@@ -1844,7 +2059,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         sublabel: `Scene ${i + 1}`,
         group: 'Scenes',
         icon: Calendar,
-        run: () => navigateTo({ tab: 'prep', sectionId: 's3-scenes', anchor: 'section:s3-scenes' }),
+        run: () => { const v = viewForSection('s3-scenes'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 's3-scenes', anchor: 'section:s3-scenes' }); },
       });
     });
 
@@ -1858,7 +2073,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         sublabel: `Secret ${i + 1}`,
         group: 'Secrets',
         icon: ScrollText,
-        run: () => navigateTo({ tab: 'prep', sectionId: 's4-secrets', anchor: 'section:s4-secrets' }),
+        run: () => { const v = viewForSection('s4-secrets'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 's4-secrets', anchor: 'section:s4-secrets' }); },
       });
     });
 
@@ -1873,7 +2088,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         group: 'Characters',
         keywords: [c.player || '', c.background || ''],
         icon: User,
-        run: () => navigateTo({ tab: 'prep', sectionId: 'pc', characterId: c.id, anchor: `character:${c.id}` }),
+        run: () => { const v = viewForSection('pc'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 'pc', characterId: c.id, anchor: `character:${c.id}` }); },
       });
     });
 
@@ -1886,7 +2101,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         sublabel: c.sidekickClass || undefined,
         group: 'Sidekicks',
         icon: Users,
-        run: () => navigateTo({ tab: 'prep', sectionId: 'pc', characterId: c.id, anchor: `character:${c.id}` }),
+        run: () => { const v = viewForSection('pc'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 'pc', characterId: c.id, anchor: `character:${c.id}` }); },
       });
     });
 
@@ -1898,7 +2113,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         sublabel: log.date || undefined,
         group: 'Sessions',
         icon: Calendar,
-        run: () => navigateTo({ tab: 'track', sessionId: log.id, anchor: `session:${log.id}` }),
+        run: () => navigateTo({ mode: 'run', subview: 'log', sessionId: log.id, anchor: `session:${log.id}` }),
       });
     });
 
@@ -1915,7 +2130,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         sublabel: sub || `PC Goal ${i + 1}`,
         group: 'Goals',
         icon: Target,
-        run: () => navigateTo({ tab: 'prep', sectionId: 'goals', anchor: 'section:goals' }),
+        run: () => { const v = viewForSection('goals'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 'goals', anchor: 'section:goals' }); },
       });
     });
 
@@ -1930,7 +2145,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         sublabel: `Magic Item ${i + 1}`,
         group: 'Magic items',
         icon: Gift,
-        run: () => navigateTo({ tab: 'prep', sectionId: 's8-rew', anchor: 'section:s8-rew' }),
+        run: () => { const v = viewForSection('s8-rew'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 's8-rew', anchor: 'section:s8-rew' }); },
       });
     });
 
@@ -1949,7 +2164,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         group: 'Faction clocks',
         keywords: [faction],
         icon: Target,
-        run: () => { setPhaseOpen(p => ({ ...p, p4: true })); navigateTo({ tab: 'prep' }); },
+        run: () => { setPhaseOpen(p => ({ ...p, p4: true })); navigateTo({ mode: 'plan', subview: 'fronts' }); },
       });
     });
 
@@ -1965,7 +2180,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         group: 'Monsters',
         keywords: [m.type || ''],
         icon: Skull,
-        run: () => navigateTo({ tab: 'monsters' }),
+        run: () => navigateTo({ mode: 'library', subview: 'monsters' }),
       });
     });
 
@@ -1979,7 +2194,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         sublabel: sub || undefined,
         group: 'Traps',
         icon: Hash,
-        run: () => navigateTo({ tab: 'traps' }),
+        run: () => navigateTo({ mode: 'library', subview: 'traps' }),
       });
     });
 
@@ -1994,7 +2209,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         group: 'Chases',
         keywords: [c.terrain || ''],
         icon: Footprints,
-        run: () => navigateTo({ tab: 'chase' }),
+        run: () => navigateTo({ mode: 'run', subview: 'chase' }),
       });
     });
 
@@ -2013,7 +2228,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         group: 'Downtime',
         keywords: [typeLabel],
         icon: Calendar,
-        run: () => navigateTo({ tab: 'down' }),
+        run: () => navigateTo({ mode: 'plan', subview: 'world' }),
       });
     });
 
@@ -2026,14 +2241,16 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       'locations': 'Location', 'monster-roll': 'Monster', 'monster-scale': 'Scaled monster',
       'dice': 'Dice',
     };
-    const LOG_TO_TAB: Record<string, typeof tab> = {
-      'names': 'names', 'locations': 'locations',
-      'monster-roll': 'monsters', 'monster-scale': 'monsters',
-      'dice': 'dice',
+    const LOG_TO_VIEW: Record<string, { mode: Mode; subview: string }> = {
+      'names':         { mode: 'library', subview: 'names' },
+      'locations':     { mode: 'library', subview: 'locations' },
+      'monster-roll':  { mode: 'library', subview: 'monsters' },
+      'monster-scale': { mode: 'library', subview: 'monsters' },
+      'dice':          { mode: 'run',     subview: 'dice' },
     };
     for (const kind of Object.keys(generatorLogs) as Array<keyof typeof generatorLogs>) {
       const entries = (generatorLogs[kind] || []).slice(0, 5);
-      const destTab = (LOG_TO_TAB[kind] || 'generators') as typeof tab;
+      const destView = LOG_TO_VIEW[kind] || { mode: 'library' as const, subview: 'generators' };
       entries.forEach((entry) => {
         const title = (entry.title || '').trim();
         if (!title) return;
@@ -2043,7 +2260,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           sublabel: LOG_LABEL[kind] || kind,
           group: 'Generator log',
           icon: Wand2,
-          run: () => navigateTo({ tab: destTab }),
+          run: () => navigateTo({ mode: destView.mode, subview: destView.subview }),
         });
       });
     }
@@ -2197,7 +2414,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             return next;
           });
           setSession0Open(false);
-          setTab('prep');
+          setMode('plan');
+          setSubview('pitch');
         }}
       />
     );
@@ -2205,66 +2423,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
   return (
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
-      <div className="max-w-5xl mx-auto flex flex-col md:flex-row md:items-start gap-3 md:gap-4">
-        <aside className="md:w-44 md:flex-shrink-0 md:sticky md:top-3">
-          <nav
-            role="tablist"
-            aria-label="Campaign sections"
-            className="flex md:flex-col border border-rule rounded font-display uppercase tracking-wider text-xs bg-parchment-soft overflow-x-auto md:overflow-x-visible md:overflow-hidden"
-          >
-            {TAB_GROUPS.map((group, gIdx) => {
-              const containsActive = group.tabs.some(([id]) => id === tab);
-              const isExpanded = openGroups[group.id] ?? containsActive;
-              return (
-                <Fragment key={group.id}>
-                  {/* Mobile group label — small inline divider between groups */}
-                  <div
-                    className={`md:hidden flex items-center px-2 text-[9px] font-display uppercase tracking-wider text-brass-deep whitespace-nowrap ${
-                      gIdx > 0 ? 'border-l border-rule' : ''
-                    }`}
-                    aria-hidden="true"
-                  >
-                    {group.label}
-                  </div>
-                  {/* Desktop group header — collapsible accordion */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOpenGroups(o => ({ ...o, [group.id]: !(o[group.id] ?? containsActive) }))
-                    }
-                    aria-expanded={isExpanded}
-                    className={`hidden md:flex w-full items-center justify-between px-3 py-1.5 font-display uppercase tracking-wider text-[10px] text-brass-deep hover:bg-parchment-deep/40 transition-colors ${
-                      gIdx > 0 ? 'border-t border-rule' : ''
-                    }`}
-                  >
-                    <span>{group.label}</span>
-                    {isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-                  </button>
-                  {/* Sub-tabs — always visible on mobile (flat scroll); on desktop, collapsed when the group is. */}
-                  {group.tabs.map(([id, label], i) => (
-                    <button
-                      key={id}
-                      type="button"
-                      role="tab"
-                      aria-selected={tab === id}
-                      onClick={() => { if (confirmUnsavedNav()) setTab(id); }}
-                      className={`px-3 py-2 text-left whitespace-nowrap transition-colors border-l md:border-l-0 md:border-t border-rule ${
-                        !isExpanded ? 'md:hidden' : ''
-                      } ${
-                        tab === id
-                          ? 'bg-crimson text-parchment'
-                          : 'text-ink-soft hover:bg-parchment-deep'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </Fragment>
-              );
-            })}
-          </nav>
-        </aside>
-        <div className="flex-1 min-w-0 bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
+      <div className="max-w-5xl mx-auto">
+        <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
           <header className="pb-3 border-b border-rule">
             <div className="flex items-center justify-between gap-2 mb-2">
               <button
@@ -2373,32 +2533,41 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             </div>
           </header>
 
-        <div key={tab} className="gm-tab-enter space-y-4">
-          {tab === 'prep' && (
+          <ModeNav
+            mode={mode}
+            subview={subview}
+            onModeChange={handleModeChange}
+            onSubviewChange={handleSubviewChange}
+          />
+
+        <div key={`${mode}:${subview}`} className="gm-tab-enter space-y-4">
           <div className="space-y-3">
-            {nextUp ? (
-              <div className="rounded border border-brass/40 bg-brass/5 p-3 flex items-center gap-3 shadow-card">
-                <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep flex-shrink-0">
-                  Next Up
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-display text-ink text-sm">{nextUp.label}</div>
-                  <div className="text-xs text-ink-soft font-serif italic">
-                    {nextUp.current} of {nextUp.target} — {nextUp.target - nextUp.current} to go
+            {mode === 'prep' && subview === 'flow' && (
+              nextUp ? (
+                <div className="rounded border border-brass/40 bg-brass/5 p-3 flex items-center gap-3 shadow-card">
+                  <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep flex-shrink-0">
+                    Next Up
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-display text-ink text-sm">{nextUp.label}</div>
+                    <div className="text-xs text-ink-soft font-serif italic">
+                      {nextUp.current} of {nextUp.target} — {nextUp.target - nextUp.current} to go
+                    </div>
+                  </div>
+                  <button
+                    onClick={jumpToNextUp}
+                    className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass font-display uppercase tracking-wider flex-shrink-0 transition-colors"
+                  >
+                    Jump To
+                  </button>
                 </div>
-                <button
-                  onClick={jumpToNextUp}
-                  className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass font-display uppercase tracking-wider flex-shrink-0 transition-colors"
-                >
-                  Jump To
-                </button>
-              </div>
-            ) : completedCount > 0 ? (
-              <div className="rounded border border-moss/40 bg-moss/5 p-3 text-sm font-serif italic text-moss text-center">
-                All prep targets met. Ready to run.
-              </div>
-            ) : null}
+              ) : completedCount > 0 ? (
+                <div className="rounded border border-moss/40 bg-moss/5 p-3 text-sm font-serif italic text-moss text-center">
+                  All prep targets met. Ready to run.
+                </div>
+              ) : null
+            )}
+            {mode === 'plan' && subview === 'pitch' && (
             <Phase n="0" title="Givens & Pitch" sub="Decide What's Non-Negotiable" methods={['ccd']} icon={Layers} expanded={phaseOpen.p0} onToggle={() => togglePhase('p0')}>
               <BookQuote source="CCD ch. 1">Givens are a set of things your group agrees will feature regardless of how worldbuilding ends up.</BookQuote>
               <Section id="g-world" title="World Facts" methods={['ccd']} done={done['g-world']} onToggle={toggleDone} open={open['g-world']} onToggleOpen={toggleOpen}>
@@ -2436,7 +2605,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 </InspireGroup>
               </Section>
             </Phase>
+            )}
 
+            {mode === 'plan' && subview === 'world' && (
             <Phase n="1" title="Session −1" sub="Collaborative Worldbuilding" methods={['ccd', 'pr']} icon={Users} expanded={phaseOpen.p1} onToggle={() => togglePhase('p1')}>
               <BookQuote source="CCD ch. 2">Session −1 is a long creative session in which the group brings ideas to define a setting.</BookQuote>
               <SoloNote>With one player, this becomes a 2-person conversation. Take turns. Hold back on conflict-stage so player gets first authority.</SoloNote>
@@ -2504,7 +2675,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 </InspireGroup>
               </Section>
             </Phase>
+            )}
 
+            {mode === 'plan' && subview === 'pcs' && (
             <Phase n="2" title="Session 0 — Characters & Goals" sub="PCs Created After the World Exists" methods={['pr', 'shea']} icon={User} expanded={phaseOpen.p2} onToggle={() => togglePhase('p2')}>
               <SoloNote>Solo Session 0 is fast. Spend the saved time on goal craft.</SoloNote>
               <Section id="pc" title="Player Characters" methods={['shea']} done={done.pc} onToggle={toggleDone} open={open.pc} onToggleOpen={toggleOpen}>
@@ -2597,7 +2770,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 </button>
               </Section>
             </Phase>
+            )}
 
+            {mode === 'prep' && subview === 'flow' && (
             <Phase n="3" title="Per-Session Prep" sub="Lazy DM 8-Step Checklist" methods={['shea']} icon={Calendar} expanded={phaseOpen.p3} onToggle={() => togglePhase('p3')}>
               <BookQuote source="Lazy DM (Jeremy Crawford)">Prep as little as you can.</BookQuote>
               <Section id="s1-review" title="1 · Review the Characters" methods={['shea']} done={done['s1-review']} onToggle={toggleDone} open={open['s1-review']} onToggleOpen={toggleOpen}>
@@ -2815,7 +2990,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 </div>
               </Section>
             </Phase>
+            )}
 
+            {mode === 'plan' && subview === 'fronts' && (
+            <>
             <Phase n="4" title="Between Sessions · Faction Clocks" sub="Update Faction Progress" methods={['ccd']} icon={Target} expanded={phaseOpen.p4} onToggle={() => togglePhase('p4')}>
               <BookQuote source="CCD ch. 6">Glance at faction clocks once per session.</BookQuote>
               <div className="rounded border border-rule bg-parchment-deep/40 p-3 text-sm font-serif">
@@ -2886,10 +3064,11 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <Field value={get('endCatalyst', '')} onChange={(v) => setVal('endCatalyst', v)} placeholder="Forcing events" rows={3} />
               </Section>
             </Phase>
+            </>
+            )}
           </div>
-        )}
 
-        {tab === 'ref' && (
+        {mode === 'plan' && subview === 'world' && (
           <div className="space-y-3 text-sm">
             <div className="rounded border border-rule bg-parchment p-4 shadow-card">
               <h2 className="font-display text-lg tracking-wide text-ink mb-2">The Three Methodologies</h2>
@@ -2975,7 +3154,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           </div>
         )}
 
-        {tab === 'track' && (
+        {mode === 'plan' && subview === 'fronts' && (
           <div className="space-y-3 text-sm">
             <div className="rounded border border-rule bg-parchment p-3 shadow-card">
               <div className="flex items-center justify-between mb-2">
@@ -3047,7 +3226,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           </div>
         )}
 
-        {tab === 'down' && (() => {
+        {mode === 'plan' && subview === 'world' && (() => {
           const downtime = (get('downtime', []) as DowntimeEntry[]) || [];
           const active = downtime.filter(e => !e.archived);
           const archived = downtime.filter(e => !!e.archived);
@@ -3157,7 +3336,163 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           );
         })()}
 
-        {tab === 'log' && (
+        {mode === 'prep' && subview === 'wizard' && (() => {
+          const runs = (get('prepWizardRuns', []) as PrepWizardRun[]) || [];
+          const sortedRuns = [...runs].sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+          const launch = () => {
+            setVal('__prepWizardOpen', true);
+            setVal('__prepWizardStep', 1);
+          };
+          const sessionOpen = !!get('__runSessionOpen', false);
+          return (
+            <div className="space-y-3">
+              <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+                <h2 className="font-display text-lg tracking-wide text-ink mb-1">Prep Wizard</h2>
+                <p className="text-sm text-ink-soft font-serif mb-3">
+                  An 8-step guided walkthrough of Lazy DM's per-session prep — Review, Strong
+                  Start, Scenes, Secrets, Locations, NPCs, Monsters, Magic Items.
+                </p>
+                <button
+                  type="button"
+                  onClick={launch}
+                  disabled={sessionOpen}
+                  title={sessionOpen ? 'Finish your current session first' : 'Walk through the 8-step prep'}
+                  className="text-xs px-3 py-1.5 rounded border border-moss/60 bg-moss/10 text-moss hover:bg-moss hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ClipboardList size={12} /> Start Wizard
+                </button>
+              </div>
+              <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+                <h3 className="font-display tracking-wide text-ink mb-2 text-sm">Past Runs</h3>
+                {sortedRuns.length === 0 ? (
+                  <p className="text-xs text-ink-mute italic font-serif">No wizard runs yet.</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {sortedRuns.slice(0, 8).map(r => (
+                      <li key={r.id} className="text-xs font-serif text-ink-soft flex items-center gap-2">
+                        <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider w-16">
+                          {(r.stepsCompleted || []).length}/8
+                        </span>
+                        <span className="flex-1">
+                          Session {r.forSessionNumber}
+                          {r.completedAt && <span className="text-ink-mute italic ml-2">{new Date(r.completedAt).toLocaleDateString()}</span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {mode === 'run' && subview === 'session' && (() => {
+          const activeId = (get('__activeSessionId', '') as string) || '';
+          const isActive = !!activeId;
+          const startedAt = (get('__sessionStartedAt', 0) as number) || 0;
+          const sessionV2 = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
+          const recent = [...sessionV2].sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0)).slice(0, 3);
+          const openRunSession = () => setVal('__runSessionOpen', true);
+          const startNewSession = () => {
+            const sid = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            setState(s => ({
+              ...s,
+              __activeSessionId: sid,
+              __sessionStartedAt: Date.now(),
+              __sessionChangeEvents: [],
+              __sessionUsedScenes: [],
+              __runSessionOpen: true,
+            }));
+          };
+          return (
+            <div className="space-y-3">
+              {isActive ? (
+                <div className="rounded border-2 border-crimson/50 bg-crimson/5 p-4 shadow-card">
+                  <h2 className="font-display text-lg tracking-wide text-crimson mb-1 flex items-center gap-2">
+                    <Swords size={18} /> Session In Progress
+                  </h2>
+                  <p className="text-sm text-ink-soft font-serif mb-3">
+                    Started {startedAt ? new Date(startedAt).toLocaleString() : 'recently'}. The
+                    full table-side view is available as an overlay.
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={openRunSession}
+                      className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+                    >
+                      <Play size={12} /> Open Run Session
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVal('__sessionEndedAt', Date.now())}
+                      className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+                    >
+                      End Session
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded border-2 border-crimson/50 bg-crimson/5 p-4 shadow-card">
+                  <h2 className="font-display text-lg tracking-wide text-crimson mb-1 flex items-center gap-2">
+                    <Swords size={18} /> Run Session
+                  </h2>
+                  <p className="text-sm text-ink-soft font-serif mb-3">
+                    Open the table-side view to track turns, mark prep items used, and capture a
+                    session log.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={startNewSession}
+                    className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+                  >
+                    <Play size={12} /> Start Session
+                  </button>
+                </div>
+              )}
+              <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+                <h3 className="font-display tracking-wide text-ink mb-2 text-sm">Recent Sessions</h3>
+                {recent.length === 0 ? (
+                  <p className="text-xs text-ink-mute italic font-serif">No session logs yet.</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {recent.map(entry => (
+                      <li key={entry.id} className="text-sm font-serif text-ink-soft border-l-2 border-brass/40 pl-2">
+                        <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+                          Session {entry.number}
+                          {entry.endedAt && <span className="ml-2 text-ink-mute">{new Date(entry.endedAt).toLocaleDateString()}</span>}
+                        </div>
+                        {entry.recap && <p className="text-xs text-ink-soft truncate">{entry.recap}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {recent.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => navigateTo({ mode: 'run', subview: 'log' })}
+                    className="mt-2 text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider"
+                  >
+                    View All Sessions →
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {mode === 'run' && subview === 'lookup' && (() => {
+          return <LookupView
+            npcs={get('npcs', []) as any[]}
+            locations={get('locations', []) as any[]}
+            secrets={get('secrets', []) as string[]}
+            factions={get('factions', []) as any[]}
+            magicItems={get('items', []) as string[]}
+            revealedSecrets={get('revSec', {}) as Record<number, boolean>}
+          />;
+        })()}
+
+        {mode === 'run' && subview === 'log' && (
           <SessionLogTab
             entries={(get('sessionLogV2', []) as SessionLogEntry[])}
             onChange={(v) => setVal('sessionLogV2', v)}
@@ -3165,7 +3500,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           />
         )}
 
-        {tab === 'dice' && (
+        {mode === 'run' && subview === 'dice' && (
           <DiceRoller
             macros={get('macros', []) as Macro[]}
             onMacrosChange={(v) => setVal('macros', v)}
@@ -3174,7 +3509,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           />
         )}
 
-        {tab === 'spells' && (
+        {mode === 'run' && subview === 'spells' && (
           <SpellsTab
             favorites={get('spellFavs', []) as string[]}
             onFavoritesChange={(v) => setVal('spellFavs', v)}
@@ -3183,7 +3518,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           />
         )}
 
-        {tab === 'generators' && (
+        {mode === 'library' && subview === 'generators' && (
           <GeneratorsTab
             logs={generatorLogs}
             onLogsChange={(next) => setVal('generatorLogs', next)}
@@ -3215,7 +3550,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           />
         )}
 
-        {tab === 'names' && (isPro ? (
+        {mode === 'library' && subview === 'names' && (isPro ? (
           <NamesTab
             logEntries={logEntriesFor('names')}
             onLogEntriesChange={setLogEntriesFor('names')}
@@ -3228,7 +3563,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           </LockedPanel>
         ))}
 
-        {tab === 'locations' && (isPro ? (
+        {mode === 'library' && subview === 'locations' && (isPro ? (
           <LocationsTab
             logEntries={logEntriesFor('locations')}
             onLogEntriesChange={setLogEntriesFor('locations')}
@@ -3241,7 +3576,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           </LockedPanel>
         ))}
 
-        {tab === 'monsters' && (
+        {mode === 'library' && subview === 'monsters' && (
           <MonstersTab
             characters={characters}
             homebrewMonsters={get('homebrewMonsters', []) as HomebrewMonster[]}
@@ -3262,7 +3597,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           />
         )}
 
-        {tab === 'vivify' && (isPro ? (
+        {mode === 'library' && subview === 'vivify' && (isPro ? (
           <VivifyPanel
             data={state}
             history={(get('vivifyHistory', []) as VivifyHistoryEntry[])}
@@ -3276,23 +3611,23 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           </LockedPanel>
         ))}
 
-        {tab === 'traps' && (
+        {mode === 'library' && subview === 'traps' && (
           <TrapBuilder
             traps={(get('traps', []) as Trap[])}
             onChange={(traps) => setVal('traps', traps)}
           />
         )}
 
-        {tab === 'dmref' && <DMRefTab />}
+        {mode === 'run' && subview === 'dmref' && <DMRefTab />}
 
-        {tab === 'chase' && (
+        {mode === 'run' && subview === 'chase' && (
           <ChaseTracker
             chases={(get('chases', []) as Chase[])}
             onChange={(chases) => setVal('chases', chases)}
           />
         )}
 
-        {tab === 'pointbuy' && (
+        {mode === 'library' && subview === 'pointbuy' && (
           <ToolsTab
             characters={characters}
             onChangeCharacter={updateCharacter}
