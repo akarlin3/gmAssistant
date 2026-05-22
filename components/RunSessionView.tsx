@@ -440,7 +440,7 @@ export default function RunSessionView({
   );
 }
 
-function SectionShell({
+export function SectionShell({
   title, icon: Icon, open, onToggle, count, children,
 }: {
   title: string; icon: any; open: boolean; onToggle: () => void; count?: number; children: React.ReactNode;
@@ -458,7 +458,7 @@ function SectionShell({
   );
 }
 
-function PanelShell({
+export function PanelShell({
   title, icon: Icon, open, onToggle, children,
 }: {
   title: string; icon: any; open: boolean; onToggle: () => void; children: React.ReactNode;
@@ -518,7 +518,7 @@ function rollDice(expr: string): { result: number; breakdown: string } | null {
   return { result: sum + mod, breakdown };
 }
 
-function QuickDice() {
+export function QuickDice() {
   const [history, setHistory] = useState<DiceRoll[]>([]);
   const [formula, setFormula] = useState('2d6+3');
 
@@ -578,7 +578,7 @@ const SEGUE_ENTRIES: { id: string; type: PlotSegueType; title: string }[] = [
   { id: 'segue:cliffhanger',  type: 'cliffhanger',  title: 'Plot Segue: Cliffhanger' },
 ];
 
-function QuickInspire({ campaignContext }: { campaignContext?: CampaignContext }) {
+export function QuickInspire({ campaignContext }: { campaignContext?: CampaignContext }) {
   const { isPro } = useAuth();
   const [tableId, setTableId] = useState<string>('villainSchemes');
   const [history, setHistory] = useState<InspireResult[]>([]);

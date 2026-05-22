@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateCampaign, deleteCampaign as deleteCampaignDoc, archiveCampaign, unarchiveCampaign, copyCampaign, type Campaign } from '@/lib/firebase/campaigns';
 import { getFirebaseAuth } from '@/lib/firebase/client';
@@ -43,7 +43,7 @@ import TrapBuilder from './TrapBuilder';
 import type { Trap } from '@/lib/trapTables';
 import InitiativePanel from './InitiativePanel';
 import type { InitiativeState } from '@/lib/initiative';
-import RunSessionView from './RunSessionView';
+import RunSessionView, { QuickDice, QuickInspire, PanelShell, SectionShell } from './RunSessionView';
 import PrepWizardView from './PrepWizardView';
 import Session0Wizard, { makeWizardPC } from './Session0Wizard';
 import SessionLogTab from './SessionLogTab';
@@ -1034,6 +1034,452 @@ function renownRank(value: number, custom?: string[]): string {
     if (value >= r.min) return r.label;
   }
   return 'Enemy';
+}
+
+// Run/Session inline view — same intent as the full-screen RunSessionView
+// overlay, but rendered inside the sub-view container so the rest of the
+// app chrome (mode nav, header) stays visible. The overlay is still
+// available via the header "Run Session" button.
+function RunSessionInline({
+  get, setVal, setState, characters, campaignContext,
+  nextUp, jumpToNextUp, trackEvent, navigateTo, onEndSession,
+}: {
+  get: (k: string, fb: any) => any;
+  setVal: (k: string, v: any) => void;
+  setState: React.Dispatch<React.SetStateAction<Record<string, any>>>;
+  characters: Character[];
+  campaignContext: any;
+  nextUp: { id: string; label: string; current: number; target: number; sectionId: string; phaseId: string } | null;
+  jumpToNextUp: () => void;
+  trackEvent: (kind: ChangeEventKind, summary: string, before?: unknown, after?: unknown) => void;
+  navigateTo: (target: { mode: Mode; subview?: string; sessionId?: string; anchor?: string }) => void;
+  onEndSession: () => void;
+}) {
+  const activeId = (get('__activeSessionId', '') as string) || '';
+  const isActive = !!activeId;
+  const startedAt = (get('__sessionStartedAt', 0) as number) || 0;
+
+  if (!isActive) {
+    return <RunSessionInlineIdle
+      get={get} setVal={setVal} setState={setState}
+      nextUp={nextUp} jumpToNextUp={jumpToNextUp} navigateTo={navigateTo}
+    />;
+  }
+
+  return <RunSessionInlineActive
+    get={get} setVal={setVal} characters={characters} campaignContext={campaignContext}
+    startedAt={startedAt} trackEvent={trackEvent} onEndSession={onEndSession}
+  />;
+}
+
+function RunSessionInlineIdle({
+  get, setVal, setState, nextUp, jumpToNextUp, navigateTo,
+}: {
+  get: (k: string, fb: any) => any;
+  setVal: (k: string, v: any) => void;
+  setState: React.Dispatch<React.SetStateAction<Record<string, any>>>;
+  nextUp: { id: string; label: string; current: number; target: number; sectionId: string; phaseId: string } | null;
+  jumpToNextUp: () => void;
+  navigateTo: (target: { mode: Mode; subview?: string }) => void;
+}) {
+  const sessionV2 = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
+  const recent = [...sessionV2].sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0)).slice(0, 3);
+
+  const npcsCount = (get('npcs', []) as any[]).length;
+  const locationsCount = (get('locations', []) as any[]).length;
+  const secretsTotal = (get('secrets', []) as string[]).length;
+  const revealedMap = get('revSec', {}) as Record<number, boolean>;
+  const secretsRemaining = (get('secrets', []) as string[]).filter((_, i) => !revealedMap[i]).length;
+  const scenesCount = (get('scenes', []) as string[]).length;
+
+  const startNewSession = (openOverlay: boolean) => {
+    const sid = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    setState(s => ({
+      ...s,
+      __activeSessionId: sid,
+      __sessionStartedAt: Date.now(),
+      __sessionChangeEvents: [],
+      __sessionUsedScenes: [],
+      __runSessionOpen: openOverlay,
+    }));
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded border-2 border-crimson/50 bg-crimson/5 p-5 shadow-card">
+        <h2 className="font-display text-xl tracking-wide text-crimson mb-1 flex items-center gap-2">
+          <Swords size={20} /> Start a Session
+        </h2>
+        <p className="text-sm text-ink-soft font-serif mb-3">
+          Track prep items used, capture events, and seed the session log. Start in-tab to keep
+          the app chrome visible, or open the full-screen run-session overlay.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => startNewSession(false)}
+            className="text-sm px-4 py-2 rounded border border-crimson/60 bg-crimson text-parchment hover:bg-wine font-display uppercase tracking-wider flex items-center gap-2"
+          >
+            <Play size={14} /> Start In-Tab
+          </button>
+          <button
+            type="button"
+            onClick={() => startNewSession(true)}
+            className="text-sm px-4 py-2 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-2"
+          >
+            Start Full-Screen
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-display tracking-wide text-ink text-sm">Recent Sessions</h3>
+          {recent.length > 0 && (
+            <button
+              type="button"
+              onClick={() => navigateTo({ mode: 'run', subview: 'log' })}
+              className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider"
+            >
+              View All →
+            </button>
+          )}
+        </div>
+        {recent.length === 0 ? (
+          <p className="text-xs text-ink-mute italic font-serif">No session logs yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {recent.map(entry => (
+              <li key={entry.id} className="rounded border border-rule bg-parchment-soft p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+                      Session {entry.number}
+                      {entry.endedAt && <span className="ml-2 text-ink-mute">{new Date(entry.endedAt).toLocaleDateString()}</span>}
+                    </div>
+                    {entry.title && <div className="font-display text-sm text-ink truncate">{entry.title}</div>}
+                    {entry.recap && (
+                      <p className="text-xs text-ink-soft font-serif italic line-clamp-2 mt-0.5">{entry.recap}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigateTo({ mode: 'run', subview: 'log' })}
+                    className="text-[10px] px-2 py-0.5 rounded-sm border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex-shrink-0"
+                  >
+                    View
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+        <h3 className="font-display tracking-wide text-ink text-sm mb-2">Prep Status</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+          <PrepStat label="NPCs" value={npcsCount} />
+          <PrepStat label="Locations" value={locationsCount} />
+          <PrepStat label="Secrets" value={`${secretsRemaining}/${secretsTotal}`} sub="unrevealed" />
+          <PrepStat label="Scenes" value={scenesCount} />
+        </div>
+        {nextUp ? (
+          <div className="flex items-center gap-2 rounded border border-brass/40 bg-brass/5 p-2">
+            <span className="text-[10px] font-display uppercase tracking-wider text-brass-deep flex-shrink-0">Lowest Progress</span>
+            <span className="flex-1 text-xs font-serif text-ink-soft">
+              <span className="text-ink font-display">{nextUp.label}</span>
+              <span className="text-ink-mute italic ml-1">— {nextUp.current} of {nextUp.target}</span>
+            </span>
+            <button
+              type="button"
+              onClick={jumpToNextUp}
+              className="text-[10px] px-2 py-0.5 rounded-sm border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex-shrink-0"
+            >
+              Jump
+            </button>
+          </div>
+        ) : (
+          <p className="text-xs text-moss italic font-serif">All prep targets met. Ready to run.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PrepStat({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
+  return (
+    <div className="rounded border border-rule bg-parchment-soft p-2 text-center">
+      <div className="font-display text-xl text-ink tabular-nums">{value}</div>
+      <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep">{label}</div>
+      {sub && <div className="text-[9px] text-ink-mute italic">{sub}</div>}
+    </div>
+  );
+}
+
+function RunSessionInlineActive({
+  get, setVal, characters, campaignContext, startedAt, trackEvent, onEndSession,
+}: {
+  get: (k: string, fb: any) => any;
+  setVal: (k: string, v: any) => void;
+  characters: Character[];
+  campaignContext: any;
+  startedAt: number;
+  trackEvent: (kind: ChangeEventKind, summary: string, before?: unknown, after?: unknown) => void;
+  onEndSession: () => void;
+}) {
+  const sessionV2 = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
+  const sessionNumber = nextSessionNumber(sessionV2);
+  const [initiativeOpen, setInitiativeOpen] = useState(false);
+
+  const scenes = (get('scenes', []) as string[]) || [];
+  const secrets = (get('secrets', []) as string[]) || [];
+  const npcs = (get('npcs', []) as any[]) || [];
+  const locations = (get('locations', []) as any[]) || [];
+  const usedScenes = (get('__sessionUsedScenes', []) as string[]) || [];
+  const revSec = (get('revSec', {}) as Record<number, boolean>) || {};
+  const scratchpad = (get('__sessionScratchpad', '') as string) || '';
+
+  const elapsed = formatElapsed(Date.now() - startedAt);
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => forceTick(n => n + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  const toggleSceneUsed = (text: string) => {
+    if (usedScenes.includes(text)) {
+      setVal('__sessionUsedScenes', usedScenes.filter(s => s !== text));
+      return;
+    }
+    setVal('__sessionUsedScenes', [...usedScenes, text]);
+    trackEvent('scene_used', `Used scene: ${text}`);
+  };
+
+  const setRevealed = (i: number, value: boolean, text: string) => {
+    const next = { ...revSec, [i]: value };
+    setVal('revSec', next);
+    if (value && !revSec[i]) trackEvent('secret_revealed', text);
+  };
+
+  const unrevealedSecrets = secrets
+    .map((s, i) => ({ s, i }))
+    .filter(({ i }) => !revSec[i]);
+
+  return (
+    <div className="space-y-3">
+      <header className="flex flex-wrap items-center justify-between gap-2 rounded border-2 border-crimson/50 bg-crimson/5 p-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Swords size={16} className="text-crimson" />
+          <span className="font-display text-base tracking-wide text-crimson">
+            Session {sessionNumber}
+          </span>
+          <span className="text-xs text-ink-soft font-serif italic">started {elapsed} ago</span>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setVal('__runSessionOpen', true)}
+            className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+            title="Switch to the full-screen overlay"
+          >
+            Full-Screen
+          </button>
+          <button
+            type="button"
+            onClick={onEndSession}
+            className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+          >
+            End Session
+          </button>
+        </div>
+      </header>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-3">
+        <div className="space-y-3 min-w-0">
+          <ActivePrepGroup title="Scenes" icon={NotebookPen} count={scenes.length}>
+            {scenes.length === 0 ? <Empty>No scenes prepped.</Empty> : scenes.map((s, i) => {
+              const used = usedScenes.includes(s);
+              return (
+                <CompactCard
+                  key={i}
+                  label={s}
+                  status={used ? 'used' : undefined}
+                  action={{
+                    label: used ? 'Unmark' : 'Mark Used',
+                    onClick: () => toggleSceneUsed(s),
+                  }}
+                />
+              );
+            })}
+          </ActivePrepGroup>
+
+          <ActivePrepGroup title="Unrevealed Secrets" icon={ScrollText} count={unrevealedSecrets.length}>
+            {unrevealedSecrets.length === 0 ? <Empty>No unrevealed secrets.</Empty> : unrevealedSecrets.map(({ s, i }) => (
+              <CompactCard
+                key={i}
+                label={s}
+                action={{
+                  label: 'Mark Revealed',
+                  onClick: () => setRevealed(i, true, s),
+                }}
+              />
+            ))}
+          </ActivePrepGroup>
+
+          <ActivePrepGroup title="NPCs" icon={User} count={npcs.length}>
+            {npcs.length === 0 ? <Empty>No NPCs prepped.</Empty> : npcs.map((n: any, i: number) => (
+              <ExpandableCard
+                key={i}
+                label={(n.name || '').trim() || (n.archetype || '').trim() || `NPC ${i + 1}`}
+                tag={[n.type, n.faction].filter(Boolean).join(' · ')}
+              >
+                {n.goal && <Detail label="Goal">{n.goal}</Detail>}
+                {n.method && <Detail label="Method">{n.method}</Detail>}
+                {n.archetype && <Detail label="Archetype">{n.archetype}</Detail>}
+                {n.mannerism && <Detail label="Mannerism">{n.mannerism}</Detail>}
+              </ExpandableCard>
+            ))}
+          </ActivePrepGroup>
+
+          <ActivePrepGroup title="Locations" icon={Map} count={locations.length}>
+            {locations.length === 0 ? <Empty>No locations prepped.</Empty> : locations.map((l: any, i: number) => (
+              <ExpandableCard
+                key={i}
+                label={(l.name || '').trim() || `Location ${i + 1}`}
+                tag={l.type || ''}
+              >
+                {Array.isArray(l.aspects) && l.aspects.filter(Boolean).length > 0 && (
+                  <ul className="ml-3 list-disc text-[12px] text-ink-soft italic">
+                    {l.aspects.filter(Boolean).map((a: string, j: number) => <li key={j}>{a}</li>)}
+                  </ul>
+                )}
+                {l.factions && <Detail label="Factions">{l.factions}</Detail>}
+              </ExpandableCard>
+            ))}
+          </ActivePrepGroup>
+        </div>
+
+        <div className="space-y-3 lg:sticky lg:top-3 lg:self-start">
+          <PanelShell title="Initiative" icon={Swords} open={initiativeOpen} onToggle={() => setInitiativeOpen(o => !o)}>
+            {initiativeOpen ? (
+              <InitiativePanel
+                variant="inline"
+                state={(get('__initiative', null) as InitiativeState | null)}
+                onChange={(next) => setVal('__initiative', next)}
+                monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
+                pcs={characters}
+                onClose={() => setInitiativeOpen(false)}
+              />
+            ) : (
+              <p className="text-xs text-ink-mute italic font-serif px-1">Tap to expand and track turns, HP, conditions.</p>
+            )}
+          </PanelShell>
+
+          <PanelShell title="Quick Dice" icon={Dice5} open={true} onToggle={() => {}}>
+            <QuickDice />
+          </PanelShell>
+
+          <PanelShell title="Quick Inspire" icon={Sparkles} open={true} onToggle={() => {}}>
+            <QuickInspire campaignContext={campaignContext} />
+          </PanelShell>
+        </div>
+      </div>
+
+      <div className="sticky bottom-2 bg-parchment-soft border border-rule rounded shadow-page p-2 flex items-start gap-2">
+        <NotebookPen size={14} className="text-brass-deep flex-shrink-0 mt-1.5" />
+        <textarea
+          value={scratchpad}
+          onChange={(e) => setVal('__sessionScratchpad', e.target.value)}
+          placeholder="Session scratchpad — what happened, threads, open questions. Seeds the log when you end the session."
+          rows={2}
+          className="flex-1 bg-parchment border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y"
+        />
+      </div>
+    </div>
+  );
+}
+
+function formatElapsed(ms: number): string {
+  if (!isFinite(ms) || ms <= 0) return 'just now';
+  const totalMin = Math.round(ms / 60000);
+  if (totalMin < 1) return 'just now';
+  if (totalMin < 60) return `${totalMin}m`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+function Empty({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs text-ink-mute italic font-serif">{children}</p>;
+}
+
+function ActivePrepGroup({
+  title, icon: Icon, count, children,
+}: { title: string; icon: any; count?: number; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <section className="rounded border border-rule bg-parchment-soft shadow-card">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-parchment-deep/30"
+      >
+        <Icon size={14} className="text-brass-deep flex-shrink-0" />
+        <span className="font-display tracking-wide text-sm text-ink flex-1">{title}</span>
+        {typeof count === 'number' && <span className="text-[11px] text-ink-mute font-serif">{count}</span>}
+        {open ? <ChevronDown size={14} className="text-ink-mute" /> : <ChevronRight size={14} className="text-ink-mute" />}
+      </button>
+      {open && <div className="px-3 pb-3 pt-1 border-t border-rule space-y-1.5">{children}</div>}
+    </section>
+  );
+}
+
+function CompactCard({
+  label, status, action,
+}: {
+  label: string;
+  status?: 'used';
+  action?: { label: string; onClick: () => void };
+}) {
+  const dim = status === 'used';
+  return (
+    <div className={`flex items-start gap-2 px-2 py-1.5 rounded border text-sm font-serif ${dim ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
+      <span className={`flex-1 ${dim ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{label}</span>
+      {action && (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="text-[10px] px-2 py-0.5 rounded-sm border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex-shrink-0"
+        >
+          {action.label}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ExpandableCard({
+  label, tag, children,
+}: { label: string; tag?: string; children?: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const hasContent = !!children && (React.Children.count(children) > 0);
+  return (
+    <div className="rounded border border-rule bg-parchment text-sm font-serif">
+      <button
+        type="button"
+        onClick={() => hasContent && setOpen(o => !o)}
+        className="w-full text-left px-2 py-1.5 flex items-center gap-2 hover:bg-parchment-deep/30"
+      >
+        {hasContent && (open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />)}
+        <span className="flex-1 text-ink truncate">{label}</span>
+        {tag && <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">{tag}</span>}
+      </button>
+      {open && hasContent && (
+        <div className="px-3 pb-2 pt-1 border-t border-rule text-[12px] text-ink-soft space-y-0.5">{children}</div>
+      )}
+    </div>
+  );
 }
 
 type LookupKind = 'all' | 'npcs' | 'locations' | 'secrets' | 'factions' | 'items';
@@ -3386,100 +3832,20 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           );
         })()}
 
-        {mode === 'run' && subview === 'session' && (() => {
-          const activeId = (get('__activeSessionId', '') as string) || '';
-          const isActive = !!activeId;
-          const startedAt = (get('__sessionStartedAt', 0) as number) || 0;
-          const sessionV2 = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
-          const recent = [...sessionV2].sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0)).slice(0, 3);
-          const openRunSession = () => setVal('__runSessionOpen', true);
-          const startNewSession = () => {
-            const sid = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-            setState(s => ({
-              ...s,
-              __activeSessionId: sid,
-              __sessionStartedAt: Date.now(),
-              __sessionChangeEvents: [],
-              __sessionUsedScenes: [],
-              __runSessionOpen: true,
-            }));
-          };
-          return (
-            <div className="space-y-3">
-              {isActive ? (
-                <div className="rounded border-2 border-crimson/50 bg-crimson/5 p-4 shadow-card">
-                  <h2 className="font-display text-lg tracking-wide text-crimson mb-1 flex items-center gap-2">
-                    <Swords size={18} /> Session In Progress
-                  </h2>
-                  <p className="text-sm text-ink-soft font-serif mb-3">
-                    Started {startedAt ? new Date(startedAt).toLocaleString() : 'recently'}. The
-                    full table-side view is available as an overlay.
-                  </p>
-                  <div className="flex gap-2 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={openRunSession}
-                      className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
-                    >
-                      <Play size={12} /> Open Run Session
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVal('__sessionEndedAt', Date.now())}
-                      className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
-                    >
-                      End Session
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded border-2 border-crimson/50 bg-crimson/5 p-4 shadow-card">
-                  <h2 className="font-display text-lg tracking-wide text-crimson mb-1 flex items-center gap-2">
-                    <Swords size={18} /> Run Session
-                  </h2>
-                  <p className="text-sm text-ink-soft font-serif mb-3">
-                    Open the table-side view to track turns, mark prep items used, and capture a
-                    session log.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={startNewSession}
-                    className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
-                  >
-                    <Play size={12} /> Start Session
-                  </button>
-                </div>
-              )}
-              <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-                <h3 className="font-display tracking-wide text-ink mb-2 text-sm">Recent Sessions</h3>
-                {recent.length === 0 ? (
-                  <p className="text-xs text-ink-mute italic font-serif">No session logs yet.</p>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {recent.map(entry => (
-                      <li key={entry.id} className="text-sm font-serif text-ink-soft border-l-2 border-brass/40 pl-2">
-                        <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
-                          Session {entry.number}
-                          {entry.endedAt && <span className="ml-2 text-ink-mute">{new Date(entry.endedAt).toLocaleDateString()}</span>}
-                        </div>
-                        {entry.recap && <p className="text-xs text-ink-soft truncate">{entry.recap}</p>}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {recent.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => navigateTo({ mode: 'run', subview: 'log' })}
-                    className="mt-2 text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider"
-                  >
-                    View All Sessions →
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })()}
+        {mode === 'run' && subview === 'session' && (
+          <RunSessionInline
+            get={get}
+            setVal={setVal}
+            setState={setState}
+            characters={characters}
+            campaignContext={generatorCampaignContext}
+            nextUp={nextUp}
+            jumpToNextUp={jumpToNextUp}
+            trackEvent={trackEvent}
+            navigateTo={navigateTo}
+            onEndSession={() => setVal('__sessionEndedAt', Date.now())}
+          />
+        )}
 
         {mode === 'run' && subview === 'lookup' && (() => {
           return <LookupView
