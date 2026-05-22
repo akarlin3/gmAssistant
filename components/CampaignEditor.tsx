@@ -1691,7 +1691,34 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
   );
 }
 
-const Phase = ({ n, title, sub, methods, children, expanded, onToggle, icon: Icon }: any) => (
+// "DM Solo" vs "With Players" — surfaces whether a phase is run at the table
+// collaboratively (Session −1, Session 0) or is DM homework (givens,
+// per-session prep, faction-clock updates, mid-campaign audits, ending).
+// Mirrors the audience grouping in ModeNav so the signal repeats inside each
+// phase header. Avoids the word "Solo" alone, which `PrepTargetsModal` and
+// `SoloNote` already use to mean "solo play mode" (one-player campaign).
+const AudienceBadge = ({ audience }: { audience: 'solo' | 'together' }) => {
+  if (audience === 'together') {
+    return (
+      <span
+        className="text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider border-moss/50 bg-moss/10 text-moss inline-flex items-center gap-1"
+        title="Done collaboratively with the players at the table"
+      >
+        <Users size={9} /> With Players
+      </span>
+    );
+  }
+  return (
+    <span
+      className="text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider border-wine/50 bg-wine/10 text-wine inline-flex items-center gap-1"
+      title="DM-only homework — done without the players"
+    >
+      <User size={9} /> DM Solo
+    </span>
+  );
+};
+
+const Phase = ({ n, title, sub, methods, audience, children, expanded, onToggle, icon: Icon }: any) => (
   <div className="border border-rule rounded-lg overflow-hidden bg-parchment-soft shadow-page">
     <button onClick={onToggle} className="w-full flex items-center gap-2.5 sm:gap-4 p-3 sm:p-4 hover:bg-parchment-deep/30 text-left transition-colors">
       <div className="font-display text-3xl sm:text-4xl text-crimson w-8 sm:w-12 leading-none flex-shrink-0">{n}</div>
@@ -1699,6 +1726,7 @@ const Phase = ({ n, title, sub, methods, children, expanded, onToggle, icon: Ico
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-display text-base sm:text-lg tracking-wide text-ink">{title}</span>
+          {audience && <AudienceBadge audience={audience} />}
           <span className="flex flex-wrap gap-1">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
         </div>
         <div className="text-xs sm:text-sm text-ink-soft italic font-serif mt-0.5">{sub}</div>
@@ -3040,7 +3068,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               ) : null
             )}
             {mode === 'plan' && subview === 'pitch' && (
-            <Phase n="0" title="Givens & Pitch" sub="Decide What's Non-Negotiable" methods={['ccd']} icon={Layers} expanded={phaseOpen.p0} onToggle={() => togglePhase('p0')}>
+            <Phase n="0" title="Givens & Pitch" sub="Decide What's Non-Negotiable" methods={['ccd']} audience="solo" icon={Layers} expanded={phaseOpen.p0} onToggle={() => togglePhase('p0')}>
               <BookQuote source="CCD ch. 1">Givens are a set of things your group agrees will feature regardless of how worldbuilding ends up.</BookQuote>
               <Section id="g-world" title="World Facts" methods={['ccd']} done={done['g-world']} onToggle={toggleDone} open={open['g-world']} onToggleOpen={toggleOpen}>
                 <Example title="from CCD">"Post-apocalyptic." "The sun has gone out." "Magic has died."</Example>
@@ -3080,7 +3108,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             )}
 
             {mode === 'plan' && subview === 'world' && (
-            <Phase n="1" title="Session −1" sub="Collaborative Worldbuilding" methods={['ccd', 'pr']} icon={Users} expanded={phaseOpen.p1} onToggle={() => togglePhase('p1')}>
+            <Phase n="1" title="Session −1" sub="Collaborative Worldbuilding" methods={['ccd', 'pr']} audience="together" icon={Users} expanded={phaseOpen.p1} onToggle={() => togglePhase('p1')}>
               <BookQuote source="CCD ch. 2">Session −1 is a long creative session in which the group brings ideas to define a setting.</BookQuote>
               <SoloNote>With one player, this becomes a 2-person conversation. Take turns. Hold back on conflict-stage so player gets first authority.</SoloNote>
               <Section id="genre" title="Genre Statement" methods={['ccd']} done={done.genre} onToggle={toggleDone} open={open.genre} onToggleOpen={toggleOpen}>
@@ -3150,7 +3178,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             )}
 
             {mode === 'plan' && subview === 'pcs' && (
-            <Phase n="2" title="Session 0 — Characters & Goals" sub="PCs Created After the World Exists" methods={['pr', 'shea']} icon={User} expanded={phaseOpen.p2} onToggle={() => togglePhase('p2')}>
+            <Phase n="2" title="Session 0 — Characters & Goals" sub="PCs Created After the World Exists" methods={['pr', 'shea']} audience="together" icon={User} expanded={phaseOpen.p2} onToggle={() => togglePhase('p2')}>
               <SoloNote>Solo Session 0 is fast. Spend the saved time on goal craft.</SoloNote>
               <Section id="pc" title="Player Characters" methods={['shea']} done={done.pc} onToggle={toggleDone} open={open.pc} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM (Chris Perkins)">Nothing's more important to a campaign than the stories of the player characters.</BookQuote>
@@ -3245,7 +3273,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             )}
 
             {mode === 'prep' && subview === 'flow' && (
-            <Phase n="3" title="Per-Session Prep" sub="Lazy DM 8-Step Checklist" methods={['shea']} icon={Calendar} expanded={phaseOpen.p3} onToggle={() => togglePhase('p3')}>
+            <Phase n="3" title="Per-Session Prep" sub="Lazy DM 8-Step Checklist" methods={['shea']} audience="solo" icon={Calendar} expanded={phaseOpen.p3} onToggle={() => togglePhase('p3')}>
               <BookQuote source="Lazy DM (Jeremy Crawford)">Prep as little as you can.</BookQuote>
               <Section id="s1-review" title="1 · Review the Characters" methods={['shea']} done={done['s1-review']} onToggle={toggleDone} open={open['s1-review']} onToggleOpen={toggleOpen}>
                 <Field value={get('reviewNotes', '')} onChange={(v) => setVal('reviewNotes', v)} placeholder="Mental priming notes" rows={3} />
@@ -3466,7 +3494,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
             {mode === 'plan' && subview === 'fronts' && (
             <>
-            <Phase n="4" title="Between Sessions · Faction Clocks" sub="Update Faction Progress" methods={['ccd']} icon={Target} expanded={phaseOpen.p4} onToggle={() => togglePhase('p4')}>
+            <Phase n="4" title="Between Sessions · Faction Clocks" sub="Update Faction Progress" methods={['ccd']} audience="solo" icon={Target} expanded={phaseOpen.p4} onToggle={() => togglePhase('p4')}>
               <BookQuote source="CCD ch. 6">Glance at faction clocks once per session.</BookQuote>
               <div className="rounded border border-rule bg-parchment-deep/40 p-3 text-sm font-serif">
                 <p className="text-ink font-display uppercase tracking-wider text-xs mb-1.5">Clock Sizes</p>
@@ -3501,7 +3529,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </button>
             </Phase>
 
-            <Phase n="5" title="Mid-Campaign · Arc Planning" sub="Periodic Review (Every 5-10 Sessions)" methods={['ccd', 'pr']} icon={Layers} expanded={phaseOpen.p5} onToggle={() => togglePhase('p5')}>
+            <Phase n="5" title="Mid-Campaign · Arc Planning" sub="Periodic Review (Every 5-10 Sessions)" methods={['ccd', 'pr']} audience="solo" icon={Layers} expanded={phaseOpen.p5} onToggle={() => togglePhase('p5')}>
               <Section id="audit-goals" title="PC Goal Audit" methods={['pr']} done={done['audit-goals']} onToggle={toggleDone} open={open['audit-goals']} onToggleOpen={toggleOpen}>
                 <Field value={get('auditGoals', '')} onChange={(v) => setVal('auditGoals', v)} placeholder="Still active? Completed? Boring?" rows={5} />
               </Section>
@@ -3513,7 +3541,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </Section>
             </Phase>
 
-            <Phase n="6" title="Ending the Campaign" sub="When and How to Wrap" methods={['ccd']} icon={Trophy} expanded={phaseOpen.p6} onToggle={() => togglePhase('p6')}>
+            <Phase n="6" title="Ending the Campaign" sub="When and How to Wrap" methods={['ccd']} audience="solo" icon={Trophy} expanded={phaseOpen.p6} onToggle={() => togglePhase('p6')}>
               <BookQuote source="CCD ch. 7">Players maintain desire to keep playing until natural conclusion.</BookQuote>
               <Section id="end-ready" title="Is the Campaign Ready to End?" methods={['ccd']} done={done['end-ready']} onToggle={toggleDone} open={open['end-ready']} onToggleOpen={toggleOpen}>
                 <Field value={get('endReadiness', '')} onChange={(v) => setVal('endReadiness', v)} placeholder="Where are we?" rows={3} />

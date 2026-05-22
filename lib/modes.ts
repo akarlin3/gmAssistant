@@ -10,10 +10,19 @@
 
 export type Mode = 'plan' | 'prep' | 'run' | 'library';
 
+// Some Plan subviews are done WITH the players at the table (Session −1
+// collaborative worldbuilding, Session 0 character creation); others are
+// the DM's solo prep work (givens, faction clocks, mid-campaign audits,
+// ending). Tagging the subview lets ModeNav cluster them visually so the
+// "is this a player-facing session or solo prep?" answer is obvious at a
+// glance. Subviews without an audience tag are rendered ungrouped.
+export type Audience = 'solo' | 'together';
+
 export type ModeSubview = {
   readonly id: string;
   readonly label: string;
   readonly description: string;
+  readonly audience?: Audience;
 };
 
 export type ModeDef = {
@@ -29,10 +38,10 @@ export const MODES: Record<Mode, ModeDef> = {
     description: 'Campaign-level work — premise, world, factions, characters',
     emphasis: 'primary',
     subviews: [
-      { id: 'pitch',  label: 'Premise',    description: 'Hook, givens, and six truths' },
-      { id: 'world',  label: 'World',      description: 'Setting facts, factions, reference notes, downtime' },
-      { id: 'pcs',    label: 'Characters', description: 'PC sketches and goals' },
-      { id: 'fronts', label: 'Fronts',     description: 'Faction clocks, audits, threads, ending' },
+      { id: 'pitch',  label: 'Premise',    description: 'Hook, givens, and six truths',                         audience: 'solo' },
+      { id: 'world',  label: 'World',      description: 'Session −1 collaborative worldbuilding with players',  audience: 'together' },
+      { id: 'pcs',    label: 'Characters', description: 'Session 0 character creation with players',            audience: 'together' },
+      { id: 'fronts', label: 'Fronts',     description: 'Faction clocks, audits, threads, ending',              audience: 'solo' },
     ],
   },
   prep: {
