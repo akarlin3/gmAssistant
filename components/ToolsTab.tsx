@@ -31,17 +31,17 @@ export default function ToolsTab({ characters, onChangeCharacter }: Props) {
   return (
     <div className="space-y-5">
       <header className="space-y-1">
-        <h2 className="font-display tracking-wide text-ink text-lg uppercase">Tools</h2>
-        <p className="text-xs text-ink-mute italic font-serif">
+        <h2 className="font-display text-lg uppercase tracking-wide text-ink">Tools</h2>
+        <p className="font-serif text-xs italic text-ink-mute">
           Utilities for character creation and table prep. Standard 5e point-buy: 27 points,
           base scores 8–15 (costs 1 per point to 13, then 2 per point to 15).
         </p>
       </header>
 
       <section className="space-y-3">
-        <h3 className="font-display tracking-wide text-ink uppercase text-sm">Point-Buy Calculator</h3>
+        <h3 className="font-display text-sm uppercase tracking-wide text-ink">Point-Buy Calculator</h3>
         {characters.length === 0 ? (
-          <div className="rounded border border-rule bg-parchment p-4 text-sm text-ink-mute italic font-serif">
+          <div className="rounded border border-rule bg-parchment p-4 font-serif text-sm italic text-ink-mute">
             Add a character on the Prep Flow tab to start a point-buy.
           </div>
         ) : (
@@ -109,23 +109,23 @@ function PointBuyCard({
   const title = (character.name || '').trim() || 'Unnamed Character';
 
   return (
-    <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div className="space-y-3 rounded border border-rule bg-parchment p-3 shadow-card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="font-display tracking-wide text-ink truncate">{title}</div>
+          <div className="truncate font-display tracking-wide text-ink">{title}</div>
           {character.race || character.classLevel ? (
-            <div className="text-[11px] text-ink-mute italic font-serif truncate">
+            <div className="truncate font-serif text-[11px] italic text-ink-mute">
               {[character.race, character.classLevel].filter(Boolean).join(' · ')}
             </div>
           ) : null}
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-xs font-display uppercase tracking-wider">
+          <div className="font-display text-xs uppercase tracking-wider">
             <span className="text-ink-mute">Spent</span>{' '}
             <span className={overBudget ? 'text-crimson' : 'text-brass-deep'}>{spent}</span>
             <span className="text-ink-mute"> / {POINT_BUY_BUDGET}</span>
           </div>
-          <div className="text-xs font-display uppercase tracking-wider">
+          <div className="font-display text-xs uppercase tracking-wider">
             <span className="text-ink-mute">Left</span>{' '}
             <span className={overBudget ? 'text-crimson' : 'text-ink'}>{remaining}</span>
           </div>
@@ -135,13 +135,13 @@ function PointBuyCard({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-[10px] font-display uppercase tracking-wider text-ink-mute">
-              <th className="text-left py-1 pr-2">Ability</th>
-              <th className="text-center py-1 px-2">Base (8–15)</th>
-              <th className="text-center py-1 px-2">Cost</th>
-              <th className="text-center py-1 px-2">Racial / ASI</th>
-              <th className="text-center py-1 px-2">Total</th>
-              <th className="text-center py-1 pl-2">Mod</th>
+            <tr className="font-display text-[10px] uppercase tracking-wider text-ink-mute">
+              <th className="py-1 pr-2 text-left">Ability</th>
+              <th className="px-2 py-1 text-center">Base (8–15)</th>
+              <th className="px-2 py-1 text-center">Cost</th>
+              <th className="px-2 py-1 text-center">Racial / ASI</th>
+              <th className="px-2 py-1 text-center">Total</th>
+              <th className="py-1 pl-2 text-center">Mod</th>
             </tr>
           </thead>
           <tbody>
@@ -153,48 +153,48 @@ function PointBuyCard({
               const decBlocked = !canDecrement(pb.base, k);
               return (
                 <tr key={k} className="border-t border-rule/60">
-                  <td className="py-1.5 pr-2 font-display uppercase tracking-wider text-xs text-ink">
+                  <td className="py-1.5 pr-2 font-display text-xs uppercase tracking-wider text-ink">
                     {ABILITY_LABEL[k]}
                   </td>
-                  <td className="py-1.5 px-2">
+                  <td className="px-2 py-1.5">
                     <div className="flex items-center justify-center gap-1.5">
                       <button
                         type="button"
                         aria-label={`Decrease ${ABILITY_LABEL[k]}`}
                         onClick={() => bump(k, -1)}
                         disabled={decBlocked}
-                        className="w-6 h-6 rounded-sm border border-brass-deep/50 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-brass-deep disabled:hover:border-brass-deep/50 transition-colors flex items-center justify-center"
+                        className="flex size-6 items-center justify-center rounded-sm border border-brass-deep/50 text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment disabled:opacity-30 disabled:hover:border-brass-deep/50 disabled:hover:bg-transparent disabled:hover:text-brass-deep"
                       >
                         <Minus size={12} />
                       </button>
-                      <span className="font-display text-base tabular-nums w-6 text-center">{base}</span>
+                      <span className="w-6 text-center font-display text-base tabular-nums">{base}</span>
                       <button
                         type="button"
                         aria-label={`Increase ${ABILITY_LABEL[k]}`}
                         onClick={() => bump(k, 1)}
                         disabled={incBlocked}
-                        className="w-6 h-6 rounded-sm border border-brass-deep/50 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-brass-deep disabled:hover:border-brass-deep/50 transition-colors flex items-center justify-center"
+                        className="flex size-6 items-center justify-center rounded-sm border border-brass-deep/50 text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment disabled:opacity-30 disabled:hover:border-brass-deep/50 disabled:hover:bg-transparent disabled:hover:text-brass-deep"
                       >
                         <Plus size={12} />
                       </button>
                     </div>
                   </td>
-                  <td className="py-1.5 px-2 text-center text-ink-soft tabular-nums text-xs">
+                  <td className="px-2 py-1.5 text-center text-xs tabular-nums text-ink-soft">
                     {costForScore(base)}
                   </td>
-                  <td className="py-1.5 px-2">
+                  <td className="px-2 py-1.5">
                     <input
                       type="number"
                       value={racial === 0 ? '' : racial}
                       onChange={(e) => setRacial(k, e.target.value)}
                       placeholder="0"
-                      className="w-14 mx-auto block text-center text-sm tabular-nums px-1 py-0.5 rounded-sm border border-rule bg-parchment-soft text-ink focus:outline-none focus:border-brass-deep"
+                      className="mx-auto block w-14 rounded-sm border border-rule bg-parchment-soft px-1 py-0.5 text-center text-sm tabular-nums text-ink focus:border-brass-deep focus:outline-none"
                     />
                   </td>
-                  <td className="py-1.5 px-2 text-center font-display text-base tabular-nums text-ink">
+                  <td className="px-2 py-1.5 text-center font-display text-base tabular-nums text-ink">
                     {total}
                   </td>
-                  <td className="py-1.5 pl-2 text-center text-ink-soft tabular-nums text-xs">
+                  <td className="py-1.5 pl-2 text-center text-xs tabular-nums text-ink-soft">
                     {formatMod(total)}
                   </td>
                 </tr>
@@ -204,8 +204,8 @@ function PointBuyCard({
         </table>
       </div>
 
-      <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-        <p className="text-[11px] text-ink-mute italic font-serif">
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+        <p className="font-serif text-[11px] italic text-ink-mute">
           Base scores limited to {POINT_BUY_MIN}–{POINT_BUY_MAX}. Apply writes the
           final totals (base + racial) to the character&rsquo;s ability scores.
         </p>
@@ -213,7 +213,7 @@ function PointBuyCard({
           <button
             type="button"
             onClick={reset}
-            className="text-xs px-2.5 py-1 rounded-sm border border-brass-deep/50 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass font-display uppercase tracking-wider flex items-center gap-1 transition-colors"
+            className="flex items-center gap-1 rounded-sm border border-brass-deep/50 px-2.5 py-1 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment"
           >
             <RotateCcw size={12} /> Reset
           </button>
@@ -221,7 +221,7 @@ function PointBuyCard({
             type="button"
             onClick={apply}
             disabled={overBudget}
-            className="text-xs px-3 py-1 rounded-sm border border-crimson bg-crimson text-parchment hover:bg-crimson-deep disabled:opacity-40 disabled:hover:bg-crimson font-display uppercase tracking-wider flex items-center gap-1 transition-colors"
+            className="flex items-center gap-1 rounded-sm border border-crimson bg-crimson px-3 py-1 font-display text-xs uppercase tracking-wider text-parchment transition-colors hover:bg-crimson-deep disabled:opacity-40 disabled:hover:bg-crimson"
           >
             <Check size={12} /> {applied ? 'Applied' : 'Apply to Character'}
           </button>

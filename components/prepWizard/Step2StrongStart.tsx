@@ -29,16 +29,16 @@ export default function Step2StrongStart({ get, setVal }: { get: Get; setVal: Se
     <div className="space-y-2">
       {recapExcerpt && (
         <div>
-          <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">Last Recap</div>
-          <p className="text-sm font-serif text-ink-soft italic">
+          <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Last Recap</div>
+          <p className="font-serif text-sm italic text-ink-soft">
             "{recapExcerpt}{(last?.recap?.length || 0) > 200 ? '…' : ''}"
           </p>
         </div>
       )}
       {dropped.length > 0 && (
         <div>
-          <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">Dropped Threads</div>
-          <ul className="list-disc ml-5 text-sm font-serif text-ink-soft">
+          <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Dropped Threads</div>
+          <ul className="ml-5 list-disc font-serif text-sm text-ink-soft">
             {dropped.map((d, i) => <li key={i}>{d}</li>)}
           </ul>
         </div>
@@ -56,7 +56,7 @@ export default function Step2StrongStart({ get, setVal }: { get: Get; setVal: Se
     >
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-display tracking-wide text-sm text-ink">Strong Start</h3>
+          <h3 className="font-display text-sm tracking-wide text-ink">Strong Start</h3>
           <StrongStartPicker
             onUse={(body) => {
               const cur = strongStart.trim();
@@ -70,12 +70,12 @@ export default function Step2StrongStart({ get, setVal }: { get: Get; setVal: Se
           onChange={(e) => setStrongStart(e.target.value)}
           rows={6}
           placeholder="One sentence or paragraph — drop the party into the middle of something."
-          className="w-full bg-parchment border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif resize-y"
+          className="w-full resize-y rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink"
         />
       </div>
 
       <label className="block space-y-1">
-        <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+        <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
           Notes for this session
         </span>
         <textarea
@@ -83,7 +83,7 @@ export default function Step2StrongStart({ get, setVal }: { get: Get; setVal: Se
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="Tone, pacing, what should land in the first five minutes."
-          className="w-full bg-parchment border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif resize-y"
+          className="w-full resize-y rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink"
         />
       </label>
     </StepShell>

@@ -14,9 +14,9 @@ export default function HomePage() {
   }, [user, loading, router]);
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-parchment text-ink space-y-4">
+    <main className="flex min-h-screen flex-col items-center justify-center space-y-4 bg-parchment text-ink">
       <div className="gm-spinner" />
-      <div className="text-xs text-brass-deep font-display uppercase tracking-[0.2em] animate-pulse">
+      <div className="animate-pulse font-display text-xs uppercase tracking-[0.2em] text-brass-deep">
         Preparing your table…
       </div>
     </main>

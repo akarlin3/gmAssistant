@@ -61,12 +61,12 @@ export default function Step1ReviewCharacters({ get, setVal }: { get: Get; setVa
       contextFromLastSession={context}
     >
       <div className="space-y-2">
-        <h3 className="font-display tracking-wide text-sm text-ink">PC Goals</h3>
+        <h3 className="font-display text-sm tracking-wide text-ink">PC Goals</h3>
         {goals.length === 0 && (
-          <p className="text-xs text-ink-mute italic font-serif">No PC goals tracked yet.</p>
+          <p className="font-serif text-xs italic text-ink-mute">No PC goals tracked yet.</p>
         )}
         {goals.map((g, i) => (
-          <div key={i} className="rounded border border-rule bg-parchment-soft p-3 space-y-2">
+          <div key={i} className="space-y-2 rounded border border-rule bg-parchment-soft p-3">
             <div className="flex items-start gap-2">
               <textarea
                 value={g.text || ''}
@@ -77,19 +77,19 @@ export default function Step1ReviewCharacters({ get, setVal }: { get: Get; setVa
                 }}
                 placeholder="Goal — e.g., Win a duel against the captain of the guard"
                 rows={2}
-                className="flex-1 bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif resize-y"
+                className="flex-1 resize-y rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink"
               />
               <button
                 onClick={() => setGoals(goals.filter((_, j) => j !== i))}
-                className="text-ink-mute hover:text-crimson p-1"
+                className="p-1 text-ink-mute hover:text-crimson"
                 title="Remove goal"
               >
                 <Trash2 size={14} />
               </button>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-[11px] font-serif text-ink-soft">
+            <div className="flex flex-wrap items-center gap-3 font-serif text-[11px] text-ink-soft">
               <label className="flex items-center gap-1.5">
-                <span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Time</span>
+                <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Time</span>
                 <select
                   value={g.timeframe || 'short'}
                   onChange={(e) => {
@@ -97,13 +97,13 @@ export default function Step1ReviewCharacters({ get, setVal }: { get: Get; setVa
                     next[i] = { ...g, timeframe: e.target.value };
                     setGoals(next);
                   }}
-                  className="bg-parchment border border-rule rounded px-1.5 py-0.5"
+                  className="rounded border border-rule bg-parchment px-1.5 py-0.5"
                 >
                   {TIMEFRAMES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </label>
               <label className="flex items-center gap-1.5">
-                <span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Status</span>
+                <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Status</span>
                 <select
                   value={g.status || 'Active'}
                   onChange={(e) => {
@@ -111,7 +111,7 @@ export default function Step1ReviewCharacters({ get, setVal }: { get: Get; setVa
                     next[i] = { ...g, status: e.target.value };
                     setGoals(next);
                   }}
-                  className="bg-parchment border border-rule rounded px-1.5 py-0.5"
+                  className="rounded border border-rule bg-parchment px-1.5 py-0.5"
                 >
                   {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -121,7 +121,7 @@ export default function Step1ReviewCharacters({ get, setVal }: { get: Get; setVa
         ))}
         <button
           onClick={() => setGoals([...goals, { text: '', timeframe: 'short', success: '', failure: '', linked: '', status: 'Active' }])}
-          className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider"
+          className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
         >
           <Plus size={12} /> Add Goal
         </button>
@@ -135,7 +135,7 @@ export default function Step1ReviewCharacters({ get, setVal }: { get: Get; setVa
 function NotesField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <label className="block space-y-1">
-      <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+      <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
         Notes for this session
       </span>
       <textarea
@@ -143,7 +143,7 @@ function NotesField({ value, onChange }: { value: string; onChange: (v: string) 
         onChange={(e) => onChange(e.target.value)}
         rows={3}
         placeholder="What about the characters should shape this session?"
-        className="w-full bg-parchment border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif resize-y"
+        className="w-full resize-y rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink"
       />
     </label>
   );

@@ -136,20 +136,20 @@ export default function PrepWizardView({
 
   return (
     <main className="min-h-screen p-3 sm:p-5 md:p-6">
-      <div className="max-w-3xl mx-auto space-y-4">
-        <header className="space-y-3 pb-3 border-b border-rule">
+      <div className="mx-auto max-w-3xl space-y-4">
+        <header className="space-y-3 border-b border-rule pb-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-3">
-              <h1 className="font-display text-lg sm:text-xl tracking-wide text-ink">
+              <h1 className="font-display text-lg tracking-wide text-ink sm:text-xl">
                 Prep Session {sessionNumber}
               </h1>
-              <span className="text-xs text-ink-mute font-serif italic">
+              <span className="font-serif text-xs italic text-ink-mute">
                 {isSummary ? 'Summary' : `Step ${step} of ${TOTAL_STEPS}`}
               </span>
             </div>
             <button
               onClick={tryExit}
-              className="text-ink-mute hover:text-crimson p-1"
+              className="p-1 text-ink-mute hover:text-crimson"
               title="Exit wizard"
             >
               <X size={18} />
@@ -158,7 +158,7 @@ export default function PrepWizardView({
           <ProgressStrip step={step} completed={completed} onJump={setStep} />
         </header>
 
-        <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-4 sm:p-6">
+        <div className="rounded-lg border border-rule bg-parchment-soft p-4 shadow-page sm:p-6">
           <StepBody
             step={step}
             get={get}
@@ -176,21 +176,21 @@ export default function PrepWizardView({
             <button
               onClick={onBack}
               disabled={step === 1}
-              className="text-xs px-3 py-1.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 rounded border border-rule px-3 py-1.5 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ArrowLeft size={12} /> Back
             </button>
             <div className="flex items-center gap-2">
               <button
                 onClick={onSkip}
-                className="text-xs px-3 py-1.5 rounded border border-rule text-ink-mute hover:text-ink hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-1.5"
+                className="flex items-center gap-1.5 rounded border border-rule px-3 py-1.5 font-display text-xs uppercase tracking-wider text-ink-mute hover:bg-parchment-deep hover:text-ink"
                 title="Skip without marking completed"
               >
                 <SkipForward size={12} /> Skip
               </button>
               <button
                 onClick={onNext}
-                className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+                className="flex items-center gap-1.5 rounded border border-crimson/60 bg-crimson/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment"
               >
                 {isLastChecklist ? <><Flag size={12} /> Finish Prep</> : <>Next <ArrowRight size={12} /></>}
               </button>
@@ -214,7 +214,7 @@ function ProgressStrip({ step, completed, onJump }: { step: number; completed: n
             <button
               type="button"
               onClick={() => onJump(n)}
-              className={`w-full h-2 rounded-full transition-colors ${
+              className={`h-2 w-full rounded-full transition-colors ${
                 isCurrent
                   ? 'bg-crimson'
                   : isDone
@@ -298,9 +298,9 @@ function StepBody({
     );
     default:
       return (
-        <div className="text-center py-12 space-y-2">
+        <div className="space-y-2 py-12 text-center">
           <Check size={32} className="mx-auto text-brass-deep" />
-          <p className="font-serif text-ink-soft italic">Unknown step.</p>
+          <p className="font-serif italic text-ink-soft">Unknown step.</p>
         </div>
       );
   }

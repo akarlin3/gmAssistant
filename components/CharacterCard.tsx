@@ -28,19 +28,19 @@ const Field = ({
     onChange={(e) => onChange(e.target.value)}
     placeholder={placeholder}
     rows={rows}
-    className="w-full bg-transparent border-b border-rule text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-none px-1 py-1 text-sm whitespace-pre-wrap break-words [field-sizing:content]"
+    className="w-full resize-none whitespace-pre-wrap break-words border-b border-rule bg-transparent p-1 font-serif text-sm text-ink [field-sizing:content] placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
   />
 );
 
 const CardLabel = ({ children }: { children: React.ReactNode }) => (
-  <div className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5">
+  <div className="mb-0.5 font-display text-xs uppercase tracking-wider text-brass-deep">
     {children}
   </div>
 );
 
 const SubSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="border-t border-rule pt-2.5 mt-2.5 space-y-2">
-    <div className="text-xs text-crimson font-display uppercase tracking-wider">{title}</div>
+  <div className="mt-2.5 space-y-2 border-t border-rule pt-2.5">
+    <div className="font-display text-xs uppercase tracking-wider text-crimson">{title}</div>
     {children}
   </div>
 );
@@ -54,8 +54,8 @@ const AbilityBox = ({
   value: string;
   onChange: (v: string) => void;
 }) => (
-  <div className="border border-rule rounded bg-parchment-soft p-1.5 text-center">
-    <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep">
+  <div className="rounded border border-rule bg-parchment-soft p-1.5 text-center">
+    <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
       {label}
     </div>
     <input
@@ -63,7 +63,7 @@ const AbilityBox = ({
       value={value || ''}
       onChange={(e) => onChange(e.target.value)}
       placeholder="—"
-      className="w-full bg-transparent text-center text-sm font-serif text-ink placeholder:text-ink-faint focus:outline-none focus:border-crimson border-b border-transparent"
+      className="w-full border-b border-transparent bg-transparent text-center font-serif text-sm text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none"
     />
   </div>
 );
@@ -102,23 +102,23 @@ export default function CharacterCard({ data, open, soloMode, onToggleOpen, onCh
   return (
     <div className={`rounded border shadow-card ${data.isSidekick ? 'border-wine/40 bg-wine/[0.04]' : 'border-rule bg-parchment'}`}>
       <div className="flex items-center gap-2 p-2.5">
-        <button onClick={onToggleOpen} className="text-brass-deep hover:text-crimson flex-shrink-0">
+        <button onClick={onToggleOpen} className="flex-shrink-0 text-brass-deep hover:text-crimson">
           {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
         {data.isSidekick && (
           <span
-            className="text-[9px] font-display uppercase tracking-wider px-1.5 py-0.5 rounded bg-wine/15 text-wine border border-wine/30 flex-shrink-0"
+            className="flex-shrink-0 rounded border border-wine/30 bg-wine/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-wider text-wine"
             title="Tasha's Cauldron of Everything — sidekick"
           >
             Sidekick
           </span>
         )}
-        <div className="flex-1 min-w-0 font-display tracking-wide text-sm text-ink truncate">
+        <div className="min-w-0 flex-1 truncate font-display text-sm tracking-wide text-ink">
           {headerLabel}
         </div>
         <button
           onClick={onRemove}
-          className="text-ink-mute hover:text-crimson flex-shrink-0"
+          className="flex-shrink-0 text-ink-mute hover:text-crimson"
           title="Remove character"
         >
           <Trash2 size={14} />
@@ -126,7 +126,7 @@ export default function CharacterCard({ data, open, soloMode, onToggleOpen, onCh
       </div>
 
       {open && (
-        <div className="px-3 pb-3 border-t border-rule pt-3 space-y-2">
+        <div className="space-y-2 border-t border-rule p-3">
           <div className="grid grid-cols-2 gap-2">
             <div>
               <CardLabel>Name</CardLabel>
@@ -152,7 +152,7 @@ export default function CharacterCard({ data, open, soloMode, onToggleOpen, onCh
             )}
             {soloMode && (
               <div className={showGestalt ? 'col-span-2' : ''}>
-                <label className="flex items-center gap-2 text-xs font-display uppercase tracking-wider text-brass-deep cursor-pointer select-none">
+                <label className="flex cursor-pointer select-none items-center gap-2 font-display text-xs uppercase tracking-wider text-brass-deep">
                   <input
                     type="checkbox"
                     checked={data.gestalt}
@@ -160,7 +160,7 @@ export default function CharacterCard({ data, open, soloMode, onToggleOpen, onCh
                     className="accent-wine"
                   />
                   Gestalt
-                  <span className="text-[10px] normal-case tracking-normal italic text-ink-mute font-serif">
+                  <span className="font-serif text-[10px] normal-case italic tracking-normal text-ink-mute">
                     two classes at every level
                   </span>
                 </label>
@@ -203,7 +203,7 @@ export default function CharacterCard({ data, open, soloMode, onToggleOpen, onCh
               </div>
               <div>
                 <CardLabel>HP / Max</CardLabel>
-                <div className="flex gap-1 items-baseline">
+                <div className="flex items-baseline gap-1">
                   <Field value={data.hp} onChange={(v) => set('hp', v)} placeholder="cur" />
                   <span className="text-ink-mute">/</span>
                   <Field value={data.hpMax} onChange={(v) => set('hpMax', v)} placeholder="max" />
@@ -239,7 +239,7 @@ export default function CharacterCard({ data, open, soloMode, onToggleOpen, onCh
               <CardLabel>Attacks & Cantrips</CardLabel>
               <div className="space-y-1.5">
                 {data.attacks.map((atk, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-1.5 items-center">
+                  <div key={i} className="grid grid-cols-12 items-center gap-1.5">
                     <div className="col-span-4">
                       <Field
                         value={atk.name}
@@ -278,7 +278,7 @@ export default function CharacterCard({ data, open, soloMode, onToggleOpen, onCh
                 ))}
                 <button
                   onClick={addAttack}
-                  className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider"
+                  className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
                 >
                   <Plus size={12} /> Add Attack
                 </button>

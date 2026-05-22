@@ -42,20 +42,20 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
     <div className="space-y-2">
       {itemEvents.length > 0 && (
         <div>
-          <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+          <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
             Given Last Session — Skip Back-to-Back Rewards
           </div>
-          <ul className="list-disc ml-5 text-sm font-serif text-ink-soft">
+          <ul className="ml-5 list-disc font-serif text-sm text-ink-soft">
             {itemEvents.map((e, i) => <li key={i}>{e.summary}</li>)}
           </ul>
         </div>
       )}
       {activeGoals.length > 0 && (
         <div>
-          <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+          <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
             Active PC Goals — Items That Resonate Matter Most
           </div>
-          <ul className="list-disc ml-5 text-sm font-serif text-ink-soft">
+          <ul className="ml-5 list-disc font-serif text-sm text-ink-soft">
             {activeGoals.slice(0, 5).map((g, i) => (
               <li key={i}>{g.text || 'Unnamed goal'}</li>
             ))}
@@ -74,8 +74,8 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
       contextFromLastSession={context}
     >
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-display tracking-wide text-sm text-ink">Magic Item Rewards</h3>
-        <span className="text-[11px] text-ink-mute font-serif">
+        <h3 className="font-display text-sm tracking-wide text-ink">Magic Item Rewards</h3>
+        <span className="font-serif text-[11px] text-ink-mute">
           {items.filter(s => s.trim().length > 0).length} / {target} target
         </span>
       </div>
@@ -88,7 +88,7 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
       />
 
       <label className="block space-y-1">
-        <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+        <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
           Notes for this session
         </span>
         <textarea
@@ -96,7 +96,7 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="Who gets what, how it surfaces in the fiction."
-          className="w-full bg-parchment border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif resize-y"
+          className="w-full resize-y rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink"
         />
       </label>
     </StepShell>

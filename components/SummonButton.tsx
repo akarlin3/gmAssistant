@@ -39,7 +39,7 @@ export default function SummonButton({ section, lastUsed, options, onSummon }: P
         type="button"
         onClick={() => onSummon(lastUsed)}
         title={`Summon ${lastUsed.label}`}
-        className="text-[11px] px-2 py-0.5 rounded-l rounded-r-none border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment hover:border-crimson flex items-center gap-1 font-display uppercase tracking-wider"
+        className="flex items-center gap-1 rounded-l rounded-r-none border border-crimson/60 bg-crimson/10 px-2 py-0.5 font-display text-[11px] uppercase tracking-wider text-crimson hover:border-crimson hover:bg-crimson hover:text-parchment"
       >
         <Wand2 size={11} /> Summon · {lastUsed.shortLabel}
       </button>
@@ -51,7 +51,7 @@ export default function SummonButton({ section, lastUsed, options, onSummon }: P
           aria-expanded={open}
           aria-label={`Choose generator for ${section}`}
           title="Choose a different generator"
-          className="text-[11px] px-1.5 py-0.5 -ml-px rounded-r border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment hover:border-crimson flex items-center"
+          className="-ml-px flex items-center rounded-r border border-crimson/60 bg-crimson/10 px-1.5 py-0.5 text-[11px] text-crimson hover:border-crimson hover:bg-crimson hover:text-parchment"
         >
           <ChevronDown size={11} />
         </button>
@@ -59,7 +59,7 @@ export default function SummonButton({ section, lastUsed, options, onSummon }: P
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-1 z-20 min-w-[10rem] rounded border border-rule bg-parchment shadow-page py-1 text-xs font-serif"
+          className="absolute right-0 top-full z-20 mt-1 min-w-40 rounded border border-rule bg-parchment py-1 font-serif text-xs shadow-page"
         >
           {options.map((opt) => (
             <button
@@ -70,8 +70,8 @@ export default function SummonButton({ section, lastUsed, options, onSummon }: P
                 setOpen(false);
                 onSummon(opt);
               }}
-              className={`w-full text-left px-2.5 py-1.5 flex items-center justify-between gap-2 hover:bg-parchment-deep ${
-                opt.kind === lastUsed.kind ? 'text-crimson font-display tracking-wide' : 'text-ink'
+              className={`flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left hover:bg-parchment-deep ${
+                opt.kind === lastUsed.kind ? 'font-display tracking-wide text-crimson' : 'text-ink'
               }`}
             >
               <span>{opt.label}</span>

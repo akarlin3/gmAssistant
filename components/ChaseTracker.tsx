@@ -121,19 +121,19 @@ export default function ChaseTracker({ chases, onChange }: Props) {
   if (chases.length === 0) {
     return (
       <div className="space-y-3">
-        <div className="text-xs font-serif italic text-ink-mute">
+        <div className="font-serif text-xs italic text-ink-mute">
           Track chase scenes round-by-round. Set up participants, roll complications appropriate to the terrain, adjust the distance gap each round. Chase ends when the gap closes to zero or stretches past escape.
         </div>
-        <div className="text-xs font-display uppercase tracking-wider text-brass-deep">Start a new chase in:</div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+        <div className="font-display text-xs uppercase tracking-wider text-brass-deep">Start a new chase in:</div>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
           {TERRAINS.map(t => (
             <button
               key={t.id}
               onClick={() => addNew(t.id)}
-              className="text-xs px-2.5 py-1.5 rounded border border-rule bg-parchment-soft text-ink hover:bg-parchment-deep text-left shadow-card"
+              className="rounded border border-rule bg-parchment-soft px-2.5 py-1.5 text-left text-xs text-ink shadow-card hover:bg-parchment-deep"
             >
               <div className="font-display uppercase tracking-wider text-brass-deep">{t.label}</div>
-              <div className="text-[10px] font-serif italic text-ink-mute">{t.note}</div>
+              <div className="font-serif text-[10px] italic text-ink-mute">{t.note}</div>
             </button>
           ))}
         </div>
@@ -144,20 +144,20 @@ export default function ChaseTracker({ chases, onChange }: Props) {
   return (
     <div className="space-y-3 text-sm">
       {/* Chase picker */}
-      <div className="flex flex-wrap gap-1.5 items-center">
+      <div className="flex flex-wrap items-center gap-1.5">
         {chases.map(c => (
           <button
             key={c.id}
             onClick={() => setActiveId(c.id)}
-            className={`text-xs px-2.5 py-1 rounded border flex items-center gap-1.5 font-display uppercase tracking-wider transition-colors ${
+            className={`flex items-center gap-1.5 rounded border px-2.5 py-1 font-display text-xs uppercase tracking-wider transition-colors ${
               c.id === activeId
-                ? 'bg-crimson border-crimson text-parchment'
+                ? 'border-crimson bg-crimson text-parchment'
                 : 'border-rule bg-parchment-soft text-ink-soft hover:bg-parchment-deep'
             }`}
           >
             <ResolutionIcon resolution={c.resolved} />
             {c.name || 'Untitled'}
-            <span className={`text-[10px] font-serif tabular-nums ${c.id === activeId ? 'text-parchment/80' : 'text-ink-mute'}`}>R{c.currentRound}</span>
+            <span className={`font-serif text-[10px] tabular-nums ${c.id === activeId ? 'text-parchment/80' : 'text-ink-mute'}`}>R{c.currentRound}</span>
           </button>
         ))}
         <div className="flex gap-1">
@@ -165,7 +165,7 @@ export default function ChaseTracker({ chases, onChange }: Props) {
             <button
               key={t.id}
               onClick={() => addNew(t.id)}
-              className="text-xs px-2 py-1 rounded border border-dashed border-rule text-ink-soft hover:text-ink hover:bg-parchment-deep font-display uppercase tracking-wider"
+              className="rounded border border-dashed border-rule px-2 py-1 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep hover:text-ink"
               title={`New ${t.label} chase`}
             >
               <Plus size={11} className="inline" /> {t.label}
@@ -177,19 +177,19 @@ export default function ChaseTracker({ chases, onChange }: Props) {
       {active && (
         <>
           {/* Header */}
-          <div className="rounded border border-rule bg-parchment-soft p-3 space-y-2 shadow-card">
+          <div className="space-y-2 rounded border border-rule bg-parchment-soft p-3 shadow-card">
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={active.name}
                 onChange={(e) => updateActive({ name: e.target.value })}
                 placeholder="Chase Name"
-                className="flex-1 bg-transparent border-b border-rule text-base font-display tracking-wider text-ink placeholder-ink-faint focus:border-brass focus:outline-none pb-0.5"
+                className="flex-1 border-b border-rule bg-transparent pb-0.5 font-display text-base tracking-wider text-ink placeholder-ink-faint focus:border-brass focus:outline-none"
               />
               <select
                 value={active.terrain}
                 onChange={(e) => updateActive({ terrain: e.target.value })}
-                className="bg-parchment border border-rule rounded px-2 py-1 text-xs font-serif text-ink"
+                className="rounded border border-rule bg-parchment px-2 py-1 font-serif text-xs text-ink"
               >
                 {TERRAINS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
               </select>
@@ -198,33 +198,33 @@ export default function ChaseTracker({ chases, onChange }: Props) {
             {/* Round + Gap controls */}
             <div className="grid grid-cols-3 gap-2 pt-1">
               <div>
-                <div className="text-[10px] font-display uppercase tracking-wider text-ink-mute mb-0.5">Round</div>
+                <div className="mb-0.5 font-display text-[10px] uppercase tracking-wider text-ink-mute">Round</div>
                 <div className="flex items-center gap-1">
-                  <span className="text-lg font-display tabular-nums text-ink w-8 text-center">{active.currentRound}</span>
+                  <span className="w-8 text-center font-display text-lg tabular-nums text-ink">{active.currentRound}</span>
                   <button
                     onClick={advanceRound}
-                    className="text-xs px-2 py-0.5 rounded border border-rule bg-parchment text-ink-soft hover:bg-parchment-deep flex items-center gap-1 font-display uppercase tracking-wider"
+                    className="flex items-center gap-1 rounded border border-rule bg-parchment px-2 py-0.5 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
                   >
                     <SkipForward size={11} /> Next
                   </button>
                 </div>
               </div>
               <div>
-                <div className="text-[10px] font-display uppercase tracking-wider text-ink-mute mb-0.5">Gap</div>
+                <div className="mb-0.5 font-display text-[10px] uppercase tracking-wider text-ink-mute">Gap</div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => adjustGap(-1)} className="text-ink-mute hover:text-ink"><ArrowLeft size={14} /></button>
-                  <span className="text-lg font-display tabular-nums text-ink w-8 text-center">{active.gap}</span>
+                  <span className="w-8 text-center font-display text-lg tabular-nums text-ink">{active.gap}</span>
                   <button onClick={() => adjustGap(1)} className="text-ink-mute hover:text-ink"><ArrowRight size={14} /></button>
                 </div>
-                <div className="text-[10px] font-serif italic text-ink-faint mt-0.5">
+                <div className="mt-0.5 font-serif text-[10px] italic text-ink-faint">
                   Caught at {active.catchGap}, escapes at {active.escapeGap}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] font-display uppercase tracking-wider text-ink-mute mb-0.5">Status</div>
+                <div className="mb-0.5 font-display text-[10px] uppercase tracking-wider text-ink-mute">Status</div>
                 <div className="flex items-center gap-1.5">
                   <ResolutionIcon resolution={active.resolved} />
-                  <span className="text-sm font-serif text-ink capitalize">{active.resolved}</span>
+                  <span className="font-serif text-sm capitalize text-ink">{active.resolved}</span>
                 </div>
               </div>
             </div>
@@ -232,21 +232,21 @@ export default function ChaseTracker({ chases, onChange }: Props) {
             {/* Thresholds editor */}
             <div className="grid grid-cols-2 gap-2 pt-1">
               <div>
-                <div className="text-[10px] font-display uppercase tracking-wider text-ink-mute mb-0.5">Catch at (gap &le; this)</div>
+                <div className="mb-0.5 font-display text-[10px] uppercase tracking-wider text-ink-mute">Catch at (gap &le; this)</div>
                 <input
                   type="number"
                   value={active.catchGap}
                   onChange={(e) => updateActive({ catchGap: Number(e.target.value) })}
-                  className="w-full bg-parchment border border-rule rounded px-2 py-1 text-xs font-serif tabular-nums text-ink focus:border-brass focus:outline-none"
+                  className="w-full rounded border border-rule bg-parchment px-2 py-1 font-serif text-xs tabular-nums text-ink focus:border-brass focus:outline-none"
                 />
               </div>
               <div>
-                <div className="text-[10px] font-display uppercase tracking-wider text-ink-mute mb-0.5">Escape at (gap &ge; this)</div>
+                <div className="mb-0.5 font-display text-[10px] uppercase tracking-wider text-ink-mute">Escape at (gap &ge; this)</div>
                 <input
                   type="number"
                   value={active.escapeGap}
                   onChange={(e) => updateActive({ escapeGap: Number(e.target.value) })}
-                  className="w-full bg-parchment border border-rule rounded px-2 py-1 text-xs font-serif tabular-nums text-ink focus:border-brass focus:outline-none"
+                  className="w-full rounded border border-rule bg-parchment px-2 py-1 font-serif text-xs tabular-nums text-ink focus:border-brass focus:outline-none"
                 />
               </div>
             </div>
@@ -255,7 +255,7 @@ export default function ChaseTracker({ chases, onChange }: Props) {
               {active.resolved !== 'ongoing' && (
                 <button
                   onClick={reopenChase}
-                  className="text-xs px-2.5 py-1 rounded border border-brass/40 bg-brass-soft/20 text-brass-deep hover:bg-brass-soft/40 font-display uppercase tracking-wider"
+                  className="rounded border border-brass/40 bg-brass-soft/20 px-2.5 py-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:bg-brass-soft/40"
                 >
                   Reopen
                 </button>
@@ -263,7 +263,7 @@ export default function ChaseTracker({ chases, onChange }: Props) {
               <div className="flex-1" />
               <button
                 onClick={() => deleteChase(active.id)}
-                className="text-xs px-2.5 py-1 rounded border border-crimson/40 bg-crimson/5 text-crimson-deep hover:bg-crimson/15 flex items-center gap-1 font-display uppercase tracking-wider"
+                className="flex items-center gap-1 rounded border border-crimson/40 bg-crimson/5 px-2.5 py-1 font-display text-xs uppercase tracking-wider text-crimson-deep hover:bg-crimson/15"
               >
                 <Trash2 size={12} /> Delete
               </button>
@@ -271,19 +271,19 @@ export default function ChaseTracker({ chases, onChange }: Props) {
           </div>
 
           {/* Participants */}
-          <div className="rounded border border-rule bg-parchment-soft p-3 space-y-2 shadow-card">
+          <div className="space-y-2 rounded border border-rule bg-parchment-soft p-3 shadow-card">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-display uppercase tracking-wider text-brass-deep">Participants</span>
+              <span className="font-display text-sm uppercase tracking-wider text-brass-deep">Participants</span>
               <div className="flex gap-1.5">
                 <button
                   onClick={() => addParticipant('pursuer')}
-                  className="text-xs px-2 py-0.5 rounded border border-red-700/40 bg-red-100/60 text-red-800 hover:bg-red-100 flex items-center gap-1 font-display uppercase tracking-wider"
+                  className="flex items-center gap-1 rounded border border-red-700/40 bg-red-100/60 px-2 py-0.5 font-display text-xs uppercase tracking-wider text-red-800 hover:bg-red-100"
                 >
                   <Plus size={11} /> Pursuer
                 </button>
                 <button
                   onClick={() => addParticipant('quarry')}
-                  className="text-xs px-2 py-0.5 rounded border border-sky-700/40 bg-sky-100/60 text-sky-800 hover:bg-sky-100 flex items-center gap-1 font-display uppercase tracking-wider"
+                  className="flex items-center gap-1 rounded border border-sky-700/40 bg-sky-100/60 px-2 py-0.5 font-display text-xs uppercase tracking-wider text-sky-800 hover:bg-sky-100"
                 >
                   <Plus size={11} /> Quarry
                 </button>
@@ -291,15 +291,15 @@ export default function ChaseTracker({ chases, onChange }: Props) {
             </div>
 
             {active.participants.length === 0 ? (
-              <p className="text-xs font-serif italic text-ink-mute">No participants yet. Add at least one quarry and one pursuer.</p>
+              <p className="font-serif text-xs italic text-ink-mute">No participants yet. Add at least one quarry and one pursuer.</p>
             ) : (
               <div className="space-y-1.5">
                 {active.participants.map(p => (
-                  <div key={p.id} className={`rounded border p-2 space-y-1.5 ${
+                  <div key={p.id} className={`space-y-1.5 rounded border p-2 ${
                     p.side === 'quarry' ? 'border-sky-700/40 bg-sky-100/40' : 'border-red-700/40 bg-red-100/40'
                   }`}>
                     <div className="flex items-center gap-2">
-                      <span className={`text-[10px] uppercase font-display tracking-wider ${p.side === 'quarry' ? 'text-sky-800' : 'text-red-800'}`}>
+                      <span className={`font-display text-[10px] uppercase tracking-wider ${p.side === 'quarry' ? 'text-sky-800' : 'text-red-800'}`}>
                         {p.side}
                       </span>
                       <input
@@ -307,11 +307,11 @@ export default function ChaseTracker({ chases, onChange }: Props) {
                         value={p.name}
                         onChange={(e) => updateParticipant(p.id, { name: e.target.value })}
                         placeholder="Name"
-                        className="flex-1 bg-transparent border-b border-rule text-sm font-serif text-ink placeholder-ink-faint focus:border-brass focus:outline-none pb-0.5"
+                        className="flex-1 border-b border-rule bg-transparent pb-0.5 font-serif text-sm text-ink placeholder-ink-faint focus:border-brass focus:outline-none"
                       />
                       <button
                         onClick={() => rollForParticipant(p.id)}
-                        className="text-xs px-2 py-0.5 rounded border border-brass/40 bg-brass-soft/20 text-brass-deep hover:bg-brass-soft/40 flex items-center gap-1 font-display uppercase tracking-wider"
+                        className="flex items-center gap-1 rounded border border-brass/40 bg-brass-soft/20 px-2 py-0.5 font-display text-xs uppercase tracking-wider text-brass-deep hover:bg-brass-soft/40"
                         title="Roll a complication for this participant"
                       >
                         <Dices size={11} /> Roll
@@ -325,33 +325,33 @@ export default function ChaseTracker({ chases, onChange }: Props) {
                     </div>
                     <div className="grid grid-cols-3 gap-1.5 text-xs">
                       <div>
-                        <div className="text-[10px] font-display uppercase tracking-wider text-ink-mute">Speed Mod</div>
+                        <div className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Speed Mod</div>
                         <input
                           type="number"
                           value={p.speedMod}
                           onChange={(e) => updateParticipant(p.id, { speedMod: Number(e.target.value) })}
-                          className="w-full bg-parchment border border-rule rounded px-1 py-0.5 text-xs font-serif tabular-nums text-ink focus:border-brass focus:outline-none"
+                          className="w-full rounded border border-rule bg-parchment px-1 py-0.5 font-serif text-xs tabular-nums text-ink focus:border-brass focus:outline-none"
                         />
                       </div>
                       <div>
-                        <div className="text-[10px] font-display uppercase tracking-wider text-ink-mute">Exhaustion</div>
+                        <div className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Exhaustion</div>
                         <input
                           type="number"
                           min={0}
                           max={6}
                           value={p.exhaustion}
                           onChange={(e) => updateParticipant(p.id, { exhaustion: Math.max(0, Math.min(6, Number(e.target.value))) })}
-                          className="w-full bg-parchment border border-rule rounded px-1 py-0.5 text-xs font-serif tabular-nums text-ink focus:border-brass focus:outline-none"
+                          className="w-full rounded border border-rule bg-parchment px-1 py-0.5 font-serif text-xs tabular-nums text-ink focus:border-brass focus:outline-none"
                         />
                       </div>
                       <div>
-                        <div className="text-[10px] font-display uppercase tracking-wider text-ink-mute">Notes</div>
+                        <div className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Notes</div>
                         <input
                           type="text"
                           value={p.notes}
                           onChange={(e) => updateParticipant(p.id, { notes: e.target.value })}
                           placeholder="..."
-                          className="w-full bg-parchment border border-rule rounded px-1 py-0.5 text-xs font-serif text-ink placeholder-ink-faint focus:border-brass focus:outline-none"
+                          className="w-full rounded border border-rule bg-parchment px-1 py-0.5 font-serif text-xs text-ink placeholder-ink-faint focus:border-brass focus:outline-none"
                         />
                       </div>
                     </div>
@@ -363,7 +363,7 @@ export default function ChaseTracker({ chases, onChange }: Props) {
             <div className="pt-1">
               <button
                 onClick={rollGeneric}
-                className="text-xs px-2.5 py-1 rounded border border-brass/40 bg-brass-soft/20 text-brass-deep hover:bg-brass-soft/40 flex items-center gap-1 font-display uppercase tracking-wider"
+                className="flex items-center gap-1 rounded border border-brass/40 bg-brass-soft/20 px-2.5 py-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:bg-brass-soft/40"
                 title="Roll a complication affecting everyone"
               >
                 <Dices size={11} /> Roll Generic Complication
@@ -372,15 +372,15 @@ export default function ChaseTracker({ chases, onChange }: Props) {
           </div>
 
           {/* Round log */}
-          <div className="rounded border border-rule bg-parchment-soft p-3 space-y-2 shadow-card">
-            <div className="text-sm font-display uppercase tracking-wider text-brass-deep">Round Log</div>
+          <div className="space-y-2 rounded border border-rule bg-parchment-soft p-3 shadow-card">
+            <div className="font-display text-sm uppercase tracking-wider text-brass-deep">Round Log</div>
             {active.rounds.length === 0 ? (
-              <p className="text-xs font-serif italic text-ink-mute">No complications rolled yet. Click &ldquo;Roll&rdquo; next to a participant.</p>
+              <p className="font-serif text-xs italic text-ink-mute">No complications rolled yet. Click &ldquo;Roll&rdquo; next to a participant.</p>
             ) : (
               <div className="space-y-1.5">
                 {[...active.rounds].reverse().map(entry => (
-                  <div key={entry.id} className="rounded border border-rule bg-parchment p-2 space-y-1">
-                    <div className="flex items-center gap-2 text-[10px] font-display uppercase tracking-wider text-ink-mute">
+                  <div key={entry.id} className="space-y-1 rounded border border-rule bg-parchment p-2">
+                    <div className="flex items-center gap-2 font-display text-[10px] uppercase tracking-wider text-ink-mute">
                       <span className="tabular-nums">R{entry.roundNumber}</span>
                       <span>&middot;</span>
                       <span>{entry.participantName}</span>
@@ -392,13 +392,13 @@ export default function ChaseTracker({ chases, onChange }: Props) {
                         <XIcon size={11} />
                       </button>
                     </div>
-                    <div className="text-xs font-serif text-ink leading-relaxed">{entry.complication}</div>
+                    <div className="font-serif text-xs leading-relaxed text-ink">{entry.complication}</div>
                     <input
                       type="text"
                       value={entry.outcome}
                       onChange={(e) => updateRoundEntry(entry.id, { outcome: e.target.value })}
                       placeholder="Outcome: what actually happened"
-                      className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-xs font-serif text-ink placeholder-ink-faint focus:border-brass focus:outline-none"
+                      className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink placeholder-ink-faint focus:border-brass focus:outline-none"
                     />
                   </div>
                 ))}
@@ -408,13 +408,13 @@ export default function ChaseTracker({ chases, onChange }: Props) {
 
           {/* Chase notes */}
           <div>
-            <div className="text-xs font-display uppercase tracking-wider text-ink-mute mb-0.5">Chase Notes</div>
+            <div className="mb-0.5 font-display text-xs uppercase tracking-wider text-ink-mute">Chase Notes</div>
             <textarea
               value={active.notes}
               onChange={(e) => updateActive({ notes: e.target.value })}
               placeholder="Setup, motivations, what was at stake, how it ended"
               rows={3}
-              className="w-full bg-parchment-soft border border-rule rounded px-2 py-1.5 text-sm font-serif text-ink placeholder-ink-faint focus:border-brass focus:outline-none resize-y"
+              className="w-full resize-y rounded border border-rule bg-parchment-soft px-2 py-1.5 font-serif text-sm text-ink placeholder-ink-faint focus:border-brass focus:outline-none"
             />
           </div>
         </>

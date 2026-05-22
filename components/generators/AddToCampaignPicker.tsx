@@ -93,21 +93,21 @@ export default function AddToCampaignPicker({
   const allTicked = selected.size === items.length;
 
   return (
-    <div className="rounded border border-brass-deep/40 bg-brass/5 p-2.5 space-y-2">
+    <div className="space-y-2 rounded border border-brass-deep/40 bg-brass/5 p-2.5">
       <div className="flex items-center gap-1.5">
         <FolderPlus size={12} className="text-brass-deep" />
-        <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+        <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
           Add to campaign
         </span>
         {isMulti && (
           <>
-            <span className="text-[10px] text-ink-mute italic ml-1">
+            <span className="ml-1 text-[10px] italic text-ink-mute">
               {selected.size}/{items.length} selected
             </span>
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={allTicked ? selectNone : selectAll}
-                className="text-[10px] text-brass-deep hover:text-crimson font-display uppercase tracking-wider"
+                className="font-display text-[10px] uppercase tracking-wider text-brass-deep hover:text-crimson"
               >
                 {allTicked ? 'None' : 'All'}
               </button>
@@ -117,15 +117,15 @@ export default function AddToCampaignPicker({
       </div>
 
       {isMulti && (
-        <ul className="space-y-0.5 max-h-44 overflow-auto pr-1">
+        <ul className="max-h-44 space-y-0.5 overflow-auto pr-1">
           {items.map((item) => (
             <li key={item.id}>
-              <label className="flex items-start gap-2 text-xs text-ink font-serif cursor-pointer hover:bg-parchment-soft/60 rounded px-1 py-0.5">
+              <label className="flex cursor-pointer items-start gap-2 rounded px-1 py-0.5 font-serif text-xs text-ink hover:bg-parchment-soft/60">
                 <input
                   type="checkbox"
                   checked={selected.has(item.id)}
                   onChange={() => toggle(item.id)}
-                  className="accent-crimson mt-0.5"
+                  className="mt-0.5 accent-crimson"
                 />
                 <span className="flex-1 leading-snug">{item.label}</span>
               </label>
@@ -134,15 +134,15 @@ export default function AddToCampaignPicker({
         </ul>
       )}
 
-      <div className="flex items-center gap-2 flex-wrap">
-        <label className="text-[10px] text-ink-mute font-display uppercase tracking-wider">To</label>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="font-display text-[10px] uppercase tracking-wider text-ink-mute">To</label>
         <select
           value={dest ?? ''}
           onChange={(e) => {
             setDest(e.target.value as CampaignDestKey);
             setJustAdded(null);
           }}
-          className="bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif focus:border-crimson focus:outline-none"
+          className="rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink focus:border-crimson focus:outline-none"
         >
           {allowed.map((d) => (
             <option key={d} value={d} disabled={isDisabled(d)} title={isDisabled(d) ? DISABLED_TITLE[d] : undefined}>
@@ -153,7 +153,7 @@ export default function AddToCampaignPicker({
         <button
           onClick={handleAdd}
           disabled={!dest || isDisabled(dest) || selected.size === 0}
-          className="text-[11px] px-2.5 py-1 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-1.5 rounded border border-brass-deep/60 bg-brass/10 px-2.5 py-1 font-display text-[11px] uppercase tracking-wider text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40"
           title={
             !dest
               ? 'Choose a destination'
@@ -167,7 +167,7 @@ export default function AddToCampaignPicker({
           <Plus size={11} /> Add{isMulti && selected.size > 0 ? ` ${selected.size}` : ''}
         </button>
         {justAdded && (
-          <span className="text-[10px] text-brass-deep font-serif italic flex items-center gap-1">
+          <span className="flex items-center gap-1 font-serif text-[10px] italic text-brass-deep">
             <Check size={11} /> Added {justAdded.count} to {DEST_LABEL[justAdded.dest]}
           </span>
         )}

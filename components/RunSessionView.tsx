@@ -155,46 +155,46 @@ export default function RunSessionView({
   const setInitiativeOpen = (v: boolean) => setVal('__initiativeOpen', v);
 
   return (
-    <main className="min-h-screen p-3 sm:p-5 md:p-6 pb-32">
-      <div className="max-w-7xl mx-auto space-y-3">
-        <header className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-rule">
+    <main className="min-h-screen p-3 pb-32 sm:p-5 md:p-6">
+      <div className="mx-auto max-w-7xl space-y-3">
+        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-3">
           <div className="flex items-center gap-3">
             <button
               onClick={onExitWithoutEnding}
-              className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1"
+              className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
               title="Hide run mode without ending the session"
             >
               <ArrowLeft size={12} /> Hide
             </button>
             <button
               onClick={onOpenLibrary}
-              className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1"
+              className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
               title="Open Library without ending the session"
             >
               <BookOpen size={12} /> Library
             </button>
-            <h1 className="font-display text-lg sm:text-xl tracking-wide text-ink flex items-center gap-2">
+            <h1 className="flex items-center gap-2 font-display text-lg tracking-wide text-ink sm:text-xl">
               <Swords size={18} className="text-crimson" /> Run Session
             </h1>
-            <span className="text-xs text-ink-mute font-serif italic">
+            <span className="font-serif text-xs italic text-ink-mute">
               Started {new Date(get('__sessionStartedAt', Date.now()) as number).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
           <button
             onClick={onEndSession}
-            className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+            className="flex items-center gap-1.5 rounded border border-crimson/60 bg-crimson/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment"
           >
             <Flag size={12} /> End Session
           </button>
         </header>
 
         {strongStart && (
-          <section className="rounded border-2 border-crimson/50 bg-crimson/5 shadow-card p-3 sm:p-4">
-            <div className="flex items-start gap-2 mb-1.5">
-              <Zap size={16} className="text-crimson flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                  <h2 className="font-display tracking-wide text-sm sm:text-base text-crimson uppercase">
+          <section className="rounded border-2 border-crimson/50 bg-crimson/5 p-3 shadow-card sm:p-4">
+            <div className="mb-1.5 flex items-start gap-2">
+              <Zap size={16} className="mt-0.5 flex-shrink-0 text-crimson" />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline justify-between gap-3">
+                  <h2 className="font-display text-sm uppercase tracking-wide text-crimson sm:text-base">
                     Strong Start
                   </h2>
                   <button
@@ -203,9 +203,9 @@ export default function RunSessionView({
                       setStrongStartDone(next);
                       if (next) pushEvent(makeEvent('other', 'Strong start delivered'));
                     }}
-                    className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider flex items-center gap-1 ${
+                    className={`flex items-center gap-1 rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
                       strongStartDone
-                        ? 'bg-brass border-brass-deep text-parchment'
+                        ? 'border-brass-deep bg-brass text-parchment'
                         : 'border-brass-deep/60 text-brass-deep hover:bg-brass/10'
                     }`}
                   >
@@ -213,7 +213,7 @@ export default function RunSessionView({
                     {strongStartDone ? 'Delivered' : 'Mark Delivered'}
                   </button>
                 </div>
-                <p className={`mt-1 text-sm sm:text-base font-serif text-ink-soft whitespace-pre-wrap ${strongStartDone ? 'italic opacity-60' : ''}`}>
+                <p className={`mt-1 whitespace-pre-wrap font-serif text-sm text-ink-soft sm:text-base ${strongStartDone ? 'italic opacity-60' : ''}`}>
                   {strongStart}
                 </p>
               </div>
@@ -221,7 +221,7 @@ export default function RunSessionView({
           </section>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_360px]">
           <div className="space-y-3">
             <SectionShell title={SECTION_META.scenes.label} icon={SECTION_META.scenes.icon} open={section.scenes} onToggle={() => toggleSection('scenes')} count={scenes.length}>
               {scenes.length === 0 ? <Empty>No scenes prepped.</Empty> : (
@@ -229,15 +229,15 @@ export default function RunSessionView({
                   {scenes.map((s, i) => {
                     const used = usedScenes.includes(s);
                     return (
-                      <li key={i} className={`flex items-start gap-2 px-2 py-1.5 rounded border ${used ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
+                      <li key={i} className={`flex items-start gap-2 rounded border px-2 py-1.5 ${used ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
                         <button
                           onClick={() => toggleSceneUsed(s)}
-                          className={`mt-0.5 w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${used ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment'}`}
+                          className={`mt-0.5 flex size-4 flex-shrink-0 items-center justify-center rounded-sm border ${used ? 'border-brass-deep bg-brass text-parchment' : 'border-ink-mute bg-parchment'}`}
                           title={used ? 'Unmark used' : 'Mark used this session'}
                         >
                           {used && <Check size={10} strokeWidth={3} />}
                         </button>
-                        <span className={`text-sm font-serif ${used ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{s}</span>
+                        <span className={`font-serif text-sm ${used ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{s}</span>
                       </li>
                     );
                   })}
@@ -251,15 +251,15 @@ export default function RunSessionView({
                   {secrets.map((s, i) => {
                     const revealed = !!revSec[i];
                     return (
-                      <li key={i} className={`flex items-start gap-2 px-2 py-1.5 rounded border ${revealed ? 'border-emerald-700/40 bg-emerald-100/30' : 'border-rule bg-parchment'}`}>
+                      <li key={i} className={`flex items-start gap-2 rounded border px-2 py-1.5 ${revealed ? 'border-emerald-700/40 bg-emerald-100/30' : 'border-rule bg-parchment'}`}>
                         <button
                           onClick={() => setRevSec(i, !revealed, s)}
-                          className="mt-0.5 text-ink-mute hover:text-emerald-700 flex-shrink-0"
+                          className="mt-0.5 flex-shrink-0 text-ink-mute hover:text-emerald-700"
                           title={revealed ? 'Unmark revealed' : 'Mark revealed'}
                         >
                           {revealed ? <Eye size={14} className="text-emerald-700" /> : <EyeOff size={14} />}
                         </button>
-                        <span className={`text-sm font-serif ${revealed ? 'text-ink-mute' : 'text-ink-soft'}`}>{s}</span>
+                        <span className={`font-serif text-sm ${revealed ? 'text-ink-mute' : 'text-ink-soft'}`}>{s}</span>
                       </li>
                     );
                   })}
@@ -281,11 +281,11 @@ export default function RunSessionView({
               {locations.length === 0 ? <Empty>No locations prepped.</Empty> : (
                 <ul className="space-y-1">
                   {locations.map((l: any, i: number) => (
-                    <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif">
+                    <li key={i} className="rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
                       <div className="text-ink">{l.name || `Location ${i + 1}`}</div>
-                      {l.type && <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">{l.type}</div>}
+                      {l.type && <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{l.type}</div>}
                       {Array.isArray(l.aspects) && l.aspects.filter(Boolean).length > 0 && (
-                        <ul className="mt-0.5 ml-3 list-disc text-ink-soft text-[11px] italic">
+                        <ul className="ml-3 mt-0.5 list-disc text-[11px] italic text-ink-soft">
                           {l.aspects.filter(Boolean).map((a: string, j: number) => <li key={j}>{a}</li>)}
                         </ul>
                       )}
@@ -299,7 +299,7 @@ export default function RunSessionView({
               {monstersList.length === 0 ? <Empty>No monsters prepped.</Empty> : (
                 <ul className="space-y-1">
                   {monstersList.map((m, i) => (
-                    <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif text-ink-soft">
+                    <li key={i} className="rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink-soft">
                       {m}
                     </li>
                   ))}
@@ -313,15 +313,15 @@ export default function RunSessionView({
                   {magicItemsList.map((it, i) => {
                     const given = givenItems.includes(it);
                     return (
-                      <li key={i} className={`flex items-start gap-2 px-2 py-1.5 rounded border ${given ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
+                      <li key={i} className={`flex items-start gap-2 rounded border px-2 py-1.5 ${given ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
                         <button
                           onClick={() => toggleItemGiven(it)}
-                          className={`mt-0.5 w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${given ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment hover:border-brass-deep'}`}
+                          className={`mt-0.5 flex size-4 flex-shrink-0 items-center justify-center rounded-sm border ${given ? 'border-brass-deep bg-brass text-parchment' : 'border-ink-mute bg-parchment hover:border-brass-deep'}`}
                           title={given ? 'Unmark given' : 'Mark given this session'}
                         >
                           {given && <Check size={10} strokeWidth={3} />}
                         </button>
-                        <span className={`text-sm font-serif ${given ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{it}</span>
+                        <span className={`font-serif text-sm ${given ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{it}</span>
                       </li>
                     );
                   })}
@@ -333,14 +333,14 @@ export default function RunSessionView({
               {pcGoals.length === 0 ? <Empty>No PC goals prepped.</Empty> : (
                 <ul className="space-y-1.5">
                   {pcGoals.map((g: any, i: number) => (
-                    <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif">
+                    <li key={i} className="rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
                       <div className="text-ink-soft">{g.text || `Goal ${i + 1}`}</div>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {['Active', 'Progressed', 'Completed', 'Failed'].map(s => (
                           <button
                             key={s}
                             onClick={() => updateGoalStatus(i, s)}
-                            className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider ${g.status === s ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'}`}
+                            className={`rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${g.status === s ? 'border-crimson bg-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'}`}
                           >
                             {s}
                           </button>
@@ -359,24 +359,24 @@ export default function RunSessionView({
                     const max = c.max || 6;
                     const filled = c.filled || 0;
                     return (
-                      <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif space-y-1">
+                      <li key={i} className="space-y-1 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-ink">{c.text || `Clock ${i + 1}`}</span>
-                          <span className="text-[11px] text-brass-deep font-display">{filled}/{max}</span>
+                          <span className="font-display text-[11px] text-brass-deep">{filled}/{max}</span>
                         </div>
-                        {c.faction && <div className="text-[10px] text-ink-mute italic">{c.faction}</div>}
+                        {c.faction && <div className="text-[10px] italic text-ink-mute">{c.faction}</div>}
                         <div className="flex gap-0.5">
                           {Array.from({ length: max }).map((_, j) => (
                             <button
                               key={j}
                               onClick={() => tickClock(i, j + 1 === filled ? -filled : (j + 1) - filled)}
-                              className={`flex-1 h-3 rounded-sm transition-colors ${j < filled ? 'bg-crimson' : 'bg-parchment-deep hover:bg-parchment-deep/70'}`}
+                              className={`h-3 flex-1 rounded-sm transition-colors ${j < filled ? 'bg-crimson' : 'bg-parchment-deep hover:bg-parchment-deep/70'}`}
                             />
                           ))}
                         </div>
                         <div className="flex gap-1">
-                          <button onClick={() => tickClock(i, -1)} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">−1</button>
-                          <button onClick={() => tickClock(i, 1)} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">+1</button>
+                          <button onClick={() => tickClock(i, -1)} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">−1</button>
+                          <button onClick={() => tickClock(i, 1)} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">+1</button>
                         </div>
                       </li>
                     );
@@ -389,11 +389,11 @@ export default function RunSessionView({
               <SectionShell title="Faction Renown" icon={Users} open={true} onToggle={() => {}} count={factions.length}>
                 <ul className="space-y-1.5">
                   {factions.map((f: any, i: number) => (
-                    <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif flex items-center gap-2">
+                    <li key={i} className="flex items-center gap-2 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
                       <span className="flex-1 text-ink">{f.name || `Faction ${i + 1}`}</span>
-                      <span className="text-xs text-brass-deep font-display tabular-nums">{typeof f.renown === 'number' ? f.renown : 0}</span>
-                      <button onClick={() => adjustRenown(i, -1)} className="text-[11px] w-6 h-6 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display">−</button>
-                      <button onClick={() => adjustRenown(i, 1)} className="text-[11px] w-6 h-6 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display">+</button>
+                      <span className="font-display text-xs tabular-nums text-brass-deep">{typeof f.renown === 'number' ? f.renown : 0}</span>
+                      <button onClick={() => adjustRenown(i, -1)} className="size-6 rounded border border-rule font-display text-[11px] text-ink-soft hover:bg-parchment-deep">−</button>
+                      <button onClick={() => adjustRenown(i, 1)} className="size-6 rounded border border-rule font-display text-[11px] text-ink-soft hover:bg-parchment-deep">+</button>
                     </li>
                   ))}
                 </ul>
@@ -401,7 +401,7 @@ export default function RunSessionView({
             )}
           </div>
 
-          <div className="space-y-3 lg:sticky lg:top-3 lg:self-start lg:max-h-[calc(100vh-1.5rem)] lg:overflow-y-auto pr-1">
+          <div className="space-y-3 pr-1 lg:sticky lg:top-3 lg:max-h-[calc(100vh-1.5rem)] lg:self-start lg:overflow-y-auto">
             <PanelShell title="Initiative" icon={Swords} open={initiativeOpen} onToggle={() => setInitiativeOpen(!initiativeOpen)}>
               {initiativeOpen ? (
                 <InitiativePanel
@@ -416,7 +416,7 @@ export default function RunSessionView({
                   }}
                 />
               ) : (
-                <p className="text-xs text-ink-mute italic font-serif px-1">Tap to expand and track turns, HP, conditions.</p>
+                <p className="px-1 font-serif text-xs italic text-ink-mute">Tap to expand and track turns, HP, conditions.</p>
               )}
             </PanelShell>
 
@@ -433,15 +433,15 @@ export default function RunSessionView({
         <NoteSeed pushEvent={pushEvent} />
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-parchment border-t border-rule shadow-page z-10">
-        <div className="max-w-7xl mx-auto p-2 sm:p-3 flex items-start gap-2">
-          <NotebookPen size={14} className="text-brass-deep flex-shrink-0 mt-1.5" />
+      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-rule bg-parchment shadow-page">
+        <div className="mx-auto flex max-w-7xl items-start gap-2 p-2 sm:p-3">
+          <NotebookPen size={14} className="mt-1.5 flex-shrink-0 text-brass-deep" />
           <textarea
             value={scratchpad}
             onChange={(e) => setScratchpad(e.target.value)}
             placeholder="Session scratchpad — what happened, threads, open questions. Seeds the log when you end the session."
             rows={2}
-            className="flex-1 bg-parchment-soft border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y"
+            className="flex-1 resize-y rounded border border-rule bg-parchment-soft px-2 py-1.5 font-serif text-sm text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
           />
         </div>
       </div>
@@ -456,13 +456,13 @@ export function SectionShell({
 }) {
   return (
     <section className="rounded border border-rule bg-parchment-soft shadow-card">
-      <button onClick={onToggle} className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-parchment-deep/30">
-        <Icon size={14} className="text-brass-deep flex-shrink-0" />
-        <span className="font-display tracking-wide text-sm text-ink flex-1">{title}</span>
-        {typeof count === 'number' && <span className="text-[11px] text-ink-mute font-serif">{count}</span>}
+      <button onClick={onToggle} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-parchment-deep/30">
+        <Icon size={14} className="flex-shrink-0 text-brass-deep" />
+        <span className="flex-1 font-display text-sm tracking-wide text-ink">{title}</span>
+        {typeof count === 'number' && <span className="font-serif text-[11px] text-ink-mute">{count}</span>}
         {open ? <ChevronDown size={14} className="text-ink-mute" /> : <ChevronRight size={14} className="text-ink-mute" />}
       </button>
-      {open && <div className="px-3 pb-3 pt-1 border-t border-rule">{children}</div>}
+      {open && <div className="border-t border-rule px-3 pb-3 pt-1">{children}</div>}
     </section>
   );
 }
@@ -474,37 +474,37 @@ export function PanelShell({
 }) {
   return (
     <section className="rounded border border-rule bg-parchment-soft shadow-card">
-      <button onClick={onToggle} className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-parchment-deep/30">
-        <Icon size={14} className="text-crimson flex-shrink-0" />
-        <span className="font-display tracking-wide text-sm text-ink flex-1">{title}</span>
+      <button onClick={onToggle} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-parchment-deep/30">
+        <Icon size={14} className="flex-shrink-0 text-crimson" />
+        <span className="flex-1 font-display text-sm tracking-wide text-ink">{title}</span>
         {open ? <ChevronDown size={14} className="text-ink-mute" /> : <ChevronRight size={14} className="text-ink-mute" />}
       </button>
-      {open && <div className="px-3 pb-3 pt-1 border-t border-rule">{children}</div>}
+      {open && <div className="border-t border-rule px-3 pb-3 pt-1">{children}</div>}
     </section>
   );
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-ink-mute italic font-serif">{children}</p>;
+  return <p className="font-serif text-xs italic text-ink-mute">{children}</p>;
 }
 
 function NPCRow({ npc }: { npc: any }) {
   const [open, setOpen] = useState(false);
   return (
-    <li className="rounded border border-rule bg-parchment text-sm font-serif">
-      <button onClick={() => setOpen(o => !o)} className="w-full text-left px-2 py-1.5 flex items-center gap-2 hover:bg-parchment-deep/30">
+    <li className="rounded border border-rule bg-parchment font-serif text-sm">
+      <button onClick={() => setOpen(o => !o)} className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-parchment-deep/30">
         {open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />}
-        <span className="flex-1 text-ink truncate">{npc.name || 'Unnamed NPC'}</span>
-        {npc.type && <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">{npc.type}</span>}
+        <span className="flex-1 truncate text-ink">{npc.name || 'Unnamed NPC'}</span>
+        {npc.type && <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">{npc.type}</span>}
       </button>
       {open && (
-        <div className="px-3 pb-2 pt-1 border-t border-rule text-[12px] text-ink-soft space-y-0.5">
-          {npc.faction && <div><span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Faction · </span>{npc.faction}</div>}
-          {npc.archetype && <div><span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Archetype · </span>{npc.archetype}</div>}
-          {npc.goal && <div><span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Goal · </span>{npc.goal}</div>}
-          {npc.method && <div><span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Method · </span>{npc.method}</div>}
-          {npc.mannerism && <div><span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Mannerism · </span>{npc.mannerism}</div>}
-          {npc.appearance && <div><span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">Appearance · </span>{npc.appearance}</div>}
+        <div className="space-y-0.5 border-t border-rule px-3 pb-2 pt-1 text-[12px] text-ink-soft">
+          {npc.faction && <div><span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Faction · </span>{npc.faction}</div>}
+          {npc.archetype && <div><span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Archetype · </span>{npc.archetype}</div>}
+          {npc.goal && <div><span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Goal · </span>{npc.goal}</div>}
+          {npc.method && <div><span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Method · </span>{npc.method}</div>}
+          {npc.mannerism && <div><span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Mannerism · </span>{npc.mannerism}</div>}
+          {npc.appearance && <div><span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Appearance · </span>{npc.appearance}</div>}
         </div>
       )}
     </li>
@@ -544,7 +544,7 @@ export function QuickDice() {
           <button
             key={s}
             onClick={() => doRoll(`1d${s}`)}
-            className="text-[11px] px-2 py-1 rounded border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider"
+            className="rounded border border-brass-deep/60 px-2 py-1 font-display text-[11px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
           >
             d{s}
           </button>
@@ -556,21 +556,21 @@ export function QuickDice() {
           onChange={(e) => setFormula(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') doRoll(formula); }}
           placeholder="2d6+3"
-          className="flex-1 bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+          className="flex-1 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink"
         />
         <button
           onClick={() => doRoll(formula)}
-          className="text-[11px] px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider"
+          className="rounded border border-crimson/60 bg-crimson/10 px-2 py-1 font-display text-[11px] uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment"
         >
           Roll
         </button>
       </div>
       {history.length > 0 && (
-        <ul className="space-y-0.5 max-h-32 overflow-y-auto">
+        <ul className="max-h-32 space-y-0.5 overflow-y-auto">
           {history.map(r => (
-            <li key={r.id} className="text-[11px] font-serif text-ink-soft flex items-baseline gap-2">
-              <span className="text-brass-deep font-display tabular-nums w-6 text-right">{r.result}</span>
-              <span className="text-ink-mute truncate">{r.breakdown}</span>
+            <li key={r.id} className="flex items-baseline gap-2 font-serif text-[11px] text-ink-soft">
+              <span className="w-6 text-right font-display tabular-nums text-brass-deep">{r.result}</span>
+              <span className="truncate text-ink-mute">{r.breakdown}</span>
             </li>
           ))}
         </ul>
@@ -660,7 +660,7 @@ export function QuickInspire({ campaignContext }: { campaignContext?: CampaignCo
         <select
           value={tableId}
           onChange={(e) => { setTableId(e.target.value); setError(''); }}
-          className="flex-1 bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+          className="flex-1 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink"
         >
           <optgroup label="AI (Pro)">
             {SEGUE_ENTRIES.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
@@ -675,7 +675,7 @@ export function QuickInspire({ campaignContext }: { campaignContext?: CampaignCo
           <button
             onClick={doRoll}
             disabled={rolling}
-            className="text-[11px] px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-50 font-display uppercase tracking-wider"
+            className="rounded border border-crimson/60 bg-crimson/10 px-2 py-1 font-display text-[11px] uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-50"
           >
             {rolling ? 'Rolling…' : 'Roll'}
           </button>
@@ -687,20 +687,20 @@ export function QuickInspire({ campaignContext }: { campaignContext?: CampaignCo
           id="aiBasedQuickInspire" 
           checked={aiBased} 
           onChange={(e) => setAiBased(e.target.checked)} 
-          className="rounded border-rule text-crimson focus:ring-crimson cursor-pointer"
+          className="cursor-pointer rounded border-rule text-crimson focus:ring-crimson"
         />
-        <label htmlFor="aiBasedQuickInspire" className="text-[11px] text-ink-soft cursor-pointer select-none flex items-center gap-1">
+        <label htmlFor="aiBasedQuickInspire" className="flex cursor-pointer select-none items-center gap-1 text-[11px] text-ink-soft">
           Make all rolls AI based {aiBased && !isPro && <LockedInline label="(Pro)" />}
         </label>
       </div>
-      {error && <p className="text-[10px] text-crimson italic" title={error}>{error}</p>}
+      {error && <p className="text-[10px] italic text-crimson" title={error}>{error}</p>}
       {history.length === 0 ? (
-        <p className="text-[11px] text-ink-mute italic font-serif">No rolls yet.</p>
+        <p className="font-serif text-[11px] italic text-ink-mute">No rolls yet.</p>
       ) : (
-        <ul className="space-y-1 max-h-40 overflow-y-auto">
+        <ul className="max-h-40 space-y-1 overflow-y-auto">
           {history.map(r => (
-            <li key={r.id} className="text-[11px] font-serif text-ink-soft border-l-2 border-brass/40 pl-2">
-              <div className="text-[9px] text-brass-deep font-display uppercase tracking-wider">{r.tableTitle}</div>
+            <li key={r.id} className="border-l-2 border-brass/40 pl-2 font-serif text-[11px] text-ink-soft">
+              <div className="font-display text-[9px] uppercase tracking-wider text-brass-deep">{r.tableTitle}</div>
               {r.entry}
             </li>
           ))}
@@ -714,20 +714,20 @@ function NoteSeed({ pushEvent }: { pushEvent: (e: ChangeEvent) => void }) {
   const [text, setText] = useState('');
   return (
     <details className="rounded border border-rule bg-parchment-soft shadow-card">
-      <summary className="px-3 py-2 cursor-pointer font-display tracking-wide text-sm text-ink hover:bg-parchment-deep/30 flex items-center gap-2">
+      <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 font-display text-sm tracking-wide text-ink hover:bg-parchment-deep/30">
         <Plus size={12} className="text-brass-deep" /> Add Session Note
       </summary>
-      <div className="px-3 pb-3 pt-1 border-t border-rule space-y-1.5">
+      <div className="space-y-1.5 border-t border-rule px-3 pb-3 pt-1">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="A moment to remember…"
-          className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+          className="w-full rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink"
         />
         <button
           disabled={!text.trim()}
           onClick={() => { pushEvent(makeEvent('other', text.trim())); setText(''); }}
-          className="text-xs px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed font-display uppercase tracking-wider"
+          className="rounded border border-crimson/60 bg-crimson/10 px-2 py-1 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40"
         >
           Mark as Session Note
         </button>

@@ -47,11 +47,11 @@ export default function TrinketGenerator({
         copyText,
       }}
       renderResult={(r) => (
-        <ol className="space-y-2 list-decimal ml-5 font-serif text-sm text-ink">
+        <ol className="ml-5 list-decimal space-y-2 font-serif text-sm text-ink">
           {r.trinkets.map((t, i) => (
             <li key={i}>
               <div>{t.description}</div>
-              {t.hook && <div className="text-xs text-ink-soft italic mt-0.5">Hook: {t.hook}</div>}
+              {t.hook && <div className="mt-0.5 text-xs italic text-ink-soft">Hook: {t.hook}</div>}
             </li>
           ))}
         </ol>

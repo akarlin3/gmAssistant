@@ -58,18 +58,18 @@ export default function Step6NPCs({ get, setVal, soloTarget, standardTarget, sol
     <div className="space-y-2">
       {npcEvents.length > 0 && (
         <div>
-          <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">NPCs Touched Last Session</div>
-          <ul className="list-disc ml-5 text-sm font-serif text-ink-soft">
+          <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">NPCs Touched Last Session</div>
+          <ul className="ml-5 list-disc font-serif text-sm text-ink-soft">
             {npcEvents.slice(0, 6).map((e, i) => <li key={i}>{e.summary}</li>)}
           </ul>
         </div>
       )}
       {factionTiedNpcs.length > 0 && (
         <div>
-          <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+          <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
             NPCs Tied to Advancing Clocks
           </div>
-          <ul className="list-disc ml-5 text-sm font-serif text-ink-soft">
+          <ul className="ml-5 list-disc font-serif text-sm text-ink-soft">
             {factionTiedNpcs.slice(0, 6).map((n, i) => (
               <li key={i}>
                 <span className="text-brass-deep">{n.name || 'Unnamed'}</span>
@@ -99,77 +99,77 @@ export default function Step6NPCs({ get, setVal, soloTarget, standardTarget, sol
       contextFromLastSession={context}
     >
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-display tracking-wide text-sm text-ink">NPCs</h3>
-        <span className="text-[11px] text-ink-mute font-serif">
+        <h3 className="font-display text-sm tracking-wide text-ink">NPCs</h3>
+        <span className="font-serif text-[11px] text-ink-mute">
           {countFilled('npcs', npcs)} / {target} target
         </span>
       </div>
 
       <div className="space-y-2">
         {npcs.length === 0 && (
-          <p className="text-xs text-ink-mute italic font-serif">No NPCs yet.</p>
+          <p className="font-serif text-xs italic text-ink-mute">No NPCs yet.</p>
         )}
         {npcs.map((n, i) => (
-          <div key={i} className="rounded border border-rule bg-parchment-soft p-3 space-y-2">
+          <div key={i} className="space-y-2 rounded border border-rule bg-parchment-soft p-3">
             <div className="flex items-start gap-2">
               <input
                 value={n.name || ''}
                 onChange={(e) => updateNpc(i, { name: e.target.value })}
                 placeholder="Name"
-                className="flex-1 bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+                className="flex-1 rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink"
               />
               <input
                 value={n.type || ''}
                 onChange={(e) => updateNpc(i, { type: e.target.value })}
                 placeholder="Type (Ally / Foil / Villain)"
-                className="w-44 bg-parchment border border-rule rounded px-2 py-1 text-xs text-ink-soft font-serif"
+                className="w-44 rounded border border-rule bg-parchment px-2 py-1 font-serif text-xs text-ink-soft"
               />
               <button
                 onClick={() => removeNpc(i)}
-                className="text-ink-mute hover:text-crimson p-1 mt-0.5"
+                className="mt-0.5 p-1 text-ink-mute hover:text-crimson"
                 title="Remove NPC"
               >
                 <Trash2 size={14} />
               </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <input
                 value={n.faction || ''}
                 onChange={(e) => updateNpc(i, { faction: e.target.value })}
                 placeholder="Faction"
-                className="bg-parchment border border-rule rounded px-2 py-1 text-xs text-ink-soft font-serif"
+                className="rounded border border-rule bg-parchment px-2 py-1 font-serif text-xs text-ink-soft"
               />
               <input
                 value={n.archetype || ''}
                 onChange={(e) => updateNpc(i, { archetype: e.target.value })}
                 placeholder="Archetype or trait"
-                className="bg-parchment border border-rule rounded px-2 py-1 text-xs text-ink-soft font-serif"
+                className="rounded border border-rule bg-parchment px-2 py-1 font-serif text-xs text-ink-soft"
               />
               <input
                 value={n.goal || ''}
                 onChange={(e) => updateNpc(i, { goal: e.target.value })}
                 placeholder="Wants (one want)"
-                className="bg-parchment border border-rule rounded px-2 py-1 text-xs text-ink-soft font-serif"
+                className="rounded border border-rule bg-parchment px-2 py-1 font-serif text-xs text-ink-soft"
               />
               <input
                 value={n.method || ''}
                 onChange={(e) => updateNpc(i, { method: e.target.value })}
                 placeholder="Method (how they pursue it)"
-                className="bg-parchment border border-rule rounded px-2 py-1 text-xs text-ink-soft font-serif"
+                className="rounded border border-rule bg-parchment px-2 py-1 font-serif text-xs text-ink-soft"
               />
             </div>
           </div>
         ))}
         <button
           onClick={addNpc}
-          className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider"
+          className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
         >
           <Plus size={12} /> Add NPC
         </button>
       </div>
 
       <label className="block space-y-1">
-        <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+        <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
           Notes for this session
         </span>
         <textarea
@@ -177,7 +177,7 @@ export default function Step6NPCs({ get, setVal, soloTarget, standardTarget, sol
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="Voices, mannerisms, what one NPC reveals about the world."
-          className="w-full bg-parchment border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif resize-y"
+          className="w-full resize-y rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink"
         />
       </label>
     </StepShell>

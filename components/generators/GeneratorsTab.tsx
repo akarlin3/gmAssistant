@@ -136,16 +136,16 @@ export default function GeneratorsTab({
 
   return (
     <div className="space-y-3">
-      <div className="rounded border border-rule bg-parchment p-3 shadow-card flex items-center gap-2 flex-wrap">
+      <div className="flex flex-wrap items-center gap-2 rounded border border-rule bg-parchment p-3 shadow-card">
         <Sparkles size={14} className="text-crimson" />
         <h3 className="font-display tracking-wide text-ink">Generators</h3>
-        <span className="text-[10px] text-ink-mute italic ml-1">G focuses · R reroll · E enhance (Pro)</span>
+        <span className="ml-1 text-[10px] italic text-ink-mute">G focuses · R reroll · E enhance (Pro)</span>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)] gap-3">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[180px_minmax(0,1fr)]">
         <aside data-generators-sidebar tabIndex={-1} className="rounded border border-rule bg-parchment p-2 shadow-card outline-none">
           {GROUPS.map((group) => (
             <div key={group.label} className="mb-2 last:mb-0">
-              <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display px-2 py-1">{group.label}</div>
+              <div className="px-2 py-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">{group.label}</div>
               <div className="flex flex-col">
                 {group.entries.map((entry) => {
                   const Icon = entry.icon;
@@ -153,7 +153,7 @@ export default function GeneratorsTab({
                     <button
                       key={entry.slug}
                       onClick={() => setActive(entry.slug)}
-                      className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm font-serif transition-colors ${active === entry.slug ? 'bg-crimson text-parchment' : 'text-ink hover:bg-parchment-deep'}`}
+                      className={`flex items-center gap-2 rounded px-2 py-1.5 font-serif text-sm transition-colors ${active === entry.slug ? 'bg-crimson text-parchment' : 'text-ink hover:bg-parchment-deep'}`}
                     >
                       <Icon size={14} /> {entry.label}
                       {entry.gated && <span className="ml-auto text-[9px] uppercase tracking-wider opacity-70">Pro</span>}
@@ -165,7 +165,7 @@ export default function GeneratorsTab({
           ))}
         </aside>
 
-        <div className="space-y-3 min-w-0">
+        <div className="min-w-0 space-y-3">
           {ActiveComponent}
         </div>
       </div>

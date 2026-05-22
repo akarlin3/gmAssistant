@@ -112,20 +112,20 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-[2px]"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Prep target settings"
     >
       <div
-        className="w-full max-w-2xl bg-parchment border border-rule rounded-lg shadow-page overflow-hidden flex flex-col max-h-[85vh]"
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-rule bg-parchment shadow-page"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-rule">
+        <div className="flex items-center justify-between border-b border-rule px-4 py-3">
           <div>
             <h2 className="font-display text-lg tracking-wide text-ink">Prep Target Settings</h2>
-            <p className="text-[11px] text-ink-mute font-serif italic mt-0.5">
+            <p className="mt-0.5 font-serif text-[11px] italic text-ink-mute">
               How many items each category needs before the pre-session gate opens.
             </p>
           </div>
@@ -139,13 +139,13 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
           </button>
         </div>
 
-        <div className="px-4 py-3 overflow-y-auto flex-1 space-y-5">
-          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 items-center text-[10px] font-display uppercase tracking-wider text-ink-mute pb-1 border-b border-rule">
+        <div className="flex-1 space-y-5 overflow-y-auto px-4 py-3">
+          <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3 border-b border-rule pb-1 font-display text-[10px] uppercase tracking-wider text-ink-mute">
             <span>Category</span>
-            <span className="w-16 text-center flex items-center justify-center gap-1 text-wine">
+            <span className="flex w-16 items-center justify-center gap-1 text-center text-wine">
               <User size={10} /> Solo
             </span>
-            <span className="w-16 text-center flex items-center justify-center gap-1 text-brass-deep">
+            <span className="flex w-16 items-center justify-center gap-1 text-center text-brass-deep">
               <Users size={10} /> Group
             </span>
             <span className="w-6" />
@@ -153,7 +153,7 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
 
           {PHASE_GROUPS.map((group) => (
             <section key={group.phase} className="space-y-2">
-              <h3 className="text-[10px] font-display uppercase tracking-wider text-brass-deep">
+              <h3 className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
                 {group.title}
               </h3>
               <div className="space-y-1.5">
@@ -166,11 +166,11 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
                   return (
                     <div
                       key={key}
-                      className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 items-center"
+                      className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3"
                     >
                       <div className="min-w-0">
-                        <div className="text-sm font-serif text-ink truncate">{spec.label}</div>
-                        <div className="text-[10px] text-ink-mute font-serif italic truncate">
+                        <div className="truncate font-serif text-sm text-ink">{spec.label}</div>
+                        <div className="truncate font-serif text-[10px] italic text-ink-mute">
                           {spec.source}
                         </div>
                       </div>
@@ -192,7 +192,7 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
                         type="button"
                         onClick={() => resetRow(key)}
                         disabled={!isOverridden}
-                        className="text-ink-mute hover:text-crimson disabled:opacity-30 disabled:hover:text-ink-mute disabled:cursor-default p-1"
+                        className="p-1 text-ink-mute hover:text-crimson disabled:cursor-default disabled:opacity-30 disabled:hover:text-ink-mute"
                         title={isOverridden ? 'Reset to suggested default' : 'Matches default'}
                         aria-label={`Reset ${spec.label} to default`}
                       >
@@ -206,11 +206,11 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
           ))}
         </div>
 
-        <div className="px-4 py-3 border-t border-rule bg-parchment-soft flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 border-t border-rule bg-parchment-soft px-4 py-3">
           <button
             type="button"
             onClick={resetAll}
-            className="text-xs text-ink-soft hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1.5"
+            className="flex items-center gap-1.5 font-display text-xs uppercase tracking-wider text-ink-soft hover:text-crimson"
           >
             <RotateCcw size={12} /> Reset all to suggested
           </button>
@@ -218,7 +218,7 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
             <button
               type="button"
               onClick={onClose}
-              className="text-xs px-3 py-1.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider"
+              className="rounded border border-rule px-3 py-1.5 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
             >
               Cancel
             </button>
@@ -226,7 +226,7 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
               type="button"
               onClick={handleSave}
               disabled={!dirty}
-              className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-crimson/10 disabled:hover:text-crimson"
+              className="rounded border border-crimson/60 bg-crimson/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-crimson/10 disabled:hover:text-crimson"
             >
               Save
             </button>
@@ -261,7 +261,7 @@ function NumberCell({
         : 'border-brass-deep/40 bg-brass/5 text-brass-deep'
       : 'border-rule bg-parchment-soft text-ink';
   return (
-    <div className="w-16 flex flex-col items-center">
+    <div className="flex w-16 flex-col items-center">
       <input
         type="number"
         inputMode="numeric"
@@ -271,9 +271,9 @@ function NumberCell({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={ariaLabel}
-        className={`w-full text-center font-display text-sm px-1.5 py-1 rounded border focus:outline-none focus:ring-2 ${overrideTint} ${ring}`}
+        className={`w-full rounded border px-1.5 py-1 text-center font-display text-sm focus:outline-none focus:ring-2 ${overrideTint} ${ring}`}
       />
-      <span className="text-[9px] font-display uppercase tracking-wider text-ink-mute mt-0.5 h-3">
+      <span className="mt-0.5 h-3 font-display text-[9px] uppercase tracking-wider text-ink-mute">
         {overridden ? `def ${suggested}` : ''}
       </span>
     </div>

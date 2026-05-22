@@ -24,17 +24,17 @@ export default function KeyboardShortcuts({ open, onClose }: { open: boolean; on
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-[2px]"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Keyboard shortcuts"
     >
       <div
-        className="w-full max-w-md bg-parchment border border-rule rounded-lg shadow-page overflow-hidden"
+        className="w-full max-w-md overflow-hidden rounded-lg border border-rule bg-parchment shadow-page"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-rule">
+        <div className="flex items-center justify-between border-b border-rule px-4 py-3">
           <h2 className="font-display text-lg tracking-wide text-ink">Keyboard Shortcuts</h2>
           <button
             type="button"
@@ -45,26 +45,26 @@ export default function KeyboardShortcuts({ open, onClose }: { open: boolean; on
             <X size={16} />
           </button>
         </div>
-        <div className="px-4 py-3 max-h-[60vh] overflow-y-auto space-y-4">
+        <div className="max-h-[60vh] space-y-4 overflow-y-auto px-4 py-3">
           {contexts.map((ctx) => (
             <div key={ctx}>
-              <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep mb-1.5">
+              <div className="mb-1.5 font-display text-[10px] uppercase tracking-wider text-brass-deep">
                 {CONTEXT_LABEL[ctx]}
               </div>
               <div className="space-y-1">
                 {grouped[ctx].map((s) => (
                   <div key={`${ctx}-${s.keys}`} className="flex items-center justify-between gap-3">
-                    <kbd className="font-display text-xs px-2 py-0.5 rounded border border-rule bg-parchment-soft text-ink-soft min-w-[5rem] text-center">
+                    <kbd className="min-w-20 rounded border border-rule bg-parchment-soft px-2 py-0.5 text-center font-display text-xs text-ink-soft">
                       {s.keys}
                     </kbd>
-                    <span className="flex-1 text-sm font-serif text-ink-soft">{s.description}</span>
+                    <span className="flex-1 font-serif text-sm text-ink-soft">{s.description}</span>
                   </div>
                 ))}
               </div>
             </div>
           ))}
         </div>
-        <div className="px-4 py-2 border-t border-rule bg-parchment-soft text-[10px] font-display uppercase tracking-wider text-ink-mute text-center">
+        <div className="border-t border-rule bg-parchment-soft px-4 py-2 text-center font-display text-[10px] uppercase tracking-wider text-ink-mute">
           esc to close
         </div>
       </div>

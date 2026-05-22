@@ -94,14 +94,14 @@ export default function PlotSegueGenerator({
         copyText,
       }}
       renderResult={(r) => (
-        <ol className="space-y-4 list-decimal ml-5 font-serif text-sm text-ink marker:text-brass-deep">
+        <ol className="ml-5 list-decimal space-y-4 font-serif text-sm text-ink marker:text-brass-deep">
           {r.segues.map((s, i) => (
             <li key={i} className="space-y-1.5">
-              <div className="font-display tracking-wide text-ink uppercase text-[11px]">{s.title}</div>
+              <div className="font-display text-[11px] uppercase tracking-wide text-ink">{s.title}</div>
               <div className="leading-snug">{s.readAloud}</div>
               {s.gmNote && (
-                <div className="text-xs text-brass-deep font-display tracking-wide">
-                  GM: <span className="font-serif text-ink-soft italic not-italic">{s.gmNote}</span>
+                <div className="font-display text-xs tracking-wide text-brass-deep">
+                  GM: <span className="font-serif italic not-italic text-ink-soft">{s.gmNote}</span>
                 </div>
               )}
             </li>

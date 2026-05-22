@@ -58,8 +58,8 @@ function StatLine({ label, value }: { label: string; value: string }) {
 
 function AbilityCell({ label, score }: { label: string; score: number }) {
   return (
-    <div className="text-center border border-rule bg-parchment-soft rounded-sm py-1.5 px-1">
-      <div className="font-display uppercase tracking-wider text-[10px] text-brass-deep">{label}</div>
+    <div className="rounded-sm border border-rule bg-parchment-soft px-1 py-1.5 text-center">
+      <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{label}</div>
       <div className="font-serif text-sm leading-tight">
         {score} <span className="text-ink-mute">({abilityMod(score)})</span>
       </div>
@@ -72,14 +72,14 @@ function NamedBlockList({ entries, heading }: { entries: NamedBlock[]; heading?:
   return (
     <div className="space-y-1.5">
       {heading && (
-        <div className="font-display uppercase tracking-wider text-xs text-brass-deep border-b border-rule pb-0.5">
+        <div className="border-b border-rule pb-0.5 font-display text-xs uppercase tracking-wider text-brass-deep">
           {heading}
         </div>
       )}
       {entries.map((e, i) => (
         <div key={i} className="text-xs leading-snug">
-          <span className="font-display italic text-ink font-semibold">{e.name}.</span>{' '}
-          <span className="font-serif text-ink whitespace-pre-wrap">{e.description}</span>
+          <span className="font-display font-semibold italic text-ink">{e.name}.</span>{' '}
+          <span className="whitespace-pre-wrap font-serif text-ink">{e.description}</span>
         </div>
       ))}
     </div>
@@ -149,18 +149,18 @@ function ScaledStatBlock({ m }: { m: ScaledMonster }) {
   };
 
   return (
-    <div className="border-2 border-brass-deep/60 bg-parchment rounded p-4 space-y-3 shadow-sm">
+    <div className="space-y-3 rounded border-2 border-brass-deep/60 bg-parchment p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-display uppercase tracking-wider text-xl text-crimson">{m.name}</h3>
-          <div className="font-serif italic text-ink-soft text-sm">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-display text-xl uppercase tracking-wider text-crimson">{m.name}</h3>
+          <div className="font-serif text-sm italic text-ink-soft">
             {m.size} {m.type.toLowerCase()}, {m.alignment}
           </div>
         </div>
         <button
           type="button"
           onClick={copy}
-          className="flex-shrink-0 px-2 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep text-[10px] font-display uppercase tracking-wider flex items-center gap-1"
+          className="flex flex-shrink-0 items-center gap-1 rounded border border-rule px-2 py-1 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
           title="Copy statblock as plain text"
         >
           {copied ? <Check size={12} /> : <Copy size={12} />}
@@ -168,14 +168,14 @@ function ScaledStatBlock({ m }: { m: ScaledMonster }) {
         </button>
       </div>
 
-      <div className="rounded border border-brass-deep/40 bg-brass/5 px-3 py-2 text-[11px] text-ink-soft font-serif italic leading-snug">
-        <span className="not-italic font-display uppercase tracking-wider text-[10px] text-brass-deep">
+      <div className="rounded border border-brass-deep/40 bg-brass/5 px-3 py-2 font-serif text-[11px] italic leading-snug text-ink-soft">
+        <span className="font-display text-[10px] uppercase not-italic tracking-wider text-brass-deep">
           Scaled from {m.sourceMonster}:
         </span>{' '}
         {m.scalingNote}
       </div>
 
-      <div className="border-t border-b border-rule py-2 space-y-1">
+      <div className="space-y-1 border-y border-rule py-2">
         <StatLine label="Armor Class" value={m.ac} />
         <StatLine label="Hit Points" value={m.hp} />
         <StatLine label="Speed" value={m.speed} />
@@ -190,7 +190,7 @@ function ScaledStatBlock({ m }: { m: ScaledMonster }) {
         <AbilityCell label="Cha" score={m.abilities.cha} />
       </div>
 
-      <div className="border-t border-rule pt-2 space-y-1">
+      <div className="space-y-1 border-t border-rule pt-2">
         <StatLine label="Saving Throws" value={m.savingThrows} />
         <StatLine label="Skills" value={m.skills} />
         <StatLine label="Damage Resistances" value={m.damageResistances} />
@@ -273,21 +273,21 @@ export default function MonsterScaler({
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
+      <div className="space-y-3 rounded border border-rule bg-parchment p-3 shadow-card">
         <div className="flex items-center gap-2">
           <Wand2 size={14} className="text-crimson" />
           <h3 className="font-display tracking-wide text-ink">Scale a Monster to CR</h3>
-          <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-sm border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider">
+          <span className="ml-auto rounded-sm border border-crimson/60 bg-crimson/10 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-crimson">
             Pro
           </span>
         </div>
-        <p className="text-xs text-ink-soft italic font-serif">
+        <p className="font-serif text-xs italic text-ink-soft">
           Describe a monster — its appearance, behavior, role — and pick a target CR. Claude finds the
           closest existing bestiary entry and scales it into a full statblock at the CR you asked for.
         </p>
 
         <div className="space-y-2">
-          <label className="text-xs text-brass-deep font-display uppercase tracking-wider block">
+          <label className="block font-display text-xs uppercase tracking-wider text-brass-deep">
             Monster Concept
           </label>
           <textarea
@@ -296,22 +296,22 @@ export default function MonsterScaler({
             placeholder="e.g. A coral-armored sea wraith that drowns sailors in their dreams, then drags their bodies through ship hulls."
             rows={3}
             maxLength={600}
-            className="w-full bg-parchment-soft border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif placeholder-ink-faint focus:border-crimson focus:outline-none resize-y"
+            className="w-full resize-y rounded border border-rule bg-parchment-soft px-2 py-1.5 font-serif text-sm text-ink placeholder-ink-faint focus:border-crimson focus:outline-none"
           />
-          <div className="text-[10px] text-ink-mute text-right font-serif">
+          <div className="text-right font-serif text-[10px] text-ink-mute">
             {description.length} / 600
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
           <div>
-            <label className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5 block">
+            <label className="mb-0.5 block font-display text-xs uppercase tracking-wider text-brass-deep">
               Target CR
             </label>
             <select
               value={cr}
               onChange={(e) => setCr(e.target.value)}
-              className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+              className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
             >
               {CR_OPTIONS.map((c) => (
                 <option key={c} value={c}>
@@ -324,7 +324,7 @@ export default function MonsterScaler({
           <button
             onClick={generate}
             disabled={generating || !description.trim()}
-            className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-wine hover:border-wine disabled:opacity-50 disabled:cursor-wait transition-colors"
+            className="flex items-center justify-center gap-1.5 rounded border border-crimson bg-crimson px-3 py-1.5 font-display text-xs uppercase tracking-wider text-parchment transition-colors hover:border-wine hover:bg-wine disabled:cursor-wait disabled:opacity-50"
           >
             {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
             {generating ? 'Generating…' : 'Scale Monster'}
@@ -332,7 +332,7 @@ export default function MonsterScaler({
         </div>
 
         {error && (
-          <p className="text-xs text-crimson italic font-serif" title={error}>
+          <p className="font-serif text-xs italic text-crimson" title={error}>
             {error}
           </p>
         )}
@@ -349,7 +349,7 @@ export default function MonsterScaler({
                 setSavedScale(true);
               }}
               disabled={savedScale}
-              className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1.5 rounded border border-brass-deep/60 bg-brass/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment disabled:opacity-50"
             >
               {savedScale ? <Check size={12} /> : <Save size={12} />}
               {savedScale ? 'Saved to log' : 'Save to log'}

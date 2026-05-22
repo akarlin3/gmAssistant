@@ -120,14 +120,14 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
           onClick={() => setOpen((v) => !v)}
           aria-haspopup="menu"
           aria-expanded={open}
-          className="text-xs px-2.5 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-1.5"
+          className="flex items-center gap-1.5 rounded border border-rule px-2.5 py-1 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
         >
-          <span className="max-w-[140px] truncate normal-case tracking-normal font-serif italic text-ink-soft hidden sm:inline">
+          <span className="hidden max-w-[140px] truncate font-serif normal-case italic tracking-normal text-ink-soft sm:inline">
             {user.email}
           </span>
           <span className="sm:hidden">Account</span>
           {isPro && (
-            <span className="text-[9px] not-italic px-1 py-0.5 rounded-sm border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider">
+            <span className="rounded-sm border border-crimson/60 bg-crimson/10 px-1 py-0.5 font-display text-[9px] uppercase not-italic tracking-wider text-crimson">
               Pro
             </span>
           )}
@@ -137,20 +137,20 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
         {open && (
           <div
             role="menu"
-            className="absolute right-0 mt-2 w-72 rounded border border-rule bg-parchment-soft shadow-page p-3 space-y-3 z-30"
+            className="absolute right-0 z-30 mt-2 w-72 space-y-3 rounded border border-rule bg-parchment-soft p-3 shadow-page"
           >
-            <div className="text-xs font-serif italic text-ink-soft break-all">{user.email}</div>
+            <div className="break-all font-serif text-xs italic text-ink-soft">{user.email}</div>
 
             {isPro ? (
-              <div className="rounded border border-crimson/40 bg-crimson/5 p-2.5 space-y-1.5">
+              <div className="space-y-1.5 rounded border border-crimson/40 bg-crimson/5 p-2.5">
                 <div className="flex items-center gap-1.5">
                   <Sparkles size={12} className="text-crimson" />
-                  <span className="text-xs font-display uppercase tracking-wider text-crimson">
+                  <span className="font-display text-xs uppercase tracking-wider text-crimson">
                     Pro {proSource === 'comped' ? '(comped)' : 'subscriber'}
                   </span>
                 </div>
                 {proSource === 'subscription' && periodEnd && (
-                  <div className="text-[11px] text-ink-soft font-serif">
+                  <div className="font-serif text-[11px] text-ink-soft">
                     {cancelAtPeriodEnd
                       ? `Cancels on ${periodEnd.toLocaleDateString()}`
                       : `Renews on ${periodEnd.toLocaleDateString()}`}
@@ -164,7 +164,7 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
                     type="button"
                     onClick={openPortal}
                     disabled={busy !== null}
-                    className="w-full text-xs px-2 py-1.5 rounded border border-rule bg-parchment hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    className="flex w-full items-center justify-center gap-1.5 rounded border border-rule bg-parchment px-2 py-1.5 font-display text-xs uppercase tracking-wider hover:bg-parchment-deep disabled:opacity-50"
                   >
                     <Settings size={11} /> {busy === 'portal' ? 'Opening…' : 'Manage Subscription'}
                     <ExternalLink size={10} className="opacity-60" />
@@ -172,37 +172,37 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
                 )}
               </div>
             ) : isOnWaitlist ? (
-              <div className="rounded border border-brass/40 bg-brass/5 p-2.5 space-y-1.5">
-                <div className="text-xs font-display uppercase tracking-wider text-brass-deep flex items-center gap-1.5">
+              <div className="space-y-1.5 rounded border border-brass/40 bg-brass/5 p-2.5">
+                <div className="flex items-center gap-1.5 font-display text-xs uppercase tracking-wider text-brass-deep">
                   <MailCheck size={12} /> On the waitlist
                 </div>
-                <p className="text-[11px] font-serif italic text-ink-soft leading-snug">
+                <p className="font-serif text-[11px] italic leading-snug text-ink-soft">
                   Pro will be {PRO_PRICE_LABEL} when it launches. We&apos;ll email you.
                 </p>
               </div>
             ) : (
-              <div className="rounded border border-brass/40 bg-brass/5 p-2.5 space-y-2">
-                <div className="text-xs font-display uppercase tracking-wider text-brass-deep flex items-center gap-1.5">
+              <div className="space-y-2 rounded border border-brass/40 bg-brass/5 p-2.5">
+                <div className="flex items-center gap-1.5 font-display text-xs uppercase tracking-wider text-brass-deep">
                   <Sparkles size={12} /> Pro — Coming Soon
                 </div>
-                <p className="text-[11px] font-serif italic text-ink-soft leading-snug">
+                <p className="font-serif text-[11px] italic leading-snug text-ink-soft">
                   Pro AI tools at {PRO_PRICE_LABEL}. Join the waitlist for launch.
                 </p>
                 <button
                   type="button"
                   onClick={joinWaitlist}
                   disabled={busy !== null}
-                  className="w-full text-xs px-2 py-1.5 rounded bg-crimson hover:bg-wine text-parchment font-display uppercase tracking-wider flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-1.5 rounded bg-crimson px-2 py-1.5 font-display text-xs uppercase tracking-wider text-parchment hover:bg-wine disabled:opacity-50"
                 >
                   {busy === 'waitlist' ? 'Joining…' : 'Join the waitlist'}
                 </button>
               </div>
             )}
 
-            {error && <p className="text-[11px] text-crimson font-serif italic">{error}</p>}
+            {error && <p className="font-serif text-[11px] italic text-crimson">{error}</p>}
 
-            <div className="pt-1 border-t border-rule space-y-1">
-              <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep px-1">
+            <div className="space-y-1 border-t border-rule pt-1">
+              <div className="px-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
                 Cloud Backups
               </div>
               <button
@@ -211,7 +211,7 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
                   setOpen(false);
                   router.push('/account?action=backup');
                 }}
-                className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
               >
                 <UploadCloud size={12} className="text-brass-deep" /> Backup to Google Drive
               </button>
@@ -221,22 +221,22 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
                   setOpen(false);
                   router.push('/account');
                 }}
-                className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
               >
                 <Cloud size={12} className="text-brass-deep" /> Manage Cloud Backups
               </button>
             </div>
 
             {(onExport || onImport || onArchive || onDelete || onRerunSession0 || onOpenPrepTargets || onCopy) && (
-              <div className="pt-1 border-t border-rule space-y-1">
-                <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep px-1">
+              <div className="space-y-1 border-t border-rule pt-1">
+                <div className="px-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
                   Campaign Actions
                 </div>
                 {onOpenPrepTargets && (
                   <button
                     type="button"
                     onClick={fireAndClose(onOpenPrepTargets)}
-                    className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
                   >
                     <SlidersHorizontal size={12} className="text-brass-deep" /> Prep Target Settings
                   </button>
@@ -245,7 +245,7 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
                   <button
                     type="button"
                     onClick={fireAndClose(onRerunSession0)}
-                    className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
                   >
                     <RotateCcw size={12} className="text-brass-deep" /> Re-run Session 0 Setup
                   </button>
@@ -254,7 +254,7 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
                   <button
                     type="button"
                     onClick={fireAndClose(onExport)}
-                    className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
                   >
                     <Download size={12} className="text-brass-deep" /> Export JSON
                   </button>
@@ -263,7 +263,7 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
                   <button
                     type="button"
                     onClick={fireAndClose(onImport)}
-                    className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
                   >
                     <Upload size={12} className="text-brass-deep" /> Import JSON
                   </button>
@@ -272,7 +272,7 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
                   <button
                     type="button"
                     onClick={fireAndClose(onArchive)}
-                    className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
                   >
                     {isArchived ? (
                       <><ArchiveRestore size={12} className="text-brass-deep" /> Unarchive Campaign</>
@@ -285,7 +285,7 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
                   <button
                     type="button"
                     onClick={fireAndClose(onCopy)}
-                    className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
                   >
                     <Copy size={12} className="text-brass-deep" /> Copy Campaign
                   </button>
@@ -294,7 +294,7 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
                   <button
                     type="button"
                     onClick={fireAndClose(onDelete)}
-                    className="w-full text-xs px-2 py-1.5 rounded text-left text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-2"
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment"
                   >
                     <Trash2 size={12} /> Delete Campaign
                   </button>
@@ -302,28 +302,28 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-2 pt-1 border-t border-rule">
+            <div className="flex items-center justify-between gap-2 border-t border-rule pt-1">
               <Link
                 href="/account"
                 onClick={() => setOpen(false)}
-                className="text-[11px] text-ink-soft hover:text-crimson font-display uppercase tracking-wider"
+                className="font-display text-[11px] uppercase tracking-wider text-ink-soft hover:text-crimson"
               >
                 Account page
               </Link>
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="text-[11px] text-ink-soft hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1"
+                className="flex items-center gap-1 font-display text-[11px] uppercase tracking-wider text-ink-soft hover:text-crimson"
               >
                 <LogOut size={10} /> Sign out
               </button>
             </div>
 
-            <div className="pt-1 border-t border-rule">
+            <div className="border-t border-rule pt-1">
               <button
                 type="button"
                 onClick={() => { setOpen(false); setAboutOpen(true); }}
-                className="text-[11px] text-ink-soft hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1"
+                className="flex items-center gap-1 font-display text-[11px] uppercase tracking-wider text-ink-soft hover:text-crimson"
               >
                 <Info size={10} /> About this app
               </button>
@@ -334,14 +334,14 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
 
       {aboutOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-[2px]"
           onClick={() => setAboutOpen(false)}
           role="dialog"
           aria-modal="true"
           aria-label="About this app"
         >
           <div
-            className="w-full max-w-md bg-parchment border border-rule rounded-lg shadow-page p-5 space-y-3"
+            className="w-full max-w-md space-y-3 rounded-lg border border-rule bg-parchment p-5 shadow-page"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-2">
@@ -355,28 +355,28 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
                 <X size={16} />
               </button>
             </div>
-            <p className="text-sm text-ink-soft italic font-serif">
+            <p className="font-serif text-sm italic text-ink-soft">
               Lazy DM · Collaborative Campaign Design · Proactive Roleplaying
             </p>
-            <p className="text-sm text-ink-soft font-serif leading-relaxed">
+            <p className="font-serif text-sm leading-relaxed text-ink-soft">
               A TTRPG campaign-prep webapp that integrates three published methodologies into one
               workflow: Mike Shea&apos;s 8-step session checklist, Collaborative Campaign Design&apos;s
               Session −1 worldbuilding, and the 5 Rules of Proactive Fun for PC goal tracking.
               Built for solo DMs who want their notes synced across devices.
             </p>
-            <div className="pt-2 border-t border-rule flex items-center justify-between">
+            <div className="flex items-center justify-between border-t border-rule pt-2">
               <a
                 href={GITHUB_URL}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1"
+                className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
               >
                 <ExternalLink size={11} /> Source on GitHub
               </a>
               <button
                 type="button"
                 onClick={() => setAboutOpen(false)}
-                className="text-xs px-3 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider"
+                className="rounded border border-rule px-3 py-1 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
               >
                 Close
               </button>

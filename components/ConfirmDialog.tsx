@@ -42,32 +42,32 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
       {isOpen && options && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-[2px] animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-parchment border border-rule rounded shadow-page p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+        <div className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-[2px] duration-200">
+          <div className="animate-in fade-in zoom-in-95 w-full max-w-md space-y-4 rounded border border-rule bg-parchment p-6 shadow-page duration-200">
             <div className="flex items-start gap-4">
-              <div className={`p-2 rounded-full shrink-0 ${options.isDestructive ? 'bg-crimson/10 text-crimson' : 'bg-brass/10 text-brass-deep'}`}>
+              <div className={`shrink-0 rounded-full p-2 ${options.isDestructive ? 'bg-crimson/10 text-crimson' : 'bg-brass/10 text-brass-deep'}`}>
                 <AlertOctagon size={24} />
               </div>
-              <div className="space-y-1.5 flex-1 min-w-0">
-                <h3 className="font-display text-lg text-ink tracking-wide truncate">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <h3 className="truncate font-display text-lg tracking-wide text-ink">
                   {options.title}
                 </h3>
-                <p className="text-sm font-serif text-ink-soft italic leading-relaxed break-words">
+                <p className="break-words font-serif text-sm italic leading-relaxed text-ink-soft">
                   {options.message}
                 </p>
               </div>
             </div>
             <div className="flourish"><span>❦</span></div>
-            <div className="flex justify-end gap-3 font-display text-xs tracking-wider uppercase">
+            <div className="flex justify-end gap-3 font-display text-xs uppercase tracking-wider">
               <button
                 onClick={() => handleClose(false)}
-                className="px-4 py-2 rounded border border-brass text-brass-deep hover:bg-brass/10 transition-colors"
+                className="rounded border border-brass px-4 py-2 text-brass-deep transition-colors hover:bg-brass/10"
               >
                 {options.cancelText || 'Cancel'}
               </button>
               <button
                 onClick={() => handleClose(true)}
-                className={`px-4 py-2 rounded text-parchment transition-colors ${
+                className={`rounded px-4 py-2 text-parchment transition-colors ${
                   options.isDestructive
                     ? 'bg-crimson hover:bg-wine'
                     : 'bg-brass-deep hover:bg-brass-deep/90'

@@ -167,7 +167,7 @@ export default function CampaignListPage() {
 
   if (authLoading || !user) {
     return (
-      <main className="min-h-screen flex items-center justify-center text-sm text-ink-mute italic font-serif">
+      <main className="flex min-h-screen items-center justify-center font-serif text-sm italic text-ink-mute">
         Loading…
       </main>
     );
@@ -179,36 +179,36 @@ export default function CampaignListPage() {
     return (
       <div
         key={c.id}
-        className={`flex items-stretch rounded border border-rule transition-colors shadow-card group relative ${archivedRow ? 'bg-parchment/60 hover:bg-parchment' : 'bg-parchment hover:bg-parchment-deep/50 hover:border-crimson/60'}`}
+        className={`group relative flex items-stretch rounded border border-rule shadow-card transition-colors ${archivedRow ? 'bg-parchment/60 hover:bg-parchment' : 'bg-parchment hover:border-crimson/60 hover:bg-parchment-deep/50'}`}
       >
-        <Link href={`/campaign/${c.id}`} className="flex-1 min-w-0 p-3 sm:p-4">
-          <div className="flex items-center gap-2 min-w-0">
+        <Link href={`/campaign/${c.id}`} className="min-w-0 flex-1 p-3 sm:p-4">
+          <div className="flex min-w-0 items-center gap-2">
             <ScrollText size={16} className={`flex-shrink-0 ${archivedRow ? 'text-brass-deep' : 'text-crimson'}`} />
-            <span className={`font-display tracking-wide flex-1 min-w-0 truncate transition-colors ${archivedRow ? 'text-ink-soft group-hover:text-ink' : 'text-ink group-hover:text-crimson'}`}>
+            <span className={`min-w-0 flex-1 truncate font-display tracking-wide transition-colors ${archivedRow ? 'text-ink-soft group-hover:text-ink' : 'text-ink group-hover:text-crimson'}`}>
               {c.name}
             </span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider ${sty.border} ${sty.bg} ${sty.text} flex-shrink-0`}>
+            <span className={`rounded-sm border px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider ${sty.border} ${sty.bg} ${sty.text} flex-shrink-0`}>
               {sty.label}
             </span>
             {e.pinned && (
-              <Pin size={12} className="text-brass-deep flex-shrink-0" fill="currentColor" />
+              <Pin size={12} className="flex-shrink-0 text-brass-deep" fill="currentColor" />
             )}
           </div>
 
           {e.pitch && (
-            <div className="text-sm text-ink-soft font-serif italic line-clamp-1 ml-6 mt-1">
+            <div className="ml-6 mt-1 line-clamp-1 font-serif text-sm italic text-ink-soft">
               {e.pitch}
             </div>
           )}
 
-          <div className="text-xs text-brass-deep font-serif italic ml-6 mt-1 flex items-center gap-2 flex-wrap">
+          <div className="ml-6 mt-1 flex flex-wrap items-center gap-2 font-serif text-xs italic text-brass-deep">
             {e.pcName && <span>PC: {e.pcName}</span>}
             {e.pcName && <span className="text-ink-faint">·</span>}
             <span>Last played: {relativeTime(e.lastPlayed)}</span>
           </div>
         </Link>
 
-        <div className="flex items-center pr-2 sm:pr-3 gap-0.5 flex-shrink-0 self-start pt-2 sm:pt-3">
+        <div className="flex flex-shrink-0 items-center gap-0.5 self-start pr-2 pt-2 sm:pr-3 sm:pt-3">
           <div className="relative" ref={menuOpen === c.id ? menuRef : undefined}>
             <button
               type="button"
@@ -218,17 +218,17 @@ export default function CampaignListPage() {
                 ev.stopPropagation();
                 setMenuOpen(menuOpen === c.id ? null : c.id);
               }}
-              className="p-1.5 rounded text-ink-mute hover:text-ink hover:bg-parchment-deep transition-colors"
+              className="rounded p-1.5 text-ink-mute transition-colors hover:bg-parchment-deep hover:text-ink"
             >
               <MoreHorizontal size={14} />
             </button>
             {menuOpen === c.id && (
-              <div className="absolute right-0 mt-1 w-44 bg-parchment border border-rule rounded shadow-page py-1 z-20 text-xs">
+              <div className="absolute right-0 z-20 mt-1 w-44 rounded border border-rule bg-parchment py-1 text-xs shadow-page">
                 {!archivedRow && (
                   <button
                     type="button"
                     onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); togglePin(e); setMenuOpen(null); }}
-                    className="w-full text-left px-3 py-1.5 hover:bg-parchment-deep flex items-center gap-2 text-ink"
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-ink hover:bg-parchment-deep"
                   >
                     <Pin size={12} className="text-brass-deep" />
                     {e.pinned ? 'Unpin' : 'Pin'}
@@ -237,7 +237,7 @@ export default function CampaignListPage() {
                 <button
                   type="button"
                   onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); archivedRow ? handleUnarchive(c) : handleArchive(c); setMenuOpen(null); }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-parchment-deep flex items-center gap-2 text-ink"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-ink hover:bg-parchment-deep"
                 >
                   {archivedRow ? <ArchiveRestore size={12} className="text-brass-deep" /> : <Archive size={12} className="text-brass-deep" />}
                   {archivedRow ? 'Unarchive' : 'Archive'}
@@ -247,7 +247,7 @@ export default function CampaignListPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(ev) => { ev.stopPropagation(); setMenuOpen(null); }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-parchment-deep flex items-center gap-2 text-ink"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-ink hover:bg-parchment-deep"
                 >
                   <ExternalLink size={12} className="text-brass-deep" />
                   Open in new tab
@@ -255,7 +255,7 @@ export default function CampaignListPage() {
                 <button
                   type="button"
                   onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); handleCopy(c); setMenuOpen(null); }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-parchment-deep flex items-center gap-2 text-ink"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-ink hover:bg-parchment-deep"
                 >
                   <Copy size={12} className="text-brass-deep" />
                   Make a copy
@@ -264,7 +264,7 @@ export default function CampaignListPage() {
                 <button
                   type="button"
                   onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); handleDelete(c); setMenuOpen(null); }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-crimson hover:text-parchment flex items-center gap-2 text-crimson"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-crimson hover:bg-crimson hover:text-parchment"
                 >
                   <Trash2 size={12} />
                   Delete
@@ -279,26 +279,26 @@ export default function CampaignListPage() {
 
   return (
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
-          <header className="pb-4 border-b border-rule flex items-start justify-between gap-3">
+      <div className="mx-auto max-w-3xl">
+        <div className="space-y-4 rounded-lg border border-rule bg-parchment-soft p-3 shadow-page sm:p-5 md:p-8">
+          <header className="flex items-start justify-between gap-3 border-b border-rule pb-4">
             <div className="min-w-0">
-              <div className="text-xs text-brass-deep font-display uppercase tracking-[0.3em]">
+              <div className="font-display text-xs uppercase tracking-[0.3em] text-brass-deep">
                 Gamemaster Assistant
               </div>
-              <h1 className="font-display text-2xl sm:text-3xl text-crimson tracking-wide mt-1">Your Campaigns</h1>
+              <h1 className="mt-1 font-display text-2xl tracking-wide text-crimson sm:text-3xl">Your Campaigns</h1>
             </div>
             <AccountMenu />
           </header>
 
-          <button onClick={handleCreate} className="w-full p-5 rounded border-2 border-dashed border-brass/60 text-brass-deep hover:text-crimson hover:border-crimson hover:bg-parchment transition-colors flex items-center justify-center gap-2 font-display uppercase tracking-wider text-sm">
+          <button onClick={handleCreate} className="flex w-full items-center justify-center gap-2 rounded border-2 border-dashed border-brass/60 p-5 font-display text-sm uppercase tracking-wider text-brass-deep transition-colors hover:border-crimson hover:bg-parchment hover:text-crimson">
             <Plus size={16} /> New Campaign
           </button>
 
-          {error && <p className="text-sm text-crimson font-serif">{error}</p>}
+          {error && <p className="font-serif text-sm text-crimson">{error}</p>}
 
           {loading ? (
-            <p className="text-sm text-ink-mute italic font-serif text-center py-6">Consulting the tomes…</p>
+            <p className="py-6 text-center font-serif text-sm italic text-ink-mute">Consulting the tomes…</p>
           ) : (
             <>
               {active.length > 0 ? (
@@ -306,17 +306,17 @@ export default function CampaignListPage() {
                   {active.map((e) => renderRow(e, false))}
                 </div>
               ) : archived.length === 0 ? (
-                <p className="text-sm text-ink-mute italic font-serif text-center py-6">No campaigns yet — begin your first above.</p>
+                <p className="py-6 text-center font-serif text-sm italic text-ink-mute">No campaigns yet — begin your first above.</p>
               ) : (
-                <p className="text-sm text-ink-mute italic font-serif text-center py-6">No active campaigns — all are archived.</p>
+                <p className="py-6 text-center font-serif text-sm italic text-ink-mute">No active campaigns — all are archived.</p>
               )}
 
               {archived.length > 0 && (
-                <div className="pt-2 border-t border-rule space-y-2">
+                <div className="space-y-2 border-t border-rule pt-2">
                   <button
                     type="button"
                     onClick={() => setShowArchived((v) => !v)}
-                    className="w-full flex items-center gap-2 text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider"
+                    className="flex w-full items-center gap-2 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
                     aria-expanded={showArchived}
                   >
                     {showArchived ? <ChevronDown size={12} /> : <ChevronRight size={12} />}

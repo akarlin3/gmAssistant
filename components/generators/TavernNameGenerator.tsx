@@ -38,7 +38,7 @@ export default function TavernNameGenerator({
         copyText,
       }}
       renderResult={(r) => (
-        <ol className="space-y-1 list-decimal ml-5 font-serif text-sm text-ink">
+        <ol className="ml-5 list-decimal space-y-1 font-serif text-sm text-ink">
           {r.names.map((n, i) => (
             <li key={i}>{n}</li>
           ))}

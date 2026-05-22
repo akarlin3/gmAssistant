@@ -47,13 +47,13 @@ const CultureSelect = ({
   onChange: (v: string) => void;
 }) => (
   <div>
-    <label className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5 block">
+    <label className="mb-0.5 block font-display text-xs uppercase tracking-wider text-brass-deep">
       {label}
     </label>
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+      className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
     >
       <option value="Random">Random</option>
       {CULTURE_GROUPS.map((group) => (
@@ -132,7 +132,7 @@ export default function NamesTab({
           return (
             <li key={i} className="flex items-center justify-between gap-2">
               <span className="text-ink">{full}</span>
-              {tag && <span className="text-[10px] text-ink-mute italic">{tag}</span>}
+              {tag && <span className="text-[10px] italic text-ink-mute">{tag}</span>}
             </li>
           );
         })}
@@ -158,20 +158,20 @@ export default function NamesTab({
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
+      <div className="space-y-3 rounded border border-rule bg-parchment p-3 shadow-card">
         <div className="flex items-center gap-2">
           <Sparkles size={14} className="text-crimson" />
           <h3 className="font-display tracking-wide text-ink">Name Generator</h3>
-          <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-sm border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider">
+          <span className="ml-auto rounded-sm border border-crimson/60 bg-crimson/10 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-crimson">
             Pro
           </span>
         </div>
-        <p className="text-xs text-ink-soft italic font-serif">
+        <p className="font-serif text-xs italic text-ink-soft">
           Generate first / surname pairs from any culture — real-world or fantasy. Choose the
           tradition for each part independently, or let the dice decide.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <CultureSelect
             label="First Name Culture"
             value={firstCulture}
@@ -183,25 +183,25 @@ export default function NamesTab({
             onChange={setLastCulture}
           />
           <div>
-            <label className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5 block">
+            <label className="mb-0.5 block font-display text-xs uppercase tracking-wider text-brass-deep">
               Gender
             </label>
             <select
               value={gender}
               onChange={(e) => setGender(e.target.value as typeof GENDERS[number])}
-              className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+              className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
             >
               {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5 block">
+            <label className="mb-0.5 block font-display text-xs uppercase tracking-wider text-brass-deep">
               How Many
             </label>
             <select
               value={count}
               onChange={(e) => setCount(Number(e.target.value))}
-              className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+              className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
             >
               {[4, 6, 8, 12, 16, 20].map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
@@ -212,14 +212,14 @@ export default function NamesTab({
           <button
             onClick={generate}
             disabled={generating}
-            className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-wine hover:border-wine disabled:opacity-50 disabled:cursor-wait transition-colors"
+            className="flex items-center gap-1.5 rounded border border-crimson bg-crimson px-3 py-1.5 font-display text-xs uppercase tracking-wider text-parchment transition-colors hover:border-wine hover:bg-wine disabled:cursor-wait disabled:opacity-50"
           >
             <Sparkles size={12} /> {generating ? 'Generating…' : 'Generate'}
           </button>
           <button
             onClick={shuffleCultures}
             disabled={generating}
-            className="text-xs px-3 py-1.5 rounded border border-brass-deep/50 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 rounded border border-brass-deep/50 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment disabled:opacity-50"
             title="Pick a random specific culture for each part"
           >
             <Shuffle size={12} /> Shuffle Cultures
@@ -227,20 +227,20 @@ export default function NamesTab({
         </div>
 
         {error && (
-          <p className="text-xs text-crimson italic" title={error}>{error}</p>
+          <p className="text-xs italic text-crimson" title={error}>{error}</p>
         )}
       </div>
 
       {names.length > 0 && (
-        <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
+        <div className="space-y-2 rounded border border-rule bg-parchment p-3 shadow-card">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] text-ink-mute italic font-serif">
+            <p className="font-serif text-[11px] italic text-ink-mute">
               Click a name to copy it.
             </p>
             <button
               onClick={saveToLog}
               disabled={saved}
-              className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1.5 rounded border border-brass-deep/60 bg-brass/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment disabled:opacity-50"
             >
               {saved ? <Check size={12} /> : <Save size={12} />}
               {saved ? 'Saved to log' : 'Save to log'}
@@ -257,12 +257,12 @@ export default function NamesTab({
                 <button
                   key={i}
                   onClick={() => copyName(full)}
-                  className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded border border-rule bg-parchment-soft hover:bg-parchment-deep/40 transition-colors text-left"
+                  className="flex w-full items-center justify-between gap-2 rounded border border-rule bg-parchment-soft px-2.5 py-1.5 text-left transition-colors hover:bg-parchment-deep/40"
                 >
                   <span className="font-serif text-ink">{full}</span>
-                  <span className="flex items-center gap-2 flex-shrink-0">
+                  <span className="flex flex-shrink-0 items-center gap-2">
                     {tag && (
-                      <span className="text-[10px] text-ink-mute italic">{tag}</span>
+                      <span className="text-[10px] italic text-ink-mute">{tag}</span>
                     )}
                     {copied === full ? (
                       <Check size={12} className="text-brass-deep" />

@@ -27,9 +27,9 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center bg-parchment text-ink space-y-4">
+      <main className="flex min-h-screen flex-col items-center justify-center space-y-4 bg-parchment text-ink">
         <div className="gm-spinner" />
-        <div className="text-xs text-brass-deep font-display uppercase tracking-[0.2em] animate-pulse">
+        <div className="animate-pulse font-display text-xs uppercase tracking-[0.2em] text-brass-deep">
           Consulting the archives…
         </div>
       </main>
@@ -37,20 +37,20 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-5">
-      <div className="w-full max-w-sm bg-parchment-soft border border-rule rounded-lg shadow-page p-8 space-y-6">
-        <div className="text-center space-y-3">
-          <div className="text-xs text-brass-deep font-display uppercase tracking-[0.3em]">
+    <main className="flex min-h-screen items-center justify-center p-5">
+      <div className="w-full max-w-sm space-y-6 rounded-lg border border-rule bg-parchment-soft p-8 shadow-page">
+        <div className="space-y-3 text-center">
+          <div className="font-display text-xs uppercase tracking-[0.3em] text-brass-deep">
             Gamemaster Assistant
           </div>
-          <h1 className="font-display text-4xl text-crimson tracking-wide leading-none">Sign In</h1>
+          <h1 className="font-display text-4xl leading-none tracking-wide text-crimson">Sign In</h1>
           <div className="flourish"><span>❦</span></div>
-          <p className="text-sm text-ink-soft italic font-serif">Lazy DM · CCD · Proactive Roleplaying</p>
+          <p className="font-serif text-sm italic text-ink-soft">Lazy DM · CCD · Proactive Roleplaying</p>
         </div>
         <button
           onClick={handleSignIn}
           disabled={signingIn}
-          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded border border-crimson/60 bg-parchment text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-50 transition-colors font-display uppercase tracking-wider text-sm"
+          className="flex w-full items-center justify-center gap-3 rounded border border-crimson/60 bg-parchment px-4 py-2.5 font-display text-sm uppercase tracking-wider text-crimson transition-colors hover:bg-crimson hover:text-parchment disabled:opacity-50"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
             <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
@@ -60,7 +60,7 @@ export default function LoginPage() {
           </svg>
           <span>{signingIn ? 'Signing in…' : 'Continue with Google'}</span>
         </button>
-        {error && <p className="text-xs text-crimson text-center font-serif">{error}</p>}
+        {error && <p className="text-center font-serif text-xs text-crimson">{error}</p>}
       </div>
     </main>
   );

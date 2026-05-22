@@ -78,22 +78,22 @@ export default function MundaneShopGenerator({
       renderResult={(r) => (
         <div className="space-y-3 font-serif text-sm text-ink">
           <div>
-            <div className="font-display tracking-wide text-base">{r.shopName}</div>
-            <div className="text-xs text-ink-mute italic">
+            <div className="font-display text-base tracking-wide">{r.shopName}</div>
+            <div className="text-xs italic text-ink-mute">
               {r.inputs.shopType} · {r.inputs.settlementSize} · {r.hours}
             </div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Owner</div>
+            <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Owner</div>
             <div>{r.owner.name} — <span className="italic text-ink-soft">{r.owner.descriptor}</span></div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Inventory</div>
-            <ul className="space-y-1 mt-1">
+            <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Inventory</div>
+            <ul className="mt-1 space-y-1">
               {r.inventory.map((it, i) => (
                 <li key={i} className="flex items-baseline justify-between gap-3 border-b border-rule/40 pb-1">
                   <span>{it.name}{it.note ? <span className="italic text-ink-soft"> — {it.note}</span> : null}</span>
-                  <span className="text-xs text-brass-deep font-display tracking-wider">{it.price}</span>
+                  <span className="font-display text-xs tracking-wider text-brass-deep">{it.price}</span>
                 </li>
               ))}
             </ul>

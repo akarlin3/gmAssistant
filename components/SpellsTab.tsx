@@ -77,9 +77,9 @@ const Chip = ({
 }) => (
   <button
     onClick={onClick}
-    className={`px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider transition-colors ${
+    className={`rounded-sm border px-2 py-0.5 font-display uppercase tracking-wider transition-colors ${
       active
-        ? 'bg-crimson border-crimson text-parchment'
+        ? 'border-crimson bg-crimson text-parchment'
         : 'border-rule text-ink-soft hover:bg-parchment-deep'
     }`}
   >
@@ -180,15 +180,15 @@ export default function SpellsTab({
 
   return (
     <div className="space-y-3">
-      <div className="rounded border border-rule bg-parchment-soft p-3 space-y-2 text-xs">
+      <div className="space-y-2 rounded border border-rule bg-parchment-soft p-3 text-xs">
         <div className="flex items-center gap-2">
-          <Search size={14} className="text-ink-mute flex-shrink-0" />
+          <Search size={14} className="flex-shrink-0 text-ink-mute" />
           <input
             type="text"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={`Search ${allSpells.length} spells…`}
-            className="flex-1 bg-parchment border border-rule rounded-sm px-2 py-1.5 text-sm text-ink placeholder-ink-faint font-serif focus:border-brass-deep focus:outline-none"
+            className="flex-1 rounded-sm border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink placeholder-ink-faint focus:border-brass-deep focus:outline-none"
           />
         </div>
 
@@ -233,12 +233,12 @@ export default function SpellsTab({
           {anyFilter && (
             <button
               onClick={clearAll}
-              className="text-ink-mute hover:text-crimson font-display uppercase tracking-wider px-1"
+              className="px-1 font-display uppercase tracking-wider text-ink-mute hover:text-crimson"
             >
               Clear
             </button>
           )}
-          <span className="text-ink-mute font-display tracking-wider ml-2">
+          <span className="ml-2 font-display tracking-wider text-ink-mute">
             {filtered.length} / {allSpells.length}
           </span>
         </div>
@@ -247,7 +247,7 @@ export default function SpellsTab({
       <div className="flex justify-end">
         <button
           onClick={addHomebrew}
-          className="text-xs px-3 py-1 rounded border border-wine/60 text-wine hover:bg-wine hover:text-parchment hover:border-wine font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors"
+          className="flex items-center gap-1.5 rounded border border-wine/60 px-3 py-1 font-display text-xs uppercase tracking-wider text-wine transition-colors hover:border-wine hover:bg-wine hover:text-parchment"
         >
           <Plus size={12} /> Add Homebrew Spell
         </button>
@@ -279,32 +279,32 @@ export default function SpellsTab({
                 </button>
                 <button
                   onClick={() => toggleExpand(s.index)}
-                  className="flex-1 flex items-center gap-2 text-left min-w-0"
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
                 >
-                  <span className="font-display text-[10px] text-ink-mute w-6 flex-shrink-0 text-center">
+                  <span className="w-6 flex-shrink-0 text-center font-display text-[10px] text-ink-mute">
                     {s.level === 0 ? 'C' : s.level}
                   </span>
                   <span
-                    className={`font-display tracking-wide text-sm flex-1 truncate ${
-                      s.name ? 'text-ink' : 'text-ink-faint italic'
+                    className={`flex-1 truncate font-display text-sm tracking-wide ${
+                      s.name ? 'text-ink' : 'italic text-ink-faint'
                     }`}
                   >
                     {s.name || (isHB ? 'Untitled Homebrew' : '')}
                   </span>
                   {isHB && (
                     <span
-                      className="text-[10px] text-wine font-display tracking-wider inline-flex items-center gap-0.5"
+                      className="inline-flex items-center gap-0.5 font-display text-[10px] tracking-wider text-wine"
                       title="Homebrew"
                     >
                       <Wand2 size={10} /> HB
                     </span>
                   )}
-                  <span className="text-[10px] text-ink-mute italic font-serif hidden sm:inline">
+                  <span className="hidden font-serif text-[10px] italic text-ink-mute sm:inline">
                     {s.school}
                   </span>
                   {s.concentration && (
                     <span
-                      className="text-[10px] text-wine font-display tracking-wider"
+                      className="font-display text-[10px] tracking-wider text-wine"
                       title="Concentration"
                     >
                       Conc
@@ -312,16 +312,16 @@ export default function SpellsTab({
                   )}
                   {s.ritual && (
                     <span
-                      className="text-[10px] text-moss font-display tracking-wider"
+                      className="font-display text-[10px] tracking-wider text-moss"
                       title="Ritual"
                     >
                       Rit
                     </span>
                   )}
                   {isOpen ? (
-                    <ChevronDown size={12} className="text-ink-faint flex-shrink-0" />
+                    <ChevronDown size={12} className="flex-shrink-0 text-ink-faint" />
                   ) : (
-                    <ChevronRight size={12} className="text-ink-faint flex-shrink-0" />
+                    <ChevronRight size={12} className="flex-shrink-0 text-ink-faint" />
                   )}
                 </button>
               </div>
@@ -333,8 +333,8 @@ export default function SpellsTab({
                     onDelete={() => deleteHomebrew(s.index)}
                   />
                 ) : (
-                  <div className="px-3 pb-3 pt-2 border-t border-rule/60 space-y-2 text-xs text-ink-soft font-serif">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5">
+                  <div className="space-y-2 border-t border-rule/60 px-3 pb-3 pt-2 font-serif text-xs text-ink-soft">
+                    <div className="grid grid-cols-1 gap-x-3 gap-y-0.5 sm:grid-cols-2">
                       <Meta label="Casting Time">{s.casting_time}</Meta>
                       <Meta label="Range">{s.range}</Meta>
                       <Meta label="Duration">{s.duration}</Meta>
@@ -353,7 +353,7 @@ export default function SpellsTab({
                     ))}
                     {s.higher_level.length > 0 && (
                       <div className="border-l-2 border-brass-deep/40 pl-2">
-                        <div className="text-brass-deep font-display tracking-wider uppercase text-[10px] mb-1">
+                        <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
                           At Higher Levels
                         </div>
                         {s.higher_level.map((p, i) => (
@@ -369,13 +369,13 @@ export default function SpellsTab({
           );
         })}
         {filtered.length === 0 && (
-          <div className="text-center text-xs text-ink-mute italic font-serif py-8">
+          <div className="py-8 text-center font-serif text-xs italic text-ink-mute">
             No spells match.
           </div>
         )}
       </div>
 
-      <p className="text-[10px] text-ink-mute italic font-serif text-center">
+      <p className="text-center font-serif text-[10px] italic text-ink-mute">
         SRD spell text from the D&amp;D 5e SRD 5.1 © Wizards of the Coast, CC-BY-4.0. Homebrew spells are saved with this campaign.
       </p>
     </div>
@@ -385,7 +385,7 @@ export default function SpellsTab({
 function FilterRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider mr-1 w-14">
+      <span className="mr-1 w-14 font-display text-[10px] uppercase tracking-wider text-brass-deep">
         {label}
       </span>
       {children}
@@ -396,7 +396,7 @@ function FilterRow({ label, children }: { label: string; children: React.ReactNo
 function Meta({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <span className="text-brass-deep font-display tracking-wider uppercase text-[10px] mr-1">
+      <span className="mr-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
         {label}:
       </span>
       <span className="text-ink">{children}</span>
@@ -406,7 +406,7 @@ function Meta({ label, children }: { label: string; children: React.ReactNode })
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-brass-deep font-display tracking-wider uppercase text-[10px] mb-1">
+    <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
       {children}
     </div>
   );
@@ -428,7 +428,7 @@ function HomebrewEditor({
   const setHigher = (v: string) => onChange({ higher_level: v === '' ? [] : v.split(/\n{2,}/) });
 
   return (
-    <div className="px-3 pb-3 pt-3 border-t border-wine/40 space-y-2.5 text-xs bg-wine/[0.03]">
+    <div className="space-y-2.5 border-t border-wine/40 bg-wine/[0.03] p-3 text-xs">
       <div>
         <FieldLabel>Name</FieldLabel>
         <input
@@ -546,7 +546,7 @@ function HomebrewEditor({
         </div>
       )}
 
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex flex-wrap gap-2">
         <Chip active={spell.concentration} onClick={() => onChange({ concentration: !spell.concentration })}>
           Concentration
         </Chip>
@@ -580,7 +580,7 @@ function HomebrewEditor({
       <div className="flex justify-end pt-1">
         <button
           onClick={onDelete}
-          className="text-xs text-crimson hover:text-crimson/70 font-display uppercase tracking-wider flex items-center gap-1"
+          className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-crimson hover:text-crimson/70"
         >
           <Trash2 size={12} /> Delete Spell
         </button>

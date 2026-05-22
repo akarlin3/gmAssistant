@@ -179,34 +179,34 @@ export default function CommandPalette({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] px-4 bg-ink/50 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-ink/50 px-4 pt-[10vh] backdrop-blur-[2px]"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Command palette"
     >
       <div
-        className="w-full max-w-xl bg-parchment border border-rule rounded-lg shadow-page overflow-hidden"
+        className="w-full max-w-xl overflow-hidden rounded-lg border border-rule bg-parchment shadow-page"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-rule">
-          <Search size={14} className="text-brass-deep flex-shrink-0" />
+        <div className="flex items-center gap-2 border-b border-rule px-3 py-2.5">
+          <Search size={14} className="flex-shrink-0 text-brass-deep" />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Jump to a tab, NPC, location, session, action…"
-            className="flex-1 bg-transparent text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:outline-none"
+            className="flex-1 bg-transparent font-serif text-ink placeholder:italic placeholder:text-ink-faint focus:outline-none"
           />
-          <kbd className="text-[10px] text-ink-mute font-display uppercase tracking-wider border border-rule rounded px-1.5 py-0.5">
+          <kbd className="rounded border border-rule px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-mute">
             esc
           </kbd>
         </div>
 
         <div ref={listRef} className="max-h-[60vh] overflow-y-auto py-1">
           {rows.length === 0 && (
-            <div className="px-4 py-8 text-center text-sm text-ink-mute italic font-serif">
+            <div className="px-4 py-8 text-center font-serif text-sm italic text-ink-mute">
               No matches for &ldquo;{query}&rdquo;.
             </div>
           )}
@@ -215,7 +215,7 @@ export default function CommandPalette({
               return (
                 <div
                   key={`h-${row.group}-${i}`}
-                  className="px-3 pt-2 pb-1 text-[10px] font-display uppercase tracking-wider text-brass-deep"
+                  className="px-3 pb-1 pt-2 font-display text-[10px] uppercase tracking-wider text-brass-deep"
                 >
                   {row.group}
                 </div>
@@ -234,32 +234,32 @@ export default function CommandPalette({
                   setTimeout(() => item.run(), 0);
                 }}
                 onMouseMove={() => setSelected(index)}
-                className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm ${
+                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm ${
                   active
                     ? 'bg-crimson/10 text-ink'
                     : 'text-ink-soft hover:bg-parchment-soft'
                 }`}
               >
                 {Icon ? (
-                  <Icon size={14} className="text-brass-deep flex-shrink-0" />
+                  <Icon size={14} className="flex-shrink-0 text-brass-deep" />
                 ) : (
                   <span className="w-3.5 flex-shrink-0" />
                 )}
-                <span className="font-serif flex-1 min-w-0 truncate">{item.label}</span>
+                <span className="min-w-0 flex-1 truncate font-serif">{item.label}</span>
                 {item.sublabel && (
-                  <span className="text-xs text-ink-mute font-serif italic truncate max-w-[40%]">
+                  <span className="max-w-[40%] truncate font-serif text-xs italic text-ink-mute">
                     {item.sublabel}
                   </span>
                 )}
                 {active && (
-                  <CornerDownLeft size={12} className="text-brass-deep flex-shrink-0" />
+                  <CornerDownLeft size={12} className="flex-shrink-0 text-brass-deep" />
                 )}
               </button>
             );
           })}
         </div>
 
-        <div className="flex items-center justify-between px-3 py-1.5 border-t border-rule bg-parchment-soft text-[10px] font-display uppercase tracking-wider text-ink-mute">
+        <div className="flex items-center justify-between border-t border-rule bg-parchment-soft px-3 py-1.5 font-display text-[10px] uppercase tracking-wider text-ink-mute">
           <span>↑↓ navigate</span>
           <span>↵ select</span>
           <span>esc close</span>

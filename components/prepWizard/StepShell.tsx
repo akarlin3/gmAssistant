@@ -25,23 +25,23 @@ export default function StepShell({
     <section className="space-y-4">
       <header className="space-y-2">
         <div className="flex items-center gap-2">
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider ${m.color}`}>
+          <span className={`rounded-sm border px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider ${m.color}`}>
             {m.label}
           </span>
-          <span className="text-[11px] text-brass-deep font-display uppercase tracking-wider">
+          <span className="font-display text-[11px] uppercase tracking-wider text-brass-deep">
             Step {stepNumber} of 8
           </span>
         </div>
         <h2 className="font-display text-2xl tracking-wide text-ink">{title}</h2>
-        <p className="text-sm font-serif italic text-ink-soft leading-relaxed">{purpose}</p>
+        <p className="font-serif text-sm italic leading-relaxed text-ink-soft">{purpose}</p>
       </header>
 
       {contextFromLastSession && (
-        <div className="rounded border border-brass-deep/40 bg-brass/5 p-3 space-y-1.5">
-          <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+        <div className="space-y-1.5 rounded border border-brass-deep/40 bg-brass/5 p-3">
+          <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
             From Last Session
           </div>
-          <div className="text-sm font-serif text-ink-soft">
+          <div className="font-serif text-sm text-ink-soft">
             {contextFromLastSession}
           </div>
         </div>

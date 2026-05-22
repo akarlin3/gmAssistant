@@ -35,8 +35,8 @@ export default function Step7Monsters({ get, setVal, soloTarget, standardTarget,
   const hasContext = monsterEvents.length > 0;
   const context = hasContext ? (
     <div>
-      <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">Added Last Session</div>
-      <ul className="list-disc ml-5 text-sm font-serif text-ink-soft">
+      <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Added Last Session</div>
+      <ul className="ml-5 list-disc font-serif text-sm text-ink-soft">
         {monsterEvents.slice(0, 6).map((e, i) => <li key={i}>{e.summary}</li>)}
       </ul>
     </div>
@@ -51,15 +51,15 @@ export default function Step7Monsters({ get, setVal, soloTarget, standardTarget,
       contextFromLastSession={context}
     >
       {soloMode && (
-        <div className="rounded border border-wine/40 bg-wine/5 p-2.5 text-xs font-serif text-ink-soft">
-          <span className="text-wine font-display uppercase tracking-wider text-[10px]">Solo · </span>
+        <div className="rounded border border-wine/40 bg-wine/5 p-2.5 font-serif text-xs text-ink-soft">
+          <span className="font-display text-[10px] uppercase tracking-wider text-wine">Solo · </span>
           Encounters use adjusted XP. Open the Monsters tab to check budgets against the Solo Encounter Helper.
         </div>
       )}
 
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-display tracking-wide text-sm text-ink">Monsters</h3>
-        <span className="text-[11px] text-ink-mute font-serif">
+        <h3 className="font-display text-sm tracking-wide text-ink">Monsters</h3>
+        <span className="font-serif text-[11px] text-ink-mute">
           {monsters.filter(s => s.trim().length > 0).length} / {target} target
         </span>
       </div>
@@ -72,7 +72,7 @@ export default function Step7Monsters({ get, setVal, soloTarget, standardTarget,
       />
 
       <label className="block space-y-1">
-        <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+        <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
           Notes for this session
         </span>
         <textarea
@@ -80,7 +80,7 @@ export default function Step7Monsters({ get, setVal, soloTarget, standardTarget,
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="Tactics, terrain interplay, escape routes."
-          className="w-full bg-parchment border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif resize-y"
+          className="w-full resize-y rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink"
         />
       </label>
     </StepShell>

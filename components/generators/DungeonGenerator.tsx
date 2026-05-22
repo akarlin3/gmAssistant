@@ -174,13 +174,13 @@ function DungeonResultView({
   return (
     <div className="space-y-3 font-serif text-sm text-ink">
       <div>
-        <div className="font-display tracking-wide text-base">{result.name}</div>
-        <div className="text-xs text-ink-mute italic">
+        <div className="font-display text-base tracking-wide">{result.name}</div>
+        <div className="text-xs italic text-ink-mute">
           {result.inputs.theme} · {result.inputs.size} · CR {result.inputs.challengeTier}
         </div>
       </div>
       {result.hook && (
-        <p className="italic text-ink-soft border-l-2 border-crimson/40 pl-2">{result.hook}</p>
+        <p className="border-l-2 border-crimson/40 pl-2 italic text-ink-soft">{result.hook}</p>
       )}
 
       <DungeonMap
@@ -191,22 +191,22 @@ function DungeonResultView({
       />
 
       <div>
-        <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Hazards</div>
-        <ul className="list-disc ml-5">
+        <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Hazards</div>
+        <ul className="ml-5 list-disc">
           {result.details.hazards.map((h, i) => <li key={i}>{h}</li>)}
         </ul>
       </div>
       <div>
-        <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Inhabitants</div>
-        <ul className="list-disc ml-5">
+        <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Inhabitants</div>
+        <ul className="ml-5 list-disc">
           {result.details.inhabitants.map((h, i) => <li key={i}>{h}</li>)}
         </ul>
       </div>
       <div>
-        <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">
+        <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
           Rooms ({result.details.rooms.length})
         </div>
-        <ol className="space-y-1.5 mt-1 list-decimal ml-5">
+        <ol className="ml-5 mt-1 list-decimal space-y-1.5">
           {result.details.rooms.map((rm) => {
             const isSelected = rm.index === selectedIndex;
             return (
@@ -214,13 +214,13 @@ function DungeonResultView({
                 key={rm.index}
                 id={`dungeon-room-${rm.index}`}
                 onClick={() => setSelectedIndex(rm.index)}
-                className={`cursor-pointer rounded px-2 py-1 -mx-2 transition-colors ${
+                className={`-mx-2 cursor-pointer rounded px-2 py-1 transition-colors ${
                   isSelected ? 'bg-crimson/10 ring-1 ring-crimson/30' : 'hover:bg-parchment-deep/40'
                 }`}
               >
                 <div className="font-display tracking-wide">{rm.name}</div>
                 <div>{rm.contents}</div>
-                <div className="text-xs text-ink-soft italic">{rm.dressing}</div>
+                <div className="text-xs italic text-ink-soft">{rm.dressing}</div>
               </li>
             );
           })}
@@ -245,7 +245,7 @@ function DungeonMap({
 
   if (bounds.empty) {
     return (
-      <div className="text-xs text-ink-mute italic font-serif border border-rule rounded bg-parchment-soft/60 p-3">
+      <div className="rounded border border-rule bg-parchment-soft/60 p-3 font-serif text-xs italic text-ink-mute">
         No map layout available for this dungeon. (Saved before the map view was added — content fields below are still accurate.)
       </div>
     );
@@ -340,11 +340,11 @@ function DungeonMap({
         )}
       </svg>
 
-      <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-[10px] text-ink-mute mt-2">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-ink-mute">
         {(Object.keys(KIND_FILL) as DungeonRoomKind[]).map((k) => (
           <span key={k} className="flex items-center gap-1">
             <span
-              className="inline-block w-2.5 h-2.5 rounded-sm"
+              className="inline-block size-2.5 rounded-sm"
               style={{ backgroundColor: KIND_FILL[k], border: `1px solid ${KIND_STROKE[k]}` }}
             />
             <span>{KIND_LABEL[k]}</span>
@@ -353,7 +353,7 @@ function DungeonMap({
         {onExpandExit && (
           <span className="flex items-center gap-1 italic">
             <Sparkles size={10} className="text-crimson" />
-            click <span className="text-crimson font-bold">?</span> to grow
+            click <span className="font-bold text-crimson">?</span> to grow
           </span>
         )}
       </div>

@@ -175,22 +175,22 @@ export default function VivifyPanel({ data, history, onHistoryChange }: Props) {
 
   return (
     <div className="space-y-3 text-sm">
-      <p className="text-xs italic font-serif text-ink-soft">
+      <p className="font-serif text-xs italic text-ink-soft">
         Vivify generates vivid prose informed by your campaign data. Pick a template, describe what you want, and Claude writes it.
       </p>
 
       <div>
-        <div className="text-xs text-brass-deep font-display uppercase tracking-wider mb-1.5">Template</div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+        <div className="mb-1.5 font-display text-xs uppercase tracking-wider text-brass-deep">Template</div>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
           {TEMPLATES.map(t => (
             <button
               key={t.id}
               type="button"
               onClick={() => setSelectedTemplateId(t.id)}
-              className={`text-xs px-2 py-1.5 rounded border text-left font-serif transition-colors ${
+              className={`rounded border px-2 py-1.5 text-left font-serif text-xs transition-colors ${
                 t.id === selectedTemplateId
-                  ? 'bg-crimson/10 border-crimson text-crimson'
-                  : 'border-rule text-ink-soft bg-parchment hover:bg-parchment-deep hover:text-ink'
+                  ? 'border-crimson bg-crimson/10 text-crimson'
+                  : 'border-rule bg-parchment text-ink-soft hover:bg-parchment-deep hover:text-ink'
               }`}
               title={t.hint}
             >
@@ -201,35 +201,35 @@ export default function VivifyPanel({ data, history, onHistoryChange }: Props) {
       </div>
 
       <div>
-        <div className="text-xs text-ink-soft italic font-serif mb-1">{template.hint}</div>
+        <div className="mb-1 font-serif text-xs italic text-ink-soft">{template.hint}</div>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={template.inputPlaceholder}
           rows={3}
-          className="w-full bg-parchment border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y"
+          className="w-full resize-y rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
         />
-        <div className="flex items-center gap-2 mt-1.5">
+        <div className="mt-1.5 flex items-center gap-2">
           <button
             type="button"
             onClick={streaming ? cancel : generate}
             disabled={!streaming && !input.trim()}
-            className={`text-xs px-3 py-1.5 rounded border font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
+            className={`flex items-center gap-1.5 rounded border px-3 py-1.5 font-display text-xs uppercase tracking-wider transition-colors ${
               streaming
                 ? 'border-crimson bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment'
-                : 'border-brass-deep/60 bg-brass/15 text-brass-deep hover:bg-brass hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-brass/15 disabled:hover:text-brass-deep'
+                : 'border-brass-deep/60 bg-brass/15 text-brass-deep hover:bg-brass hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-brass/15 disabled:hover:text-brass-deep'
             }`}
           >
             {streaming ? <><X size={12} /> Cancel</> : <><Send size={12} /> Generate</>}
           </button>
-          <span className="text-[10px] text-ink-mute italic font-serif">⌘/Ctrl + Enter</span>
+          <span className="font-serif text-[10px] italic text-ink-mute">⌘/Ctrl + Enter</span>
         </div>
       </div>
 
       {(output || error || streaming) && (
-        <div className="rounded border border-rule bg-parchment p-3 space-y-2 shadow-card">
+        <div className="space-y-2 rounded border border-rule bg-parchment p-3 shadow-card">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5 font-display text-xs uppercase tracking-wider text-brass-deep">
               <Sparkles size={12} className="text-crimson" />
               {streaming ? 'Generating…' : error ? 'Error' : 'Output'}
             </span>
@@ -238,14 +238,14 @@ export default function VivifyPanel({ data, history, onHistoryChange }: Props) {
                 <button
                   type="button"
                   onClick={copyOutput}
-                  className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep flex items-center gap-1 font-display uppercase tracking-wider"
+                  className="flex items-center gap-1 rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
                 >
                   <Copy size={10} /> Copy
                 </button>
                 <button
                   type="button"
                   onClick={saveToHistory}
-                  className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep flex items-center gap-1 font-display uppercase tracking-wider"
+                  className="flex items-center gap-1 rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
                 >
                   <Save size={10} /> Save
                 </button>
@@ -253,19 +253,19 @@ export default function VivifyPanel({ data, history, onHistoryChange }: Props) {
             )}
           </div>
           {error && (
-            <div className="text-xs text-crimson font-serif leading-relaxed">
+            <div className="font-serif text-xs leading-relaxed text-crimson">
               {error}
               {apiKeyMissing && (
-                <div className="text-ink-mute italic mt-1.5">
+                <div className="mt-1.5 italic text-ink-mute">
                   Add ANTHROPIC_API_KEY to the server environment, then redeploy. Get a key at console.anthropic.com.
                 </div>
               )}
             </div>
           )}
           {output && (
-            <div className="text-sm text-ink font-serif leading-relaxed whitespace-pre-wrap">
+            <div className="whitespace-pre-wrap font-serif text-sm leading-relaxed text-ink">
               {output}
-              {streaming && <span className="inline-block w-1.5 h-3 bg-crimson ml-0.5 animate-pulse align-middle" />}
+              {streaming && <span className="ml-0.5 inline-block h-3 w-1.5 animate-pulse bg-crimson align-middle" />}
             </div>
           )}
         </div>
@@ -275,31 +275,31 @@ export default function VivifyPanel({ data, history, onHistoryChange }: Props) {
         <button
           type="button"
           onClick={() => setHistoryOpen(o => !o)}
-          className="w-full flex items-center gap-2 p-2.5 text-left hover:bg-parchment-deep/50 transition-colors"
+          className="flex w-full items-center gap-2 p-2.5 text-left transition-colors hover:bg-parchment-deep/50"
         >
           {historyOpen ? <ChevronDown size={14} className="text-brass-deep" /> : <ChevronRight size={14} className="text-brass-deep" />}
           <span className="font-display text-sm tracking-wide text-ink">History</span>
-          <span className="text-xs text-ink-mute font-serif">({history.length})</span>
+          <span className="font-serif text-xs text-ink-mute">({history.length})</span>
           {historyOpen && history.length > 0 && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); clearAllHistory(); }}
-              className="ml-auto text-[10px] text-crimson hover:text-wine flex items-center gap-1 font-display uppercase tracking-wider"
+              className="ml-auto flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-crimson hover:text-wine"
             >
               <Trash2 size={10} /> Clear all
             </button>
           )}
         </button>
         {historyOpen && (
-          <div className="px-3 pb-3 space-y-2 border-t border-rule pt-3">
+          <div className="space-y-2 border-t border-rule p-3">
             {history.length === 0 ? (
-              <p className="text-xs text-ink-mute italic font-serif">No saved generations yet. Click Save on any output to keep it here.</p>
+              <p className="font-serif text-xs italic text-ink-mute">No saved generations yet. Click Save on any output to keep it here.</p>
             ) : (
               history.map(entry => (
-                <div key={entry.id} className="rounded border border-rule bg-parchment p-2.5 space-y-1.5">
+                <div key={entry.id} className="space-y-1.5 rounded border border-rule bg-parchment p-2.5">
                   <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-brass-deep font-display uppercase tracking-wider">
-                      {entry.templateLabel} <span className="text-ink-mute normal-case">· {new Date(entry.timestamp).toLocaleString()}</span>
+                    <span className="font-display uppercase tracking-wider text-brass-deep">
+                      {entry.templateLabel} <span className="normal-case text-ink-mute">· {new Date(entry.timestamp).toLocaleString()}</span>
                     </span>
                     <button
                       type="button"
@@ -309,8 +309,8 @@ export default function VivifyPanel({ data, history, onHistoryChange }: Props) {
                       <Trash2 size={11} />
                     </button>
                   </div>
-                  <div className="text-xs text-ink-soft italic font-serif">{entry.input}</div>
-                  <div className="text-sm text-ink font-serif leading-relaxed whitespace-pre-wrap">{entry.output}</div>
+                  <div className="font-serif text-xs italic text-ink-soft">{entry.input}</div>
+                  <div className="whitespace-pre-wrap font-serif text-sm leading-relaxed text-ink">{entry.output}</div>
                 </div>
               ))
             )}

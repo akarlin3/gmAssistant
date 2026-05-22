@@ -88,7 +88,7 @@ export default function StrongStartPicker({ onUse }: Props) {
         ref={btnRef}
         type="button"
         onClick={toggle}
-        className="text-[11px] px-2 py-0.5 rounded border border-brass-deep/60 bg-brass/15 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass-deep flex items-center gap-1 font-display uppercase tracking-wider"
+        className="flex items-center gap-1 rounded border border-brass-deep/60 bg-brass/15 px-2 py-0.5 font-display text-[11px] uppercase tracking-wider text-brass-deep hover:border-brass-deep hover:bg-brass hover:text-parchment"
         title="Inspire a strong start"
       >
         <Sparkles size={11} /> Inspire
@@ -97,11 +97,11 @@ export default function StrongStartPicker({ onUse }: Props) {
         <div
           ref={popupRef}
           style={{ position: 'fixed', top: coords.top, left: coords.left, width: coords.width, zIndex: 50 }}
-          className="rounded border border-brass-deep/70 bg-parchment shadow-xl p-2.5 space-y-2"
+          className="space-y-2 rounded border border-brass-deep/70 bg-parchment p-2.5 shadow-xl"
         >
-          <div className="flex items-center justify-between text-[10px] text-ink-mute px-1 pb-1 border-b border-rule">
+          <div className="flex items-center justify-between border-b border-rule px-1 pb-1 text-[10px] text-ink-mute">
             <span className="font-display uppercase tracking-wider text-brass-deep">Strong Start</span>
-            <button onClick={() => setOpen(false)} className="text-ink-mute hover:text-ink font-display uppercase tracking-wider">Close</button>
+            <button onClick={() => setOpen(false)} className="font-display uppercase tracking-wider text-ink-mute hover:text-ink">Close</button>
           </div>
 
           <div className="flex flex-wrap gap-1">
@@ -113,7 +113,7 @@ export default function StrongStartPicker({ onUse }: Props) {
                   key={c}
                   type="button"
                   onClick={() => onCategoryChange(c)}
-                  className={`text-[10px] px-1.5 py-0.5 rounded border font-display uppercase tracking-wider ${
+                  className={`rounded border px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider ${
                     active
                       ? 'border-crimson bg-crimson text-parchment'
                       : 'border-rule text-ink-soft hover:border-crimson/60 hover:text-crimson'
@@ -126,11 +126,11 @@ export default function StrongStartPicker({ onUse }: Props) {
           </div>
 
           {pick && (
-            <div className="rounded border border-rule bg-parchment-soft p-2 space-y-1">
-              <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+            <div className="space-y-1 rounded border border-rule bg-parchment-soft p-2">
+              <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
                 {CATEGORY_LABELS[pick.category]} · {pick.title}
               </div>
-              <p className="text-xs text-ink-soft font-serif leading-relaxed whitespace-pre-wrap">{pick.body}</p>
+              <p className="whitespace-pre-wrap font-serif text-xs leading-relaxed text-ink-soft">{pick.body}</p>
             </div>
           )}
 
@@ -139,14 +139,14 @@ export default function StrongStartPicker({ onUse }: Props) {
               type="button"
               onClick={() => { if (pick) { onUse(pick.body); setOpen(false); } }}
               disabled={!pick}
-              className="text-[11px] px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider disabled:opacity-40"
+              className="rounded border border-crimson/60 bg-crimson/10 px-2 py-1 font-display text-[11px] uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-40"
             >
               Use This
             </button>
             <button
               type="button"
               onClick={roll}
-              className="text-[11px] px-2 py-1 rounded border border-brass-deep/60 bg-brass/15 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1"
+              className="flex items-center gap-1 rounded border border-brass-deep/60 bg-brass/15 px-2 py-1 font-display text-[11px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
             >
               <Shuffle size={11} /> Roll Again
             </button>

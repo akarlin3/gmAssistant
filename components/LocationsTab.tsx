@@ -41,13 +41,13 @@ const TypeSelect = ({
   onChange: (v: string) => void;
 }) => (
   <div>
-    <label className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5 block">
+    <label className="mb-0.5 block font-display text-xs uppercase tracking-wider text-brass-deep">
       Location Type
     </label>
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+      className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
     >
       <option value="Random">Random</option>
       {LOCATION_TYPE_GROUPS.map((group) => (
@@ -69,13 +69,13 @@ const CultureSelect = ({
   onChange: (v: string) => void;
 }) => (
   <div>
-    <label className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5 block">
+    <label className="mb-0.5 block font-display text-xs uppercase tracking-wider text-brass-deep">
       Cultural Tradition
     </label>
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+      className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
     >
       <option value="Random">Random</option>
       {CULTURE_GROUPS.map((group) => (
@@ -166,9 +166,9 @@ export default function LocationsTab({
             <li key={i} className="space-y-0.5">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-ink">{loc.name}</span>
-                {tag && <span className="text-[10px] text-ink-mute italic">{tag}</span>}
+                {tag && <span className="text-[10px] italic text-ink-mute">{tag}</span>}
               </div>
-              {loc.blurb && <div className="text-xs text-ink-soft italic">{loc.blurb}</div>}
+              {loc.blurb && <div className="text-xs italic text-ink-soft">{loc.blurb}</div>}
             </li>
           );
         })}
@@ -178,31 +178,31 @@ export default function LocationsTab({
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
+      <div className="space-y-3 rounded border border-rule bg-parchment p-3 shadow-card">
         <div className="flex items-center gap-2">
           <MapPin size={14} className="text-crimson" />
           <h3 className="font-display tracking-wide text-ink">Location Generator</h3>
-          <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-sm border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider">
+          <span className="ml-auto rounded-sm border border-crimson/60 bg-crimson/10 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-crimson">
             Pro
           </span>
         </div>
-        <p className="text-xs text-ink-soft italic font-serif">
+        <p className="font-serif text-xs italic text-ink-soft">
           Generate evocative location names — settlements, wilderness, sites, and planar
           spaces — from any cultural tradition. Each entry comes with a one-line hook to
           drop straight onto the map.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <TypeSelect value={locationType} onChange={setLocationType} />
           <CultureSelect value={culture} onChange={setCulture} />
           <div>
-            <label className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5 block">
+            <label className="mb-0.5 block font-display text-xs uppercase tracking-wider text-brass-deep">
               How Many
             </label>
             <select
               value={count}
               onChange={(e) => setCount(Number(e.target.value))}
-              className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+              className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
             >
               {[4, 6, 8, 12, 16, 20].map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
@@ -213,14 +213,14 @@ export default function LocationsTab({
           <button
             onClick={generate}
             disabled={generating}
-            className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-wine hover:border-wine disabled:opacity-50 disabled:cursor-wait transition-colors"
+            className="flex items-center gap-1.5 rounded border border-crimson bg-crimson px-3 py-1.5 font-display text-xs uppercase tracking-wider text-parchment transition-colors hover:border-wine hover:bg-wine disabled:cursor-wait disabled:opacity-50"
           >
             <Sparkles size={12} /> {generating ? 'Generating…' : 'Generate'}
           </button>
           <button
             onClick={shuffle}
             disabled={generating}
-            className="text-xs px-3 py-1.5 rounded border border-brass-deep/50 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 rounded border border-brass-deep/50 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment disabled:opacity-50"
             title="Pick a random specific type and culture"
           >
             <Shuffle size={12} /> Shuffle
@@ -228,20 +228,20 @@ export default function LocationsTab({
         </div>
 
         {error && (
-          <p className="text-xs text-crimson italic" title={error}>{error}</p>
+          <p className="text-xs italic text-crimson" title={error}>{error}</p>
         )}
       </div>
 
       {locations.length > 0 && (
-        <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
+        <div className="space-y-2 rounded border border-rule bg-parchment p-3 shadow-card">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] text-ink-mute italic font-serif">
+            <p className="font-serif text-[11px] italic text-ink-mute">
               Click a name to copy it.
             </p>
             <button
               onClick={saveToLog}
               disabled={saved}
-              className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1.5 rounded border border-brass-deep/60 bg-brass/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment disabled:opacity-50"
             >
               {saved ? <Check size={12} /> : <Save size={12} />}
               {saved ? 'Saved to log' : 'Save to log'}
@@ -254,13 +254,13 @@ export default function LocationsTab({
                 <button
                   key={i}
                   onClick={() => copyName(loc.name)}
-                  className="w-full flex flex-col items-stretch gap-1 px-2.5 py-1.5 rounded border border-rule bg-parchment-soft hover:bg-parchment-deep/40 transition-colors text-left"
+                  className="flex w-full flex-col items-stretch gap-1 rounded border border-rule bg-parchment-soft px-2.5 py-1.5 text-left transition-colors hover:bg-parchment-deep/40"
                 >
                   <span className="flex items-center justify-between gap-2">
                     <span className="font-serif text-ink">{loc.name}</span>
-                    <span className="flex items-center gap-2 flex-shrink-0">
+                    <span className="flex flex-shrink-0 items-center gap-2">
                       {tag && (
-                        <span className="text-[10px] text-ink-mute italic">{tag}</span>
+                        <span className="text-[10px] italic text-ink-mute">{tag}</span>
                       )}
                       {copied === loc.name ? (
                         <Check size={12} className="text-brass-deep" />
@@ -270,7 +270,7 @@ export default function LocationsTab({
                     </span>
                   </span>
                   {loc.blurb && (
-                    <span className="text-xs text-ink-soft italic font-serif leading-snug">
+                    <span className="font-serif text-xs italic leading-snug text-ink-soft">
                       {loc.blurb}
                     </span>
                   )}

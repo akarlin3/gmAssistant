@@ -75,40 +75,40 @@ export default function TreasureHoardGenerator({
       renderResult={(r) => (
         <div className="space-y-3 font-serif text-sm text-ink">
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Coins</div>
+            <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Coins</div>
             <div>{formatCoins(r.coins)}</div>
           </div>
           {r.gems.length > 0 && (
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Gems</div>
-              <ul className="list-disc ml-5">
-                {r.gems.map((g, i) => <li key={i}>{g.name} <span className="text-ink-mute italic">— {g.value} gp</span></li>)}
+              <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Gems</div>
+              <ul className="ml-5 list-disc">
+                {r.gems.map((g, i) => <li key={i}>{g.name} <span className="italic text-ink-mute">— {g.value} gp</span></li>)}
               </ul>
             </div>
           )}
           {r.artObjects.length > 0 && (
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Art Objects</div>
-              <ul className="list-disc ml-5">
-                {r.artObjects.map((a, i) => <li key={i}>{a.name} <span className="text-ink-mute italic">— {a.value} gp</span></li>)}
+              <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Art Objects</div>
+              <ul className="ml-5 list-disc">
+                {r.artObjects.map((a, i) => <li key={i}>{a.name} <span className="italic text-ink-mute">— {a.value} gp</span></li>)}
               </ul>
             </div>
           )}
           {r.magicItems.length > 0 && (
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Magic Items</div>
-              <ul className="space-y-1.5 mt-1">
+              <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Magic Items</div>
+              <ul className="mt-1 space-y-1.5">
                 {r.magicItems.map((mi, i) => (
                   <li key={i} className="border-l-2 border-crimson/40 pl-2">
                     <div><span className="font-display tracking-wide">{mi.name}</span> <span className="text-[10px] uppercase text-ink-mute">{mi.rarity}</span></div>
-                    {mi.note && <div className="text-xs text-ink-soft italic">{mi.note}</div>}
+                    {mi.note && <div className="text-xs italic text-ink-soft">{mi.note}</div>}
                   </li>
                 ))}
               </ul>
             </div>
           )}
           {r.enhancementNote && (
-            <p className="text-xs text-ink-soft italic border-t border-rule pt-2">{r.enhancementNote}</p>
+            <p className="border-t border-rule pt-2 text-xs italic text-ink-soft">{r.enhancementNote}</p>
           )}
         </div>
       )}

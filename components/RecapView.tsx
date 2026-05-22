@@ -164,38 +164,38 @@ export default function RecapView({ campaign, entry }: Props) {
       `}</style>
 
       <div className="recap-no-print sticky top-0 z-10 border-b border-rule bg-parchment/95 backdrop-blur">
-        <div className="max-w-3xl mx-auto px-4 py-2 flex items-center gap-3">
+        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-2">
           <Link
             href={`/campaign/${campaign.id}`}
-            className="inline-flex items-center gap-1 text-xs text-ink-soft hover:text-crimson font-display uppercase tracking-wider"
+            className="inline-flex items-center gap-1 font-display text-xs uppercase tracking-wider text-ink-soft hover:text-crimson"
           >
             <ArrowLeft size={14} /> Back
           </Link>
-          <div className="flex-1 min-w-0 text-xs text-ink-mute font-serif truncate">
+          <div className="min-w-0 flex-1 truncate font-serif text-xs text-ink-mute">
             {campaign.name || 'Campaign'}
           </div>
           <button
             onClick={copyMarkdown}
-            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-brass-deep/60 bg-brass/15 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider"
+            className="inline-flex items-center gap-1 rounded border border-brass-deep/60 bg-brass/15 px-2 py-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
           >
             {copied ? <Check size={12} /> : <Copy size={12} />}
             {copied ? 'Copied' : 'Copy Markdown'}
           </button>
           <button
             onClick={handlePrint}
-            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider"
+            className="inline-flex items-center gap-1 rounded border border-rule px-2 py-1 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
           >
             <Printer size={12} /> Print
           </button>
         </div>
       </div>
 
-      <article className="recap-page max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <article className="recap-page mx-auto max-w-3xl space-y-6 px-4 py-8">
         <header className="space-y-1">
-          <h1 className="font-display text-2xl text-ink tracking-wide">{titleLine}</h1>
-          <p className="text-sm text-ink-mute font-serif italic">{subtitle}</p>
+          <h1 className="font-display text-2xl tracking-wide text-ink">{titleLine}</h1>
+          <p className="font-serif text-sm italic text-ink-mute">{subtitle}</p>
           {entry.xpAwarded ? (
-            <div className="inline-flex items-center gap-1 mt-1 text-xs text-brass-deep font-display uppercase tracking-wider">
+            <div className="mt-1 inline-flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep">
               <Award size={12} /> {entry.xpAwarded.toLocaleString()} XP awarded
             </div>
           ) : null}
@@ -204,20 +204,20 @@ export default function RecapView({ campaign, entry }: Props) {
         {recapParagraphs.length > 0 ? (
           <section className="space-y-3">
             {recapParagraphs.map((p, i) => (
-              <p key={i} className="text-base font-serif text-ink leading-relaxed whitespace-pre-wrap">{p}</p>
+              <p key={i} className="whitespace-pre-wrap font-serif text-base leading-relaxed text-ink">{p}</p>
             ))}
           </section>
         ) : (
           <section>
-            <p className="italic text-ink-mute font-serif text-sm">No recap was written for this session.</p>
+            <p className="font-serif text-sm italic text-ink-mute">No recap was written for this session.</p>
           </section>
         )}
 
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-2">
-            <h2 className="font-display text-lg text-ink tracking-wide">What Happened</h2>
-            <div className="recap-no-print flex flex-wrap items-center gap-3 text-[11px] text-ink-mute font-serif">
-              <label className="inline-flex items-center gap-1 cursor-pointer select-none">
+            <h2 className="font-display text-lg tracking-wide text-ink">What Happened</h2>
+            <div className="recap-no-print flex flex-wrap items-center gap-3 font-serif text-[11px] text-ink-mute">
+              <label className="inline-flex cursor-pointer select-none items-center gap-1">
                 <input
                   type="checkbox"
                   checked={showSecrets}
@@ -226,7 +226,7 @@ export default function RecapView({ campaign, entry }: Props) {
                 />
                 Show secrets
               </label>
-              <label className="inline-flex items-center gap-1 cursor-pointer select-none">
+              <label className="inline-flex cursor-pointer select-none items-center gap-1">
                 <input
                   type="checkbox"
                   checked={showFactions}
@@ -235,7 +235,7 @@ export default function RecapView({ campaign, entry }: Props) {
                 />
                 Show faction movements
               </label>
-              <label className="inline-flex items-center gap-1 cursor-pointer select-none">
+              <label className="inline-flex cursor-pointer select-none items-center gap-1">
                 <input
                   type="checkbox"
                   checked={showRenown}
@@ -248,18 +248,18 @@ export default function RecapView({ campaign, entry }: Props) {
           </div>
 
           {orderedKinds.length === 0 ? (
-            <p className="italic text-ink-mute font-serif text-sm">Nothing was logged for this session.</p>
+            <p className="font-serif text-sm italic text-ink-mute">Nothing was logged for this session.</p>
           ) : (
             <div className="space-y-3">
               {orderedKinds.map(kind => (
                 <div key={kind}>
-                  <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider mb-1">
+                  <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
                     {CHANGE_EVENT_LABELS[kind] || kind}
                   </div>
                   <ul className="space-y-1">
                     {(eventsByKind[kind] || []).map(e => (
-                      <li key={e.id} className="text-sm font-serif text-ink-soft flex items-start gap-2">
-                        <span className="text-brass-deep flex-shrink-0 mt-1">·</span>
+                      <li key={e.id} className="flex items-start gap-2 font-serif text-sm text-ink-soft">
+                        <span className="mt-1 flex-shrink-0 text-brass-deep">·</span>
                         <span>{e.summary}</span>
                       </li>
                     ))}
@@ -272,11 +272,11 @@ export default function RecapView({ campaign, entry }: Props) {
 
         {showSecrets && entry.secretsRevealed.length > 0 && (
           <section className="space-y-2">
-            <h2 className="font-display text-lg text-ink tracking-wide border-b border-rule pb-2">Secrets Revealed</h2>
+            <h2 className="border-b border-rule pb-2 font-display text-lg tracking-wide text-ink">Secrets Revealed</h2>
             <ul className="space-y-1">
               {entry.secretsRevealed.map((s, i) => (
-                <li key={i} className="text-sm font-serif text-ink-soft flex items-start gap-2">
-                  <span className="text-brass-deep flex-shrink-0 mt-1">·</span>
+                <li key={i} className="flex items-start gap-2 font-serif text-sm text-ink-soft">
+                  <span className="mt-1 flex-shrink-0 text-brass-deep">·</span>
                   <span>{s}</span>
                 </li>
               ))}
@@ -286,10 +286,10 @@ export default function RecapView({ campaign, entry }: Props) {
 
         {entry.goalUpdates.length > 0 && (
           <section className="space-y-2">
-            <h2 className="font-display text-lg text-ink tracking-wide border-b border-rule pb-2">Goal Updates</h2>
+            <h2 className="border-b border-rule pb-2 font-display text-lg tracking-wide text-ink">Goal Updates</h2>
             <ul className="space-y-1">
               {entry.goalUpdates.map((g, i) => (
-                <li key={i} className="text-sm font-serif text-ink-soft">
+                <li key={i} className="font-serif text-sm text-ink-soft">
                   <span className="text-ink">{g.goal}:</span>{' '}
                   <span className="text-ink-mute">{g.from} → {g.to}</span>
                 </li>

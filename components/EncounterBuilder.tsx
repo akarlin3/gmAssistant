@@ -89,12 +89,12 @@ const DIFFICULTY_STYLES: Record<Difficulty, { label: string; bar: string; chip: 
 
 function ComboRow({ combo }: { combo: EncounterCombo }) {
   return (
-    <div className="flex items-baseline gap-2 text-xs font-serif text-ink">
-      <span className="font-display tracking-wider text-ink-soft tabular-nums w-8">
+    <div className="flex items-baseline gap-2 font-serif text-xs text-ink">
+      <span className="w-8 font-display tabular-nums tracking-wider text-ink-soft">
         {combo.count}×
       </span>
       <span className="font-display tracking-wider">CR {combo.cr}</span>
-      <span className="text-ink-mute text-[10px] ml-auto tabular-nums">
+      <span className="ml-auto text-[10px] tabular-nums text-ink-mute">
         {combo.baseXP.toLocaleString()} XP
         {combo.count > 1 && ` · ×${combo.multiplier} mult`}
         {' = '}
@@ -115,16 +115,16 @@ function DifficultyCard({
 }) {
   const style = DIFFICULTY_STYLES[difficulty];
   return (
-    <div className="rounded border border-rule bg-parchment overflow-hidden shadow-card">
-      <div className={`${style.bar} px-3 py-1.5 flex items-baseline justify-between text-parchment`}>
-        <span className="font-display uppercase tracking-wider text-sm">{style.label}</span>
-        <span className="text-[10px] font-serif text-parchment/80 tabular-nums">
+    <div className="overflow-hidden rounded border border-rule bg-parchment shadow-card">
+      <div className={`${style.bar} flex items-baseline justify-between px-3 py-1.5 text-parchment`}>
+        <span className="font-display text-sm uppercase tracking-wider">{style.label}</span>
+        <span className="font-serif text-[10px] tabular-nums text-parchment/80">
           {band[0].toLocaleString()}–{band[1].toLocaleString()} XP adj.
         </span>
       </div>
-      <div className="p-3 space-y-1">
+      <div className="space-y-1 p-3">
         {combos.length === 0 ? (
-          <div className="text-xs font-serif italic text-ink-mute">
+          <div className="font-serif text-xs italic text-ink-mute">
             No clean combinations fit this band — try adjusting the party.
           </div>
         ) : (
@@ -196,14 +196,14 @@ export default function EncounterBuilder({
 
   return (
     <div className="space-y-3">
-      <div className="rounded border border-rule bg-parchment-soft p-3 space-y-2.5 text-xs">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="space-y-2.5 rounded border border-rule bg-parchment-soft p-3 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Swords size={14} className="text-brass-deep" />
             <span className="font-display uppercase tracking-wider text-brass-deep">
               Encounter Builder
             </span>
-            <span className="text-[10px] text-ink-mute italic font-serif">
+            <span className="font-serif text-[10px] italic text-ink-mute">
               5e XP thresholds · pick a difficulty, get suggested CR combinations
             </span>
           </div>
@@ -211,12 +211,12 @@ export default function EncounterBuilder({
             <div
               role="tablist"
               aria-label="Party source"
-              className="inline-flex border border-rule rounded overflow-hidden font-display uppercase tracking-wider text-[10px]"
+              className="inline-flex overflow-hidden rounded border border-rule font-display text-[10px] uppercase tracking-wider"
             >
               <button
                 type="button"
                 onClick={() => setUseManual(false)}
-                className={`px-2 py-0.5 transition-colors flex items-center gap-1 ${
+                className={`flex items-center gap-1 px-2 py-0.5 transition-colors ${
                   !useManual ? 'bg-crimson text-parchment' : 'text-ink-soft hover:bg-parchment-deep'
                 }`}
               >
@@ -225,7 +225,7 @@ export default function EncounterBuilder({
               <button
                 type="button"
                 onClick={() => setUseManual(true)}
-                className={`px-2 py-0.5 border-l border-rule transition-colors ${
+                className={`border-l border-rule px-2 py-0.5 transition-colors ${
                   useManual ? 'bg-crimson text-parchment' : 'text-ink-soft hover:bg-parchment-deep'
                 }`}
               >
@@ -250,15 +250,15 @@ export default function EncounterBuilder({
           <DerivedPartySummary rows={derived.rows} />
         )}
 
-        <div className="border-t border-rule pt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] font-serif">
+        <div className="grid grid-cols-2 gap-2 border-t border-rule pt-2 font-serif text-[11px] md:grid-cols-4">
           {DIFFICULTIES.map((d) => {
             const style = DIFFICULTY_STYLES[d];
             return (
               <div
                 key={d}
-                className={`rounded-sm border px-2 py-1 flex flex-col gap-0.5 ${style.chip}`}
+                className={`flex flex-col gap-0.5 rounded-sm border px-2 py-1 ${style.chip}`}
               >
-                <span className="font-display uppercase tracking-wider text-[10px]">
+                <span className="font-display text-[10px] uppercase tracking-wider">
                   {style.label}
                 </span>
                 <span className="tabular-nums">
@@ -270,7 +270,7 @@ export default function EncounterBuilder({
         </div>
 
         {isSolo && (
-          <div className="text-[10px] italic font-serif text-ink-mute border-t border-rule pt-1.5">
+          <div className="border-t border-rule pt-1.5 font-serif text-[10px] italic text-ink-mute">
             Solo party detected — non-gestalt thresholds are reduced to 0.75× to account for the
             missing action economy.
           </div>
@@ -278,11 +278,11 @@ export default function EncounterBuilder({
       </div>
 
       {members.length === 0 ? (
-        <div className="rounded border border-dashed border-rule bg-parchment-soft p-6 text-center text-ink-mute text-sm font-serif italic">
+        <div className="rounded border border-dashed border-rule bg-parchment-soft p-6 text-center font-serif text-sm italic text-ink-mute">
           Add at least one party member to see suggested encounters.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {DIFFICULTIES.map((d) => (
             <DifficultyCard
               key={d}
@@ -294,7 +294,7 @@ export default function EncounterBuilder({
         </div>
       )}
 
-      <div className="text-[10px] text-ink-mute italic font-serif">
+      <div className="font-serif text-[10px] italic text-ink-mute">
         Adjusted XP = base XP × count × group multiplier (1·×1, 2·×1.5, 3–6·×2, 7–10·×2.5, 11–14·×3, 15+·×4).
       </div>
     </div>
@@ -304,15 +304,15 @@ export default function EncounterBuilder({
 function DerivedPartySummary({ rows }: { rows: DerivedParty['rows'] }) {
   return (
     <div className="space-y-1">
-      <div className="font-display uppercase tracking-wider text-[10px] text-brass-deep">
+      <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
         Party (from characters)
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-0.5 gap-x-3">
+      <div className="grid grid-cols-1 gap-x-3 gap-y-0.5 sm:grid-cols-2">
         {rows.map((r, i) => (
-          <div key={i} className="flex items-baseline gap-2 text-[11px] font-serif text-ink">
+          <div key={i} className="flex items-baseline gap-2 font-serif text-[11px] text-ink">
             <span className="text-ink-soft">{r.role === 'Sidekick' ? '½' : '•'}</span>
             <span className="truncate">{r.name}</span>
-            <span className="text-ink-mute tabular-nums">
+            <span className="tabular-nums text-ink-mute">
               Lv {r.level}
               {r.gestalt && ' · gestalt'}
               {!r.parsedOk && r.role === 'PC' && ' · level unset, defaulted to 1'}
@@ -347,7 +347,7 @@ function NumberInput({
         const v = parseInt(e.target.value || `${min}`, 10);
         onChange(Math.max(min, Math.min(max, Number.isFinite(v) ? v : min)));
       }}
-      className={`bg-parchment border border-rule rounded-sm px-2 py-1 text-sm text-ink font-serif focus:border-brass-deep focus:outline-none ${
+      className={`rounded-sm border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink focus:border-brass-deep focus:outline-none ${
         className ?? 'w-16'
       }`}
     />
@@ -368,28 +368,28 @@ function ManualPartyControls({
   return (
     <div className="space-y-1.5">
       {note && (
-        <div className="text-[11px] italic font-serif text-ink-soft">{note}</div>
+        <div className="font-serif text-[11px] italic text-ink-soft">{note}</div>
       )}
-      <div className="flex items-end gap-3 flex-wrap">
+      <div className="flex flex-wrap items-end gap-3">
         <div>
-          <div className="font-display uppercase tracking-wider text-[10px] text-brass-deep mb-1">
+          <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
             PCs
           </div>
           <NumberInput value={value.size} min={0} max={8} onChange={(n) => onChange({ ...value, size: n })} />
         </div>
         <div>
-          <div className="font-display uppercase tracking-wider text-[10px] text-brass-deep mb-1">
+          <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
             Sidekicks
           </div>
           <NumberInput value={value.sidekicks} min={0} max={8} onChange={(n) => onChange({ ...value, sidekicks: n })} />
         </div>
         <div>
-          <div className="font-display uppercase tracking-wider text-[10px] text-brass-deep mb-1">
+          <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
             Avg. Level
           </div>
           <NumberInput value={value.level} min={1} max={20} onChange={(n) => onChange({ ...value, level: n })} />
         </div>
-        <label className="flex items-center gap-1.5 cursor-pointer select-none font-display uppercase tracking-wider text-ink-soft">
+        <label className="flex cursor-pointer select-none items-center gap-1.5 font-display uppercase tracking-wider text-ink-soft">
           <input
             type="checkbox"
             checked={value.gestalt}
@@ -401,7 +401,7 @@ function ManualPartyControls({
         <button
           type="button"
           onClick={onReset}
-          className="ml-auto text-[10px] font-display uppercase tracking-wider text-ink-mute hover:text-crimson flex items-center gap-1"
+          className="ml-auto flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-ink-mute hover:text-crimson"
         >
           <RotateCcw size={11} /> Reset
         </button>

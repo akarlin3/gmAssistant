@@ -37,29 +37,29 @@ export default function RecentGenerations({
   if (!entries.length) return null;
   const shown = expanded ? entries : entries.slice(0, 6);
   return (
-    <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
+    <div className="space-y-2 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex items-center gap-2">
         <History size={14} className="text-brass-deep" />
         <h4 className="font-display tracking-wide text-ink">Recent Generations</h4>
-        <span className="ml-auto text-[10px] text-ink-mute italic">{entries.length} of last 20</span>
+        <span className="ml-auto text-[10px] italic text-ink-mute">{entries.length} of last 20</span>
       </div>
       <ul className="space-y-1.5">
         {shown.map((e) => (
-          <li key={e.id} className="flex items-center gap-2 text-sm font-serif">
-            <span className="text-[10px] uppercase tracking-wider text-brass-deep w-24 flex-shrink-0">{KIND_LABEL[e.kind]}</span>
+          <li key={e.id} className="flex items-center gap-2 font-serif text-sm">
+            <span className="w-24 flex-shrink-0 text-[10px] uppercase tracking-wider text-brass-deep">{KIND_LABEL[e.kind]}</span>
             <span className="flex-1 truncate text-ink">{e.title}</span>
-            <span className="text-[10px] text-ink-mute italic flex-shrink-0">{timeAgo(e.createdAtMs)}</span>
+            <span className="flex-shrink-0 text-[10px] italic text-ink-mute">{timeAgo(e.createdAtMs)}</span>
             <button
               onClick={() => onReroll(e)}
               title="Reroll this kind of generator"
-              className="text-[10px] px-1.5 py-0.5 rounded border border-ink-mute/40 text-ink-soft hover:bg-parchment-deep flex items-center gap-1 font-display uppercase tracking-wider"
+              className="flex items-center gap-1 rounded border border-ink-mute/40 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
             >
               <RefreshCw size={10} /> Reroll
             </button>
             <button
               onClick={() => onInspect(e)}
               title="Bring this entry back to the top of history"
-              className="text-[10px] px-1.5 py-0.5 rounded border border-ink-mute/40 text-ink-soft hover:bg-parchment-deep flex items-center gap-1 font-display uppercase tracking-wider"
+              className="flex items-center gap-1 rounded border border-ink-mute/40 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
             >
               <Eye size={10} /> Inspect
             </button>
@@ -67,7 +67,7 @@ export default function RecentGenerations({
         ))}
       </ul>
       {entries.length > 6 && (
-        <button onClick={() => setExpanded((x) => !x)} className="text-[10px] text-brass-deep hover:text-crimson font-display uppercase tracking-wider">
+        <button onClick={() => setExpanded((x) => !x)} className="font-display text-[10px] uppercase tracking-wider text-brass-deep hover:text-crimson">
           {expanded ? 'Show fewer' : `Show ${entries.length - 6} more`}
         </button>
       )}

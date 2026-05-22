@@ -306,18 +306,18 @@ export default function DiceRoller({
           <Dice6 size={16} className="text-crimson" />
           <h3 className="font-display tracking-wide text-ink">Quick Roll</h3>
         </div>
-        <div className="flex flex-wrap gap-1.5 items-center">
+        <div className="flex flex-wrap items-center gap-1.5">
           {QUICK_SIDES.map((s) => (
             <button
               key={s}
               onClick={() => rollQuick(s)}
-              className="text-sm px-3 py-1.5 rounded-sm border border-brass-deep/50 bg-parchment-soft text-ink font-display tracking-wide hover:bg-brass hover:text-parchment hover:border-brass transition-colors"
+              className="rounded-sm border border-brass-deep/50 bg-parchment-soft px-3 py-1.5 font-display text-sm tracking-wide text-ink transition-colors hover:border-brass hover:bg-brass hover:text-parchment"
             >
               d{s}
             </button>
           ))}
-          <div className="flex items-center gap-1.5 ml-auto">
-            <span className="text-xs text-brass-deep font-display uppercase tracking-wider">Mod</span>
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="font-display text-xs uppercase tracking-wider text-brass-deep">Mod</span>
             <input
               type="number"
               value={modifier}
@@ -352,7 +352,7 @@ export default function DiceRoller({
           })}
         </div>
         {adv && (
-          <p className="text-xs text-ink-mute italic font-serif">
+          <p className="font-serif text-xs italic text-ink-mute">
             One-shot — applied to the next leading 1d20, then cleared.
           </p>
         )}
@@ -360,13 +360,13 @@ export default function DiceRoller({
 
       {/* Formula bar */}
       <div className={cardCls}>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-display tracking-wide text-ink">Formula</h3>
-          <span className="text-xs text-ink-mute italic font-serif">
+          <span className="font-serif text-xs italic text-ink-mute">
             NdX±M · 4d6kh3 · 1d20+5; 1d8+3
           </span>
         </div>
-        <div className="flex gap-1.5 items-center flex-wrap">
+        <div className="flex flex-wrap items-center gap-1.5">
           <input
             type="text"
             value={formula}
@@ -378,7 +378,7 @@ export default function DiceRoller({
               if (e.key === 'Enter') rollFormula();
             }}
             placeholder="1d20+5; 1d8+3"
-            className={`flex-1 min-w-[8rem] ${inputCls} text-base`}
+            className={`min-w-32 flex-1 ${inputCls} text-base`}
             style={{ fontFamily: 'var(--font-garamond), Georgia, serif' }}
           />
           <button onClick={rollFormula} className={primaryBtn}>
@@ -388,9 +388,9 @@ export default function DiceRoller({
             <Plus size={12} /> Macro
           </button>
         </div>
-        {error && <p className="text-sm text-crimson font-serif italic">{error}</p>}
+        {error && <p className="font-serif text-sm italic text-crimson">{error}</p>}
         {savingMacro && (
-          <div className="flex gap-1.5 items-center pt-1 border-t border-rule">
+          <div className="flex items-center gap-1.5 border-t border-rule pt-1">
             <input
               ref={saveNameRef}
               type="text"
@@ -403,13 +403,13 @@ export default function DiceRoller({
               placeholder="Macro name"
               className={`flex-1 ${inputCls}`}
             />
-            <span className="text-xs text-ink-mute italic font-serif truncate max-w-[40%]">
+            <span className="max-w-[40%] truncate font-serif text-xs italic text-ink-mute">
               {savingMacro.formula}
             </span>
-            <button onClick={commitSaveMacro} className="text-moss hover:text-ink px-1">
+            <button onClick={commitSaveMacro} className="px-1 text-moss hover:text-ink">
               <Check size={16} strokeWidth={3} />
             </button>
-            <button onClick={() => setSavingMacro(null)} className="text-ink-mute hover:text-crimson px-1">
+            <button onClick={() => setSavingMacro(null)} className="px-1 text-ink-mute hover:text-crimson">
               <X size={16} />
             </button>
           </div>
@@ -420,7 +420,7 @@ export default function DiceRoller({
       <div className={cardCls}>
         <h3 className="font-display tracking-wide text-ink">Macros</h3>
         {safeMacros.length === 0 && (
-          <p className="text-sm text-ink-mute italic font-serif">
+          <p className="font-serif text-sm italic text-ink-mute">
             No macros yet — save a formula above for one-click rolls.
           </p>
         )}
@@ -429,7 +429,7 @@ export default function DiceRoller({
             editingMacroId === m.id ? (
               <div
                 key={m.id}
-                className="flex gap-1.5 items-center rounded border border-brass-deep/40 bg-parchment-soft px-2 py-1.5"
+                className="flex items-center gap-1.5 rounded border border-brass-deep/40 bg-parchment-soft px-2 py-1.5"
               >
                 <input
                   type="text"
@@ -449,10 +449,10 @@ export default function DiceRoller({
                   placeholder="Formula"
                   className={`flex-[1.2] ${inputCls}`}
                 />
-                <button onClick={commitEditMacro} className="text-moss hover:text-ink px-1">
+                <button onClick={commitEditMacro} className="px-1 text-moss hover:text-ink">
                   <Check size={16} strokeWidth={3} />
                 </button>
-                <button onClick={() => setEditingMacroId(null)} className="text-ink-mute hover:text-crimson px-1">
+                <button onClick={() => setEditingMacroId(null)} className="px-1 text-ink-mute hover:text-crimson">
                   <X size={16} />
                 </button>
               </div>
@@ -461,17 +461,17 @@ export default function DiceRoller({
                 key={m.id}
                 className="flex items-center gap-2 rounded border border-rule bg-parchment-soft px-2.5 py-1.5"
               >
-                <span className="font-display tracking-wide text-sm text-ink truncate flex-1 min-w-0">{m.name}</span>
-                <span className="text-xs text-ink-mute italic font-serif truncate max-w-[40%] hidden sm:inline">{m.formula}</span>
+                <span className="min-w-0 flex-1 truncate font-display text-sm tracking-wide text-ink">{m.name}</span>
+                <span className="hidden max-w-[40%] truncate font-serif text-xs italic text-ink-mute sm:inline">{m.formula}</span>
                 <button
                   onClick={() => doRoll(m.formula, m.name)}
-                  className="text-xs px-2.5 py-0.5 rounded-sm border border-crimson bg-crimson text-parchment hover:bg-crimson-deep font-display uppercase tracking-wider flex-shrink-0"
+                  className="flex-shrink-0 rounded-sm border border-crimson bg-crimson px-2.5 py-0.5 font-display text-xs uppercase tracking-wider text-parchment hover:bg-crimson-deep"
                 >
                   Roll
                 </button>
                 <button
                   onClick={() => beginEditMacro(m)}
-                  className="text-ink-mute hover:text-brass-deep flex-shrink-0 gm-tooltip"
+                  className="gm-tooltip flex-shrink-0 text-ink-mute hover:text-brass-deep"
                   data-tooltip="Edit Macro"
                   title="Edit"
                   aria-label="Edit Macro"
@@ -480,7 +480,7 @@ export default function DiceRoller({
                 </button>
                 <button
                   onClick={() => deleteMacro(m.id)}
-                  className="text-ink-mute hover:text-crimson flex-shrink-0 gm-tooltip"
+                  className="gm-tooltip flex-shrink-0 text-ink-mute hover:text-crimson"
                   data-tooltip="Delete Macro"
                   title="Delete"
                   aria-label="Delete Macro"
@@ -500,59 +500,59 @@ export default function DiceRoller({
           {history.length > 0 && (
             <button
               onClick={() => setHistory([])}
-              className="text-xs text-ink-mute hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider"
+              className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-ink-mute hover:text-crimson"
             >
               <Trash2 size={11} /> Clear
             </button>
           )}
         </div>
         {history.length === 0 && (
-          <p className="text-sm text-ink-mute italic font-serif">Roll something — results appear here.</p>
+          <p className="font-serif text-sm italic text-ink-mute">Roll something — results appear here.</p>
         )}
         <div className="space-y-1.5">
           {history.map((r) => (
             <div
               key={r.id}
-              className="rounded border border-rule bg-parchment-soft hover:bg-parchment-deep/50 group transition-colors relative"
+              className="group relative rounded border border-rule bg-parchment-soft transition-colors hover:bg-parchment-deep/50"
             >
               <button
                 type="button"
                 onClick={() => doRoll(r.formula, r.label)}
-                className="w-full text-left px-2.5 py-2 pr-9"
+                className="w-full px-2.5 py-2 pr-9 text-left"
                 title="Click to re-roll"
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs text-ink-mute font-display tracking-wider w-9 flex-shrink-0">
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="w-9 flex-shrink-0 font-display text-xs tracking-wider text-ink-mute">
                     {relTime(r.ts, now)}
                   </span>
                   {r.label && (
-                    <span className="text-xs px-1.5 py-0.5 rounded-sm bg-brass/15 border border-brass-deep/30 text-brass-deep font-display uppercase tracking-wider flex-shrink-0 truncate max-w-[40%]">
+                    <span className="max-w-[40%] flex-shrink-0 truncate rounded-sm border border-brass-deep/30 bg-brass/15 px-1.5 py-0.5 font-display text-xs uppercase tracking-wider text-brass-deep">
                       {r.label}
                     </span>
                   )}
-                  <span className="text-xs text-ink-mute italic font-serif truncate flex-1 min-w-0">{r.formula}</span>
+                  <span className="min-w-0 flex-1 truncate font-serif text-xs italic text-ink-mute">{r.formula}</span>
                   <span
                     key={r.id}
-                    className="font-display text-2xl text-crimson leading-none flex-shrink-0 gm-roll-total"
+                    className="gm-roll-total flex-shrink-0 font-display text-2xl leading-none text-crimson"
                     style={{ fontVariantNumeric: 'tabular-nums' }}
                   >
                     {r.total}
                   </span>
                   <RotateCcw
                     size={12}
-                    className="text-ink-faint opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 hidden sm:block"
+                    className="hidden flex-shrink-0 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100 sm:block"
                   />
                 </div>
                 <div className="space-y-0.5">
                   {r.parts.map((p, i) => (
                     <div
                       key={i}
-                      className="text-xs text-ink-soft font-serif flex items-baseline gap-1.5 flex-wrap"
+                      className="flex flex-wrap items-baseline gap-1.5 font-serif text-xs text-ink-soft"
                     >
-                      <span className="text-ink-mute italic">{p.expr}</span>
+                      <span className="italic text-ink-mute">{p.expr}</span>
                       {p.advMode && (
                         <span
-                          className={`text-[10px] font-display uppercase tracking-wider ${
+                          className={`font-display text-[10px] uppercase tracking-wider ${
                             p.advMode === 'adv' ? 'text-moss' : 'text-crimson'
                           }`}
                         >
@@ -581,7 +581,7 @@ export default function DiceRoller({
                   e.stopPropagation();
                   saveRollToLog(r);
                 }}
-                className="absolute top-1.5 right-1.5 p-1 rounded text-ink-mute hover:text-brass-deep hover:bg-parchment-deep/60 gm-tooltip"
+                className="gm-tooltip absolute right-1.5 top-1.5 rounded p-1 text-ink-mute hover:bg-parchment-deep/60 hover:text-brass-deep"
                 data-tooltip="Save to Log"
                 title="Save this roll to log"
                 aria-label="Save to log"
@@ -618,15 +618,15 @@ function rollToText(r: Roll): string {
 function DiceLogRow({ roll }: { roll: Roll }) {
   return (
     <div className="text-sm">
-      <div className="flex items-center gap-2 mb-1">
+      <div className="mb-1 flex items-center gap-2">
         {roll.label && (
-          <span className="text-xs px-1.5 py-0.5 rounded-sm bg-brass/15 border border-brass-deep/30 text-brass-deep font-display uppercase tracking-wider flex-shrink-0">
+          <span className="flex-shrink-0 rounded-sm border border-brass-deep/30 bg-brass/15 px-1.5 py-0.5 font-display text-xs uppercase tracking-wider text-brass-deep">
             {roll.label}
           </span>
         )}
-        <span className="text-xs text-ink-mute italic font-serif">{roll.formula}</span>
+        <span className="font-serif text-xs italic text-ink-mute">{roll.formula}</span>
         <span
-          className="ml-auto font-display text-2xl text-crimson leading-none"
+          className="ml-auto font-display text-2xl leading-none text-crimson"
           style={{ fontVariantNumeric: 'tabular-nums' }}
         >
           {roll.total}
@@ -634,11 +634,11 @@ function DiceLogRow({ roll }: { roll: Roll }) {
       </div>
       <div className="space-y-0.5">
         {roll.parts.map((p, i) => (
-          <div key={i} className="text-xs text-ink-soft font-serif flex items-baseline gap-1.5 flex-wrap">
-            <span className="text-ink-mute italic">{p.expr}</span>
+          <div key={i} className="flex flex-wrap items-baseline gap-1.5 font-serif text-xs text-ink-soft">
+            <span className="italic text-ink-mute">{p.expr}</span>
             {p.advMode && (
               <span
-                className={`text-[10px] font-display uppercase tracking-wider ${
+                className={`font-display text-[10px] uppercase tracking-wider ${
                   p.advMode === 'adv' ? 'text-moss' : 'text-crimson'
                 }`}
               >

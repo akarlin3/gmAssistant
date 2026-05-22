@@ -174,11 +174,11 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
     if (spec.kind === 'select') {
       return (
         <div key={spec.key}>
-          <label className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5 block">{spec.label}</label>
+          <label className="mb-0.5 block font-display text-xs uppercase tracking-wider text-brass-deep">{spec.label}</label>
           <select
             value={String(state[spec.key])}
             onChange={(e) => setState((s) => ({ ...s, [spec.key]: e.target.value }))}
-            className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+            className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
           >
             {spec.options.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -190,27 +190,27 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
     if (spec.kind === 'number') {
       return (
         <div key={spec.key}>
-          <label className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5 block">{spec.label}</label>
+          <label className="mb-0.5 block font-display text-xs uppercase tracking-wider text-brass-deep">{spec.label}</label>
           <input
             type="number"
             min={spec.min}
             max={spec.max}
             value={Number(state[spec.key])}
             onChange={(e) => setState((s) => ({ ...s, [spec.key]: Number(e.target.value) }))}
-            className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+            className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
           />
         </div>
       );
     }
     return (
       <div key={spec.key}>
-        <label className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5 block">{spec.label}</label>
+        <label className="mb-0.5 block font-display text-xs uppercase tracking-wider text-brass-deep">{spec.label}</label>
         <input
           type="text"
           value={String(state[spec.key])}
           placeholder={spec.placeholder}
           onChange={(e) => setState((s) => ({ ...s, [spec.key]: e.target.value }))}
-          className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+          className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
         />
       </div>
     );
@@ -218,41 +218,41 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
+      <div className="space-y-3 rounded border border-rule bg-parchment p-3 shadow-card">
         <div className="flex items-center gap-2">
           <Sparkles size={14} className="text-crimson" />
           <h3 className="font-display tracking-wide text-ink">{title}</h3>
         </div>
         {description && (
-          <p className="text-xs text-ink-soft italic font-serif">{description}</p>
+          <p className="font-serif text-xs italic text-ink-soft">{description}</p>
         )}
         {inputControls.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{inputControls}</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{inputControls}</div>
         )}
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => runGenerate()}
-            className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-wine hover:border-wine transition-colors"
+            className="flex items-center gap-1.5 rounded border border-crimson bg-crimson px-3 py-1.5 font-display text-xs uppercase tracking-wider text-parchment transition-colors hover:border-wine hover:bg-wine"
           >
             <Shuffle size={12} /> {result ? 'Reroll' : 'Generate'}
           </button>
           {lastSeedRef.current !== null && (
-            <span className="text-[10px] text-ink-mute italic self-center" title="Same seed = same result">
+            <span className="self-center text-[10px] italic text-ink-mute" title="Same seed = same result">
               seed: {lastSeedRef.current.toString(16)}
             </span>
           )}
         </div>
-        {error && <p className="text-xs text-crimson italic" title={error}>{error}</p>}
+        {error && <p className="text-xs italic text-crimson" title={error}>{error}</p>}
       </div>
 
       {result && (
-        <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="space-y-3 rounded border border-rule bg-parchment p-3 shadow-card">
+          <div className="flex flex-wrap items-center gap-2">
             {saveToCampaign && (
               <button
                 onClick={onSaveToCampaignClick}
                 disabled={savedToCampaign}
-                className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-wine hover:border-wine disabled:opacity-50 transition-colors"
+                className="flex items-center gap-1.5 rounded border border-crimson bg-crimson px-3 py-1.5 font-display text-xs uppercase tracking-wider text-parchment transition-colors hover:border-wine hover:bg-wine disabled:opacity-50"
               >
                 {savedToCampaign ? <Check size={12} /> : <Save size={12} />}
                 {savedToCampaign ? 'Saved' : (saveToCampaign.label ?? 'Save to Campaign')}
@@ -262,7 +262,7 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
               <button
                 onClick={onSaveToLogClick}
                 disabled={saved}
-                className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
+                className="flex items-center gap-1.5 rounded border border-brass-deep/60 bg-brass/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment disabled:opacity-50"
               >
                 {saved ? <Check size={12} /> : <Save size={12} />}
                 {saved ? 'Saved to log' : 'Save to log'}
@@ -270,7 +270,7 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
             )}
             <button
               onClick={onReroll}
-              className="text-xs px-3 py-1.5 rounded border border-ink-mute/50 text-ink-soft font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-parchment-deep transition-colors"
+              className="flex items-center gap-1.5 rounded border border-ink-mute/50 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-ink-soft transition-colors hover:bg-parchment-deep"
             >
               <RefreshCw size={12} /> Reroll
             </button>
@@ -280,13 +280,13 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
                   <button
                     onClick={onEnhanceClick}
                     disabled={enhancing}
-                    className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-crimson hover:text-parchment hover:border-crimson disabled:opacity-50 transition-colors"
+                    className="flex items-center gap-1.5 rounded border border-crimson/60 bg-crimson/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-crimson transition-colors hover:border-crimson hover:bg-crimson hover:text-parchment disabled:opacity-50"
                   >
                     <Wand2 size={12} /> {enhancing ? 'Enhancing…' : 'Enhance with AI'}
                   </button>
                   {hasContext && (
                     <label
-                      className="text-[11px] text-ink-soft font-serif flex items-center gap-1.5 select-none cursor-pointer"
+                      className="flex cursor-pointer select-none items-center gap-1.5 font-serif text-[11px] text-ink-soft"
                       title="Pass your campaign's genre, tone, pitch, and world/setting facts to the AI so its prose fits your premise."
                     >
                       <input

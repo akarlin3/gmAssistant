@@ -201,7 +201,7 @@ function Section({
     <div className="rounded border border-rule bg-parchment-soft">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left"
       >
         {open ? (
           <ChevronDown size={14} className="text-ink-mute" />
@@ -211,7 +211,7 @@ function Section({
         <span className="font-display tracking-wide text-ink">{title}</span>
       </button>
       {open && (
-        <div className="px-3 pb-3 border-t border-rule/60 pt-3 space-y-2 text-xs text-ink-soft font-serif">
+        <div className="space-y-2 border-t border-rule/60 p-3 font-serif text-xs text-ink-soft">
           {children}
         </div>
       )}
@@ -229,14 +229,14 @@ function ConditionList({ q }: { q: string }) {
       )
     : CONDITIONS;
   if (matches.length === 0) {
-    return <p className="text-ink-mute italic">No matching conditions.</p>;
+    return <p className="italic text-ink-mute">No matching conditions.</p>;
   }
   return (
     <div className="space-y-3">
       {matches.map((c) => (
         <div key={c.index}>
           <div className="font-display tracking-wide text-ink">{c.name}</div>
-          <ul className="space-y-0.5 list-disc list-inside marker:text-brass-deep/60 text-ink-soft">
+          <ul className="list-inside list-disc space-y-0.5 text-ink-soft marker:text-brass-deep/60">
             {c.desc.map((line, i) => (
               <li key={i}>{line.replace(/^-\s*/, '')}</li>
             ))}
@@ -264,16 +264,16 @@ function RangeTable({ rows }: { rows: Array<{ range: string; effect: string }> }
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
-        <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+        <thead className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
           <tr>
-            <th className="text-left font-normal pb-1 pr-3 whitespace-nowrap">d100</th>
-            <th className="text-left font-normal pb-1">Effect</th>
+            <th className="whitespace-nowrap pb-1 pr-3 text-left font-normal">d100</th>
+            <th className="pb-1 text-left font-normal">Effect</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.range} className="border-t border-rule/60 align-top">
-              <td className="py-1 pr-3 font-display text-ink whitespace-nowrap">{r.range}</td>
+              <td className="whitespace-nowrap py-1 pr-3 font-display text-ink">{r.range}</td>
               <td className="py-1 text-ink-soft">{r.effect}</td>
             </tr>
           ))}
@@ -290,16 +290,16 @@ export default function DMRefTab() {
     <div className="space-y-3">
       <div className="rounded border border-rule bg-parchment-soft p-3">
         <div className="flex items-center gap-2">
-          <Search size={14} className="text-ink-mute flex-shrink-0" />
+          <Search size={14} className="flex-shrink-0 text-ink-mute" />
           <input
             type="text"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search conditions…"
-            className="flex-1 bg-parchment border border-rule rounded-sm px-2 py-1.5 text-sm text-ink placeholder-ink-faint font-serif focus:border-brass-deep focus:outline-none"
+            className="flex-1 rounded-sm border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink placeholder-ink-faint focus:border-brass-deep focus:outline-none"
           />
         </div>
-        <p className="text-[10px] text-ink-mute italic font-serif mt-1.5">
+        <p className="mt-1.5 font-serif text-[10px] italic text-ink-mute">
           Search filters the Conditions section.
         </p>
       </div>
@@ -327,11 +327,11 @@ export default function DMRefTab() {
       <Section title="DC Tiers">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+            <thead className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
               <tr>
-                <th className="text-left font-normal pb-1 pr-3">DC</th>
-                <th className="text-left font-normal pb-1 pr-3">Tier</th>
-                <th className="text-left font-normal pb-1">Notes</th>
+                <th className="pb-1 pr-3 text-left font-normal">DC</th>
+                <th className="pb-1 pr-3 text-left font-normal">Tier</th>
+                <th className="pb-1 text-left font-normal">Notes</th>
               </tr>
             </thead>
             <tbody>
@@ -339,7 +339,7 @@ export default function DMRefTab() {
                 <tr key={r.dc} className="border-t border-rule/60">
                   <td className="py-1 pr-3 font-display text-ink">{r.dc}</td>
                   <td className="py-1 pr-3 text-ink">{r.tier}</td>
-                  <td className="py-1 text-ink-soft italic">{r.note}</td>
+                  <td className="py-1 italic text-ink-soft">{r.note}</td>
                 </tr>
               ))}
             </tbody>
@@ -348,15 +348,15 @@ export default function DMRefTab() {
       </Section>
 
       <Section title="Skills by Ability">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+        <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
           {SKILLS.map((s) => (
             <div key={s.ability} className="flex gap-2">
-              <span className="font-display tracking-wider text-brass-deep w-9">{s.ability}</span>
+              <span className="w-9 font-display tracking-wider text-brass-deep">{s.ability}</span>
               <span className="text-ink-soft">
                 {s.names.length ? (
                   s.names.join(', ')
                 ) : (
-                  <span className="text-ink-mute italic">(no skills — saves only)</span>
+                  <span className="italic text-ink-mute">(no skills — saves only)</span>
                 )}
               </span>
             </div>
@@ -367,10 +367,10 @@ export default function DMRefTab() {
       <Section title="Exhaustion">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+            <thead className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
               <tr>
-                <th className="text-left font-normal pb-1 pr-3">Level</th>
-                <th className="text-left font-normal pb-1">Effect</th>
+                <th className="pb-1 pr-3 text-left font-normal">Level</th>
+                <th className="pb-1 text-left font-normal">Effect</th>
               </tr>
             </thead>
             <tbody>
@@ -383,7 +383,7 @@ export default function DMRefTab() {
             </tbody>
           </table>
         </div>
-        <p className="text-ink-mute italic">
+        <p className="italic text-ink-mute">
           Each level is cumulative. A long rest removes 1 level (food and water required).
         </p>
       </Section>
@@ -395,36 +395,36 @@ export default function DMRefTab() {
       <Section title="Travel Pace">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+            <thead className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
               <tr>
-                <th className="text-left font-normal pb-1 pr-3">Pace</th>
-                <th className="text-left font-normal pb-1 pr-3">Per Min</th>
-                <th className="text-left font-normal pb-1 pr-3">Per Hour</th>
-                <th className="text-left font-normal pb-1 pr-3">Per Day</th>
-                <th className="text-left font-normal pb-1">Effect</th>
+                <th className="pb-1 pr-3 text-left font-normal">Pace</th>
+                <th className="pb-1 pr-3 text-left font-normal">Per Min</th>
+                <th className="pb-1 pr-3 text-left font-normal">Per Hour</th>
+                <th className="pb-1 pr-3 text-left font-normal">Per Day</th>
+                <th className="pb-1 text-left font-normal">Effect</th>
               </tr>
             </thead>
             <tbody>
               {TRAVEL_PACE.map((r) => (
                 <tr key={r.pace} className="border-t border-rule/60">
                   <td className="py-1 pr-3 font-display text-ink">{r.pace}</td>
-                  <td className="py-1 pr-3 text-ink-soft whitespace-nowrap">{r.perMin}</td>
-                  <td className="py-1 pr-3 text-ink-soft whitespace-nowrap">{r.perHour}</td>
-                  <td className="py-1 pr-3 text-ink-soft whitespace-nowrap">{r.perDay}</td>
-                  <td className="py-1 text-ink-soft italic">{r.effect}</td>
+                  <td className="whitespace-nowrap py-1 pr-3 text-ink-soft">{r.perMin}</td>
+                  <td className="whitespace-nowrap py-1 pr-3 text-ink-soft">{r.perHour}</td>
+                  <td className="whitespace-nowrap py-1 pr-3 text-ink-soft">{r.perDay}</td>
+                  <td className="py-1 italic text-ink-soft">{r.effect}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="text-ink-mute italic">
+        <p className="italic text-ink-mute">
           Difficult terrain halves these distances. A vehicle or mount may impose a different pace.
         </p>
       </Section>
 
       <Section title="Travel Activities">
         <KVList rows={TRAVEL_ACTIVITIES} />
-        <p className="text-ink-mute italic">
+        <p className="italic text-ink-mute">
           A traveler can do one activity at a time (lookout is the default). Talking and remaining alert do not count as activities.
         </p>
       </Section>
@@ -436,22 +436,22 @@ export default function DMRefTab() {
       </Section>
 
       <Section title="Getting Lost">
-        <p className="text-ink-mute italic">
+        <p className="italic text-ink-mute">
           When the party lacks a reliable route, the navigator makes a WIS (Survival) check against the terrain DC. On a failure, the party travels in the wrong direction (DM picks).
         </p>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+            <thead className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
               <tr>
-                <th className="text-left font-normal pb-1 pr-3">Terrain</th>
-                <th className="text-left font-normal pb-1">DC</th>
+                <th className="pb-1 pr-3 text-left font-normal">Terrain</th>
+                <th className="pb-1 text-left font-normal">DC</th>
               </tr>
             </thead>
             <tbody>
               {GETTING_LOST.map((r) => (
                 <tr key={r.terrain} className="border-t border-rule/60 align-top">
                   <td className="py-1 pr-3 text-ink-soft">{r.terrain}</td>
-                  <td className="py-1 font-display text-ink whitespace-nowrap">{r.dc}</td>
+                  <td className="whitespace-nowrap py-1 font-display text-ink">{r.dc}</td>
                 </tr>
               ))}
             </tbody>
@@ -460,28 +460,28 @@ export default function DMRefTab() {
       </Section>
 
       <Section title="Foraging">
-        <p className="text-ink-mute italic">
+        <p className="italic text-ink-mute">
           One forager at a time may make a WIS (Survival) check while traveling. On a success, they find 1d6 + WIS modifier pounds of food and gallons of water that day.
         </p>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+            <thead className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
               <tr>
-                <th className="text-left font-normal pb-1 pr-3">Region</th>
-                <th className="text-left font-normal pb-1">DC</th>
+                <th className="pb-1 pr-3 text-left font-normal">Region</th>
+                <th className="pb-1 text-left font-normal">DC</th>
               </tr>
             </thead>
             <tbody>
               {FORAGING.map((r) => (
                 <tr key={r.region} className="border-t border-rule/60 align-top">
                   <td className="py-1 pr-3 text-ink-soft">{r.region}</td>
-                  <td className="py-1 font-display text-ink whitespace-nowrap">{r.dc}</td>
+                  <td className="whitespace-nowrap py-1 font-display text-ink">{r.dc}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="text-ink-mute italic">
+        <p className="italic text-ink-mute">
           A character needs 1 lb of food and 1 gallon of water per day (½ gal in cool climates, 2 gal in hot).
         </p>
       </Section>
@@ -502,75 +502,75 @@ export default function DMRefTab() {
         <div className="font-display tracking-wide text-ink">Mounts</div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+            <thead className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
               <tr>
-                <th className="text-left font-normal pb-1 pr-3">Mount</th>
-                <th className="text-left font-normal pb-1 pr-3">Speed</th>
-                <th className="text-left font-normal pb-1">Notes</th>
+                <th className="pb-1 pr-3 text-left font-normal">Mount</th>
+                <th className="pb-1 pr-3 text-left font-normal">Speed</th>
+                <th className="pb-1 text-left font-normal">Notes</th>
               </tr>
             </thead>
             <tbody>
               {MOUNTS.map((r) => (
                 <tr key={r.name} className="border-t border-rule/60 align-top">
-                  <td className="py-1 pr-3 font-display text-ink whitespace-nowrap">{r.name}</td>
-                  <td className="py-1 pr-3 text-ink-soft whitespace-nowrap">{r.speed}</td>
+                  <td className="whitespace-nowrap py-1 pr-3 font-display text-ink">{r.name}</td>
+                  <td className="whitespace-nowrap py-1 pr-3 text-ink-soft">{r.speed}</td>
                   <td className="py-1 text-ink-soft">{r.notes}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="text-ink-mute italic">
+        <p className="italic text-ink-mute">
           A mount may move at twice its speed (gallop) for up to 1 hour, then must rest.
         </p>
-        <div className="font-display tracking-wide text-ink pt-1">Vehicles</div>
+        <div className="pt-1 font-display tracking-wide text-ink">Vehicles</div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="text-brass-deep font-display uppercase tracking-wider text-[10px]">
+            <thead className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
               <tr>
-                <th className="text-left font-normal pb-1 pr-3">Vehicle</th>
-                <th className="text-left font-normal pb-1 pr-3">Per Hour</th>
-                <th className="text-left font-normal pb-1">Per Day</th>
+                <th className="pb-1 pr-3 text-left font-normal">Vehicle</th>
+                <th className="pb-1 pr-3 text-left font-normal">Per Hour</th>
+                <th className="pb-1 text-left font-normal">Per Day</th>
               </tr>
             </thead>
             <tbody>
               {VEHICLES.map((r) => (
                 <tr key={r.name} className="border-t border-rule/60 align-top">
-                  <td className="py-1 pr-3 font-display text-ink whitespace-nowrap">{r.name}</td>
-                  <td className="py-1 pr-3 text-ink-soft whitespace-nowrap">{r.perHour}</td>
-                  <td className="py-1 text-ink-soft whitespace-nowrap">{r.perDay}</td>
+                  <td className="whitespace-nowrap py-1 pr-3 font-display text-ink">{r.name}</td>
+                  <td className="whitespace-nowrap py-1 pr-3 text-ink-soft">{r.perHour}</td>
+                  <td className="whitespace-nowrap py-1 text-ink-soft">{r.perDay}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="text-ink-mute italic">
+        <p className="italic text-ink-mute">
           Ship daily distances assume favorable wind and crew. Galleys and longships may be rowed at reduced pace when becalmed.
         </p>
       </Section>
 
       <Section title="Madness — Short-Term">
-        <p className="text-ink-mute italic">
+        <p className="italic text-ink-mute">
           Triggered by a brief shock (frightful sight, magical effect). Lasts 1 minute.
         </p>
         <RangeTable rows={SHORT_MADNESS} />
       </Section>
 
       <Section title="Madness — Long-Term">
-        <p className="text-ink-mute italic">
+        <p className="italic text-ink-mute">
           Caused by prolonged exposure to a maddening influence or a deeply traumatic event. Lasts 1d10 × 10 hours.
         </p>
         <RangeTable rows={LONG_MADNESS} />
       </Section>
 
       <Section title="Madness — Indefinite">
-        <p className="text-ink-mute italic">
+        <p className="italic text-ink-mute">
           A new flaw the character takes on after a profound mental insult. Lasts until removed by <span className="not-italic">greater restoration</span>, <span className="not-italic">heal</span>, or similar magic.
         </p>
         <RangeTable rows={INDEFINITE_MADNESS} />
       </Section>
 
-      <p className="text-[10px] text-ink-mute italic font-serif text-center">
+      <p className="text-center font-serif text-[10px] italic text-ink-mute">
         Reference text adapted from the D&amp;D 5e SRD 5.1 © Wizards of the Coast, CC-BY-4.0.
       </p>
     </div>

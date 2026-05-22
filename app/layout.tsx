@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${cinzel.variable} ${garamond.variable}`}>
-      <body className="bg-parchment text-ink font-serif antialiased">
+      <body className="bg-parchment font-serif text-ink antialiased">
         <AuthProvider>
           <ConfirmProvider>
             {children}

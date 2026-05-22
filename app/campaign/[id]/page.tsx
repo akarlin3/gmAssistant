@@ -34,14 +34,14 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   }, [id, user]);
 
   if (authLoading || loading) {
-    return <main className="min-h-screen flex items-center justify-center text-xs text-zinc-500">Loading…</main>;
+    return <main className="flex min-h-screen items-center justify-center text-xs text-zinc-500">Loading…</main>;
   }
   if (error) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-5">
-        <div className="text-center space-y-3">
-          <p className="text-red-400 text-sm">{error}</p>
-          <button onClick={() => router.replace('/campaign')} className="text-xs px-3 py-1 rounded border border-zinc-800 text-zinc-300 hover:bg-zinc-900">
+      <main className="flex min-h-screen items-center justify-center p-5">
+        <div className="space-y-3 text-center">
+          <p className="text-sm text-red-400">{error}</p>
+          <button onClick={() => router.replace('/campaign')} className="rounded border border-zinc-800 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-900">
             Back to campaigns
           </button>
         </div>

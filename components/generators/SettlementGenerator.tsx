@@ -87,24 +87,24 @@ export default function SettlementGenerator({
       renderResult={(r) => (
         <div className="space-y-3 font-serif text-sm text-ink">
           <div>
-            <div className="font-display tracking-wide text-base">{r.name}</div>
-            <div className="text-xs text-ink-mute italic">
+            <div className="font-display text-base tracking-wide">{r.name}</div>
+            <div className="text-xs italic text-ink-mute">
               {r.details.sizeClass} · pop. {r.details.population.toLocaleString()}{r.details.region ? ` · ${r.details.region}` : ''}
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Government</div>
+              <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Government</div>
               <div>{r.details.government}</div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Economy</div>
+              <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Economy</div>
               <div>{r.details.economy}</div>
             </div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Notables</div>
-            <ul className="space-y-1 mt-1">
+            <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Notables</div>
+            <ul className="mt-1 space-y-1">
               {r.details.notables.map((n, i) => (
                 <li key={i}>
                   <span className="font-display tracking-wide">{n.name}</span> — <span className="italic text-ink-soft">{n.role}</span>
@@ -113,8 +113,8 @@ export default function SettlementGenerator({
             </ul>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Hooks</div>
-            <ul className="list-disc ml-5 space-y-1">
+            <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Hooks</div>
+            <ul className="ml-5 list-disc space-y-1">
               {r.details.hooks.map((h, i) => <li key={i}>{h}</li>)}
             </ul>
           </div>

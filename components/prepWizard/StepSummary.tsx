@@ -45,15 +45,15 @@ function countFor(key: PrepTargetKey, get: Get, logs: SessionLogEntry[]): { curr
 function CountLine({ label, current, target, detail }: { label: string; current: number; target: number; detail?: string }) {
   const atTarget = current >= target;
   return (
-    <li className="flex items-center gap-2 py-1.5 px-2 rounded border border-rule bg-parchment-soft">
+    <li className="flex items-center gap-2 rounded border border-rule bg-parchment-soft px-2 py-1.5">
       {atTarget
-        ? <Check size={14} className="text-moss flex-shrink-0" />
-        : <Circle size={12} className="text-crimson flex-shrink-0" />}
-      <span className="text-sm font-serif text-ink flex-1">{label}</span>
-      <span className={`text-xs font-display tabular-nums ${atTarget ? 'text-moss' : 'text-crimson'}`}>
+        ? <Check size={14} className="flex-shrink-0 text-moss" />
+        : <Circle size={12} className="flex-shrink-0 text-crimson" />}
+      <span className="flex-1 font-serif text-sm text-ink">{label}</span>
+      <span className={`font-display text-xs tabular-nums ${atTarget ? 'text-moss' : 'text-crimson'}`}>
         {current} / {target}
       </span>
-      {detail && <span className="text-[11px] text-ink-mute font-serif italic">{detail}</span>}
+      {detail && <span className="font-serif text-[11px] italic text-ink-mute">{detail}</span>}
     </li>
   );
 }
@@ -113,20 +113,20 @@ export default function StepSummary({ get, soloMode, overrides, onBack, onSaveAn
   return (
     <section className="space-y-4">
       <header className="space-y-2">
-        <span className="text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider border-moss/40 bg-moss/5 text-moss">
+        <span className="rounded-sm border border-moss/40 bg-moss/5 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-moss">
           Lazy DM + CCD + PR
         </span>
         <h2 className="font-display text-2xl tracking-wide text-ink">Ready for Session {sessionNumber}</h2>
-        <p className="text-sm font-serif italic text-ink-soft">
+        <p className="font-serif text-sm italic text-ink-soft">
           Every Phase 0-4 prep target should be met before you run. Missing targets are flagged below — you can still start with a warning.
         </p>
       </header>
 
       {gateBlocked && (
         <div className="flex items-start gap-2 rounded border border-crimson/40 bg-crimson/5 p-2.5 text-sm">
-          <AlertTriangle size={14} className="text-crimson flex-shrink-0 mt-0.5" />
-          <div className="text-ink-soft font-serif">
-            <span className="font-display uppercase tracking-wider text-xs text-crimson">Targets Unmet · </span>
+          <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-crimson" />
+          <div className="font-serif text-ink-soft">
+            <span className="font-display text-xs uppercase tracking-wider text-crimson">Targets Unmet · </span>
             {strongStartMissing && <>Strong Start not written. </>}
             {missingCount > 0 && <>{missingCount} prep section{missingCount === 1 ? ' is' : 's are'} below recommended count.</>}
           </div>
@@ -134,26 +134,26 @@ export default function StepSummary({ get, soloMode, overrides, onBack, onSaveAn
       )}
 
       <div className="space-y-2">
-        <h3 className="font-display tracking-wide text-sm text-ink">Strong Start</h3>
+        <h3 className="font-display text-sm tracking-wide text-ink">Strong Start</h3>
         <ul className="space-y-1">
-          <li className="flex items-start gap-2 py-1.5 px-2 rounded border border-rule bg-parchment-soft">
+          <li className="flex items-start gap-2 rounded border border-rule bg-parchment-soft px-2 py-1.5">
             {strongStart
-              ? <Check size={14} className="text-moss flex-shrink-0 mt-0.5" />
-              : <Circle size={12} className="text-crimson flex-shrink-0 mt-0.5" />}
+              ? <Check size={14} className="mt-0.5 flex-shrink-0 text-moss" />
+              : <Circle size={12} className="mt-0.5 flex-shrink-0 text-crimson" />}
             <div className="flex-1 space-y-0.5">
               {strongStart
-                ? <p className="text-xs font-serif italic text-ink-soft">
+                ? <p className="font-serif text-xs italic text-ink-soft">
                     &ldquo;{strongStart.slice(0, 200)}{strongStart.length > 200 ? '…' : ''}&rdquo;
                   </p>
-                : <p className="text-xs font-serif italic text-crimson">Not yet written.</p>}
+                : <p className="font-serif text-xs italic text-crimson">Not yet written.</p>}
             </div>
           </li>
-          <li className="flex items-center gap-2 py-1.5 px-2 rounded border border-rule bg-parchment-soft">
+          <li className="flex items-center gap-2 rounded border border-rule bg-parchment-soft px-2 py-1.5">
             {goalsActive > 0
-              ? <Check size={14} className="text-moss flex-shrink-0" />
-              : <Circle size={12} className="text-brass flex-shrink-0" />}
-            <span className="text-sm font-serif text-ink flex-1">PC Goals tracked (active)</span>
-            <span className="text-xs font-display tabular-nums text-brass-deep">
+              ? <Check size={14} className="flex-shrink-0 text-moss" />
+              : <Circle size={12} className="flex-shrink-0 text-brass" />}
+            <span className="flex-1 font-serif text-sm text-ink">PC Goals tracked (active)</span>
+            <span className="font-display text-xs tabular-nums text-brass-deep">
               {goalsActive} active / {filledGoals.length} written
             </span>
           </li>
@@ -165,9 +165,9 @@ export default function StepSummary({ get, soloMode, overrides, onBack, onSaveAn
         return (
           <div key={group.phase} className="space-y-2">
             <div className="flex items-baseline justify-between">
-              <h3 className="font-display tracking-wide text-sm text-ink">{group.title}</h3>
+              <h3 className="font-display text-sm tracking-wide text-ink">{group.title}</h3>
               {groupMisses > 0 && (
-                <span className="text-[10px] font-display uppercase tracking-wider text-crimson">
+                <span className="font-display text-[10px] uppercase tracking-wider text-crimson">
                   {groupMisses} unmet
                 </span>
               )}
@@ -188,40 +188,40 @@ export default function StepSummary({ get, soloMode, overrides, onBack, onSaveAn
       })}
 
       <div className="space-y-2">
-        <h3 className="font-display tracking-wide text-sm text-ink">Prep Notes</h3>
+        <h3 className="font-display text-sm tracking-wide text-ink">Prep Notes</h3>
         {nonEmptyNotes.length === 0 ? (
-          <p className="text-xs text-ink-mute italic font-serif">No per-step notes captured.</p>
+          <p className="font-serif text-xs italic text-ink-mute">No per-step notes captured.</p>
         ) : (
           <ul className="space-y-2">
             {nonEmptyNotes.map(({ n, label, text }) => (
               <li key={n} className="rounded border border-rule bg-parchment-soft p-3">
-                <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+                <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
                   {n} · {label}
                 </div>
-                <p className="text-sm font-serif text-ink-soft whitespace-pre-wrap mt-1">{text}</p>
+                <p className="mt-1 whitespace-pre-wrap font-serif text-sm text-ink-soft">{text}</p>
               </li>
             ))}
           </ul>
         )}
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-rule">
+      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-rule pt-2">
         <button
           onClick={onBack}
-          className="text-xs px-3 py-1.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-1.5"
+          className="flex items-center gap-1.5 rounded border border-rule px-3 py-1.5 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
         >
           <ArrowLeft size={12} /> Back to Editing
         </button>
         <div className="flex items-center gap-2">
           <button
             onClick={onSaveAndClose}
-            className="text-xs px-3 py-1.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-1.5"
+            className="flex items-center gap-1.5 rounded border border-rule px-3 py-1.5 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
           >
             <Save size={12} /> Save and Close
           </button>
           <button
             onClick={startWithGate}
-            className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+            className="flex items-center gap-1.5 rounded border border-crimson/60 bg-crimson/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment"
             title={gateBlocked ? 'Targets unmet — will warn before starting' : 'Start the session'}
           >
             <Swords size={12} /> {gateBlocked ? 'Start Anyway' : 'Start Session Now'}

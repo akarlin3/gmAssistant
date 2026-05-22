@@ -90,24 +90,24 @@ export default function MagicShopGenerator({
       renderResult={(r) => (
         <div className="space-y-3 font-serif text-sm text-ink">
           <div>
-            <div className="font-display tracking-wide text-base">{r.shopName}</div>
-            <div className="text-xs text-ink-mute italic">{r.inputs.archetype} · {r.inputs.settlementSize}</div>
+            <div className="font-display text-base tracking-wide">{r.shopName}</div>
+            <div className="text-xs italic text-ink-mute">{r.inputs.archetype} · {r.inputs.settlementSize}</div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Proprietor</div>
+            <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Proprietor</div>
             <div>{r.owner.name} — <span className="italic text-ink-soft">{r.owner.descriptor}</span></div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Inventory</div>
-            <ul className="space-y-2 mt-1">
+            <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Inventory</div>
+            <ul className="mt-1 space-y-2">
               {r.inventory.map((it, i) => (
                 <li key={i} className="border-l-2 border-crimson/40 pl-2">
                   <div className="flex items-baseline justify-between gap-3">
                     <span className="font-display tracking-wide">{it.name}</span>
-                    <span className="text-xs text-brass-deep font-display tracking-wider">{it.price}</span>
+                    <span className="font-display text-xs tracking-wider text-brass-deep">{it.price}</span>
                   </div>
                   <div className="text-[10px] uppercase text-ink-mute">{it.rarity}</div>
-                  {it.note && <div className="text-xs text-ink-soft italic mt-0.5">{it.note}</div>}
+                  {it.note && <div className="mt-0.5 text-xs italic text-ink-soft">{it.note}</div>}
                 </li>
               ))}
             </ul>

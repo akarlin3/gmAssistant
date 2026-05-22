@@ -94,68 +94,68 @@ export default function SessionLogFinalizer({
   };
 
   return (
-    <div className="fixed inset-0 z-40 bg-ink/60 flex items-center justify-center p-3">
-      <div className="bg-parchment-soft border border-rule rounded-lg shadow-page w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-rule bg-parchment">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/60 p-3">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg border border-rule bg-parchment-soft shadow-page">
+        <div className="flex items-center justify-between border-b border-rule bg-parchment px-4 py-3">
           <h2 className="font-display text-lg tracking-wide text-ink">End of Session</h2>
-          <span className="text-xs text-ink-mute font-serif italic">
+          <span className="font-serif text-xs italic text-ink-mute">
             Save the log to continue editing your campaign
           </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-2">
+        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_180px]">
             <label className="space-y-1">
-              <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">Title</span>
+              <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Title</span>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+                className="w-full rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink"
               />
             </label>
             <label className="space-y-1">
-              <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">Date</span>
+              <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Date</span>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+                className="w-full rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink"
               />
             </label>
           </div>
 
           <label className="block space-y-1">
-            <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">Recap</span>
+            <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Recap</span>
             <textarea
               value={recap}
               onChange={(e) => setRecap(e.target.value)}
               placeholder="What happened? Threads opened, threads closed, memorable moments."
               rows={6}
-              className="w-full bg-parchment border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif resize-y"
+              className="w-full resize-y rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink"
             />
           </label>
 
           <label className="block space-y-1">
-            <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">XP Awarded (optional)</span>
+            <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">XP Awarded (optional)</span>
             <input
               type="number"
               min={0}
               value={xpText}
               onChange={(e) => setXpText(e.target.value)}
               placeholder="e.g. 250"
-              className="w-32 bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+              className="w-32 rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink"
             />
           </label>
 
           <div className="rounded border border-rule bg-parchment p-3">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="font-display tracking-wide text-sm text-ink">Events Captured</span>
-              <span className="text-[11px] text-ink-mute font-serif">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="font-display text-sm tracking-wide text-ink">Events Captured</span>
+              <span className="font-serif text-[11px] text-ink-mute">
                 {draftEvents.length} total · {summary.kept} kept · {summary.dismissed} dismissed · {summary.starred} starred
               </span>
             </div>
             {draftEvents.length === 0 ? (
-              <p className="text-xs text-ink-mute italic font-serif">No events were captured during this session.</p>
+              <p className="font-serif text-xs italic text-ink-mute">No events were captured during this session.</p>
             ) : (
               <div className="space-y-2">
                 {(Object.entries(grouped) as [ChangeEventKind, ChangeEvent[]][]).map(([kind, list]) => {
@@ -164,10 +164,10 @@ export default function SessionLogFinalizer({
                     <div key={kind} className="rounded border border-rule/60 bg-parchment-soft">
                       <button
                         onClick={() => setGroupOpen(g => ({ ...g, [kind]: !open }))}
-                        className="w-full flex items-center gap-2 px-2 py-1 text-left hover:bg-parchment-deep/40"
+                        className="flex w-full items-center gap-2 px-2 py-1 text-left hover:bg-parchment-deep/40"
                       >
                         {open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />}
-                        <span className="text-[11px] font-display uppercase tracking-wider text-brass-deep flex-1">
+                        <span className="flex-1 font-display text-[11px] uppercase tracking-wider text-brass-deep">
                           {CHANGE_EVENT_LABELS[kind] || kind}
                         </span>
                         <span className="text-[10px] text-ink-mute">{list.length}</span>
@@ -183,7 +183,7 @@ export default function SessionLogFinalizer({
                               >
                                 <Star size={12} fill={e.starred ? 'currentColor' : 'none'} />
                               </button>
-                              <span className={`flex-1 text-xs font-serif ${e.dismissed ? 'line-through text-ink-mute' : 'text-ink-soft'}`}>
+                              <span className={`flex-1 font-serif text-xs ${e.dismissed ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>
                                 {e.summary}
                               </span>
                               <button
@@ -206,23 +206,23 @@ export default function SessionLogFinalizer({
         </div>
 
         {hasPrepWizardRun && (
-          <div className="px-4 py-2 border-t border-rule bg-moss/5 text-xs text-ink-soft font-serif italic">
-            <span className="text-moss font-display uppercase tracking-wider text-[10px] not-italic">Prep · </span>
+          <div className="border-t border-rule bg-moss/5 px-4 py-2 font-serif text-xs italic text-ink-soft">
+            <span className="font-display text-[10px] uppercase not-italic tracking-wider text-moss">Prep · </span>
             Prep notes from your wizard run are available in the Sessions tab.
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-rule bg-parchment">
+        <div className="flex items-center justify-between gap-2 border-t border-rule bg-parchment px-4 py-3">
           <button
             onClick={handleDiscard}
-            className="text-xs text-ink-mute hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1"
+            className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-ink-mute hover:text-crimson"
             title="Discard this session without saving"
           >
             <Trash2 size={12} /> Discard
           </button>
           <button
             onClick={handleSave}
-            className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+            className="flex items-center gap-1.5 rounded border border-crimson/60 bg-crimson/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment"
           >
             <Save size={12} /> Save &amp; Close
           </button>

@@ -24,7 +24,7 @@ export default function StringListEditor({
   return (
     <div className="space-y-1.5">
       {items.length === 0 && (
-        <p className="text-xs text-ink-mute italic font-serif">Nothing yet.</p>
+        <p className="font-serif text-xs italic text-ink-mute">Nothing yet.</p>
       )}
       {items.map((it, i) => (
         <div key={i} className="flex items-start gap-2">
@@ -33,11 +33,11 @@ export default function StringListEditor({
             onChange={(e) => update(i, e.target.value)}
             placeholder={placeholder}
             rows={rows}
-            className="flex-1 bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif resize-y"
+            className="flex-1 resize-y rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink"
           />
           <button
             onClick={() => remove(i)}
-            className="text-ink-mute hover:text-crimson p-1 mt-0.5"
+            className="mt-0.5 p-1 text-ink-mute hover:text-crimson"
             title="Remove"
           >
             <Trash2 size={14} />
@@ -46,7 +46,7 @@ export default function StringListEditor({
       ))}
       <button
         onClick={add}
-        className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider"
+        className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
       >
         <Plus size={12} /> {addLabel}
       </button>

@@ -238,9 +238,9 @@ const Chip = ({
   <button
     type="button"
     onClick={onClick}
-    className={`px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider transition-colors ${
+    className={`rounded-sm border px-2 py-0.5 font-display uppercase tracking-wider transition-colors ${
       active
-        ? 'bg-crimson border-crimson text-parchment'
+        ? 'border-crimson bg-crimson text-parchment'
         : 'border-rule text-ink-soft hover:bg-parchment-deep'
     }`}
   >
@@ -250,8 +250,8 @@ const Chip = ({
 
 function AbilityCell({ label, score }: { label: string; score: number }) {
   return (
-    <div className="text-center border border-rule bg-parchment-soft rounded-sm py-1.5 px-1">
-      <div className="font-display uppercase tracking-wider text-[10px] text-brass-deep">{label}</div>
+    <div className="rounded-sm border border-rule bg-parchment-soft px-1 py-1.5 text-center">
+      <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{label}</div>
       <div className="font-serif text-sm leading-tight">
         {score} <span className="text-ink-mute">({mod(score)})</span>
       </div>
@@ -274,14 +274,14 @@ function ActionBlock({ entries, heading }: { entries: Action[]; heading?: string
   return (
     <div className="space-y-1.5">
       {heading && (
-        <div className="font-display uppercase tracking-wider text-xs text-brass-deep border-b border-rule pb-0.5">
+        <div className="border-b border-rule pb-0.5 font-display text-xs uppercase tracking-wider text-brass-deep">
           {heading}
         </div>
       )}
       {entries.map((a, i) => (
         <div key={i} className="text-xs leading-snug">
-          <span className="font-display italic text-ink font-semibold">{a.name}.</span>{' '}
-          <span className="font-serif text-ink whitespace-pre-wrap">{a.desc}</span>
+          <span className="font-display font-semibold italic text-ink">{a.name}.</span>{' '}
+          <span className="whitespace-pre-wrap font-serif text-ink">{a.desc}</span>
         </div>
       ))}
     </div>
@@ -290,25 +290,25 @@ function ActionBlock({ entries, heading }: { entries: Action[]; heading?: string
 
 function StatBlock({ m }: { m: Monster }) {
   return (
-    <div className="border-2 border-brass-deep/60 bg-parchment rounded p-4 space-y-3 shadow-sm">
+    <div className="space-y-3 rounded border-2 border-brass-deep/60 bg-parchment p-4 shadow-sm">
       <div>
         <div className="flex items-start gap-2">
-          <h3 className="font-display uppercase tracking-wider text-xl text-crimson flex-1">
+          <h3 className="flex-1 font-display text-xl uppercase tracking-wider text-crimson">
             {m.name || (m.homebrew ? 'Untitled Homebrew' : '')}
           </h3>
           {m.homebrew && (
             <span
-              className="mt-1 text-[10px] text-wine font-display tracking-wider inline-flex items-center gap-0.5 border border-wine/60 rounded-sm px-1.5 py-0.5"
+              className="mt-1 inline-flex items-center gap-0.5 rounded-sm border border-wine/60 px-1.5 py-0.5 font-display text-[10px] tracking-wider text-wine"
               title="Homebrew"
             >
               <Wand2 size={10} /> HB
             </span>
           )}
         </div>
-        <div className="font-serif italic text-ink-soft text-sm">{fmtTypeLine(m)}</div>
+        <div className="font-serif text-sm italic text-ink-soft">{fmtTypeLine(m)}</div>
       </div>
 
-      <div className="border-t border-b border-rule py-2 space-y-1">
+      <div className="space-y-1 border-y border-rule py-2">
         <StatLine
           label="Armor Class"
           value={m.armor_class != null ? `${m.armor_class}${m.armor_desc ? ` (${m.armor_desc})` : ''}` : '—'}
@@ -329,7 +329,7 @@ function StatBlock({ m }: { m: Monster }) {
         <AbilityCell label="Cha" score={m.charisma} />
       </div>
 
-      <div className="border-t border-rule pt-2 space-y-1">
+      <div className="space-y-1 border-t border-rule pt-2">
         <StatLine label="Saving Throws" value={fmtSaves(m) || undefined} />
         <StatLine label="Skills" value={fmtSkills(m.skills) || undefined} />
         <StatLine label="Damage Vulnerabilities" value={m.damage_vulnerabilities} />
@@ -366,12 +366,12 @@ function StatBlock({ m }: { m: Monster }) {
       )}
 
       {m.legendary_actions.length > 0 && (
-        <div className="border-t border-rule pt-2 space-y-1.5">
-          <div className="font-display uppercase tracking-wider text-xs text-brass-deep border-b border-rule pb-0.5">
+        <div className="space-y-1.5 border-t border-rule pt-2">
+          <div className="border-b border-rule pb-0.5 font-display text-xs uppercase tracking-wider text-brass-deep">
             Legendary Actions
           </div>
           {m.legendary_desc && (
-            <div className="font-serif text-xs text-ink-soft italic whitespace-pre-wrap">{m.legendary_desc}</div>
+            <div className="whitespace-pre-wrap font-serif text-xs italic text-ink-soft">{m.legendary_desc}</div>
           )}
           <ActionBlock entries={m.legendary_actions} />
         </div>
@@ -380,15 +380,15 @@ function StatBlock({ m }: { m: Monster }) {
       {m.desc && (
         <div className="border-t border-rule pt-2">
           <details className="text-xs">
-            <summary className="font-display uppercase tracking-wider text-brass-deep cursor-pointer">
+            <summary className="cursor-pointer font-display uppercase tracking-wider text-brass-deep">
               Lore
             </summary>
-            <div className="font-serif text-ink mt-1 whitespace-pre-wrap">{m.desc}</div>
+            <div className="mt-1 whitespace-pre-wrap font-serif text-ink">{m.desc}</div>
           </details>
         </div>
       )}
 
-      <div className="text-[10px] text-ink-mute font-display uppercase tracking-wider pt-1">
+      <div className="pt-1 font-display text-[10px] uppercase tracking-wider text-ink-mute">
         Source: {m.source || 'Unknown'}
         {m.homebrew && ' · Homebrew'}
       </div>
@@ -510,7 +510,7 @@ export default function MonstersTab({
     <div
       role="tablist"
       aria-label="Monsters mode"
-      className="inline-flex border border-rule rounded overflow-hidden font-display uppercase tracking-wider text-xs"
+      className="inline-flex overflow-hidden rounded border border-rule font-display text-xs uppercase tracking-wider"
     >
       <button
         type="button"
@@ -528,13 +528,13 @@ export default function MonstersTab({
         role="tab"
         aria-selected={mode === 'scale'}
         onClick={() => setMode('scale')}
-        className={`px-3 py-1.5 border-l border-rule transition-colors flex items-center gap-1.5 ${
+        className={`flex items-center gap-1.5 border-l border-rule px-3 py-1.5 transition-colors ${
           mode === 'scale' ? 'bg-crimson text-parchment' : 'text-ink-soft hover:bg-parchment-deep'
         }`}
       >
         Scale to CR
         <span
-          className={`text-[9px] px-1 py-0.5 rounded-sm border ${
+          className={`rounded-sm border px-1 py-0.5 text-[9px] ${
             mode === 'scale'
               ? 'border-parchment/60 text-parchment/90'
               : 'border-crimson/60 bg-crimson/10 text-crimson'
@@ -548,7 +548,7 @@ export default function MonstersTab({
         role="tab"
         aria-selected={mode === 'homebrew'}
         onClick={() => setMode('homebrew')}
-        className={`px-3 py-1.5 border-l border-rule transition-colors flex items-center gap-1.5 ${
+        className={`flex items-center gap-1.5 border-l border-rule px-3 py-1.5 transition-colors ${
           mode === 'homebrew' ? 'bg-crimson text-parchment' : 'text-ink-soft hover:bg-parchment-deep'
         }`}
       >
@@ -556,7 +556,7 @@ export default function MonstersTab({
         Homebrew
         {homebrewMonsters.length > 0 && (
           <span
-            className={`text-[10px] px-1 py-0 rounded-sm ${
+            className={`rounded-sm px-1 py-0 text-[10px] ${
               mode === 'homebrew' ? 'bg-parchment/20' : 'bg-parchment-deep text-ink-mute'
             }`}
           >
@@ -569,7 +569,7 @@ export default function MonstersTab({
         role="tab"
         aria-selected={mode === 'build'}
         onClick={() => setMode('build')}
-        className={`px-3 py-1.5 border-l border-rule transition-colors ${
+        className={`border-l border-rule px-3 py-1.5 transition-colors ${
           mode === 'build' ? 'bg-crimson text-parchment' : 'text-ink-soft hover:bg-parchment-deep'
         }`}
       >
@@ -625,7 +625,7 @@ export default function MonstersTab({
       <div className="space-y-3">
         {modeToggle}
         <div className="rounded border border-crimson/40 bg-parchment-soft p-4 text-sm text-ink">
-          <div className="flex items-center gap-2 text-crimson font-display uppercase tracking-wider">
+          <div className="flex items-center gap-2 font-display uppercase tracking-wider text-crimson">
             <ShieldAlert size={16} /> Couldn&rsquo;t load monsters
           </div>
           <div className="mt-1 font-serif text-ink-soft">{loadError}</div>
@@ -638,7 +638,7 @@ export default function MonstersTab({
     return (
       <div className="space-y-3">
         {modeToggle}
-        <div className="rounded border border-rule bg-parchment-soft p-6 flex items-center gap-2 text-ink-mute text-sm font-serif">
+        <div className="flex items-center gap-2 rounded border border-rule bg-parchment-soft p-6 font-serif text-sm text-ink-mute">
           <Loader2 size={16} className="animate-spin" /> Loading bestiary&hellip;
         </div>
       </div>
@@ -648,10 +648,10 @@ export default function MonstersTab({
   return (
     <div className="space-y-3">
       {modeToggle}
-      <div className="rounded border border-rule bg-parchment-soft p-3 space-y-3 text-xs">
+      <div className="space-y-3 rounded border border-rule bg-parchment-soft p-3 text-xs">
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <div className="font-display uppercase tracking-wider text-[10px] text-brass-deep mb-1">CR Min</div>
+            <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">CR Min</div>
             <select
               value={crMinIdx}
               onChange={(e) => {
@@ -659,7 +659,7 @@ export default function MonstersTab({
                 setCrMinIdx(v);
                 if (v > crMaxIdx) setCrMaxIdx(v);
               }}
-              className="bg-parchment border border-rule rounded-sm px-2 py-1 text-sm text-ink font-serif focus:border-brass-deep focus:outline-none"
+              className="rounded-sm border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink focus:border-brass-deep focus:outline-none"
             >
               {CR_OPTIONS.map((o, i) => (
                 <option key={o.label} value={i}>
@@ -669,7 +669,7 @@ export default function MonstersTab({
             </select>
           </div>
           <div>
-            <div className="font-display uppercase tracking-wider text-[10px] text-brass-deep mb-1">CR Max</div>
+            <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">CR Max</div>
             <select
               value={crMaxIdx}
               onChange={(e) => {
@@ -677,7 +677,7 @@ export default function MonstersTab({
                 setCrMaxIdx(v);
                 if (v < crMinIdx) setCrMinIdx(v);
               }}
-              className="bg-parchment border border-rule rounded-sm px-2 py-1 text-sm text-ink font-serif focus:border-brass-deep focus:outline-none"
+              className="rounded-sm border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink focus:border-brass-deep focus:outline-none"
             >
               {CR_OPTIONS.map((o, i) => (
                 <option key={o.label} value={i}>
@@ -686,7 +686,7 @@ export default function MonstersTab({
               ))}
             </select>
           </div>
-          <label className="flex items-center gap-1.5 cursor-pointer select-none font-display uppercase tracking-wider text-ink-soft">
+          <label className="flex cursor-pointer select-none items-center gap-1.5 font-display uppercase tracking-wider text-ink-soft">
             <input
               type="checkbox"
               checked={hbOnly}
@@ -698,13 +698,13 @@ export default function MonstersTab({
               <Wand2 size={10} /> Homebrew only ({homebrewMonsters.length})
             </span>
           </label>
-          <span className="text-ink-mute font-display tracking-wider ml-auto">
+          <span className="ml-auto font-display tracking-wider text-ink-mute">
             {pool.length.toLocaleString()} / {denominator.toLocaleString()} in pool
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="font-display uppercase tracking-wider text-[10px] text-brass-deep mr-1">Type</span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">Type</span>
           {TYPES.map((t) => (
             <Chip key={t} active={types.has(t)} onClick={() => toggleType(t)}>
               {t}
@@ -714,7 +714,7 @@ export default function MonstersTab({
             <button
               type="button"
               onClick={clearFilters}
-              className="ml-1 text-ink-mute hover:text-crimson font-display uppercase tracking-wider px-1"
+              className="ml-1 px-1 font-display uppercase tracking-wider text-ink-mute hover:text-crimson"
             >
               Clear
             </button>
@@ -727,7 +727,7 @@ export default function MonstersTab({
           type="button"
           onClick={roll}
           disabled={pool.length === 0}
-          className="px-4 py-2 rounded bg-crimson text-parchment font-display uppercase tracking-wider text-sm flex items-center gap-2 hover:bg-crimson/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-2 rounded bg-crimson px-4 py-2 font-display text-sm uppercase tracking-wider text-parchment transition-colors hover:bg-crimson/90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Dice5 size={16} />
           {picked ? 'Roll Again' : 'Roll Random Monster'}
@@ -738,7 +738,7 @@ export default function MonstersTab({
             onClick={roll}
             disabled={pool.length === 0}
             title="Reroll within current filters"
-            className="px-3 py-2 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider text-xs flex items-center gap-1.5"
+            className="flex items-center gap-1.5 rounded border border-rule px-3 py-2 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
           >
             <RefreshCw size={14} /> Reroll
           </button>
@@ -748,21 +748,21 @@ export default function MonstersTab({
             type="button"
             onClick={saveRollToLog}
             disabled={savedRoll}
-            className="px-3 py-2 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass font-display uppercase tracking-wider text-xs flex items-center gap-1.5 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 rounded border border-brass-deep/60 bg-brass/10 px-3 py-2 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment disabled:opacity-50"
           >
             {savedRoll ? <Check size={14} /> : <Save size={14} />}
             {savedRoll ? 'Saved to log' : 'Save to log'}
           </button>
         )}
         {pool.length === 0 && (
-          <span className="text-xs text-crimson font-serif italic">No monsters match these filters.</span>
+          <span className="font-serif text-xs italic text-crimson">No monsters match these filters.</span>
         )}
       </div>
 
       {picked ? (
         <StatBlock m={picked} />
       ) : (
-        <div className="rounded border border-dashed border-rule bg-parchment-soft p-6 text-center text-ink-mute text-sm font-serif italic">
+        <div className="rounded border border-dashed border-rule bg-parchment-soft p-6 text-center font-serif text-sm italic text-ink-mute">
           Set your filters and roll a monster.
         </div>
       )}
@@ -870,22 +870,22 @@ function HomebrewManager({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-ink-soft font-serif italic">
+        <p className="font-serif text-xs italic text-ink-soft">
           Build custom monsters for this campaign. They join the random roller pool and render with the
           same statblock as SRD creatures.
         </p>
         <button
           type="button"
           onClick={add}
-          className="text-xs px-3 py-1 rounded border border-wine/60 text-wine hover:bg-wine hover:text-parchment hover:border-wine font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors flex-shrink-0"
+          className="flex flex-shrink-0 items-center gap-1.5 rounded border border-wine/60 px-3 py-1 font-display text-xs uppercase tracking-wider text-wine transition-colors hover:border-wine hover:bg-wine hover:text-parchment"
         >
           <Plus size={12} /> Add Monster
         </button>
       </div>
 
       {homebrewMonsters.length === 0 ? (
-        <div className="rounded border border-dashed border-rule bg-parchment-soft p-6 text-center text-ink-mute text-sm font-serif italic">
-          No homebrew monsters yet. Click <span className="not-italic font-display tracking-wider text-wine">Add Monster</span>{' '}
+        <div className="rounded border border-dashed border-rule bg-parchment-soft p-6 text-center font-serif text-sm italic text-ink-mute">
+          No homebrew monsters yet. Click <span className="font-display not-italic tracking-wider text-wine">Add Monster</span>{' '}
           to create one.
         </div>
       ) : (
@@ -898,23 +898,23 @@ function HomebrewManager({
                   <button
                     type="button"
                     onClick={() => toggleExpand(m.slug)}
-                    className="flex-1 flex items-center gap-2 text-left min-w-0"
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
                   >
-                    <Wand2 size={12} className="text-wine flex-shrink-0" />
+                    <Wand2 size={12} className="flex-shrink-0 text-wine" />
                     <span
-                      className={`font-display tracking-wide text-sm flex-1 truncate ${
-                        m.name ? 'text-ink' : 'text-ink-faint italic'
+                      className={`flex-1 truncate font-display text-sm tracking-wide ${
+                        m.name ? 'text-ink' : 'italic text-ink-faint'
                       }`}
                     >
                       {m.name || 'Untitled Homebrew'}
                     </span>
-                    <span className="text-[10px] text-ink-mute italic font-serif hidden sm:inline">
+                    <span className="hidden font-serif text-[10px] italic text-ink-mute sm:inline">
                       CR {m.challenge_rating} · {m.type}
                     </span>
                     {isOpen ? (
-                      <ChevronDown size={12} className="text-ink-faint flex-shrink-0" />
+                      <ChevronDown size={12} className="flex-shrink-0 text-ink-faint" />
                     ) : (
-                      <ChevronRight size={12} className="text-ink-faint flex-shrink-0" />
+                      <ChevronRight size={12} className="flex-shrink-0 text-ink-faint" />
                     )}
                   </button>
                 </div>
@@ -931,7 +931,7 @@ function HomebrewManager({
         </div>
       )}
 
-      <p className="text-[10px] text-ink-mute italic font-serif text-center">
+      <p className="text-center font-serif text-[10px] italic text-ink-mute">
         Homebrew monsters are saved with this campaign.
       </p>
     </div>
@@ -1030,29 +1030,29 @@ function ActionListEditor({
         <button
           type="button"
           onClick={addEntry}
-          className="text-[10px] text-wine hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1"
+          className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-wine hover:text-crimson"
         >
           <Plus size={10} /> Add
         </button>
       </div>
       {entries.length === 0 ? (
-        <div className="text-[11px] text-ink-mute italic font-serif">None.</div>
+        <div className="font-serif text-[11px] italic text-ink-mute">None.</div>
       ) : (
         <div className="space-y-2">
           {entries.map((a, i) => (
-            <div key={i} className="border border-rule rounded-sm p-2 bg-parchment-soft/50 space-y-1.5">
+            <div key={i} className="space-y-1.5 rounded-sm border border-rule bg-parchment-soft/50 p-2">
               <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={a.name}
                   onChange={(e) => updateEntry(i, { name: e.target.value })}
                   placeholder="Action name"
-                  className={`${inputClass} text-sm font-display`}
+                  className={`${inputClass} font-display text-sm`}
                 />
                 <button
                   type="button"
                   onClick={() => removeEntry(i)}
-                  className="text-ink-mute hover:text-crimson flex-shrink-0"
+                  className="flex-shrink-0 text-ink-mute hover:text-crimson"
                   title="Remove"
                   aria-label="Remove action"
                 >
@@ -1095,10 +1095,10 @@ function SpeedEditor({
   return (
     <div>
       <FieldLabel>Speed (ft.)</FieldLabel>
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         {(['walk', 'fly', 'swim', 'climb', 'burrow'] as const).map((k) => (
           <div key={k}>
-            <div className="text-[10px] text-ink-mute font-display uppercase tracking-wider mb-0.5">{k}</div>
+            <div className="mb-0.5 font-display text-[10px] uppercase tracking-wider text-ink-mute">{k}</div>
             <input
               type="number"
               min={0}
@@ -1110,7 +1110,7 @@ function SpeedEditor({
           </div>
         ))}
       </div>
-      <label className="flex items-center gap-1.5 cursor-pointer select-none font-display uppercase tracking-wider text-ink-soft text-[10px] mt-2">
+      <label className="mt-2 flex cursor-pointer select-none items-center gap-1.5 font-display text-[10px] uppercase tracking-wider text-ink-soft">
         <input
           type="checkbox"
           checked={hover}
@@ -1171,7 +1171,7 @@ function SkillsEditor({
         placeholder="Perception +5, Stealth +6"
         className={inputClass}
       />
-      <p className="text-[10px] text-ink-mute italic font-serif mt-0.5">
+      <p className="mt-0.5 font-serif text-[10px] italic text-ink-mute">
         Comma-separated, e.g. <span className="not-italic">Perception +5, Stealth +6</span>.
       </p>
     </div>
@@ -1202,7 +1202,7 @@ function HomebrewEditor({
   };
 
   return (
-    <div className="px-3 pb-3 pt-3 border-t border-wine/40 space-y-3 text-xs bg-wine/[0.03]">
+    <div className="space-y-3 border-t border-wine/40 bg-wine/[0.03] p-3 text-xs">
       <TextField
         label="Name"
         value={monster.name}
@@ -1210,7 +1210,7 @@ function HomebrewEditor({
         placeholder="Awakened Mossback"
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div>
           <FieldLabel>Size</FieldLabel>
           <select
@@ -1253,7 +1253,7 @@ function HomebrewEditor({
         />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <NumberField
           label="Armor Class"
           value={monster.armor_class}
@@ -1294,7 +1294,7 @@ function HomebrewEditor({
             ['Cha', 'charisma'],
           ] as const).map(([label, key]) => (
             <div key={key} className="text-center">
-              <div className="text-[10px] text-ink-mute font-display uppercase tracking-wider mb-0.5">
+              <div className="mb-0.5 font-display text-[10px] uppercase tracking-wider text-ink-mute">
                 {label}
               </div>
               <input
@@ -1322,7 +1322,7 @@ function HomebrewEditor({
             ['Cha', 'charisma_save'],
           ] as const).map(([label, key]) => (
             <div key={key} className="text-center">
-              <div className="text-[10px] text-ink-mute font-display uppercase tracking-wider mb-0.5">
+              <div className="mb-0.5 font-display text-[10px] uppercase tracking-wider text-ink-mute">
                 {label}
               </div>
               <input
@@ -1339,7 +1339,7 @@ function HomebrewEditor({
 
       <SkillsEditor skills={monster.skills} onChange={(v) => onChange({ skills: v })} />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <TextField
           label="Damage Vulnerabilities"
           value={monster.damage_vulnerabilities}
@@ -1378,7 +1378,7 @@ function HomebrewEditor({
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <div>
           <FieldLabel>Challenge Rating</FieldLabel>
           <select
@@ -1451,7 +1451,7 @@ function HomebrewEditor({
         <button
           type="button"
           onClick={onDelete}
-          className="text-xs text-crimson hover:text-crimson/70 font-display uppercase tracking-wider flex items-center gap-1"
+          className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-crimson hover:text-crimson/70"
         >
           <Trash2 size={12} /> Delete Monster
         </button>

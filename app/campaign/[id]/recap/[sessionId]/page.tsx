@@ -43,14 +43,14 @@ export default function RecapPage({ params }: { params: Promise<Params> }) {
   }, [campaign, sessionId]);
 
   if (authLoading || loading) {
-    return <main className="min-h-screen flex items-center justify-center text-xs text-ink-mute">Loading…</main>;
+    return <main className="flex min-h-screen items-center justify-center text-xs text-ink-mute">Loading…</main>;
   }
   if (error) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-5">
-        <div className="text-center space-y-3">
-          <p className="text-crimson text-sm">{error}</p>
-          <button onClick={() => router.replace(`/campaign/${id}`)} className="text-xs px-3 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep">
+      <main className="flex min-h-screen items-center justify-center p-5">
+        <div className="space-y-3 text-center">
+          <p className="text-sm text-crimson">{error}</p>
+          <button onClick={() => router.replace(`/campaign/${id}`)} className="rounded border border-rule px-3 py-1 text-xs text-ink-soft hover:bg-parchment-deep">
             Back to campaign
           </button>
         </div>
@@ -60,10 +60,10 @@ export default function RecapPage({ params }: { params: Promise<Params> }) {
   if (!campaign || !user) return null;
   if (!entry) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-5">
-        <div className="text-center space-y-3">
-          <p className="text-ink-soft text-sm">Session log not found.</p>
-          <button onClick={() => router.replace(`/campaign/${id}`)} className="text-xs px-3 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep">
+      <main className="flex min-h-screen items-center justify-center p-5">
+        <div className="space-y-3 text-center">
+          <p className="text-sm text-ink-soft">Session log not found.</p>
+          <button onClick={() => router.replace(`/campaign/${id}`)} className="rounded border border-rule px-3 py-1 text-xs text-ink-soft hover:bg-parchment-deep">
             Back to campaign
           </button>
         </div>

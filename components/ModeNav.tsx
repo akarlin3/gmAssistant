@@ -25,7 +25,7 @@ export default function ModeNav({ mode, subview, onModeChange, onSubviewChange }
 
   return (
     <div className="space-y-2">
-      <nav role="tablist" aria-label="Mode" className="flex items-center gap-1 flex-wrap">
+      <nav role="tablist" aria-label="Mode" className="flex flex-wrap items-center gap-1">
         {primaryModes.map(m => (
           <ModePill
             key={m}
@@ -35,7 +35,7 @@ export default function ModeNav({ mode, subview, onModeChange, onSubviewChange }
           />
         ))}
         {mutedModes.length > 0 && (
-          <div className="border-l border-rule ml-2 pl-2 flex items-center gap-1">
+          <div className="ml-2 flex items-center gap-1 border-l border-rule pl-2">
             {mutedModes.map(m => (
               <ModePill
                 key={m}
@@ -54,7 +54,7 @@ export default function ModeNav({ mode, subview, onModeChange, onSubviewChange }
         className="flex flex-wrap items-center gap-1 border-b border-rule pb-1.5"
       >
         {groupSubviewsByAudience(activeSubviews).map((group, gi) => (
-          <div key={gi} className={gi > 0 ? 'border-l border-rule ml-1 pl-2 flex items-center gap-1' : 'flex items-center gap-1'}>
+          <div key={gi} className={gi > 0 ? 'ml-1 flex items-center gap-1 border-l border-rule pl-2' : 'flex items-center gap-1'}>
             {group.map(sv => (
               <SubviewPill
                 key={sv.id}
@@ -114,10 +114,10 @@ function SubviewPill({
       aria-selected={active}
       onClick={onClick}
       title={tooltip}
-      className={`text-xs px-2.5 py-1 rounded font-display uppercase tracking-wider transition-colors border flex items-center gap-1.5 ${
+      className={`flex items-center gap-1.5 rounded border px-2.5 py-1 font-display text-xs uppercase tracking-wider transition-colors ${
         active
-          ? 'bg-crimson/15 text-crimson border-crimson/60'
-          : 'text-ink-soft hover:bg-parchment-deep border-transparent'
+          ? 'border-crimson/60 bg-crimson/15 text-crimson'
+          : 'border-transparent text-ink-soft hover:bg-parchment-deep'
       }`}
     >
       {Icon && <Icon size={11} className={active ? 'text-crimson' : sv.audience === 'together' ? 'text-moss' : 'text-wine'} />}

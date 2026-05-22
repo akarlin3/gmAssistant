@@ -205,17 +205,17 @@ export default function InitiativePanel({
 
   return (
     <div className={containerCls}>
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-rule bg-parchment">
-        <div className="flex items-center gap-2 min-w-0">
-          <Swords size={14} className="text-crimson flex-shrink-0" />
-          <span className="font-display uppercase tracking-wider text-sm text-ink">Initiative</span>
-          <span className="text-xs text-brass-deep font-display">Round {init.round}</span>
+      <div className="flex items-center justify-between gap-2 border-b border-rule bg-parchment px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <Swords size={14} className="flex-shrink-0 text-crimson" />
+          <span className="font-display text-sm uppercase tracking-wider text-ink">Initiative</span>
+          <span className="font-display text-xs text-brass-deep">Round {init.round}</span>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => update(prevTurn(init))}
             disabled={init.combatants.length === 0}
-            className="text-xs px-2 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-display uppercase tracking-wider"
+            className="flex items-center gap-1 rounded border border-rule px-2 py-1 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep disabled:cursor-not-allowed disabled:opacity-40"
             title="Previous turn"
           >
             <ChevronLeft size={12} /> Prev
@@ -223,12 +223,12 @@ export default function InitiativePanel({
           <button
             onClick={() => update(nextTurn(init))}
             disabled={init.combatants.length === 0}
-            className="text-xs px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-display uppercase tracking-wider"
+            className="flex items-center gap-1 rounded border border-crimson/60 bg-crimson/10 px-2 py-1 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40"
             title="Next turn"
           >
             Next <ChevronRight size={12} />
           </button>
-          <button onClick={onClose} className="text-ink-mute hover:text-crimson ml-1" title="Close">
+          <button onClick={onClose} className="ml-1 text-ink-mute hover:text-crimson" title="Close">
             <X size={16} />
           </button>
         </div>
@@ -236,14 +236,14 @@ export default function InitiativePanel({
 
       <div className="flex-1 overflow-y-auto">
         {active && (
-          <div className="px-3 py-2 border-b border-rule bg-brass/5">
+          <div className="border-b border-rule bg-brass/5 px-3 py-2">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-display tracking-wide text-base text-ink truncate">{active.name}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider ${SIDE_BADGE[active.side]}`}>{SIDE_LABEL[active.side]}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="truncate font-display text-base tracking-wide text-ink">{active.name}</span>
+                  <span className={`rounded-sm border px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider ${SIDE_BADGE[active.side]}`}>{SIDE_LABEL[active.side]}</span>
                 </div>
-                <div className="text-[11px] text-ink-mute font-serif">
+                <div className="font-serif text-[11px] text-ink-mute">
                   Init {active.initiative}{typeof active.ac === 'number' ? ` · AC ${active.ac}` : ''}
                 </div>
               </div>
@@ -253,9 +253,9 @@ export default function InitiativePanel({
             </div>
 
             <div className="mt-2 flex items-center gap-2">
-              <Heart size={12} className="text-crimson flex-shrink-0" />
-              <button onClick={() => adjustHp(active.id, -5)} className="text-xs px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep">−5</button>
-              <button onClick={() => adjustHp(active.id, -1)} className="text-xs px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep">−1</button>
+              <Heart size={12} className="flex-shrink-0 text-crimson" />
+              <button onClick={() => adjustHp(active.id, -5)} className="rounded border border-rule px-2 py-0.5 text-xs text-ink-soft hover:bg-parchment-deep">−5</button>
+              <button onClick={() => adjustHp(active.id, -1)} className="rounded border border-rule px-2 py-0.5 text-xs text-ink-soft hover:bg-parchment-deep">−1</button>
               <input
                 type="number"
                 value={active.hp.current}
@@ -263,14 +263,14 @@ export default function InitiativePanel({
                   const v = parseInt(e.target.value || '0', 10);
                   updateCombatant(active.id, { hp: { ...active.hp, current: isNaN(v) ? 0 : v } });
                 }}
-                className="w-14 text-center bg-parchment-soft border border-rule rounded px-1 py-0.5 text-sm text-ink font-serif"
+                className="w-14 rounded border border-rule bg-parchment-soft px-1 py-0.5 text-center font-serif text-sm text-ink"
               />
-              <span className="text-xs text-ink-mute font-serif">/ {active.hp.max}</span>
-              <button onClick={() => adjustHp(active.id, 1)} className="text-xs px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep">+1</button>
-              <button onClick={() => adjustHp(active.id, 5)} className="text-xs px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep">+5</button>
+              <span className="font-serif text-xs text-ink-mute">/ {active.hp.max}</span>
+              <button onClick={() => adjustHp(active.id, 1)} className="rounded border border-rule px-2 py-0.5 text-xs text-ink-soft hover:bg-parchment-deep">+1</button>
+              <button onClick={() => adjustHp(active.id, 5)} className="rounded border border-rule px-2 py-0.5 text-xs text-ink-soft hover:bg-parchment-deep">+5</button>
             </div>
 
-            <div className="mt-2 h-1.5 bg-parchment-deep rounded-sm overflow-hidden border border-rule">
+            <div className="mt-2 h-1.5 overflow-hidden rounded-sm border border-rule bg-parchment-deep">
               <div
                 className={`h-full transition-all ${active.hp.current <= 0 ? 'bg-ink-mute' : active.hp.current / active.hp.max <= 0.5 ? 'bg-crimson' : 'bg-emerald-700'}`}
                 style={{ width: `${Math.max(0, Math.min(100, (active.hp.current / Math.max(1, active.hp.max)) * 100))}%` }}
@@ -278,12 +278,12 @@ export default function InitiativePanel({
             </div>
 
             <div className="mt-2">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">Conditions</span>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Conditions</span>
                 <select
                   value=""
                   onChange={(e) => { if (e.target.value) toggleCondition(active.id, e.target.value); }}
-                  className="bg-parchment-soft border border-rule rounded px-1 py-0.5 text-[10px] text-ink-soft font-serif"
+                  className="rounded border border-rule bg-parchment-soft px-1 py-0.5 font-serif text-[10px] text-ink-soft"
                 >
                   <option value="">+ Add…</option>
                   {CONDITIONS.filter(c => !active.conditions.includes(c)).map(c => (
@@ -292,14 +292,14 @@ export default function InitiativePanel({
                 </select>
               </div>
               {active.conditions.length === 0 ? (
-                <span className="text-[10px] text-ink-mute italic font-serif">None</span>
+                <span className="font-serif text-[10px] italic text-ink-mute">None</span>
               ) : (
                 <div className="flex flex-wrap gap-1">
                   {active.conditions.map(c => (
                     <button
                       key={c}
                       onClick={() => toggleCondition(active.id, c)}
-                      className="text-[10px] px-1.5 py-0.5 rounded border border-wine/40 bg-wine/10 text-wine hover:bg-wine hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1"
+                      className="flex items-center gap-1 rounded border border-wine/40 bg-wine/10 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-wine hover:bg-wine hover:text-parchment"
                     >
                       {c} <X size={9} />
                     </button>
@@ -312,7 +312,7 @@ export default function InitiativePanel({
 
         <ul className="divide-y divide-rule">
           {sorted.length === 0 && (
-            <li className="px-3 py-4 text-center text-xs text-ink-mute italic font-serif">
+            <li className="px-3 py-4 text-center font-serif text-xs italic text-ink-mute">
               No combatants yet. Add a monster, PC, or manual entry below.
             </li>
           )}
@@ -321,20 +321,20 @@ export default function InitiativePanel({
             return (
               <li
                 key={c.id}
-                className={`px-3 py-1.5 border-l-4 ${SIDE_BORDER[c.side]} ${isActive ? 'bg-brass/10' : 'hover:bg-parchment-deep cursor-pointer'}`}
+                className={`border-l-4 px-3 py-1.5 ${SIDE_BORDER[c.side]} ${isActive ? 'bg-brass/10' : 'cursor-pointer hover:bg-parchment-deep'}`}
                 onClick={() => !isActive && setActiveById(c.id)}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-brass-deep font-display w-5 text-right">{c.initiative}</span>
-                  <span className={`text-sm font-serif truncate flex-1 ${c.hp.current <= 0 ? 'text-ink-mute line-through' : 'text-ink'}`}>
+                  <span className="w-5 text-right font-display text-xs text-brass-deep">{c.initiative}</span>
+                  <span className={`flex-1 truncate font-serif text-sm ${c.hp.current <= 0 ? 'text-ink-mute line-through' : 'text-ink'}`}>
                     {c.name}
                   </span>
-                  {c.hp.current <= 0 && <Skull size={12} className="text-ink-mute flex-shrink-0" />}
-                  <span className="text-[11px] text-ink-soft font-serif tabular-nums flex-shrink-0">
+                  {c.hp.current <= 0 && <Skull size={12} className="flex-shrink-0 text-ink-mute" />}
+                  <span className="flex-shrink-0 font-serif text-[11px] tabular-nums text-ink-soft">
                     {c.hp.current}/{c.hp.max}
                   </span>
                   {typeof c.ac === 'number' && (
-                    <span className="text-[10px] text-ink-mute font-serif flex items-center gap-0.5 flex-shrink-0">
+                    <span className="flex flex-shrink-0 items-center gap-0.5 font-serif text-[10px] text-ink-mute">
                       <Shield size={9} /> {c.ac}
                     </span>
                   )}
@@ -342,7 +342,7 @@ export default function InitiativePanel({
                 {c.conditions.length > 0 && (
                   <div className="ml-7 mt-0.5 flex flex-wrap gap-0.5">
                     {c.conditions.map(cond => (
-                      <span key={cond} className="text-[9px] px-1 rounded bg-wine/10 text-wine font-display uppercase tracking-wider">{cond}</span>
+                      <span key={cond} className="rounded bg-wine/10 px-1 font-display text-[9px] uppercase tracking-wider text-wine">{cond}</span>
                     ))}
                   </div>
                 )}
@@ -352,24 +352,24 @@ export default function InitiativePanel({
         </ul>
       </div>
 
-      <div className="border-t border-rule bg-parchment px-3 py-2 space-y-2">
+      <div className="space-y-2 border-t border-rule bg-parchment px-3 py-2">
         {addMode === null && (
           <div className="flex flex-wrap gap-1.5">
-            <button onClick={() => setAddMode('monster')} className="text-xs px-2 py-1 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep hover:bg-brass hover:text-parchment flex items-center gap-1 font-display uppercase tracking-wider">
+            <button onClick={() => setAddMode('monster')} className="flex items-center gap-1 rounded border border-brass-deep/60 bg-brass/10 px-2 py-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment">
               <Plus size={11} /> Monster
             </button>
-            <button onClick={() => setAddMode('pc')} className="text-xs px-2 py-1 rounded border border-emerald-700/60 bg-emerald-100/40 text-emerald-800 hover:bg-emerald-700 hover:text-parchment flex items-center gap-1 font-display uppercase tracking-wider">
+            <button onClick={() => setAddMode('pc')} className="flex items-center gap-1 rounded border border-emerald-700/60 bg-emerald-100/40 px-2 py-1 font-display text-xs uppercase tracking-wider text-emerald-800 hover:bg-emerald-700 hover:text-parchment">
               <Plus size={11} /> PC
             </button>
-            <button onClick={() => setAddMode('manual')} className="text-xs px-2 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep flex items-center gap-1 font-display uppercase tracking-wider">
+            <button onClick={() => setAddMode('manual')} className="flex items-center gap-1 rounded border border-rule px-2 py-1 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">
               <Plus size={11} /> Manual
             </button>
             {init.combatants.length > 0 && (
               <>
-                <button onClick={rollAllInitiative} className="text-xs px-2 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider ml-auto">
+                <button onClick={rollAllInitiative} className="ml-auto rounded border border-rule px-2 py-1 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">
                   Roll All
                 </button>
-                <button onClick={endEncounter} className="text-xs px-2 py-1 rounded border border-crimson/60 text-crimson hover:bg-crimson hover:text-parchment flex items-center gap-1 font-display uppercase tracking-wider">
+                <button onClick={endEncounter} className="flex items-center gap-1 rounded border border-crimson/60 px-2 py-1 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment">
                   <Flag size={11} /> End
                 </button>
               </>
@@ -385,19 +385,19 @@ export default function InitiativePanel({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search monsters…"
-                className="flex-1 bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+                className="flex-1 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink"
               />
               <button onClick={() => { setAddMode(null); setSearch(''); }} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
             </div>
-            <div className="max-h-40 overflow-y-auto space-y-0.5">
+            <div className="max-h-40 space-y-0.5 overflow-y-auto">
               {filteredMonsters.length === 0 && (
-                <p className="text-[11px] text-ink-mute italic font-serif px-1">No matches. Add monsters in the Monsters tab.</p>
+                <p className="px-1 font-serif text-[11px] italic text-ink-mute">No matches. Add monsters in the Monsters tab.</p>
               )}
               {filteredMonsters.map(m => (
                 <button
                   key={m.slug}
                   onClick={() => addFromMonster(m)}
-                  className="w-full text-left text-xs px-2 py-1 rounded text-ink-soft hover:bg-parchment-deep hover:text-ink font-serif flex items-center gap-2"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1 text-left font-serif text-xs text-ink-soft hover:bg-parchment-deep hover:text-ink"
                 >
                   <span className="flex-1 truncate">{m.name}</span>
                   <span className="text-[10px] text-ink-mute">CR {m.challenge_rating}</span>
@@ -410,18 +410,18 @@ export default function InitiativePanel({
         {addMode === 'pc' && (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">Add PC</span>
+              <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Add PC</span>
               <button onClick={() => setAddMode(null)} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
             </div>
-            <div className="max-h-40 overflow-y-auto space-y-0.5">
+            <div className="max-h-40 space-y-0.5 overflow-y-auto">
               {pcs.length === 0 && (
-                <p className="text-[11px] text-ink-mute italic font-serif px-1">No characters yet. Add some on the Prep tab.</p>
+                <p className="px-1 font-serif text-[11px] italic text-ink-mute">No characters yet. Add some on the Prep tab.</p>
               )}
               {pcs.map(pc => (
                 <button
                   key={pc.id}
                   onClick={() => addFromPC(pc)}
-                  className="w-full text-left text-xs px-2 py-1 rounded text-ink-soft hover:bg-parchment-deep hover:text-ink font-serif flex items-center gap-2"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1 text-left font-serif text-xs text-ink-soft hover:bg-parchment-deep hover:text-ink"
                 >
                   <span className="flex-1 truncate">{pc.name || 'Unnamed'}</span>
                   <span className="text-[10px] text-ink-mute">{pc.classLevel || '—'}</span>
@@ -434,7 +434,7 @@ export default function InitiativePanel({
         {addMode === 'manual' && (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">Add Manual</span>
+              <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Add Manual</span>
               <button onClick={() => setAddMode(null)} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
             </div>
             <input
@@ -442,34 +442,34 @@ export default function InitiativePanel({
               value={manualForm.name}
               onChange={(e) => setManualForm(f => ({ ...f, name: e.target.value }))}
               placeholder="Name"
-              className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+              className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink"
             />
             <div className="grid grid-cols-3 gap-1.5">
-              <label className="text-[10px] text-ink-mute font-display uppercase tracking-wider">
+              <label className="font-display text-[10px] uppercase tracking-wider text-ink-mute">
                 Init
                 <input
                   type="number"
                   value={manualForm.initiative}
                   onChange={(e) => setManualForm(f => ({ ...f, initiative: parseInt(e.target.value || '0', 10) || 0 }))}
-                  className="w-full bg-parchment-soft border border-rule rounded px-1 py-0.5 text-xs text-ink font-serif"
+                  className="w-full rounded border border-rule bg-parchment-soft px-1 py-0.5 font-serif text-xs text-ink"
                 />
               </label>
-              <label className="text-[10px] text-ink-mute font-display uppercase tracking-wider">
+              <label className="font-display text-[10px] uppercase tracking-wider text-ink-mute">
                 Max HP
                 <input
                   type="number"
                   min={1}
                   value={manualForm.hpMax}
                   onChange={(e) => setManualForm(f => ({ ...f, hpMax: Math.max(1, parseInt(e.target.value || '1', 10) || 1) }))}
-                  className="w-full bg-parchment-soft border border-rule rounded px-1 py-0.5 text-xs text-ink font-serif"
+                  className="w-full rounded border border-rule bg-parchment-soft px-1 py-0.5 font-serif text-xs text-ink"
                 />
               </label>
-              <label className="text-[10px] text-ink-mute font-display uppercase tracking-wider">
+              <label className="font-display text-[10px] uppercase tracking-wider text-ink-mute">
                 Side
                 <select
                   value={manualForm.side}
                   onChange={(e) => setManualForm(f => ({ ...f, side: e.target.value as CombatantSide }))}
-                  className="w-full bg-parchment-soft border border-rule rounded px-1 py-0.5 text-xs text-ink font-serif"
+                  className="w-full rounded border border-rule bg-parchment-soft px-1 py-0.5 font-serif text-xs text-ink"
                 >
                   <option value="pc">PC</option>
                   <option value="ally">Ally</option>
@@ -480,7 +480,7 @@ export default function InitiativePanel({
             </div>
             <button
               onClick={addManual}
-              className="w-full text-xs px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider"
+              className="w-full rounded border border-crimson/60 bg-crimson/10 px-2 py-1 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment"
             >
               Add
             </button>
@@ -488,9 +488,9 @@ export default function InitiativePanel({
         )}
 
         {init.log.length > 0 && (
-          <details className="text-[10px] text-ink-mute font-serif">
-            <summary className="cursor-pointer hover:text-ink-soft font-display uppercase tracking-wider">Round Log ({init.log.length})</summary>
-            <ul className="mt-1 max-h-24 overflow-y-auto space-y-0.5">
+          <details className="font-serif text-[10px] text-ink-mute">
+            <summary className="cursor-pointer font-display uppercase tracking-wider hover:text-ink-soft">Round Log ({init.log.length})</summary>
+            <ul className="mt-1 max-h-24 space-y-0.5 overflow-y-auto">
               {init.log.slice(-12).map((l, i) => (
                 <li key={i}>R{l.round}: {l.text}</li>
               ))}

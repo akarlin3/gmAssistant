@@ -101,30 +101,30 @@ export default function SummonModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={`Summon ${generator.label}`}
     >
       <div
-        className="bg-parchment border border-rule shadow-page rounded-none sm:rounded w-full sm:max-w-2xl max-h-full sm:max-h-[90vh] flex flex-col"
+        className="flex max-h-full w-full flex-col rounded-none border border-rule bg-parchment shadow-page sm:max-h-[90vh] sm:max-w-2xl sm:rounded"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between gap-2 p-3 border-b border-rule bg-parchment-deep/40">
-          <div className="flex items-center gap-2 min-w-0">
-            <Wand2 size={14} className="text-crimson flex-shrink-0" />
-            <h2 className="font-display tracking-wide text-ink text-sm truncate">
+        <header className="flex items-center justify-between gap-2 border-b border-rule bg-parchment-deep/40 p-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <Wand2 size={14} className="flex-shrink-0 text-crimson" />
+            <h2 className="truncate font-display text-sm tracking-wide text-ink">
               Summon — {generator.label}
             </h2>
-            <span className="hidden sm:inline text-[10px] text-ink-mute italic font-serif truncate">
+            <span className="hidden truncate font-serif text-[10px] italic text-ink-mute sm:inline">
               into {SECTION_LABEL[section]}
             </span>
           </div>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="text-ink-mute hover:text-crimson p-1"
+            className="p-1 text-ink-mute hover:text-crimson"
           >
             <X size={16} />
           </button>
@@ -238,7 +238,7 @@ function renderBody(args: BodyArgs): React.ReactNode {
     case 'tavern-name':
       // tavern-name doesn't have a "save to entity" path — only logs.
       return (
-        <div className="text-sm text-ink-soft italic font-serif">
+        <div className="font-serif text-sm italic text-ink-soft">
           Tavern names are saved to the generator log only; use Tavern to summon a full tavern.
         </div>
       );
@@ -265,7 +265,7 @@ function renderBody(args: BodyArgs): React.ReactNode {
 
 function ProGate({ label }: { label: string }) {
   return (
-    <div className="rounded border border-rule bg-parchment-soft/40 p-4 text-sm font-serif text-ink-soft space-y-2">
+    <div className="space-y-2 rounded border border-rule bg-parchment-soft/40 p-4 font-serif text-sm text-ink-soft">
       <p>
         <span className="font-display tracking-wide text-ink">{label}</span> is a Pro feature.
       </p>
@@ -320,15 +320,15 @@ function NamesAiPanel({ onAdd }: { onAdd: (n: GeneratedNamePayload) => void }) {
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
+      <div className="space-y-3 rounded border border-rule bg-parchment p-3 shadow-card">
         <div className="flex items-center gap-2">
           <Sparkles size={14} className="text-crimson" />
           <h3 className="font-display tracking-wide text-ink">AI Name Generator</h3>
         </div>
-        <p className="text-xs text-ink-soft italic font-serif">
+        <p className="font-serif text-xs italic text-ink-soft">
           Generate first / surname pairs from any culture, then add the ones you like as NPCs.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <CultureSelect label="First Name Culture" value={firstCulture} onChange={setFirstCulture} />
           <CultureSelect label="Surname Culture" value={lastCulture} onChange={setLastCulture} />
           <SelectField label="Gender" value={gender} onChange={(v) => setGender(v as (typeof GENDERS)[number])}>
@@ -342,7 +342,7 @@ function NamesAiPanel({ onAdd }: { onAdd: (n: GeneratedNamePayload) => void }) {
           <button
             onClick={generate}
             disabled={generating}
-            className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-wine hover:border-wine disabled:opacity-50 disabled:cursor-wait transition-colors"
+            className="flex items-center gap-1.5 rounded border border-crimson bg-crimson px-3 py-1.5 font-display text-xs uppercase tracking-wider text-parchment transition-colors hover:border-wine hover:bg-wine disabled:cursor-wait disabled:opacity-50"
           >
             {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
             {generating ? 'Generating…' : 'Generate'}
@@ -354,18 +354,18 @@ function NamesAiPanel({ onAdd }: { onAdd: (n: GeneratedNamePayload) => void }) {
               setLastCulture(pick());
             }}
             disabled={generating}
-            className="text-xs px-3 py-1.5 rounded border border-brass-deep/50 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 rounded border border-brass-deep/50 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment disabled:opacity-50"
           >
             Shuffle Cultures
           </button>
         </div>
-        {error && <p className="text-xs text-crimson italic" title={error}>{error}</p>}
+        {error && <p className="text-xs italic text-crimson" title={error}>{error}</p>}
       </div>
 
       {names.length > 0 && (
-        <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
-          <p className="text-[11px] text-ink-mute italic font-serif">
-            Click <span className="text-crimson font-display uppercase tracking-wider">+ Add</span> next to each name to add it as an NPC.
+        <div className="space-y-2 rounded border border-rule bg-parchment p-3 shadow-card">
+          <p className="font-serif text-[11px] italic text-ink-mute">
+            Click <span className="font-display uppercase tracking-wider text-crimson">+ Add</span> next to each name to add it as an NPC.
           </p>
           <div className="space-y-1.5">
             {names.map((n, i) => {
@@ -376,10 +376,10 @@ function NamesAiPanel({ onAdd }: { onAdd: (n: GeneratedNamePayload) => void }) {
                 : [n.firstCulture, n.lastCulture].filter(Boolean).join(' · ');
               const isAdded = !!added[i];
               return (
-                <div key={i} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded border border-rule bg-parchment-soft">
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-serif text-ink truncate">{full}</span>
-                    {tag && <span className="text-[10px] text-ink-mute italic">{tag}</span>}
+                <div key={i} className="flex items-center justify-between gap-2 rounded border border-rule bg-parchment-soft px-2.5 py-1.5">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate font-serif text-ink">{full}</span>
+                    {tag && <span className="text-[10px] italic text-ink-mute">{tag}</span>}
                   </div>
                   <button
                     onClick={() => {
@@ -387,7 +387,7 @@ function NamesAiPanel({ onAdd }: { onAdd: (n: GeneratedNamePayload) => void }) {
                       setAdded((a) => ({ ...a, [i]: true }));
                     }}
                     disabled={isAdded}
-                    className="text-[11px] px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment hover:border-crimson disabled:opacity-50 font-display uppercase tracking-wider flex items-center gap-1 flex-shrink-0"
+                    className="flex flex-shrink-0 items-center gap-1 rounded border border-crimson/60 bg-crimson/10 px-2 py-1 font-display text-[11px] uppercase tracking-wider text-crimson hover:border-crimson hover:bg-crimson hover:text-parchment disabled:opacity-50"
                   >
                     {isAdded ? <Check size={11} /> : <Plus size={11} />}
                     {isAdded ? 'Added' : 'Add as NPC'}
@@ -438,15 +438,15 @@ function LocationsAiPanel({ onAdd }: { onAdd: (l: GeneratedLocationPayload) => v
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
+      <div className="space-y-3 rounded border border-rule bg-parchment p-3 shadow-card">
         <div className="flex items-center gap-2">
           <Sparkles size={14} className="text-crimson" />
           <h3 className="font-display tracking-wide text-ink">AI Location Generator</h3>
         </div>
-        <p className="text-xs text-ink-soft italic font-serif">
+        <p className="font-serif text-xs italic text-ink-soft">
           Generate evocative location names, then add the ones you like to your Fantastic Locations.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <SelectField label="Location Type" value={locationType} onChange={setLocationType}>
             <option value="Random">Random</option>
             {LOCATION_TYPE_GROUPS.map((group) => (
@@ -464,7 +464,7 @@ function LocationsAiPanel({ onAdd }: { onAdd: (l: GeneratedLocationPayload) => v
           <button
             onClick={generate}
             disabled={generating}
-            className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-wine hover:border-wine disabled:opacity-50 disabled:cursor-wait transition-colors"
+            className="flex items-center gap-1.5 rounded border border-crimson bg-crimson px-3 py-1.5 font-display text-xs uppercase tracking-wider text-parchment transition-colors hover:border-wine hover:bg-wine disabled:cursor-wait disabled:opacity-50"
           >
             {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
             {generating ? 'Generating…' : 'Generate'}
@@ -475,31 +475,31 @@ function LocationsAiPanel({ onAdd }: { onAdd: (l: GeneratedLocationPayload) => v
               setCulture(ALL_CULTURES[Math.floor(Math.random() * ALL_CULTURES.length)]);
             }}
             disabled={generating}
-            className="text-xs px-3 py-1.5 rounded border border-brass-deep/50 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 rounded border border-brass-deep/50 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment disabled:opacity-50"
           >
             Shuffle
           </button>
         </div>
-        {error && <p className="text-xs text-crimson italic" title={error}>{error}</p>}
+        {error && <p className="text-xs italic text-crimson" title={error}>{error}</p>}
       </div>
 
       {locations.length > 0 && (
-        <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
-          <p className="text-[11px] text-ink-mute italic font-serif">
-            Click <span className="text-crimson font-display uppercase tracking-wider">+ Add</span> next to a location to drop it into your Fantastic Locations list.
+        <div className="space-y-2 rounded border border-rule bg-parchment p-3 shadow-card">
+          <p className="font-serif text-[11px] italic text-ink-mute">
+            Click <span className="font-display uppercase tracking-wider text-crimson">+ Add</span> next to a location to drop it into your Fantastic Locations list.
           </p>
           <div className="space-y-1.5">
             {locations.map((l, i) => {
               const tag = [l.type, l.culture].filter(Boolean).join(' · ');
               const isAdded = !!added[i];
               return (
-                <div key={i} className="flex items-start justify-between gap-2 px-2.5 py-2 rounded border border-rule bg-parchment-soft">
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-serif text-ink truncate">{l.name}</span>
-                      {tag && <span className="text-[10px] text-ink-mute italic flex-shrink-0">{tag}</span>}
+                <div key={i} className="flex items-start justify-between gap-2 rounded border border-rule bg-parchment-soft px-2.5 py-2">
+                  <div className="flex min-w-0 flex-col">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-serif text-ink">{l.name}</span>
+                      {tag && <span className="flex-shrink-0 text-[10px] italic text-ink-mute">{tag}</span>}
                     </div>
-                    {l.blurb && <span className="text-xs text-ink-soft italic font-serif leading-snug">{l.blurb}</span>}
+                    {l.blurb && <span className="font-serif text-xs italic leading-snug text-ink-soft">{l.blurb}</span>}
                   </div>
                   <button
                     onClick={() => {
@@ -507,7 +507,7 @@ function LocationsAiPanel({ onAdd }: { onAdd: (l: GeneratedLocationPayload) => v
                       setAdded((a) => ({ ...a, [i]: true }));
                     }}
                     disabled={isAdded}
-                    className="text-[11px] px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment hover:border-crimson disabled:opacity-50 font-display uppercase tracking-wider flex items-center gap-1 flex-shrink-0"
+                    className="flex flex-shrink-0 items-center gap-1 rounded border border-crimson/60 bg-crimson/10 px-2 py-1 font-display text-[11px] uppercase tracking-wider text-crimson hover:border-crimson hover:bg-crimson hover:text-parchment disabled:opacity-50"
                   >
                     {isAdded ? <Check size={11} /> : <Plus size={11} />}
                     {isAdded ? 'Added' : 'Add'}
@@ -566,18 +566,18 @@ function MonsterScalerPanel({ onSave }: { onSave: (m: ScaledMonsterPayload) => v
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3">
+      <div className="space-y-3 rounded border border-rule bg-parchment p-3 shadow-card">
         <div className="flex items-center gap-2">
           <Sparkles size={14} className="text-crimson" />
           <h3 className="font-display tracking-wide text-ink">Scale a Monster</h3>
         </div>
-        <p className="text-xs text-ink-soft italic font-serif">
+        <p className="font-serif text-xs italic text-ink-soft">
           Describe a creature and pick a target CR. Claude finds the closest existing bestiary
           entry and scales it into a full statblock at the CR you asked for. Saving adds it to
           your Relevant Monsters list and your Homebrew Monsters bestiary.
         </p>
         <div className="space-y-2">
-          <label className="text-xs text-brass-deep font-display uppercase tracking-wider block">
+          <label className="block font-display text-xs uppercase tracking-wider text-brass-deep">
             Monster Concept
           </label>
           <textarea
@@ -586,48 +586,48 @@ function MonsterScalerPanel({ onSave }: { onSave: (m: ScaledMonsterPayload) => v
             placeholder="e.g. A coral-armored sea wraith that drowns sailors in their dreams."
             rows={3}
             maxLength={600}
-            className="w-full bg-parchment-soft border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif placeholder-ink-faint focus:border-crimson focus:outline-none resize-y"
+            className="w-full resize-y rounded border border-rule bg-parchment-soft px-2 py-1.5 font-serif text-sm text-ink placeholder-ink-faint focus:border-crimson focus:outline-none"
           />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
           <SelectField label="Target CR" value={cr} onChange={setCr}>
             {CR_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
           </SelectField>
           <button
             onClick={generate}
             disabled={generating || !description.trim()}
-            className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-wine hover:border-wine disabled:opacity-50 disabled:cursor-wait transition-colors"
+            className="flex items-center justify-center gap-1.5 rounded border border-crimson bg-crimson px-3 py-1.5 font-display text-xs uppercase tracking-wider text-parchment transition-colors hover:border-wine hover:bg-wine disabled:cursor-wait disabled:opacity-50"
           >
             {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
             {generating ? 'Generating…' : 'Scale Monster'}
           </button>
         </div>
-        {error && <p className="text-xs text-crimson italic font-serif" title={error}>{error}</p>}
+        {error && <p className="font-serif text-xs italic text-crimson" title={error}>{error}</p>}
       </div>
 
       {monster && (
-        <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="space-y-2 rounded border border-rule bg-parchment p-3 shadow-card">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
-              <div className="font-display tracking-wide text-base">{monster.name}</div>
-              <div className="text-[11px] text-ink-mute italic font-serif">
+              <div className="font-display text-base tracking-wide">{monster.name}</div>
+              <div className="font-serif text-[11px] italic text-ink-mute">
                 CR {monster.cr} · scaled from {monster.sourceMonster}
               </div>
             </div>
             <button
               onClick={() => onSave(monster)}
-              className="text-xs px-3 py-1.5 rounded border border-crimson bg-crimson text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-wine hover:border-wine transition-colors"
+              className="flex items-center gap-1.5 rounded border border-crimson bg-crimson px-3 py-1.5 font-display text-xs uppercase tracking-wider text-parchment transition-colors hover:border-wine hover:bg-wine"
             >
               <Plus size={12} /> Save to Campaign
             </button>
           </div>
-          <div className="text-xs font-serif text-ink-soft italic border-l-2 border-rule pl-2">
+          <div className="border-l-2 border-rule pl-2 font-serif text-xs italic text-ink-soft">
             {monster.scalingNote}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 text-xs font-serif">
-            <div><span className="font-display uppercase text-[10px] tracking-wider text-brass-deep">AC</span> {monster.ac}</div>
-            <div><span className="font-display uppercase text-[10px] tracking-wider text-brass-deep">HP</span> {monster.hp}</div>
-            <div><span className="font-display uppercase text-[10px] tracking-wider text-brass-deep">Speed</span> {monster.speed}</div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-serif text-xs sm:grid-cols-3">
+            <div><span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">AC</span> {monster.ac}</div>
+            <div><span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">HP</span> {monster.hp}</div>
+            <div><span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Speed</span> {monster.speed}</div>
           </div>
         </div>
       )}
@@ -650,13 +650,13 @@ function SelectField({
 }) {
   return (
     <div>
-      <label className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5 block">
+      <label className="mb-0.5 block font-display text-xs uppercase tracking-wider text-brass-deep">
         {label}
       </label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+        className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
       >
         {children}
       </select>

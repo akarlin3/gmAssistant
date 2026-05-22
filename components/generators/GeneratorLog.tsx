@@ -70,17 +70,17 @@ export default function GeneratorLog({
   };
 
   return (
-    <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
+    <div className="space-y-2 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex items-center gap-2">
         <History size={14} className="text-brass-deep" />
         <h4 className="font-display tracking-wide text-ink">Log</h4>
-        <span className="text-[10px] text-ink-mute italic ml-1">
+        <span className="ml-1 text-[10px] italic text-ink-mute">
           {entries.length === 0 ? 'empty' : `${entries.length} saved`}
         </span>
         {entries.length > 0 && (
           <button
             onClick={clearAll}
-            className="ml-auto text-[10px] text-ink-mute hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider"
+            className="ml-auto flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-ink-mute hover:text-crimson"
             title="Clear all log entries"
           >
             <Trash2 size={11} /> Clear
@@ -89,7 +89,7 @@ export default function GeneratorLog({
       </div>
 
       {entries.length === 0 ? (
-        <p className="text-xs text-ink-mute italic font-serif">{emptyHint}</p>
+        <p className="font-serif text-xs italic text-ink-mute">{emptyHint}</p>
       ) : (
         <ul className="space-y-1">
           {entries.map((e) => {
@@ -99,23 +99,23 @@ export default function GeneratorLog({
                 <div className="flex items-center gap-2 px-2 py-1.5">
                   <button
                     onClick={() => toggle(e.id)}
-                    className="flex-1 flex items-center gap-2 text-left min-w-0"
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
                     title={isOpen ? 'Collapse' : 'Expand'}
                   >
                     {isOpen ? (
-                      <ChevronDown size={12} className="text-ink-mute flex-shrink-0" />
+                      <ChevronDown size={12} className="flex-shrink-0 text-ink-mute" />
                     ) : (
-                      <ChevronRight size={12} className="text-ink-mute flex-shrink-0" />
+                      <ChevronRight size={12} className="flex-shrink-0 text-ink-mute" />
                     )}
-                    <span className="text-[10px] text-ink-mute font-display tracking-wider w-9 flex-shrink-0">
+                    <span className="w-9 flex-shrink-0 font-display text-[10px] tracking-wider text-ink-mute">
                       {timeAgo(e.createdAtMs, now)}
                     </span>
-                    <span className="font-serif text-ink text-sm truncate">{e.title}</span>
+                    <span className="truncate font-serif text-sm text-ink">{e.title}</span>
                   </button>
                   {copyText && (
                     <button
                       onClick={() => copy(e)}
-                      className="text-ink-mute hover:text-brass-deep flex-shrink-0"
+                      className="flex-shrink-0 text-ink-mute hover:text-brass-deep"
                       title="Copy as text"
                     >
                       {copied === e.id ? (
@@ -127,14 +127,14 @@ export default function GeneratorLog({
                   )}
                   <button
                     onClick={() => remove(e.id)}
-                    className="text-ink-mute hover:text-crimson flex-shrink-0"
+                    className="flex-shrink-0 text-ink-mute hover:text-crimson"
                     title="Remove from log"
                   >
                     <X size={14} />
                   </button>
                 </div>
                 {isOpen && (
-                  <div className="border-t border-rule px-2.5 py-2 bg-parchment space-y-2">
+                  <div className="space-y-2 border-t border-rule bg-parchment px-2.5 py-2">
                     {renderPayload(e)}
                     {onAddToCampaign && (
                       <AddToCampaignPicker

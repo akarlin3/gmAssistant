@@ -101,27 +101,27 @@ const M = {
 // (shared with the pre-session PrepWizard).
 
 const Tag = ({ m }: { m: keyof typeof M }) => (
-  <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider ${M[m].color}`}>{M[m].label}</span>
+  <span className={`rounded-sm border px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider ${M[m].color}`}>{M[m].label}</span>
 );
 
 const BookQuote = ({ source, children }: { source: string; children: React.ReactNode }) => (
-  <blockquote className="pl-3 border-l-2 border-crimson/70 bg-parchment-soft/60 py-2 pr-3 text-sm rounded-r">
-    <div className="font-serif italic text-ink-soft leading-relaxed">{children}</div>
-    <div className="text-brass-deep mt-1 text-xs uppercase tracking-wider font-display">— {source}</div>
+  <blockquote className="rounded-r border-l-2 border-crimson/70 bg-parchment-soft/60 px-3 py-2 text-sm">
+    <div className="font-serif italic leading-relaxed text-ink-soft">{children}</div>
+    <div className="mt-1 font-display text-xs uppercase tracking-wider text-brass-deep">— {source}</div>
   </blockquote>
 );
 
 const SoloNote = ({ children }: { children: React.ReactNode }) => (
   <div className="flex items-start gap-2 rounded border border-wine/40 bg-wine/5 p-2.5 text-sm">
-    <User size={13} className="text-wine flex-shrink-0 mt-0.5" />
-    <div className="text-ink-soft font-serif"><span className="font-display uppercase tracking-wider text-xs text-wine">Solo Adaptation · </span>{children}</div>
+    <User size={13} className="mt-0.5 flex-shrink-0 text-wine" />
+    <div className="font-serif text-ink-soft"><span className="font-display text-xs uppercase tracking-wider text-wine">Solo Adaptation · </span>{children}</div>
   </div>
 );
 
 const Pitfall = ({ children }: { children: React.ReactNode }) => (
   <div className="flex items-start gap-2 rounded border border-crimson/40 bg-crimson/5 p-2.5 text-sm">
-    <X size={13} className="text-crimson flex-shrink-0 mt-0.5" />
-    <div className="text-ink-soft font-serif"><span className="font-display uppercase tracking-wider text-xs text-crimson">Common Pitfall · </span>{children}</div>
+    <X size={13} className="mt-0.5 flex-shrink-0 text-crimson" />
+    <div className="font-serif text-ink-soft"><span className="font-display text-xs uppercase tracking-wider text-crimson">Common Pitfall · </span>{children}</div>
   </div>
 );
 
@@ -215,25 +215,25 @@ const Inspire = ({
         <div
           ref={popupRef}
           style={{ position: 'fixed', top: coords.top, left: coords.left, width: coords.width, zIndex: 50 }}
-          className="rounded border border-brass-deep/70 bg-parchment shadow-xl p-2 space-y-1.5"
+          className="space-y-1.5 rounded border border-brass-deep/70 bg-parchment p-2 shadow-xl"
         >
-          <div className="flex items-center justify-between text-[10px] text-ink-mute px-1 pb-1 border-b border-rule">
+          <div className="flex items-center justify-between border-b border-rule px-1 pb-1 text-[10px] text-ink-mute">
             <span className="font-display uppercase tracking-wider text-brass-deep">{table.title}</span>
             <div className="flex gap-2">
-              <button onClick={reroll} className="text-crimson hover:text-wine font-display uppercase tracking-wider">Reroll</button>
-              <button onClick={() => setOpen(false)} className="text-ink-mute hover:text-ink font-display uppercase tracking-wider">Close</button>
+              <button onClick={reroll} className="font-display uppercase tracking-wider text-crimson hover:text-wine">Reroll</button>
+              <button onClick={() => setOpen(false)} className="font-display uppercase tracking-wider text-ink-mute hover:text-ink">Close</button>
             </div>
           </div>
           {picks.map((entry, i) => (
             <button
               key={i}
               onClick={() => { onPick(entry); setOpen(false); }}
-              className="block w-full text-left text-xs px-2 py-1.5 rounded text-ink-soft hover:bg-parchment-deep hover:text-ink font-serif"
+              className="block w-full rounded px-2 py-1.5 text-left font-serif text-xs text-ink-soft hover:bg-parchment-deep hover:text-ink"
             >
               {entry}
             </button>
           ))}
-          <div className="text-[9px] text-ink-mute px-1 pt-1 italic">{table.attribution}</div>
+          <div className="px-1 pt-1 text-[9px] italic text-ink-mute">{table.attribution}</div>
         </div>
       )}
     </div>
@@ -241,7 +241,7 @@ const Inspire = ({
 };
 
 const InspireGroup = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex flex-wrap gap-1.5 items-center">{children}</div>
+  <div className="flex flex-wrap items-center gap-1.5">{children}</div>
 );
 
 const TargetBar = ({ current, target, source }: { current: number; target: number; source?: string }) => {
@@ -250,13 +250,13 @@ const TargetBar = ({ current, target, source }: { current: number; target: numbe
   const complete = current >= target;
   return (
     <div className="space-y-1" title={source}>
-      <div className="flex items-center justify-between text-xs font-serif">
-        <span className={complete ? 'text-brass-deep font-semibold' : 'text-ink-soft'}>
+      <div className="flex items-center justify-between font-serif text-xs">
+        <span className={complete ? 'font-semibold text-brass-deep' : 'text-ink-soft'}>
           {current} of {target}
         </span>
-        {source && <span className="text-ink-mute italic">{source}</span>}
+        {source && <span className="italic text-ink-mute">{source}</span>}
       </div>
-      <div className="h-1.5 bg-parchment-deep rounded-sm overflow-hidden border border-rule">
+      <div className="h-1.5 overflow-hidden rounded-sm border border-rule bg-parchment-deep">
         <div
           className={`h-full transition-all ${complete ? 'bg-brass' : 'bg-brass/50'}`}
           style={{ width: `${pct}%` }}
@@ -268,14 +268,14 @@ const TargetBar = ({ current, target, source }: { current: number; target: numbe
 
 const Example = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="rounded border border-rule bg-parchment-deep/40 p-2.5 text-sm">
-    <p className="text-brass-deep mb-1 text-xs font-display uppercase tracking-wider">Example — {title}</p>
-    <div className="text-ink-soft font-serif italic leading-relaxed">{children}</div>
+    <p className="mb-1 font-display text-xs uppercase tracking-wider text-brass-deep">Example — {title}</p>
+    <div className="font-serif italic leading-relaxed text-ink-soft">{children}</div>
   </div>
 );
 
 const Field = ({ value, onChange, placeholder, rows = 1 }: { value: string; onChange: (v: string) => void; placeholder: string; rows?: number }) => (
   <textarea value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows}
-    className="w-full bg-transparent border-b border-rule text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-none px-1 py-1 text-sm whitespace-pre-wrap break-words [field-sizing:content]" />
+    className="w-full resize-none whitespace-pre-wrap break-words border-b border-rule bg-transparent p-1 font-serif text-sm text-ink [field-sizing:content] placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none" />
 );
 
 const ListField = ({
@@ -312,23 +312,23 @@ const ListField = ({
           <div
             key={i}
             id={rid ? `entity-${rid}` : undefined}
-            className={`flex gap-2 items-center transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
+            className={`flex items-center gap-2 rounded transition-shadow ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
           >
-            <span className="text-brass-deep font-display text-xs w-5 text-right">{i + 1}.</span>
+            <span className="w-5 text-right font-display text-xs text-brass-deep">{i + 1}.</span>
             <div className="flex-1"><Field value={item} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} /></div>
-            <button onClick={() => remove(i)} className="text-ink-mute hover:text-crimson px-1"><X size={14} /></button>
+            <button onClick={() => remove(i)} className="px-1 text-ink-mute hover:text-crimson"><X size={14} /></button>
           </div>
         );
       })}
       {target > 0 && filled < target && (
-        <div className="ml-7 text-[11px] text-ink-mute italic font-serif">
+        <div className="ml-7 font-serif text-[11px] italic text-ink-mute">
           {remaining} more to reach target
           {filled === 0 && (
             <span className="text-ink-faint"> (target: {target})</span>
           )}
         </div>
       )}
-      <button onClick={add} className="ml-7 text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+      <button onClick={add} className="ml-7 flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
         <Plus size={12} /> Add
       </button>
     </div>
@@ -338,19 +338,19 @@ const ListField = ({
 const Section = ({ id, title, methods, children, done, onToggle, open, onToggleOpen, icon: Icon }: any) => (
   <div id={`section-${id}`} data-cp-anchor={`section:${id}`} className={`rounded border ${done ? 'border-brass/60 bg-brass/5' : 'border-rule bg-parchment-soft'} shadow-card`}>
     <div className="flex items-center gap-2 p-2.5 sm:p-3">
-      <button onClick={() => onToggle(id)} className={`w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${done ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment'}`}>
+      <button onClick={() => onToggle(id)} className={`flex size-4 flex-shrink-0 items-center justify-center rounded-sm border ${done ? 'border-brass-deep bg-brass text-parchment' : 'border-ink-mute bg-parchment'}`}>
         {done && <Check size={10} strokeWidth={3} />}
       </button>
-      <button onClick={() => onToggleOpen(id)} className="flex-1 min-w-0 flex items-center gap-2 text-left">
-        {Icon && <Icon size={14} className="text-brass-deep flex-shrink-0" />}
-        <span className="font-display text-sm tracking-wide text-ink flex-1 min-w-0">{title}</span>
-        <span className="hidden sm:flex gap-1 flex-shrink-0">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
-        <span className="text-ink-mute flex-shrink-0">{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
+      <button onClick={() => onToggleOpen(id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+        {Icon && <Icon size={14} className="flex-shrink-0 text-brass-deep" />}
+        <span className="min-w-0 flex-1 font-display text-sm tracking-wide text-ink">{title}</span>
+        <span className="hidden flex-shrink-0 gap-1 sm:flex">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
+        <span className="flex-shrink-0 text-ink-mute">{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
       </button>
     </div>
     <div className={`gm-collapse ${open ? 'gm-collapse-open' : ''}`}>
       <div className="gm-collapse-content">
-        <div className="px-2.5 sm:px-3 pb-3 border-t border-rule pt-3 space-y-3">
+        <div className="space-y-3 border-t border-rule px-2.5 py-3 sm:px-3">
           {children}
         </div>
       </div>
@@ -359,20 +359,20 @@ const Section = ({ id, title, methods, children, done, onToggle, open, onToggleO
 );
 
 const CardLabel = ({ children }: { children: React.ReactNode }) => (
-  <div className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5">{children}</div>
+  <div className="mb-0.5 font-display text-xs uppercase tracking-wider text-brass-deep">{children}</div>
 );
 
 const FactionCard = ({ data, onChange, onRemove }: any) => {
   const renown = typeof data.renown === 'number' ? data.renown : 0;
   const rank = renownRank(renown, data.rankLabels);
   return (
-    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
-      <div className="flex justify-between items-center gap-2">
+    <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
+      <div className="flex items-center justify-between gap-2">
         <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Faction Name" />
         <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
       </div>
       <div><CardLabel>Archetype</CardLabel>
-        <select value={data.archetype || ''} onChange={(e) => onChange({ ...data, archetype: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
+        <select value={data.archetype || ''} onChange={(e) => onChange({ ...data, archetype: e.target.value })} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink">
           <option value="">— Choose —</option>
           <option>Government (preserves order/stability)</option>
           <option>Religious</option><option>Criminal / underground</option><option>Mercantile</option>
@@ -395,10 +395,10 @@ const FactionCard = ({ data, onChange, onRemove }: any) => {
         <Field value={data.longGoal} onChange={(v) => onChange({ ...data, longGoal: v })} placeholder="The one big thing" /></div>
       <div>
         <CardLabel>Renown</CardLabel>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => onChange({ ...data, renown: renown - 1 })}
-            className="w-7 h-7 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display"
+            className="size-7 rounded border border-rule font-display text-ink-soft hover:bg-parchment-deep"
             title="Decrease renown"
           >
             −
@@ -410,16 +410,16 @@ const FactionCard = ({ data, onChange, onRemove }: any) => {
               const v = parseInt(e.target.value || '0', 10);
               onChange({ ...data, renown: isNaN(v) ? 0 : v });
             }}
-            className="w-16 bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif text-center"
+            className="w-16 rounded border border-rule bg-parchment-soft px-2 py-1 text-center font-serif text-sm text-ink"
           />
           <button
             onClick={() => onChange({ ...data, renown: renown + 1 })}
-            className="w-7 h-7 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display"
+            className="size-7 rounded border border-rule font-display text-ink-soft hover:bg-parchment-deep"
             title="Increase renown"
           >
             +
           </button>
-          <span className="text-xs px-2 py-0.5 rounded-sm border border-wine/40 bg-wine/5 text-wine font-display uppercase tracking-wider">
+          <span className="rounded-sm border border-wine/40 bg-wine/5 px-2 py-0.5 font-display text-xs uppercase tracking-wider text-wine">
             {rank}
           </span>
         </div>
@@ -429,14 +429,14 @@ const FactionCard = ({ data, onChange, onRemove }: any) => {
 };
 
 const GoalCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+  <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
     <div className="flex justify-between gap-2">
       <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="Goal Statement" rows={2} />
       <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
     </div>
     <div className="grid grid-cols-3 gap-1.5">
       {[['short', 'Short-Term'], ['mid', 'Mid-Term'], ['long', 'Long-Term']].map(([t, label]) => (
-        <button key={t} onClick={() => onChange({ ...data, timeframe: t })} className={`text-xs py-1 rounded border font-display uppercase tracking-wider ${data.timeframe === t ? 'bg-wine/10 border-wine text-wine' : 'border-rule text-ink-mute'}`}>{label}</button>
+        <button key={t} onClick={() => onChange({ ...data, timeframe: t })} className={`rounded border py-1 font-display text-xs uppercase tracking-wider ${data.timeframe === t ? 'border-wine bg-wine/10 text-wine' : 'border-rule text-ink-mute'}`}>{label}</button>
       ))}
     </div>
     <div><CardLabel>Rule 3 — Success State</CardLabel>
@@ -464,7 +464,7 @@ const NPCFieldRow = ({
   tableId?: string;
 }) => (
   <div>
-    <div className="flex items-center justify-between gap-2 mb-0.5">
+    <div className="mb-0.5 flex items-center justify-between gap-2">
       <CardLabel>{label}</CardLabel>
       {tableId && (
         <Inspire
@@ -493,14 +493,14 @@ const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) 
     onChange({ ...data, archetype: e });
   };
   return (
-    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+    <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex justify-between gap-2">
         <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
         <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div><CardLabel>Type</CardLabel>
-          <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
+          <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink">
             <option value="">— Choose —</option>
             <option>Ally</option><option>Villain</option><option>Patron</option><option>Rival</option><option>Neutral / Colour</option>
           </select></div>
@@ -508,9 +508,9 @@ const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) 
           <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="..." /></div>
       </div>
       <div>
-        <div className="flex items-center justify-between gap-2 mb-0.5 flex-wrap">
+        <div className="mb-0.5 flex flex-wrap items-center justify-between gap-2">
           <CardLabel>Archetype</CardLabel>
-          <div className="flex gap-1 flex-wrap">
+          <div className="flex flex-wrap gap-1">
             <Inspire tableId="villainArchetypes" compact label="Villain" onPick={archetypeInspire('villainArchetypes')} />
             <Inspire tableId="npcBackgroundConcepts" compact label="Background" onPick={archetypeInspire('npcBackgroundConcepts')} />
             <Inspire tableId="raceCharacterNotes" compact label="Species" onPick={archetypeInspire('raceCharacterNotes')} />
@@ -524,13 +524,13 @@ const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) 
         <Field value={data.method} onChange={(v) => onChange({ ...data, method: v })} placeholder="Violence? Charm?" /></div>
       <button
         onClick={() => setShowDetails(s => !s)}
-        className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider"
+        className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
       >
         {showDetails ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         {showDetails ? 'Hide Details' : 'Show Details'}
       </button>
       {showDetails && (
-        <div className="space-y-2 pt-1 border-t border-rule">
+        <div className="space-y-2 border-t border-rule pt-1">
           <NPCFieldRow label="Appearance" value={data.appearance || ''} onChange={(v) => onChange({ ...data, appearance: v })} placeholder="Distinctive physical detail or two" />
           <NPCFieldRow label="Abilities" value={data.abilities || ''} onChange={(v) => onChange({ ...data, abilities: v })} placeholder="High/low ability — strong, slow, perceptive..." />
           <NPCFieldRow label="Talent" value={data.talent || ''} onChange={(v) => onChange({ ...data, talent: v })} placeholder="Something they can do that's distinctive" tableId="npcTalents" />
@@ -547,13 +547,13 @@ const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) 
 };
 
 const LocationCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+  <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
     <div className="flex justify-between gap-2">
       <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Evocative Name" />
       <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
     </div>
     <div><CardLabel>Type</CardLabel>
-      <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
+      <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink">
         <option value="">— Choose —</option>
         <option>Player Base</option><option>Faction Stronghold</option><option>Wilderness Landmark</option>
         <option>Dungeon Room / Area</option><option>Settlement</option><option>Travel Waypoint</option><option>Other</option>
@@ -638,8 +638,8 @@ const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }: {
   onRemove: () => void;
 }) => (
   <div className="rounded border border-rule bg-parchment shadow-card">
-    <div className="flex items-center flex-wrap gap-1.5 p-2">
-      <button onClick={onToggleOpen} className="text-brass-deep hover:text-crimson flex-shrink-0">
+    <div className="flex flex-wrap items-center gap-1.5 p-2">
+      <button onClick={onToggleOpen} className="flex-shrink-0 text-brass-deep hover:text-crimson">
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>
       <textarea
@@ -647,26 +647,26 @@ const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }: {
         value={data.title || ''}
         onChange={(e) => onChange({ ...data, title: e.target.value })}
         placeholder="Session title"
-        className="flex-1 min-w-[8rem] bg-transparent font-display tracking-wide text-sm text-ink placeholder:text-ink-faint placeholder:italic placeholder:font-serif focus:outline-none border-b border-transparent focus:border-crimson pb-0.5 resize-none whitespace-pre-wrap break-words [field-sizing:content]"
+        className="min-w-32 flex-1 resize-none whitespace-pre-wrap break-words border-b border-transparent bg-transparent pb-0.5 font-display text-sm tracking-wide text-ink [field-sizing:content] placeholder:font-serif placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
       />
       <input
         type="date"
         value={data.date || ''}
         onChange={(e) => onChange({ ...data, date: e.target.value })}
-        className="bg-parchment-soft border border-rule rounded px-1 py-0.5 text-[11px] sm:text-xs text-ink-soft font-serif focus:border-crimson focus:outline-none flex-shrink-0"
+        className="flex-shrink-0 rounded border border-rule bg-parchment-soft px-1 py-0.5 font-serif text-[11px] text-ink-soft focus:border-crimson focus:outline-none sm:text-xs"
       />
-      <button onClick={onRemove} className="text-ink-mute hover:text-crimson px-1 flex-shrink-0">
+      <button onClick={onRemove} className="flex-shrink-0 px-1 text-ink-mute hover:text-crimson">
         <X size={14} />
       </button>
     </div>
     {open && (
-      <div className="px-2.5 pb-2.5 pt-2 border-t border-rule">
+      <div className="border-t border-rule px-2.5 pb-2.5 pt-2">
         <textarea
           value={data.body || ''}
           onChange={(e) => onChange({ ...data, body: e.target.value })}
           placeholder="What happened. Open threads."
           rows={6}
-          className="w-full bg-transparent border-b border-rule text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y px-1 py-1 text-sm"
+          className="w-full resize-y border-b border-rule bg-transparent p-1 font-serif text-sm text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
         />
       </div>
     )}
@@ -679,28 +679,28 @@ const ClockCard = ({ data, onChange, onRemove }: any) => {
   const notes: string = data.notes || '';
   const [notesOpen, setNotesOpen] = useState(notes.trim().length > 0);
   return (
-    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+    <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex justify-between gap-2">
         <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="What is this faction trying to do?" />
         <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
       </div>
       <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="Faction" />
       <div className="flex flex-wrap items-center gap-2">
-        <select value={max} onChange={(e) => onChange({ ...data, max: Number(e.target.value) })} className="bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif flex-shrink-0">
+        <select value={max} onChange={(e) => onChange({ ...data, max: Number(e.target.value) })} className="flex-shrink-0 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink">
           {[4, 6, 8, 12, 16].map(n => <option key={n} value={n}>{n} segments</option>)}
         </select>
-        <div className="flex gap-0.5 flex-1 min-w-[8rem] border border-brass-deep rounded-sm p-0.5 bg-parchment-deep">
+        <div className="flex min-w-32 flex-1 gap-0.5 rounded-sm border border-brass-deep bg-parchment-deep p-0.5">
           {Array.from({ length: max }).map((_, i) => (
-            <button key={i} onClick={() => onChange({ ...data, filled: i + 1 === filled ? i : i + 1 })} className={`flex-1 min-w-[14px] h-5 rounded-sm transition-colors ${i < filled ? 'bg-crimson' : 'bg-parchment hover:bg-parchment-deep'}`} />
+            <button key={i} onClick={() => onChange({ ...data, filled: i + 1 === filled ? i : i + 1 })} className={`h-5 min-w-[14px] flex-1 rounded-sm transition-colors ${i < filled ? 'bg-crimson' : 'bg-parchment hover:bg-parchment-deep'}`} />
           ))}
         </div>
-        <span className="text-xs text-brass-deep font-display flex-shrink-0">{filled}/{max}</span>
+        <span className="flex-shrink-0 font-display text-xs text-brass-deep">{filled}/{max}</span>
       </div>
-      <div className="pt-1 border-t border-rule/60">
+      <div className="border-t border-rule/60 pt-1">
         <button
           type="button"
           onClick={() => setNotesOpen(o => !o)}
-          className="flex items-center gap-1 text-[10px] text-brass-deep hover:text-crimson font-display uppercase tracking-wider"
+          className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:text-crimson"
         >
           {notesOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           Notes{notes.trim() ? '' : ' (empty)'}
@@ -711,7 +711,7 @@ const ClockCard = ({ data, onChange, onRemove }: any) => {
             onChange={(e) => onChange({ ...data, notes: e.target.value })}
             placeholder="Front notes — what this faction is doing, why it matters, what advances it"
             rows={3}
-            className="mt-1.5 w-full bg-parchment-soft border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y [field-sizing:content]"
+            className="mt-1.5 w-full resize-y rounded border border-rule bg-parchment-soft px-2 py-1.5 font-serif text-sm text-ink [field-sizing:content] placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
           />
         )}
       </div>
@@ -844,14 +844,14 @@ const DowntimeCard = ({
   const type = DOWNTIME_TYPES.find(t => t.id === entry.type);
   if (!type) return null;
   return (
-    <div className={`rounded border p-3 space-y-2 shadow-card ${entry.archived ? 'border-rule/60 bg-parchment-deep/40 opacity-80' : 'border-rule bg-parchment'}`}>
+    <div className={`space-y-2 rounded border p-3 shadow-card ${entry.archived ? 'border-rule/60 bg-parchment-deep/40 opacity-80' : 'border-rule bg-parchment'}`}>
       <div className="flex items-center justify-between gap-2">
         <span className="font-display text-sm tracking-wide text-ink">{type.label}</span>
         <div className="flex gap-1.5">
           {entry.archived ? (
-            <button onClick={onUnarchive} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">Unarchive</button>
+            <button onClick={onUnarchive} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">Unarchive</button>
           ) : (
-            <button onClick={onArchive} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">Archive</button>
+            <button onClick={onArchive} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">Archive</button>
           )}
           <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
         </div>
@@ -870,7 +870,7 @@ const DowntimeCard = ({
         ))}
       </div>
       {type.reference && (
-        <div className="text-[10px] text-ink-mute italic font-serif border-t border-rule pt-1.5">
+        <div className="border-t border-rule pt-1.5 font-serif text-[10px] italic text-ink-mute">
           {type.reference}
         </div>
       )}
@@ -919,14 +919,14 @@ const EncounterHelper = ({
   };
 
   return (
-    <div className="rounded border border-amber-900/30 bg-amber-950/10 p-3 space-y-2.5">
+    <div className="space-y-2.5 rounded border border-amber-900/30 bg-amber-950/10 p-3">
       <div className="flex items-center justify-between">
         <span className="font-display text-xs uppercase tracking-wider text-amber-900">Solo Encounter Helper</span>
-        <span className="text-[10px] text-ink-mute italic font-serif">5e SRD thresholds · solo-adjusted</span>
+        <span className="font-serif text-[10px] italic text-ink-mute">5e SRD thresholds · solo-adjusted</span>
       </div>
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <label className="text-xs text-ink-soft font-serif">PC Level</label>
+          <label className="font-serif text-xs text-ink-soft">PC Level</label>
           <input
             type="number"
             min={1}
@@ -936,10 +936,10 @@ const EncounterHelper = ({
               const v = parseInt(e.target.value || '1', 10);
               onChange({ ...state, pcLevel: Math.min(20, Math.max(1, isNaN(v) ? 1 : v)) });
             }}
-            className="w-16 bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+            className="w-16 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink"
           />
         </div>
-        <label className="flex items-center gap-1.5 text-xs text-ink-soft font-serif cursor-pointer select-none">
+        <label className="flex cursor-pointer select-none items-center gap-1.5 font-serif text-xs text-ink-soft">
           <input
             type="checkbox"
             checked={!!state.gestalt}
@@ -953,16 +953,16 @@ const EncounterHelper = ({
       <div className="space-y-1.5">
         {monsters.map((m, i) => (
           <div key={i} className="flex items-center gap-2">
-            <span className="text-xs text-ink-mute w-4">{i + 1}.</span>
-            <label className="text-[10px] text-ink-mute font-display uppercase tracking-wider">CR</label>
+            <span className="w-4 text-xs text-ink-mute">{i + 1}.</span>
+            <label className="font-display text-[10px] uppercase tracking-wider text-ink-mute">CR</label>
             <select
               value={m.cr}
               onChange={(e) => updateMonster(i, { cr: e.target.value })}
-              className="bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+              className="rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink"
             >
               {CR_OPTIONS.map(cr => <option key={cr} value={cr}>{cr}</option>)}
             </select>
-            <span className="text-[10px] text-ink-mute font-serif">×</span>
+            <span className="font-serif text-[10px] text-ink-mute">×</span>
             <input
               type="number"
               min={1}
@@ -972,22 +972,22 @@ const EncounterHelper = ({
                 const v = parseInt(e.target.value || '1', 10);
                 updateMonster(i, { count: Math.max(1, isNaN(v) ? 1 : v) });
               }}
-              className="w-14 bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+              className="w-14 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink"
             />
-            <span className="text-[10px] text-ink-mute font-serif flex-1">
+            <span className="flex-1 font-serif text-[10px] text-ink-mute">
               = {(CR_TO_XP[m.cr] || 0) * (m.count || 0)} XP
             </span>
             <button onClick={() => removeMonster(i)} className="text-ink-mute hover:text-crimson"><X size={12} /></button>
           </div>
         ))}
         {monsters.length < 6 && (
-          <button onClick={addMonster} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+          <button onClick={addMonster} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
             <Plus size={12} /> Add Monster
           </button>
         )}
       </div>
       {monsters.length > 0 && (
-        <div className="border-t border-amber-900/20 pt-2 space-y-1 text-xs font-serif">
+        <div className="space-y-1 border-t border-amber-900/20 pt-2 font-serif text-xs">
           <div className="flex justify-between text-ink-soft">
             <span>Base XP</span><span>{baseXP}</span>
           </div>
@@ -995,11 +995,11 @@ const EncounterHelper = ({
             <span>Group multiplier ({totalCount} creature{totalCount === 1 ? '' : 's'})</span>
             <span>× {mult}</span>
           </div>
-          <div className="flex justify-between text-ink font-semibold">
+          <div className="flex justify-between font-semibold text-ink">
             <span>Adjusted XP</span><span>{adjustedXP}</span>
           </div>
-          <div className={`mt-1.5 rounded border px-2 py-1.5 flex items-center justify-between ${ratingClass}`}>
-            <span className="font-display uppercase tracking-wider text-xs">{rating}</span>
+          <div className={`mt-1.5 flex items-center justify-between rounded border px-2 py-1.5 ${ratingClass}`}>
+            <span className="font-display text-xs uppercase tracking-wider">{rating}</span>
             <span className="text-[10px] italic">{rationale}</span>
           </div>
         </div>
@@ -1107,10 +1107,10 @@ function RunSessionInlineIdle({
   return (
     <div className="space-y-3">
       <div className="rounded border-2 border-crimson/50 bg-crimson/5 p-5 shadow-card">
-        <h2 className="font-display text-xl tracking-wide text-crimson mb-1 flex items-center gap-2">
+        <h2 className="mb-1 flex items-center gap-2 font-display text-xl tracking-wide text-crimson">
           <Swords size={20} /> Start a Session
         </h2>
-        <p className="text-sm text-ink-soft font-serif mb-3">
+        <p className="mb-3 font-serif text-sm text-ink-soft">
           Track prep items used, capture events, and seed the session log. Start in-tab to keep
           the app chrome visible, or open the full-screen run-session overlay.
         </p>
@@ -1118,14 +1118,14 @@ function RunSessionInlineIdle({
           <button
             type="button"
             onClick={() => startNewSession(false)}
-            className="text-sm px-4 py-2 rounded border border-crimson/60 bg-crimson text-parchment hover:bg-wine font-display uppercase tracking-wider flex items-center gap-2"
+            className="flex items-center gap-2 rounded border border-crimson/60 bg-crimson px-4 py-2 font-display text-sm uppercase tracking-wider text-parchment hover:bg-wine"
           >
             <Play size={14} /> Start In-Tab
           </button>
           <button
             type="button"
             onClick={() => startNewSession(true)}
-            className="text-sm px-4 py-2 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-2"
+            className="flex items-center gap-2 rounded border border-crimson/60 bg-crimson/10 px-4 py-2 font-display text-sm uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment"
           >
             Start Full-Screen
           </button>
@@ -1133,39 +1133,39 @@ function RunSessionInlineIdle({
       </div>
 
       <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-display tracking-wide text-ink text-sm">Recent Sessions</h3>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="font-display text-sm tracking-wide text-ink">Recent Sessions</h3>
           {recent.length > 0 && (
             <button
               type="button"
               onClick={() => navigateTo({ mode: 'run', subview: 'log' })}
-              className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider"
+              className="font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
             >
               View All →
             </button>
           )}
         </div>
         {recent.length === 0 ? (
-          <p className="text-xs text-ink-mute italic font-serif">No session logs yet.</p>
+          <p className="font-serif text-xs italic text-ink-mute">No session logs yet.</p>
         ) : (
           <ul className="space-y-2">
             {recent.map(entry => (
               <li key={entry.id} className="rounded border border-rule bg-parchment-soft p-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
                       Session {entry.number}
                       {entry.endedAt && <span className="ml-2 text-ink-mute">{new Date(entry.endedAt).toLocaleDateString()}</span>}
                     </div>
-                    {entry.title && <div className="font-display text-sm text-ink truncate">{entry.title}</div>}
+                    {entry.title && <div className="truncate font-display text-sm text-ink">{entry.title}</div>}
                     {entry.recap && (
-                      <p className="text-xs text-ink-soft font-serif italic line-clamp-2 mt-0.5">{entry.recap}</p>
+                      <p className="mt-0.5 line-clamp-2 font-serif text-xs italic text-ink-soft">{entry.recap}</p>
                     )}
                   </div>
                   <button
                     type="button"
                     onClick={() => navigateTo({ mode: 'run', subview: 'log' })}
-                    className="text-[10px] px-2 py-0.5 rounded-sm border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex-shrink-0"
+                    className="flex-shrink-0 rounded-sm border border-brass-deep/60 px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
                   >
                     View
                   </button>
@@ -1177,8 +1177,8 @@ function RunSessionInlineIdle({
       </div>
 
       <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-        <h3 className="font-display tracking-wide text-ink text-sm mb-2">Prep Status</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+        <h3 className="mb-2 font-display text-sm tracking-wide text-ink">Prep Status</h3>
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <PrepStat label="NPCs" value={npcsCount} />
           <PrepStat label="Locations" value={locationsCount} />
           <PrepStat label="Secrets" value={`${secretsRemaining}/${secretsTotal}`} sub="unrevealed" />
@@ -1186,21 +1186,21 @@ function RunSessionInlineIdle({
         </div>
         {nextUp ? (
           <div className="flex items-center gap-2 rounded border border-brass/40 bg-brass/5 p-2">
-            <span className="text-[10px] font-display uppercase tracking-wider text-brass-deep flex-shrink-0">Lowest Progress</span>
-            <span className="flex-1 text-xs font-serif text-ink-soft">
-              <span className="text-ink font-display">{nextUp.label}</span>
-              <span className="text-ink-mute italic ml-1">— {nextUp.current} of {nextUp.target}</span>
+            <span className="flex-shrink-0 font-display text-[10px] uppercase tracking-wider text-brass-deep">Lowest Progress</span>
+            <span className="flex-1 font-serif text-xs text-ink-soft">
+              <span className="font-display text-ink">{nextUp.label}</span>
+              <span className="ml-1 italic text-ink-mute">— {nextUp.current} of {nextUp.target}</span>
             </span>
             <button
               type="button"
               onClick={jumpToNextUp}
-              className="text-[10px] px-2 py-0.5 rounded-sm border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex-shrink-0"
+              className="flex-shrink-0 rounded-sm border border-brass-deep/60 px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
             >
               Jump
             </button>
           </div>
         ) : (
-          <p className="text-xs text-moss italic font-serif">All prep targets met. Ready to run.</p>
+          <p className="font-serif text-xs italic text-moss">All prep targets met. Ready to run.</p>
         )}
       </div>
     </div>
@@ -1210,9 +1210,9 @@ function RunSessionInlineIdle({
 function PrepStat({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
   return (
     <div className="rounded border border-rule bg-parchment-soft p-2 text-center">
-      <div className="font-display text-xl text-ink tabular-nums">{value}</div>
-      <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep">{label}</div>
-      {sub && <div className="text-[9px] text-ink-mute italic">{sub}</div>}
+      <div className="font-display text-xl tabular-nums text-ink">{value}</div>
+      <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{label}</div>
+      {sub && <div className="text-[9px] italic text-ink-mute">{sub}</div>}
     </div>
   );
 }
@@ -1332,18 +1332,18 @@ function RunSessionInlineActive({
   return (
     <div className="space-y-3">
       <header className="flex flex-wrap items-center justify-between gap-2 rounded border-2 border-crimson/50 bg-crimson/5 p-3">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           <Swords size={16} className="text-crimson" />
           <span className="font-display text-base tracking-wide text-crimson">
             Session {sessionNumber}
           </span>
-          <span className="text-xs text-ink-soft font-serif italic">started {elapsed} ago</span>
+          <span className="font-serif text-xs italic text-ink-soft">started {elapsed} ago</span>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setVal('__runSessionOpen', true)}
-            className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+            className="flex items-center gap-1.5 rounded border border-brass-deep/60 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
             title="Switch to the full-screen overlay"
           >
             Full-Screen
@@ -1351,22 +1351,22 @@ function RunSessionInlineActive({
           <button
             type="button"
             onClick={onEndSession}
-            className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+            className="flex items-center gap-1.5 rounded border border-crimson/60 bg-crimson/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment"
           >
             End Session
           </button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-3">
-        <div className="space-y-3 min-w-0">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_320px]">
+        <div className="min-w-0 space-y-3">
           {strongStart && (
-            <section className="rounded border-2 border-crimson/50 bg-crimson/5 shadow-card p-3 sm:p-4">
-              <div className="flex items-start gap-2 mb-1.5">
-                <Zap size={16} className="text-crimson flex-shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                    <h2 className="font-display tracking-wide text-sm sm:text-base text-crimson uppercase">
+            <section className="rounded border-2 border-crimson/50 bg-crimson/5 p-3 shadow-card sm:p-4">
+              <div className="mb-1.5 flex items-start gap-2">
+                <Zap size={16} className="mt-0.5 flex-shrink-0 text-crimson" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-3">
+                    <h2 className="font-display text-sm uppercase tracking-wide text-crimson sm:text-base">
                       Strong Start
                     </h2>
                     <button
@@ -1375,9 +1375,9 @@ function RunSessionInlineActive({
                         setStrongStartDone(next);
                         if (next) trackEvent('other', 'Strong start delivered');
                       }}
-                      className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider flex items-center gap-1 ${
+                      className={`flex items-center gap-1 rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
                         strongStartDone
-                          ? 'bg-brass border-brass-deep text-parchment'
+                          ? 'border-brass-deep bg-brass text-parchment'
                           : 'border-brass-deep/60 text-brass-deep hover:bg-brass/10'
                       }`}
                     >
@@ -1385,7 +1385,7 @@ function RunSessionInlineActive({
                       {strongStartDone ? 'Delivered' : 'Mark Delivered'}
                     </button>
                   </div>
-                  <p className={`mt-1 text-sm sm:text-base font-serif text-ink-soft whitespace-pre-wrap ${strongStartDone ? 'italic opacity-60' : ''}`}>
+                  <p className={`mt-1 whitespace-pre-wrap font-serif text-sm text-ink-soft sm:text-base ${strongStartDone ? 'italic opacity-60' : ''}`}>
                     {strongStart}
                   </p>
                 </div>
@@ -1450,7 +1450,7 @@ function RunSessionInlineActive({
                 tag={l.type || ''}
               >
                 {Array.isArray(l.aspects) && l.aspects.filter(Boolean).length > 0 && (
-                  <ul className="ml-3 list-disc text-[12px] text-ink-soft italic">
+                  <ul className="ml-3 list-disc text-[12px] italic text-ink-soft">
                     {l.aspects.filter(Boolean).map((a: string, j: number) => <li key={j}>{a}</li>)}
                   </ul>
                 )}
@@ -1463,7 +1463,7 @@ function RunSessionInlineActive({
             {monstersList.length === 0 ? <Empty>No monsters prepped.</Empty> : (
               <ul className="space-y-1">
                 {monstersList.map((m, i) => (
-                  <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif text-ink-soft">
+                  <li key={i} className="rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink-soft">
                     {m}
                   </li>
                 ))}
@@ -1492,14 +1492,14 @@ function RunSessionInlineActive({
             {pcGoals.length === 0 ? <Empty>No PC goals prepped.</Empty> : (
               <ul className="space-y-1.5">
                 {pcGoals.map((g: any, i: number) => (
-                  <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif">
+                  <li key={i} className="rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
                     <div className="text-ink-soft">{g.text || `Goal ${i + 1}`}</div>
                     <div className="mt-1 flex flex-wrap gap-1">
                       {['Active', 'Progressed', 'Completed', 'Failed'].map(s => (
                         <button
                           key={s}
                           onClick={() => updateGoalStatus(i, s)}
-                          className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider ${g.status === s ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'}`}
+                          className={`rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${g.status === s ? 'border-crimson bg-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'}`}
                         >
                           {s}
                         </button>
@@ -1518,24 +1518,24 @@ function RunSessionInlineActive({
                   const max = c.max || 6;
                   const filled = c.filled || 0;
                   return (
-                    <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif space-y-1">
+                    <li key={i} className="space-y-1 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-ink">{c.text || `Clock ${i + 1}`}</span>
-                        <span className="text-[11px] text-brass-deep font-display">{filled}/{max}</span>
+                        <span className="font-display text-[11px] text-brass-deep">{filled}/{max}</span>
                       </div>
-                      {c.faction && <div className="text-[10px] text-ink-mute italic">{c.faction}</div>}
+                      {c.faction && <div className="text-[10px] italic text-ink-mute">{c.faction}</div>}
                       <div className="flex gap-0.5">
                         {Array.from({ length: max }).map((_, j) => (
                           <button
                             key={j}
                             onClick={() => tickClock(i, j + 1 === filled ? -filled : (j + 1) - filled)}
-                            className={`flex-1 h-3 rounded-sm transition-colors ${j < filled ? 'bg-crimson' : 'bg-parchment-deep hover:bg-parchment-deep/70'}`}
+                            className={`h-3 flex-1 rounded-sm transition-colors ${j < filled ? 'bg-crimson' : 'bg-parchment-deep hover:bg-parchment-deep/70'}`}
                           />
                         ))}
                       </div>
                       <div className="flex gap-1">
-                        <button onClick={() => tickClock(i, -1)} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">−1</button>
-                        <button onClick={() => tickClock(i, 1)} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">+1</button>
+                        <button onClick={() => tickClock(i, -1)} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">−1</button>
+                        <button onClick={() => tickClock(i, 1)} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">+1</button>
                       </div>
                     </li>
                   );
@@ -1548,11 +1548,11 @@ function RunSessionInlineActive({
             <ActivePrepGroup title="Faction Renown" icon={Users} count={factions.length}>
               <ul className="space-y-1.5">
                 {factions.map((f: any, i: number) => (
-                  <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif flex items-center gap-2">
+                  <li key={i} className="flex items-center gap-2 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
                     <span className="flex-1 text-ink">{f.name || `Faction ${i + 1}`}</span>
-                    <span className="text-xs text-brass-deep font-display tabular-nums">{typeof f.renown === 'number' ? f.renown : 0}</span>
-                    <button onClick={() => adjustRenown(i, -1)} className="text-[11px] w-6 h-6 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display">−</button>
-                    <button onClick={() => adjustRenown(i, 1)} className="text-[11px] w-6 h-6 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display">+</button>
+                    <span className="font-display text-xs tabular-nums text-brass-deep">{typeof f.renown === 'number' ? f.renown : 0}</span>
+                    <button onClick={() => adjustRenown(i, -1)} className="size-6 rounded border border-rule font-display text-[11px] text-ink-soft hover:bg-parchment-deep">−</button>
+                    <button onClick={() => adjustRenown(i, 1)} className="size-6 rounded border border-rule font-display text-[11px] text-ink-soft hover:bg-parchment-deep">+</button>
                   </li>
                 ))}
               </ul>
@@ -1572,7 +1572,7 @@ function RunSessionInlineActive({
                 onClose={() => setInitiativeOpen(false)}
               />
             ) : (
-              <p className="text-xs text-ink-mute italic font-serif px-1">Tap to expand and track turns, HP, conditions.</p>
+              <p className="px-1 font-serif text-xs italic text-ink-mute">Tap to expand and track turns, HP, conditions.</p>
             )}
           </PanelShell>
 
@@ -1588,14 +1588,14 @@ function RunSessionInlineActive({
 
       <InlineNoteSeed trackEvent={trackEvent} />
 
-      <div className="sticky bottom-2 bg-parchment-soft border border-rule rounded shadow-page p-2 flex items-start gap-2">
-        <NotebookPen size={14} className="text-brass-deep flex-shrink-0 mt-1.5" />
+      <div className="sticky bottom-2 flex items-start gap-2 rounded border border-rule bg-parchment-soft p-2 shadow-page">
+        <NotebookPen size={14} className="mt-1.5 flex-shrink-0 text-brass-deep" />
         <textarea
           value={scratchpad}
           onChange={(e) => setVal('__sessionScratchpad', e.target.value)}
           placeholder="Session scratchpad — what happened, threads, open questions. Seeds the log when you end the session."
           rows={2}
-          className="flex-1 bg-parchment border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y"
+          className="flex-1 resize-y rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
         />
       </div>
     </div>
@@ -1616,20 +1616,20 @@ function InlineNoteSeed({ trackEvent }: { trackEvent: (kind: ChangeEventKind, su
   const [text, setText] = useState('');
   return (
     <details className="rounded border border-rule bg-parchment-soft shadow-card">
-      <summary className="px-3 py-2 cursor-pointer font-display tracking-wide text-sm text-ink hover:bg-parchment-deep/30 flex items-center gap-2">
+      <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 font-display text-sm tracking-wide text-ink hover:bg-parchment-deep/30">
         <Plus size={12} className="text-brass-deep" /> Add Session Note
       </summary>
-      <div className="px-3 pb-3 pt-1 border-t border-rule space-y-1.5">
+      <div className="space-y-1.5 border-t border-rule px-3 pb-3 pt-1">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="A moment to remember…"
-          className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+          className="w-full rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink"
         />
         <button
           disabled={!text.trim()}
           onClick={() => { trackEvent('other', text.trim()); setText(''); }}
-          className="text-xs px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed font-display uppercase tracking-wider"
+          className="rounded border border-crimson/60 bg-crimson/10 px-2 py-1 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40"
         >
           Mark as Session Note
         </button>
@@ -1639,7 +1639,7 @@ function InlineNoteSeed({ trackEvent }: { trackEvent: (kind: ChangeEventKind, su
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-ink-mute italic font-serif">{children}</p>;
+  return <p className="font-serif text-xs italic text-ink-mute">{children}</p>;
 }
 
 function ActivePrepGroup({
@@ -1651,14 +1651,14 @@ function ActivePrepGroup({
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-parchment-deep/30"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-parchment-deep/30"
       >
-        <Icon size={14} className="text-brass-deep flex-shrink-0" />
-        <span className="font-display tracking-wide text-sm text-ink flex-1">{title}</span>
-        {typeof count === 'number' && <span className="text-[11px] text-ink-mute font-serif">{count}</span>}
+        <Icon size={14} className="flex-shrink-0 text-brass-deep" />
+        <span className="flex-1 font-display text-sm tracking-wide text-ink">{title}</span>
+        {typeof count === 'number' && <span className="font-serif text-[11px] text-ink-mute">{count}</span>}
         {open ? <ChevronDown size={14} className="text-ink-mute" /> : <ChevronRight size={14} className="text-ink-mute" />}
       </button>
-      {open && <div className="px-3 pb-3 pt-1 border-t border-rule space-y-1.5">{children}</div>}
+      {open && <div className="space-y-1.5 border-t border-rule px-3 pb-3 pt-1">{children}</div>}
     </section>
   );
 }
@@ -1672,13 +1672,13 @@ function CompactCard({
 }) {
   const dim = status === 'used';
   return (
-    <div className={`flex items-start gap-2 px-2 py-1.5 rounded border text-sm font-serif ${dim ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
+    <div className={`flex items-start gap-2 rounded border px-2 py-1.5 font-serif text-sm ${dim ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
       <span className={`flex-1 ${dim ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{label}</span>
       {action && (
         <button
           type="button"
           onClick={action.onClick}
-          className="text-[10px] px-2 py-0.5 rounded-sm border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex-shrink-0"
+          className="flex-shrink-0 rounded-sm border border-brass-deep/60 px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
         >
           {action.label}
         </button>
@@ -1693,18 +1693,18 @@ function ExpandableCard({
   const [open, setOpen] = useState(false);
   const hasContent = !!children && (React.Children.count(children) > 0);
   return (
-    <div className="rounded border border-rule bg-parchment text-sm font-serif">
+    <div className="rounded border border-rule bg-parchment font-serif text-sm">
       <button
         type="button"
         onClick={() => hasContent && setOpen(o => !o)}
-        className="w-full text-left px-2 py-1.5 flex items-center gap-2 hover:bg-parchment-deep/30"
+        className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-parchment-deep/30"
       >
         {hasContent && (open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />)}
-        <span className="flex-1 text-ink truncate">{label}</span>
-        {tag && <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">{tag}</span>}
+        <span className="flex-1 truncate text-ink">{label}</span>
+        {tag && <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{tag}</span>}
       </button>
       {open && hasContent && (
-        <div className="px-3 pb-2 pt-1 border-t border-rule text-[12px] text-ink-soft space-y-0.5">{children}</div>
+        <div className="space-y-0.5 border-t border-rule px-3 pb-2 pt-1 text-[12px] text-ink-soft">{children}</div>
       )}
     </div>
   );
@@ -1752,15 +1752,15 @@ function LookupView({
 
   return (
     <div className="space-y-3">
-      <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
+      <div className="space-y-2 rounded border border-rule bg-parchment p-3 shadow-card">
         <div className="flex items-center gap-2">
-          <Search size={14} className="text-brass-deep flex-shrink-0" />
+          <Search size={14} className="flex-shrink-0 text-brass-deep" />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search NPCs, locations, secrets, factions, items…"
-            className="flex-1 bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif placeholder:text-ink-faint focus:border-crimson focus:outline-none"
+            className="flex-1 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none"
           />
         </div>
         <div className="flex flex-wrap gap-1">
@@ -1776,15 +1776,15 @@ function LookupView({
               key={id}
               type="button"
               onClick={() => setKind(id)}
-              className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider ${
-                kind === id ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'
+              className={`rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
+                kind === id ? 'border-crimson bg-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'
               }`}
             >
               {label}
             </button>
           ))}
         </div>
-        <div className="text-[11px] text-ink-mute font-serif italic">
+        <div className="font-serif text-[11px] italic text-ink-mute">
           {totalCount === 0 && q ? 'No matches.' : totalCount === 0 ? 'Nothing prepped yet.' : `${totalCount} match${totalCount === 1 ? '' : 'es'}`}
         </div>
       </div>
@@ -1817,7 +1817,7 @@ function LookupView({
             return (
               <LookupCard key={id} label={label} tag={l.type || ''} open={open} onToggle={() => setOpenId(open ? null : id)}>
                 {Array.isArray(l.aspects) && l.aspects.filter(Boolean).length > 0 && (
-                  <ul className="ml-3 list-disc text-[12px] text-ink-soft italic">
+                  <ul className="ml-3 list-disc text-[12px] italic text-ink-soft">
                     {l.aspects.filter(Boolean).map((a: string, j: number) => <li key={j}>{a}</li>)}
                   </ul>
                 )}
@@ -1835,9 +1835,9 @@ function LookupView({
             return (
               <div
                 key={`sec-${i}`}
-                className={`px-2 py-1.5 rounded border text-sm font-serif ${revealed ? 'border-emerald-700/40 bg-emerald-100/30 text-ink-mute' : 'border-rule bg-parchment text-ink-soft'}`}
+                className={`rounded border px-2 py-1.5 font-serif text-sm ${revealed ? 'border-emerald-700/40 bg-emerald-100/30 text-ink-mute' : 'border-rule bg-parchment text-ink-soft'}`}
               >
-                <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider mr-2">{revealed ? 'Revealed' : 'Hidden'}</span>
+                <span className="mr-2 font-display text-[10px] uppercase tracking-wider text-brass-deep">{revealed ? 'Revealed' : 'Hidden'}</span>
                 {s}
               </div>
             );
@@ -1867,7 +1867,7 @@ function LookupView({
       {showItems && filteredItems.length > 0 && (
         <LookupGroup title="Magic Items" icon={Gift}>
           {filteredItems.map(({ m, i }) => (
-            <div key={`item-${i}`} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif text-ink-soft">
+            <div key={`item-${i}`} className="rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink-soft">
               {m}
             </div>
           ))}
@@ -1882,11 +1882,11 @@ function LookupGroup({
 }: { title: string; icon: any; children: React.ReactNode }) {
   return (
     <section className="rounded border border-rule bg-parchment-soft shadow-card">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-rule">
+      <div className="flex items-center gap-2 border-b border-rule px-3 py-2">
         <Icon size={14} className="text-brass-deep" />
-        <span className="font-display tracking-wide text-sm text-ink">{title}</span>
+        <span className="font-display text-sm tracking-wide text-ink">{title}</span>
       </div>
-      <div className="p-3 space-y-1.5">{children}</div>
+      <div className="space-y-1.5 p-3">{children}</div>
     </section>
   );
 }
@@ -1895,14 +1895,14 @@ function LookupCard({
   label, tag, open, onToggle, children,
 }: { label: string; tag?: string; open: boolean; onToggle: () => void; children?: React.ReactNode }) {
   return (
-    <div className="rounded border border-rule bg-parchment text-sm font-serif">
-      <button onClick={onToggle} className="w-full text-left px-2 py-1.5 flex items-center gap-2 hover:bg-parchment-deep/30">
+    <div className="rounded border border-rule bg-parchment font-serif text-sm">
+      <button onClick={onToggle} className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-parchment-deep/30">
         {open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />}
-        <span className="flex-1 text-ink truncate">{label}</span>
-        {tag && <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">{tag}</span>}
+        <span className="flex-1 truncate text-ink">{label}</span>
+        {tag && <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{tag}</span>}
       </button>
       {open && children && (
-        <div className="px-3 pb-2 pt-1 border-t border-rule text-[12px] text-ink-soft space-y-0.5">
+        <div className="space-y-0.5 border-t border-rule px-3 pb-2 pt-1 text-[12px] text-ink-soft">
           {children}
         </div>
       )}
@@ -1913,7 +1913,7 @@ function LookupCard({
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">{label} · </span>
+      <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{label} · </span>
       {children}
     </div>
   );
@@ -1929,7 +1929,7 @@ const AudienceBadge = ({ audience }: { audience: 'solo' | 'together' }) => {
   if (audience === 'together') {
     return (
       <span
-        className="text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider border-moss/50 bg-moss/10 text-moss inline-flex items-center gap-1"
+        className="inline-flex items-center gap-1 rounded-sm border border-moss/50 bg-moss/10 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-moss"
         title="Done collaboratively with the players at the table"
       >
         <Users size={9} /> With Players
@@ -1938,7 +1938,7 @@ const AudienceBadge = ({ audience }: { audience: 'solo' | 'together' }) => {
   }
   return (
     <span
-      className="text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider border-wine/50 bg-wine/10 text-wine inline-flex items-center gap-1"
+      className="inline-flex items-center gap-1 rounded-sm border border-wine/50 bg-wine/10 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-wine"
       title="DM-only homework — done without the players"
     >
       <User size={9} /> DM Solo
@@ -1947,21 +1947,21 @@ const AudienceBadge = ({ audience }: { audience: 'solo' | 'together' }) => {
 };
 
 const Phase = ({ n, title, sub, methods, audience, children, expanded, onToggle, icon: Icon }: any) => (
-  <div className="border border-rule rounded-lg overflow-hidden bg-parchment-soft shadow-page">
-    <button onClick={onToggle} className="w-full flex items-center gap-2.5 sm:gap-4 p-3 sm:p-4 hover:bg-parchment-deep/30 text-left transition-colors">
-      <div className="font-display text-3xl sm:text-4xl text-crimson w-8 sm:w-12 leading-none flex-shrink-0">{n}</div>
-      {Icon && <Icon size={20} className="text-brass-deep flex-shrink-0 hidden sm:block" />}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-display text-base sm:text-lg tracking-wide text-ink">{title}</span>
+  <div className="overflow-hidden rounded-lg border border-rule bg-parchment-soft shadow-page">
+    <button onClick={onToggle} className="flex w-full items-center gap-2.5 p-3 text-left transition-colors hover:bg-parchment-deep/30 sm:gap-4 sm:p-4">
+      <div className="w-8 flex-shrink-0 font-display text-3xl leading-none text-crimson sm:w-12 sm:text-4xl">{n}</div>
+      {Icon && <Icon size={20} className="hidden flex-shrink-0 text-brass-deep sm:block" />}
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-display text-base tracking-wide text-ink sm:text-lg">{title}</span>
           {audience && <AudienceBadge audience={audience} />}
           <span className="flex flex-wrap gap-1">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
         </div>
-        <div className="text-xs sm:text-sm text-ink-soft italic font-serif mt-0.5">{sub}</div>
+        <div className="mt-0.5 font-serif text-xs italic text-ink-soft sm:text-sm">{sub}</div>
       </div>
-      {expanded ? <ChevronDown size={18} className="text-brass-deep flex-shrink-0" /> : <ChevronRight size={18} className="text-brass-deep flex-shrink-0" />}
+      {expanded ? <ChevronDown size={18} className="flex-shrink-0 text-brass-deep" /> : <ChevronRight size={18} className="flex-shrink-0 text-brass-deep" />}
     </button>
-    {expanded && <div className="p-3 pt-3 space-y-2 border-t border-rule bg-parchment/40">{children}</div>}
+    {expanded && <div className="space-y-2 border-t border-rule bg-parchment/40 p-3">{children}</div>}
   </div>
 );
 
@@ -2420,10 +2420,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   };
 
   const SyncIndicator = () => {
-    if (syncState === 'saving') return <span className="text-xs text-ink-soft flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} className="animate-pulse" /> Saving…</span>;
-    if (syncState === 'pending') return <span className="text-xs text-ink-mute flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} /> Pending</span>;
-    if (syncState === 'error') return <span className="text-xs text-crimson flex items-center gap-1 font-display uppercase tracking-wider" title={syncError}><CloudOff size={12} /> Save Failed</span>;
-    return <span className="text-xs text-brass-deep flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} /> Saved</span>;
+    if (syncState === 'saving') return <span className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-ink-soft"><Cloud size={12} className="animate-pulse" /> Saving…</span>;
+    if (syncState === 'pending') return <span className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-ink-mute"><Cloud size={12} /> Pending</span>;
+    if (syncState === 'error') return <span className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-crimson" title={syncError}><CloudOff size={12} /> Save Failed</span>;
+    return <span className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep"><Cloud size={12} /> Saved</span>;
   };
 
   // Manual retry — uses current state, bypasses the debounce timer. Wired to
@@ -2446,7 +2446,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     if (syncState === 'pending') {
       return (
         <div className={`${base} border-brass-deep/60 bg-parchment text-brass-deep`}>
-          <span className="w-1.5 h-1.5 rounded-full bg-brass-deep animate-pulse" />
+          <span className="size-1.5 animate-pulse rounded-full bg-brass-deep" />
           Saving in 1.5s…
         </div>
       );
@@ -2464,7 +2464,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         type="button"
         onClick={retrySave}
         title={syncError || 'Click to retry'}
-        className={`${base} border-crimson/70 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment cursor-pointer`}
+        className={`${base} cursor-pointer border-crimson/70 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment`}
       >
         <CloudOff size={12} />
         Save failed — click to retry
@@ -2482,10 +2482,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   };
 
   const ToolBtn = ({ onClick, children, danger = false, title }: { onClick: () => void; children: React.ReactNode; danger?: boolean; title?: string }) => (
-    <button onClick={onClick} title={title} className={`text-xs px-3 py-1 rounded border font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
+    <button onClick={onClick} title={title} className={`flex items-center gap-1.5 rounded border px-3 py-1 font-display text-xs uppercase tracking-wider transition-colors ${
       danger
         ? 'border-crimson/50 text-crimson hover:bg-crimson hover:text-parchment'
-        : 'border-brass-deep/50 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass'
+        : 'border-brass-deep/50 text-brass-deep hover:border-brass hover:bg-brass hover:text-parchment'
     }`}>
       {children}
     </button>
@@ -3183,14 +3183,14 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
   return (
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
-          <header className="pb-3 border-b border-rule">
-            <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="mx-auto max-w-5xl">
+        <div className="space-y-4 rounded-lg border border-rule bg-parchment-soft p-3 shadow-page sm:p-5 md:p-8">
+          <header className="border-b border-rule pb-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => { if (confirmUnsavedNav()) router.push('/campaign'); }}
-                className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1"
+                className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
               >
                 <ArrowLeft size={12} /> All Campaigns
               </button>
@@ -3208,14 +3208,14 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <ScrollText size={20} className="text-crimson flex-shrink-0" />
+            <div className="flex flex-wrap items-center gap-2">
+              <ScrollText size={20} className="flex-shrink-0 text-crimson" />
               <textarea rows={1} value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign Name"
-                className="flex-1 min-w-[12rem] bg-transparent border-b border-rule font-display text-xl sm:text-2xl tracking-wide text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none pb-1 resize-none whitespace-pre-wrap break-words [field-sizing:content]" />
+                className="min-w-48 flex-1 resize-none whitespace-pre-wrap break-words border-b border-rule bg-transparent pb-1 font-display text-xl tracking-wide text-ink [field-sizing:content] placeholder:text-ink-faint focus:border-crimson focus:outline-none sm:text-2xl" />
               {isArchived && (
                 <span
                   title="This campaign is archived — hidden from your main list. Unarchive from the Account menu."
-                  className="text-[10px] not-italic px-1.5 py-0.5 rounded-sm border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex-shrink-0"
+                  className="flex-shrink-0 rounded-sm border border-brass-deep/60 bg-brass/10 px-1.5 py-0.5 font-display text-[10px] uppercase not-italic tracking-wider text-brass-deep"
                 >
                   Archived
                 </span>
@@ -3224,13 +3224,13 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 role="group"
                 aria-label="Prep target mode"
                 title="Switch prep item targets between solo and group scale"
-                className="inline-flex rounded border border-rule overflow-hidden text-xs font-display uppercase tracking-wider flex-shrink-0"
+                className="inline-flex flex-shrink-0 overflow-hidden rounded border border-rule font-display text-xs uppercase tracking-wider"
               >
                 <button
                   type="button"
                   onClick={() => setSoloMode(true)}
                   aria-pressed={soloMode}
-                  className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-1 transition-colors ${
                     soloMode ? 'bg-wine/15 text-wine' : 'text-ink-soft hover:bg-parchment-deep'
                   }`}
                 >
@@ -3240,7 +3240,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   type="button"
                   onClick={() => setSoloMode(false)}
                   aria-pressed={!soloMode}
-                  className={`px-3 py-1 flex items-center gap-1.5 border-l border-rule transition-colors ${
+                  className={`flex items-center gap-1.5 border-l border-rule px-3 py-1 transition-colors ${
                     !soloMode ? 'bg-brass-deep/15 text-brass-deep' : 'text-ink-soft hover:bg-parchment-deep'
                   }`}
                 >
@@ -3250,11 +3250,11 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             </div>
             <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
 
-            <div className="mt-2.5 flex flex-wrap items-center gap-1.5 justify-between">
+            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5">
               <div className="flex flex-wrap items-center gap-1.5">
                 <ToolBtn onClick={() => setPaletteOpen(true)} title="Open command palette (⌘K)">
                   <Search size={12} /> Search
-                  <kbd className="ml-1 text-[10px] font-display uppercase tracking-wider border border-rule rounded px-1 py-px text-ink-mute">⌘K</kbd>
+                  <kbd className="ml-1 rounded border border-rule px-1 py-px font-display text-[10px] uppercase tracking-wider text-ink-mute">⌘K</kbd>
                 </ToolBtn>
                 <button
                   type="button"
@@ -3263,7 +3263,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     setVal('__prepWizardStep', 1);
                   }}
                   disabled={get('__runSessionOpen', false) as boolean}
-                  className="text-xs px-3 py-1 rounded border border-moss/60 bg-moss/10 text-moss hover:bg-moss hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-moss/10 disabled:hover:text-moss"
+                  className="flex items-center gap-1.5 rounded border border-moss/60 bg-moss/10 px-3 py-1 font-display text-xs uppercase tracking-wider text-moss shadow-sm hover:bg-moss hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-moss/10 disabled:hover:text-moss"
                   title={get('__runSessionOpen', false) ? 'Finish your current session first' : 'Walk through Lazy DM\'s 8-step prep'}
                 >
                   <ClipboardList size={12} /> Prep Next Session
@@ -3281,13 +3281,13 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                       __runSessionOpen: true,
                     }));
                   }}
-                  className="text-xs px-3 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
+                  className="flex items-center gap-1.5 rounded border border-crimson/60 bg-crimson/10 px-3 py-1 font-display text-xs uppercase tracking-wider text-crimson shadow-sm hover:bg-crimson hover:text-parchment"
                   title="Enter Run Session mode for live play"
                 >
                   <Play size={12} /> Run Session
                 </button>
               </div>
-              <div className="text-xs text-brass-deep font-display uppercase tracking-wider">
+              <div className="font-display text-xs uppercase tracking-wider text-brass-deep">
                 {completedCount} Steps Done
               </div>
             </div>
@@ -3304,25 +3304,25 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           <div className="space-y-3">
             {mode === 'prep' && subview === 'flow' && (
               nextUp ? (
-                <div className="rounded border border-brass/40 bg-brass/5 p-3 flex items-center gap-3 shadow-card">
-                  <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep flex-shrink-0">
+                <div className="flex items-center gap-3 rounded border border-brass/40 bg-brass/5 p-3 shadow-card">
+                  <div className="flex-shrink-0 font-display text-[10px] uppercase tracking-wider text-brass-deep">
                     Next Up
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-display text-ink text-sm">{nextUp.label}</div>
-                    <div className="text-xs text-ink-soft font-serif italic">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-display text-sm text-ink">{nextUp.label}</div>
+                    <div className="font-serif text-xs italic text-ink-soft">
                       {nextUp.current} of {nextUp.target} — {nextUp.target - nextUp.current} to go
                     </div>
                   </div>
                   <button
                     onClick={jumpToNextUp}
-                    className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass font-display uppercase tracking-wider flex-shrink-0 transition-colors"
+                    className="flex-shrink-0 rounded border border-brass-deep/60 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment"
                   >
                     Jump To
                   </button>
                 </div>
               ) : completedCount > 0 ? (
-                <div className="rounded border border-moss/40 bg-moss/5 p-3 text-sm font-serif italic text-moss text-center">
+                <div className="rounded border border-moss/40 bg-moss/5 p-3 text-center font-serif text-sm italic text-moss">
                   All prep targets met. Ready to run.
                 </div>
               ) : null
@@ -3349,7 +3349,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <BookQuote source="CCD case study">Pitch the results, not the concept.</BookQuote>
                 <Field value={get('pitch', '')} onChange={(v) => setVal('pitch', v)} placeholder="2-3 sentences" rows={4} />
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Goal seeds:</span>
+                  <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Goal seeds:</span>
                   <Inspire tableId="dungeonGoals" label="Dungeon" onPick={(e) => {
                     const cur = get('pitch', '') as string;
                     setVal('pitch', cur ? `${cur}\n• ${e}` : `• ${e}`);
@@ -3400,7 +3400,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   </div>
                 ))}
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add faction from:</span>
+                  <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Add faction from:</span>
                   <Inspire tableId="villainArchetypes" label="Villain" onPick={(e) => {
                     setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }]);
                   }} />
@@ -3411,7 +3411,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }]);
                   }} />
                 </InspireGroup>
-                <button onClick={() => setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: '', area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                <button onClick={() => setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: '', area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }])} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
                   <Plus size={12} /> Add Faction
                 </button>
               </Section>
@@ -3419,7 +3419,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <BookQuote source="CCD ch. 2">Conflicts are the end goal of worldbuilding.</BookQuote>
                 <ListField items={get('conflicts', [])} onChange={(v) => setVal('conflicts', v)} placeholder="Faction A vs Faction B over X" rows={2} target={tgt('conflicts')} />
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Inspire:</span>
                   <Inspire tableId="twists" label="Twist" onPick={(e) => {
                     setVal('conflicts', [...(get('conflicts', []) as string[]), e]);
                   }} />
@@ -3456,13 +3456,13 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     </div>
                   ))}
                   {characters.length === 0 && (
-                    <p className="text-sm text-ink-mute italic font-serif">
+                    <p className="font-serif text-sm italic text-ink-mute">
                       No characters yet. Click &quot;Add Character&quot; to start.
                     </p>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-3 items-center pt-1">
-                  <button onClick={addCharacter} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <button onClick={addCharacter} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
                     <Plus size={12} /> Add Character
                   </button>
                   {isPro ? (
@@ -3470,7 +3470,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                       <button
                         onClick={() => characterFileInputRef.current?.click()}
                         disabled={uploadingChar}
-                        className="text-xs text-crimson hover:text-wine flex items-center gap-1 font-display uppercase tracking-wider disabled:opacity-50 disabled:cursor-wait"
+                        className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-crimson hover:text-wine disabled:cursor-wait disabled:opacity-50"
                         title="Upload a PDF, image, or text character sheet — parsed by Claude (pro only)"
                       >
                         <FileUp size={12} /> {uploadingChar ? 'Parsing…' : 'Upload Sheet'}
@@ -3487,7 +3487,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     <LockedInline label="Upload Sheet" />
                   )}
                   {charUploadError && (
-                    <span className="text-xs text-crimson italic" title={charUploadError}>
+                    <span className="text-xs italic text-crimson" title={charUploadError}>
                       {charUploadError}
                     </span>
                   )}
@@ -3510,12 +3510,12 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 )}
               </Section>
               <Section id="goals" title="PC Goals (5 Rules of Proactive Fun)" methods={['pr']} done={done.goals} onToggle={toggleDone} open={open.goals} onToggleOpen={toggleOpen} icon={Target}>
-                <div className="rounded border border-wine/40 bg-wine/5 p-3 text-sm space-y-1.5 text-ink-soft font-serif">
-                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">1 · </span>Multiple Goals (3+ concurrent)</p>
-                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">2 · </span>Varying Timeframes</p>
-                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">3 · </span>Achievable (measurable)</p>
-                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">4 · </span>Consequences for Failure</p>
-                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">5 · </span>Fun to Pursue</p>
+                <div className="space-y-1.5 rounded border border-wine/40 bg-wine/5 p-3 font-serif text-sm text-ink-soft">
+                  <p><span className="font-display text-xs uppercase tracking-wider text-wine">1 · </span>Multiple Goals (3+ concurrent)</p>
+                  <p><span className="font-display text-xs uppercase tracking-wider text-wine">2 · </span>Varying Timeframes</p>
+                  <p><span className="font-display text-xs uppercase tracking-wider text-wine">3 · </span>Achievable (measurable)</p>
+                  <p><span className="font-display text-xs uppercase tracking-wider text-wine">4 · </span>Consequences for Failure</p>
+                  <p><span className="font-display text-xs uppercase tracking-wider text-wine">5 · </span>Fun to Pursue</p>
                 </div>
                 <Example title="Bad → Good">"Become powerful" → "Win a duel against the captain of the guard"</Example>
                 <Pitfall>Long-term goals locked in Session 0 are usually worse than ones locked after Session 1.</Pitfall>
@@ -3525,7 +3525,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     const next = [...(get('pcGoals', []) as any[])]; next[i] = v; setVal('pcGoals', next);
                   }} onRemove={() => setVal('pcGoals', (get('pcGoals', []) as any[]).filter((_: any, j: number) => j !== i))} />
                 ))}
-                <button onClick={() => setVal('pcGoals', [...(get('pcGoals', []) as any[]), { text: '', timeframe: 'short', success: '', failure: '', linked: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                <button onClick={() => setVal('pcGoals', [...(get('pcGoals', []) as any[]), { text: '', timeframe: 'short', success: '', failure: '', linked: '' }])} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
                   <Plus size={12} /> Add Goal
                 </button>
               </Section>
@@ -3558,7 +3558,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <BookQuote source="Lazy DM (Perkins)">Be prepared to throw what you have away.</BookQuote>
                 <ListField items={get('scenes', [])} onChange={(v) => setVal('scenes', v)} placeholder="A scene" target={tgt('scenes')} />
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Inspire:</span>
                   <Inspire tableId="sideQuests" label="Side Quest" onPick={(e) => {
                     setVal('scenes', [...(get('scenes', []) as string[]), e]);
                   }} />
@@ -3572,7 +3572,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <Pitfall>Tying a secret to a specific NPC means if players skip them, the secret never surfaces.</Pitfall>
                 <ListField items={get('secrets', [])} onChange={(v) => setVal('secrets', v)} placeholder="A single-sentence secret" rows={2} target={tgt('secrets')} />
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Inspire:</span>
                   <Inspire tableId="villainSchemes" label="Scheme" onPick={(e) => {
                     setVal('secrets', [...(get('secrets', []) as string[]), e]);
                   }} />
@@ -3595,7 +3595,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                       key={i}
                       id={`entity-${entityId}`}
                       data-cp-anchor={`location:${i}`}
-                      className={`transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
+                      className={`rounded transition-shadow ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
                     >
                       <LocationCard data={l} onChange={(v: any) => {
                         const next = [...(get('locations', []) as any[])]; next[i] = v; setVal('locations', next);
@@ -3603,11 +3603,11 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     </div>
                   );
                 })}
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex flex-wrap items-center gap-2">
                   <button onClick={() => {
                     setVal('locations', [...(get('locations', []) as any[]), { name: '', type: '', aspects: ['', '', ''], factions: '' }]);
                     trackEvent('location_added', 'Added a new location');
-                  }} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                  }} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
                     <Plus size={12} /> Add Location
                   </button>
                   {SECTION_GENERATORS.locations.length > 0 && (() => {
@@ -3635,7 +3635,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                       key={i}
                       id={`entity-${entityId}`}
                       data-cp-anchor={`npc:${i}`}
-                      className={`transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
+                      className={`rounded transition-shadow ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
                     >
                       <NPCCard data={n} onChange={(v: any) => {
                         const next = [...(get('npcs', []) as any[])]; next[i] = v; setVal('npcs', next);
@@ -3644,7 +3644,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   );
                 })}
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add new NPC seeded by:</span>
+                  <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Add new NPC seeded by:</span>
                   <Inspire tableId="villainArchetypes" label="Villain" onPick={(e) => {
                     setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: 'Villain', faction: '', archetype: e, goal: '', method: '' }]);
                   }} />
@@ -3655,14 +3655,14 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: e, goal: '', method: '' }]);
                   }} />
                 </InspireGroup>
-                <p className="text-[10px] text-ink-mute italic font-serif -mt-1">
+                <p className="-mt-1 font-serif text-[10px] italic text-ink-mute">
                   Trait inspirations (mannerism, talent, ideal, bond, etc.) live inside each NPC card under &quot;Show Details&quot;.
                 </p>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex flex-wrap items-center gap-2">
                   <button onClick={() => {
                     setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '' }]);
                     trackEvent('npc_added', 'Added a new NPC');
-                  }} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                  }} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
                     <Plus size={12} /> Add NPC
                   </button>
                   {SECTION_GENERATORS.npcs.length > 0 && (() => {
@@ -3734,9 +3734,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     </div>
                   );
                 })()}
-                <div className="pt-3 border-t border-rule/60">
-                  <p className="text-xs text-brass-deep font-display uppercase tracking-wider mb-1.5">Treasure</p>
-                  <p className="text-[11px] text-ink-mute italic font-serif mb-1.5">
+                <div className="border-t border-rule/60 pt-3">
+                  <p className="mb-1.5 font-display text-xs uppercase tracking-wider text-brass-deep">Treasure</p>
+                  <p className="mb-1.5 font-serif text-[11px] italic text-ink-mute">
                     Coins, gems, art, trinkets, and other rewards — generated entries land here.
                   </p>
                   <ListField
@@ -3756,8 +3756,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             <>
             <Phase n="4" title="Between Sessions · Faction Clocks" sub="Update Faction Progress" methods={['ccd']} audience="solo" icon={Target} expanded={phaseOpen.p4} onToggle={() => togglePhase('p4')}>
               <BookQuote source="CCD ch. 6">Glance at faction clocks once per session.</BookQuote>
-              <div className="rounded border border-rule bg-parchment-deep/40 p-3 text-sm font-serif">
-                <p className="text-ink font-display uppercase tracking-wider text-xs mb-1.5">Clock Sizes</p>
+              <div className="rounded border border-rule bg-parchment-deep/40 p-3 font-serif text-sm">
+                <p className="mb-1.5 font-display text-xs uppercase tracking-wider text-ink">Clock Sizes</p>
                 <div className="grid grid-cols-2 gap-1 text-ink-soft">
                   <p>4 — quick task</p><p>6 — short-term goal</p>
                   <p>8 — multi-session</p><p>12 — long project</p>
@@ -3784,7 +3784,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   }
                 }} onRemove={() => setVal('clocks', (get('clocks', []) as any[]).filter((_: any, j: number) => j !== i))} />
               ))}
-              <button onClick={() => setVal('clocks', [...(get('clocks', []) as any[]), { text: '', faction: '', max: 6, filled: 0 }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+              <button onClick={() => setVal('clocks', [...(get('clocks', []) as any[]), { text: '', faction: '', max: 6, filled: 0 }])} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
                 <Plus size={12} /> Add Clock
               </button>
             </Phase>
@@ -3809,7 +3809,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="end-collect" title="Collect Every Thread" methods={['ccd']} done={done['end-collect']} onToggle={toggleDone} open={open['end-collect']} onToggleOpen={toggleOpen}>
                 <Field value={get('endThreads', '')} onChange={(v) => setVal('endThreads', v)} placeholder="Active threads list" rows={6} />
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Inspire:</span>
                   <Inspire tableId="climaxes" label="Climax" onPick={(e) => {
                     const cur = get('endThreads', '') as string;
                     setVal('endThreads', cur ? `${cur}\n• ${e}` : `• ${e}`);
@@ -3831,25 +3831,25 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         {mode === 'plan' && subview === 'world' && (
           <div className="space-y-3 text-sm">
             <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-              <h2 className="font-display text-lg tracking-wide text-ink mb-2">The Three Methodologies</h2>
-              <div className="space-y-3 text-sm text-ink-soft font-serif">
+              <h2 className="mb-2 font-display text-lg tracking-wide text-ink">The Three Methodologies</h2>
+              <div className="space-y-3 font-serif text-sm text-ink-soft">
                 <div>
-                  <div className="flex items-center gap-2 mb-1"><Tag m="shea" /><span className="font-display tracking-wide text-ink">Return of the Lazy Dungeon Master</span> <span className="text-ink-mute italic">· Shea</span></div>
+                  <div className="mb-1 flex items-center gap-2"><Tag m="shea" /><span className="font-display tracking-wide text-ink">Return of the Lazy Dungeon Master</span> <span className="italic text-ink-mute">· Shea</span></div>
                   <p>8-step per-session checklist. Strong start, secrets & clues, fantastic locations.</p>
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 mb-1"><Tag m="ccd" /><span className="font-display tracking-wide text-ink">Collaborative Campaign Design</span> <span className="text-ink-mute italic">· Fishel</span></div>
+                  <div className="mb-1 flex items-center gap-2"><Tag m="ccd" /><span className="font-display tracking-wide text-ink">Collaborative Campaign Design</span> <span className="italic text-ink-mute">· Fishel</span></div>
                   <p>Session −1 worldbuilding before character creation. Faction clocks.</p>
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 mb-1"><Tag m="pr" /><span className="font-display tracking-wide text-ink">Proactive Roleplaying</span> <span className="text-ink-mute italic">· Fishel</span></div>
+                  <div className="mb-1 flex items-center gap-2"><Tag m="pr" /><span className="font-display tracking-wide text-ink">Proactive Roleplaying</span> <span className="italic text-ink-mute">· Fishel</span></div>
                   <p>5 Rules of Proactive Fun. "+1" reward principle.</p>
                 </div>
               </div>
             </div>
             <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-              <h2 className="font-display text-lg tracking-wide text-ink mb-2">Five Rules of Proactive Fun</h2>
-              <ol className="space-y-2 text-sm text-ink-soft font-serif list-decimal list-inside">
+              <h2 className="mb-2 font-display text-lg tracking-wide text-ink">Five Rules of Proactive Fun</h2>
+              <ol className="list-inside list-decimal space-y-2 font-serif text-sm text-ink-soft">
                 <li><span className="font-semibold text-ink">Multiple Goals.</span> 3-4 concurrent.</li>
                 <li><span className="font-semibold text-ink">Varying Timeframes.</span> Short / Mid / Long.</li>
                 <li><span className="font-semibold text-ink">Achievable.</span> Measurable success state.</li>
@@ -3858,24 +3858,24 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </ol>
             </div>
             <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-              <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="mb-2 flex items-center justify-between gap-2">
                 <h2 className="font-display text-lg tracking-wide text-ink">Campaign Events Between Sessions</h2>
                 <Inspire tableId="campaignEvents" label="Roll Event" onPick={(e) => {
                   const log = (get('campaignEventLog', []) as string[]) || [];
                   setVal('campaignEventLog', [...log, e]);
                 }} />
               </div>
-              <p className="text-sm text-ink-soft font-serif mb-2">
+              <p className="mb-2 font-serif text-sm text-ink-soft">
                 Quick &quot;while the party was away&quot; events for solo or sandbox play.
               </p>
               {((get('campaignEventLog', []) as string[]) || []).length === 0 ? (
-                <p className="text-sm text-ink-mute italic font-serif">No events logged yet. Click &quot;Roll Event&quot; to add one.</p>
+                <p className="font-serif text-sm italic text-ink-mute">No events logged yet. Click &quot;Roll Event&quot; to add one.</p>
               ) : (
-                <ol className="space-y-1 text-sm text-ink-soft font-serif">
+                <ol className="space-y-1 font-serif text-sm text-ink-soft">
                   {((get('campaignEventLog', []) as string[]) || []).map((evt, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <span className="flex-1">
-                        <span className="font-display text-xs text-brass-deep mr-1">{i + 1}.</span>
+                        <span className="mr-1 font-display text-xs text-brass-deep">{i + 1}.</span>
                         {evt}
                       </span>
                       <button
@@ -3894,21 +3894,21 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               )}
             </div>
             <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-              <h2 className="font-display text-lg tracking-wide text-ink mb-2">The 10-Sentence NPC</h2>
-              <p className="text-sm text-ink-soft font-serif">
+              <h2 className="mb-2 font-display text-lg tracking-wide text-ink">The 10-Sentence NPC</h2>
+              <p className="font-serif text-sm text-ink-soft">
                 Detailed NPCs benefit from a roughly ten-sentence sketch: occupation and history,
                 appearance, abilities, talent, mannerism, interactions, useful knowledge, ideal, bond,
                 and flaw or secret. Click &quot;Show Details&quot; on any NPC card to expand the full set.
               </p>
             </div>
             <div className="rounded border border-wine/40 bg-wine/5 p-4 shadow-card">
-              <h2 className="font-display text-lg tracking-wide text-ink mb-2 flex items-center gap-2"><User size={16} className="text-wine" /> Solo Play Adaptations</h2>
-              <div className="text-sm text-ink-soft font-serif space-y-2">
-                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Session −1 · </span>2-person conversation.</p>
-                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Goals · </span>Rule 4 matters more.</p>
-                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Combat · </span>Solo level-1 ~8-12 HP. Narrative outs always.</p>
-                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Strong Start · </span>Action without losable fight.</p>
-                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Pacing · </span>2-3 scenes/hour instead of 1-2.</p>
+              <h2 className="mb-2 flex items-center gap-2 font-display text-lg tracking-wide text-ink"><User size={16} className="text-wine" /> Solo Play Adaptations</h2>
+              <div className="space-y-2 font-serif text-sm text-ink-soft">
+                <p><span className="font-display text-xs uppercase tracking-wider text-wine">Session −1 · </span>2-person conversation.</p>
+                <p><span className="font-display text-xs uppercase tracking-wider text-wine">Goals · </span>Rule 4 matters more.</p>
+                <p><span className="font-display text-xs uppercase tracking-wider text-wine">Combat · </span>Solo level-1 ~8-12 HP. Narrative outs always.</p>
+                <p><span className="font-display text-xs uppercase tracking-wider text-wine">Strong Start · </span>Action without losable fight.</p>
+                <p><span className="font-display text-xs uppercase tracking-wider text-wine">Pacing · </span>2-3 scenes/hour instead of 1-2.</p>
               </div>
             </div>
           </div>
@@ -3917,15 +3917,15 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         {mode === 'plan' && subview === 'fronts' && (
           <div className="space-y-3 text-sm">
             <div className="rounded border border-rule bg-parchment p-3 shadow-card">
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2 flex items-center justify-between">
                 <h3 className="font-display tracking-wide text-ink">Session Logs</h3>
-                <button onClick={addSessionLog} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                <button onClick={addSessionLog} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
                   <Plus size={12} /> New Session
                 </button>
               </div>
               <div className="space-y-2">
                 {sortedSessionLogs.length === 0 && (
-                  <p className="text-sm text-ink-mute italic font-serif">No sessions yet. Click "New Session" to start a log.</p>
+                  <p className="font-serif text-sm italic text-ink-mute">No sessions yet. Click "New Session" to start a log.</p>
                 )}
                 {sortedSessionLogs.map((log) => (
                   <div key={log.id} data-cp-anchor={`session:${log.id}`}>
@@ -3941,10 +3941,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </div>
             </div>
             <div className="rounded border border-rule bg-parchment p-3 shadow-card">
-              <h3 className="font-display tracking-wide text-ink mb-2">Revealed Secrets</h3>
+              <h3 className="mb-2 font-display tracking-wide text-ink">Revealed Secrets</h3>
               <div className="space-y-1">
                 {(get('secrets', []) as string[]).map((s: string, i: number) => (
-                  <label key={i} className="flex items-start gap-2 text-sm cursor-pointer font-serif">
+                  <label key={i} className="flex cursor-pointer items-start gap-2 font-serif text-sm">
                     <input type="checkbox" checked={(get('revSec', {}) as Record<number, boolean>)[i] || false} onChange={(e) => {
                       const wasRevealed = !!(get('revSec', {}) as Record<number, boolean>)[i];
                       const r = { ...(get('revSec', {}) as Record<number, boolean>) }; r[i] = e.target.checked; setVal('revSec', r);
@@ -3953,16 +3953,16 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     <span className={((get('revSec', {}) as Record<number, boolean>)[i]) ? 'text-ink-mute line-through' : 'text-ink-soft'}>{s}</span>
                   </label>
                 ))}
-                {(get('secrets', []) as string[]).length === 0 && <p className="text-sm text-ink-mute italic font-serif">Add secrets in Phase 3 step 4.</p>}
+                {(get('secrets', []) as string[]).length === 0 && <p className="font-serif text-sm italic text-ink-mute">Add secrets in Phase 3 step 4.</p>}
               </div>
             </div>
             <div className="rounded border border-rule bg-parchment p-3 shadow-card">
-              <h3 className="font-display tracking-wide text-ink mb-2">Goal Progress</h3>
+              <h3 className="mb-2 font-display tracking-wide text-ink">Goal Progress</h3>
               <div className="space-y-2">
                 {(get('pcGoals', []) as any[]).map((g: any, i: number) => (
-                  <div key={i} className="rounded border border-rule bg-parchment-soft p-2.5 text-sm font-serif">
+                  <div key={i} className="rounded border border-rule bg-parchment-soft p-2.5 font-serif text-sm">
                     <p className="text-ink-soft">{g.text}</p>
-                    <div className="flex gap-1 mt-1.5">
+                    <div className="mt-1.5 flex gap-1">
                       {['Active', 'Progressed', 'Completed', 'Failed'].map(s => (
                         <button key={s} onClick={() => {
                           const from = g.status || 'Active';
@@ -3971,16 +3971,16 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                           next[i] = { ...g, status: s };
                           setVal('pcGoals', next);
                           trackEvent('goal_status', `${g.text || `Goal ${i + 1}`}: ${from} → ${s}`, from, s);
-                        }} className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider ${g.status === s ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-mute'}`}>{s}</button>
+                        }} className={`rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${g.status === s ? 'border-crimson bg-crimson text-parchment' : 'border-rule text-ink-mute'}`}>{s}</button>
                       ))}
                     </div>
                   </div>
                 ))}
-                {(get('pcGoals', []) as any[]).length === 0 && <p className="text-sm text-ink-mute italic font-serif">Add goals in Phase 2.</p>}
+                {(get('pcGoals', []) as any[]).length === 0 && <p className="font-serif text-sm italic text-ink-mute">Add goals in Phase 2.</p>}
               </div>
             </div>
             <div className="rounded border border-rule bg-parchment p-3 shadow-card">
-              <h3 className="font-display tracking-wide text-ink mb-2">Dropped Threads</h3>
+              <h3 className="mb-2 font-display tracking-wide text-ink">Dropped Threads</h3>
               <ListField items={get('dropped', [])} onChange={(v) => setVal('dropped', v)} placeholder="A thread to follow up" />
             </div>
           </div>
@@ -4023,14 +4023,14 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           return (
             <div className="space-y-3 text-sm">
               <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-                <p className="text-ink-soft font-serif">
+                <p className="font-serif text-ink-soft">
                   Downtime activities take place between adventures. Each activity has a cost, a duration,
                   and consequences. Track them here so the time between sessions feels lived-in rather than skipped.
                 </p>
               </div>
 
-              <div className="rounded border border-rule bg-parchment p-3 shadow-card flex items-center gap-2 flex-wrap">
-                <label className="text-xs text-ink-soft font-display uppercase tracking-wider">Add Downtime Activity</label>
+              <div className="flex flex-wrap items-center gap-2 rounded border border-rule bg-parchment p-3 shadow-card">
+                <label className="font-display text-xs uppercase tracking-wider text-ink-soft">Add Downtime Activity</label>
                 <select
                   value=""
                   onChange={(e) => {
@@ -4039,7 +4039,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                       e.target.value = '';
                     }
                   }}
-                  className="bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+                  className="rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink"
                 >
                   <option value="">— Choose Activity —</option>
                   {DOWNTIME_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
@@ -4047,12 +4047,12 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </div>
 
               {active.length === 0 && (
-                <p className="text-sm text-ink-mute italic font-serif">No active downtime activities yet.</p>
+                <p className="font-serif text-sm italic text-ink-mute">No active downtime activities yet.</p>
               )}
 
               {groupedActive.map(({ type, entries }) => (
                 <div key={type.id} className="space-y-2">
-                  <h3 className="font-display tracking-wide text-ink text-sm">{type.label}</h3>
+                  <h3 className="font-display text-sm tracking-wide text-ink">{type.label}</h3>
                   {entries.map(entry => (
                     <DowntimeCard
                       key={entry.id}
@@ -4069,15 +4069,15 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <div className="rounded border border-rule bg-parchment p-3 shadow-card">
                 <button
                   onClick={() => setArchivedOpen(!archivedOpen)}
-                  className="flex items-center gap-1.5 font-display tracking-wide text-ink text-sm hover:text-crimson"
+                  className="flex items-center gap-1.5 font-display text-sm tracking-wide text-ink hover:text-crimson"
                 >
                   {archivedOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   Archived ({archived.length})
                 </button>
                 {archivedOpen && (
-                  <div className="space-y-2 mt-3">
+                  <div className="mt-3 space-y-2">
                     {archived.length === 0 && (
-                      <p className="text-sm text-ink-mute italic font-serif">No archived downtime activities yet.</p>
+                      <p className="font-serif text-sm italic text-ink-mute">No archived downtime activities yet.</p>
                     )}
                     {archived.map(entry => (
                       <DowntimeCard
@@ -4107,8 +4107,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           return (
             <div className="space-y-3">
               <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-                <h2 className="font-display text-lg tracking-wide text-ink mb-1">Prep Wizard</h2>
-                <p className="text-sm text-ink-soft font-serif mb-3">
+                <h2 className="mb-1 font-display text-lg tracking-wide text-ink">Prep Wizard</h2>
+                <p className="mb-3 font-serif text-sm text-ink-soft">
                   An 8-step guided walkthrough of Lazy DM's per-session prep — Review, Strong
                   Start, Scenes, Secrets, Locations, NPCs, Monsters, Magic Items.
                 </p>
@@ -4117,25 +4117,25 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   onClick={launch}
                   disabled={sessionOpen}
                   title={sessionOpen ? 'Finish your current session first' : 'Walk through the 8-step prep'}
-                  className="text-xs px-3 py-1.5 rounded border border-moss/60 bg-moss/10 text-moss hover:bg-moss hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 rounded border border-moss/60 bg-moss/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-moss hover:bg-moss hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <ClipboardList size={12} /> Start Wizard
                 </button>
               </div>
               <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-                <h3 className="font-display tracking-wide text-ink mb-2 text-sm">Past Runs</h3>
+                <h3 className="mb-2 font-display text-sm tracking-wide text-ink">Past Runs</h3>
                 {sortedRuns.length === 0 ? (
-                  <p className="text-xs text-ink-mute italic font-serif">No wizard runs yet.</p>
+                  <p className="font-serif text-xs italic text-ink-mute">No wizard runs yet.</p>
                 ) : (
                   <ul className="space-y-1.5">
                     {sortedRuns.slice(0, 8).map(r => (
-                      <li key={r.id} className="text-xs font-serif text-ink-soft flex items-center gap-2">
-                        <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider w-16">
+                      <li key={r.id} className="flex items-center gap-2 font-serif text-xs text-ink-soft">
+                        <span className="w-16 font-display text-[10px] uppercase tracking-wider text-brass-deep">
                           {(r.stepsCompleted || []).length}/8
                         </span>
                         <span className="flex-1">
                           Session {r.forSessionNumber}
-                          {r.completedAt && <span className="text-ink-mute italic ml-2">{new Date(r.completedAt).toLocaleDateString()}</span>}
+                          {r.completedAt && <span className="ml-2 italic text-ink-mute">{new Date(r.completedAt).toLocaleDateString()}</span>}
                         </span>
                       </li>
                     ))}
@@ -4315,10 +4315,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         )}
         </div>
 
-        <footer className="pt-3 mt-4 border-t border-rule text-xs text-ink-mute italic font-serif text-center">
+        <footer className="mt-4 border-t border-rule pt-3 text-center font-serif text-xs italic text-ink-mute">
           {userEmail}
           {isPro && (
-            <span className="not-italic ml-1.5 px-1.5 py-0.5 rounded-sm border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider text-[10px]">
+            <span className="ml-1.5 rounded-sm border border-crimson/60 bg-crimson/10 px-1.5 py-0.5 font-display text-[10px] uppercase not-italic tracking-wider text-crimson">
               Pro
             </span>
           )}
@@ -4330,7 +4330,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       {get('__runSessionOpen', false) && !get('__initiativeOpen', false) && (
         <button
           onClick={() => setVal('__initiativeOpen', true)}
-          className="fixed bottom-3 right-3 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full border border-crimson/60 bg-parchment shadow-page text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider text-xs"
+          className="fixed bottom-3 right-3 z-20 flex items-center gap-1.5 rounded-full border border-crimson/60 bg-parchment px-3 py-2 font-display text-xs uppercase tracking-wider text-crimson shadow-page hover:bg-crimson hover:text-parchment"
           title="Open initiative tracker"
         >
           <Swords size={14} /> Initiative
@@ -4368,7 +4368,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         onClick={() => setShortcutsOpen(true)}
         title="Keyboard shortcuts (press ?)"
         aria-label="Keyboard shortcuts"
-        className="fixed bottom-4 left-4 z-30 w-8 h-8 rounded-full border border-rule bg-parchment-soft text-brass-deep hover:bg-brass hover:text-parchment shadow-page font-display text-sm leading-none flex items-center justify-center"
+        className="fixed bottom-4 left-4 z-30 flex size-8 items-center justify-center rounded-full border border-rule bg-parchment-soft font-display text-sm leading-none text-brass-deep shadow-page hover:bg-brass hover:text-parchment"
       >
         ?
       </button>
@@ -4378,7 +4378,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       {undoToast && (
         <div
           role="status"
-          className="fixed bottom-4 left-16 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 gm-toast"
+          className="gm-toast fixed bottom-4 left-16 z-40 flex items-center gap-2 rounded-full border border-brass-deep/70 bg-parchment px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep shadow-page"
         >
           {undoToast}
         </div>
@@ -4391,7 +4391,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             scrollToEntity(summonToast.primaryEntityId);
             flashHighlight(summonToast.primaryEntityId);
           }}
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 hover:bg-brass hover:text-parchment"
+          className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full border border-brass-deep/70 bg-parchment px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep shadow-page hover:bg-brass hover:text-parchment"
           title="Click to re-scroll"
         >
           <Check size={12} /> {summonToast.text}

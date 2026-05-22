@@ -39,18 +39,18 @@ export default function Step4Secrets({ get, setVal, soloTarget, standardTarget, 
     <div className="space-y-2">
       {lastRevealed.length > 0 && (
         <div>
-          <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">Revealed Last Session</div>
-          <ul className="list-disc ml-5 text-sm font-serif text-ink-soft">
+          <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Revealed Last Session</div>
+          <ul className="ml-5 list-disc font-serif text-sm text-ink-soft">
             {lastRevealed.map((s, i) => <li key={i}>{s}</li>)}
           </ul>
         </div>
       )}
       {clockTicks.length > 0 && (
         <div>
-          <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+          <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
             Faction Clocks Advanced — Consider New Clues
           </div>
-          <ul className="list-disc ml-5 text-sm font-serif text-ink-soft">
+          <ul className="ml-5 list-disc font-serif text-sm text-ink-soft">
             {clockTicks.map((e, i) => <li key={i}>{e.summary}</li>)}
           </ul>
         </div>
@@ -67,13 +67,13 @@ export default function Step4Secrets({ get, setVal, soloTarget, standardTarget, 
       contextFromLastSession={context}
     >
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-display tracking-wide text-sm text-ink">Secrets & Clues</h3>
-        <span className="text-[11px] text-ink-mute font-serif">
+        <h3 className="font-display text-sm tracking-wide text-ink">Secrets & Clues</h3>
+        <span className="font-serif text-[11px] text-ink-mute">
           {secrets.filter(s => s.trim().length > 0).length} / {target} target
         </span>
       </div>
       {carrying.length > 0 && (
-        <p className="text-[11px] text-moss font-serif italic">
+        <p className="font-serif text-[11px] italic text-moss">
           {carrying.length} unrevealed secret{carrying.length === 1 ? '' : 's'} carrying over from previous sessions.
         </p>
       )}
@@ -86,7 +86,7 @@ export default function Step4Secrets({ get, setVal, soloTarget, standardTarget, 
       />
 
       <label className="block space-y-1">
-        <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+        <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
           Notes for this session
         </span>
         <textarea
@@ -94,7 +94,7 @@ export default function Step4Secrets({ get, setVal, soloTarget, standardTarget, 
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="Which secrets matter most this session? Any earmarked for specific scenes?"
-          className="w-full bg-parchment border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif resize-y"
+          className="w-full resize-y rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink"
         />
       </label>
     </StepShell>

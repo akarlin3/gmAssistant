@@ -214,7 +214,7 @@ function AccountPageBody() {
 
   if (loading || !user) {
     return (
-      <main className="min-h-screen flex items-center justify-center text-sm text-ink-mute italic font-serif">
+      <main className="flex min-h-screen items-center justify-center font-serif text-sm italic text-ink-mute">
         Loading…
       </main>
     );
@@ -260,23 +260,23 @@ function AccountPageBody() {
 
   return (
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-5">
-          <header className="pb-4 border-b border-rule">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <Link href="/campaign" className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1">
+      <div className="mx-auto max-w-2xl">
+        <div className="space-y-5 rounded-lg border border-rule bg-parchment-soft p-3 shadow-page sm:p-5 md:p-8">
+          <header className="border-b border-rule pb-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <Link href="/campaign" className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
                 <ArrowLeft size={12} /> Campaigns
               </Link>
             </div>
-            <h1 className="font-display text-2xl sm:text-3xl text-crimson tracking-wide">Account</h1>
-            <p className="text-sm text-ink-soft italic font-serif mt-1 break-all">{user.email}</p>
+            <h1 className="font-display text-2xl tracking-wide text-crimson sm:text-3xl">Account</h1>
+            <p className="mt-1 break-all font-serif text-sm italic text-ink-soft">{user.email}</p>
           </header>
 
           {checkoutFlag === 'success' && (
-            <div className="rounded border border-crimson/40 bg-crimson/5 p-3 flex items-start gap-2">
-              <CheckCircle2 size={16} className="text-crimson flex-shrink-0 mt-0.5" />
-              <div className="text-sm font-serif text-ink">
-                <p className="font-display uppercase tracking-wider text-xs text-crimson mb-1">Welcome to Pro</p>
+            <div className="flex items-start gap-2 rounded border border-crimson/40 bg-crimson/5 p-3">
+              <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-crimson" />
+              <div className="font-serif text-sm text-ink">
+                <p className="mb-1 font-display text-xs uppercase tracking-wider text-crimson">Welcome to Pro</p>
                 <p className="italic text-ink-soft">
                   Your subscription is active. Pro features will unlock as soon as Stripe&apos;s confirmation reaches us
                   (usually a few seconds).
@@ -285,38 +285,38 @@ function AccountPageBody() {
             </div>
           )}
           {checkoutFlag === 'cancel' && (
-            <div className="rounded border border-rule bg-parchment p-3 flex items-start gap-2">
-              <XCircle size={16} className="text-ink-soft flex-shrink-0 mt-0.5" />
-              <div className="text-sm font-serif text-ink-soft italic">
+            <div className="flex items-start gap-2 rounded border border-rule bg-parchment p-3">
+              <XCircle size={16} className="mt-0.5 flex-shrink-0 text-ink-soft" />
+              <div className="font-serif text-sm italic text-ink-soft">
                 Checkout cancelled — nothing was charged.
               </div>
             </div>
           )}
 
           <section className="space-y-3">
-            <h2 className="font-display tracking-wide text-lg text-ink flex items-center gap-2">
+            <h2 className="flex items-center gap-2 font-display text-lg tracking-wide text-ink">
               <Sparkles size={16} className="text-crimson" /> Subscription
             </h2>
 
             {isPro ? (
-              <div className="rounded border border-crimson/40 bg-crimson/5 p-4 space-y-2">
-                <div className="font-display uppercase tracking-wider text-xs text-crimson">
+              <div className="space-y-2 rounded border border-crimson/40 bg-crimson/5 p-4">
+                <div className="font-display text-xs uppercase tracking-wider text-crimson">
                   Pro {proSource === 'comped' ? '(comped account)' : 'subscriber'}
                 </div>
                 {proSource === 'subscription' && periodEnd && (
-                  <p className="text-sm font-serif text-ink-soft">
+                  <p className="font-serif text-sm text-ink-soft">
                     {cancelAtPeriodEnd
                       ? `Your subscription cancels on ${periodEnd.toLocaleDateString()}.`
                       : `Renews on ${periodEnd.toLocaleDateString()}.`}
                     {subscriptionStatus === 'past_due' && (
-                      <span className="block text-crimson mt-1">
+                      <span className="mt-1 block text-crimson">
                         Payment is past due — manage your subscription to retry.
                       </span>
                     )}
                   </p>
                 )}
                 {proSource === 'comped' && (
-                  <p className="text-sm font-serif italic text-ink-soft">
+                  <p className="font-serif text-sm italic text-ink-soft">
                     You&apos;re on the comped allowlist — no subscription needed.
                   </p>
                 )}
@@ -325,7 +325,7 @@ function AccountPageBody() {
                     type="button"
                     onClick={openPortal}
                     disabled={busy !== null}
-                    className="text-xs px-3 py-1.5 rounded border border-rule bg-parchment hover:bg-parchment-deep font-display uppercase tracking-wider inline-flex items-center gap-1.5 disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded border border-rule bg-parchment px-3 py-1.5 font-display text-xs uppercase tracking-wider hover:bg-parchment-deep disabled:opacity-50"
                   >
                     <Settings size={11} />
                     {busy === 'portal' ? 'Opening…' : 'Manage subscription'}
@@ -334,29 +334,29 @@ function AccountPageBody() {
                 )}
               </div>
             ) : isOnWaitlist ? (
-              <div className="rounded border border-brass/40 bg-brass/5 p-4 space-y-2">
-                <div className="font-display uppercase tracking-wider text-xs text-brass-deep flex items-center gap-1.5">
+              <div className="space-y-2 rounded border border-brass/40 bg-brass/5 p-4">
+                <div className="flex items-center gap-1.5 font-display text-xs uppercase tracking-wider text-brass-deep">
                   <MailCheck size={13} /> You&apos;re on the waitlist
                 </div>
-                <p className="text-sm font-serif italic text-ink-soft">
+                <p className="font-serif text-sm italic text-ink-soft">
                   Pro will be {PRO_PRICE_LABEL} when it launches. We&apos;ll email{' '}
                   <span className="not-italic">{user.email}</span> as soon as it opens up.
                 </p>
               </div>
             ) : (
-              <div className="rounded border border-brass/40 bg-brass/5 p-4 space-y-3">
-                <p className="text-sm font-serif text-ink-soft">
+              <div className="space-y-3 rounded border border-brass/40 bg-brass/5 p-4">
+                <p className="font-serif text-sm text-ink-soft">
                   Pro will be {PRO_PRICE_LABEL} when it launches. Join the waitlist and we&apos;ll
                   email you the moment it opens.
                 </p>
-                <ul className="text-sm font-serif text-ink space-y-1 list-disc list-inside marker:text-brass-deep">
+                <ul className="list-inside list-disc space-y-1 font-serif text-sm text-ink marker:text-brass-deep">
                   {PRO_FEATURES.map((f) => <li key={f}>{f}</li>)}
                 </ul>
                 <button
                   type="button"
                   onClick={joinWaitlist}
                   disabled={busy !== null}
-                  className="text-sm px-4 py-2 rounded bg-crimson hover:bg-wine text-parchment font-display uppercase tracking-wider inline-flex items-center gap-1.5 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded bg-crimson px-4 py-2 font-display text-sm uppercase tracking-wider text-parchment hover:bg-wine disabled:opacity-50"
                 >
                   <Sparkles size={13} />
                   {busy === 'waitlist' ? 'Joining…' : 'Join the Pro waitlist'}
@@ -364,46 +364,46 @@ function AccountPageBody() {
               </div>
             )}
 
-            {error && <p className="text-sm text-crimson font-serif italic">{error}</p>}
+            {error && <p className="font-serif text-sm italic text-crimson">{error}</p>}
           </section>
 
-          <section className="space-y-3 pt-5 border-t border-rule">
-            <h2 className="font-display tracking-wide text-lg text-ink flex items-center gap-2">
+          <section className="space-y-3 border-t border-rule pt-5">
+            <h2 className="flex items-center gap-2 font-display text-lg tracking-wide text-ink">
               <Cloud size={16} className="text-brass-deep" /> Google Drive Backups
             </h2>
 
             {backupActionStatus && (
-              <div className="rounded border border-brass/40 bg-brass/5 p-3 flex items-center gap-2">
-                <div className="gm-spinner border-t-brass animate-spin w-4 h-4 rounded-full border-2 border-r-transparent" />
-                <span className="text-sm font-serif italic text-brass-deep">{backupActionStatus}</span>
+              <div className="flex items-center gap-2 rounded border border-brass/40 bg-brass/5 p-3">
+                <div className="gm-spinner size-4 animate-spin rounded-full border-2 border-r-transparent border-t-brass" />
+                <span className="font-serif text-sm italic text-brass-deep">{backupActionStatus}</span>
               </div>
             )}
 
             {backupError && (
-              <div className="rounded border border-crimson/40 bg-crimson/5 p-3 flex items-start gap-2">
-                <XCircle size={16} className="text-crimson flex-shrink-0 mt-0.5" />
-                <span className="text-sm font-serif text-crimson">{backupError}</span>
+              <div className="flex items-start gap-2 rounded border border-crimson/40 bg-crimson/5 p-3">
+                <XCircle size={16} className="mt-0.5 flex-shrink-0 text-crimson" />
+                <span className="font-serif text-sm text-crimson">{backupError}</span>
               </div>
             )}
 
             {backupSuccess && (
-              <div className="rounded border border-moss/45 bg-moss/5 p-3 flex items-start gap-2">
-                <CheckCircle2 size={16} className="text-moss flex-shrink-0 mt-0.5" />
-                <span className="text-sm font-serif text-moss">{backupSuccess}</span>
+              <div className="flex items-start gap-2 rounded border border-moss/45 bg-moss/5 p-3">
+                <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-moss" />
+                <span className="font-serif text-sm text-moss">{backupSuccess}</span>
               </div>
             )}
 
             {!gDriveToken ? (
-              <div className="rounded border border-rule bg-parchment p-4 text-center space-y-3">
-                <p className="text-sm font-serif text-ink-soft italic">
+              <div className="space-y-3 rounded border border-rule bg-parchment p-4 text-center">
+                <p className="font-serif text-sm italic text-ink-soft">
                   Connect your Google Drive to back up all your campaigns to the cloud and restore them anytime.
                 </p>
-                <div className="flex flex-wrap gap-2 justify-center">
+                <div className="flex flex-wrap justify-center gap-2">
                   <button
                     type="button"
                     onClick={connectGoogleDrive}
                     disabled={backupActionStatus !== null}
-                    className="text-xs px-3 py-1.5 rounded border border-rule hover:bg-parchment-deep font-display uppercase tracking-wider inline-flex items-center gap-1.5 disabled:opacity-50 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded border border-rule px-3 py-1.5 font-display text-xs uppercase tracking-wider transition-colors hover:bg-parchment-deep disabled:opacity-50"
                   >
                     <Cloud size={12} className="text-brass-deep" />
                     Connect Google Drive
@@ -412,7 +412,7 @@ function AccountPageBody() {
                     type="button"
                     onClick={handleBackup}
                     disabled={backupActionStatus !== null}
-                    className="text-xs px-3 py-1.5 rounded bg-crimson hover:bg-wine text-parchment font-display uppercase tracking-wider inline-flex items-center gap-1.5 disabled:opacity-50 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded bg-crimson px-3 py-1.5 font-display text-xs uppercase tracking-wider text-parchment transition-colors hover:bg-wine disabled:opacity-50"
                   >
                     <UploadCloud size={12} />
                     Quick Backup Now
@@ -421,8 +421,8 @@ function AccountPageBody() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex flex-wrap gap-2 items-center justify-between">
-                  <div className="text-xs font-serif text-moss flex items-center gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1 font-serif text-xs text-moss">
                     <CheckCircle2 size={12} /> Google Drive connected
                   </div>
                   <div className="flex gap-2">
@@ -430,7 +430,7 @@ function AccountPageBody() {
                       type="button"
                       onClick={() => loadBackups(gDriveToken)}
                       disabled={loadingBackups || backupActionStatus !== null}
-                      className="text-[11px] px-2 py-1 rounded border border-rule hover:bg-parchment-deep font-display uppercase tracking-wider inline-flex items-center gap-1 disabled:opacity-50 transition-colors"
+                      className="inline-flex items-center gap-1 rounded border border-rule px-2 py-1 font-display text-[11px] uppercase tracking-wider transition-colors hover:bg-parchment-deep disabled:opacity-50"
                       title="Reload backup list"
                     >
                       <RefreshCw size={10} className={loadingBackups ? 'animate-spin' : ''} />
@@ -440,7 +440,7 @@ function AccountPageBody() {
                       type="button"
                       onClick={handleBackup}
                       disabled={backupActionStatus !== null}
-                      className="text-[11px] px-2 py-1.5 rounded bg-crimson hover:bg-wine text-parchment font-display uppercase tracking-wider inline-flex items-center gap-1 disabled:opacity-50 transition-colors"
+                      className="inline-flex items-center gap-1 rounded bg-crimson px-2 py-1.5 font-display text-[11px] uppercase tracking-wider text-parchment transition-colors hover:bg-wine disabled:opacity-50"
                     >
                       <UploadCloud size={11} />
                       Backup Campaigns
@@ -449,20 +449,20 @@ function AccountPageBody() {
                 </div>
 
                 {loadingBackups ? (
-                  <p className="text-sm text-ink-mute italic font-serif text-center py-6">Checking your scrolls on Google Drive…</p>
+                  <p className="py-6 text-center font-serif text-sm italic text-ink-mute">Checking your scrolls on Google Drive…</p>
                 ) : backups.length === 0 ? (
-                  <p className="text-sm text-ink-mute italic font-serif text-center py-6 border border-dashed border-rule rounded bg-parchment-deep/10">
+                  <p className="rounded border border-dashed border-rule bg-parchment-deep/10 py-6 text-center font-serif text-sm italic text-ink-mute">
                     No backups found in your "GM Builder Backups" Google Drive folder yet.
                   </p>
                 ) : (
-                  <div className="overflow-x-auto border border-rule rounded bg-parchment text-ink">
-                    <table className="w-full text-left border-collapse text-xs">
+                  <div className="overflow-x-auto rounded border border-rule bg-parchment text-ink">
+                    <table className="w-full border-collapse text-left text-xs">
                       <thead>
-                        <tr className="bg-parchment-deep border-b border-rule font-display uppercase tracking-wider text-brass-deep text-[10px]">
+                        <tr className="border-b border-rule bg-parchment-deep font-display text-[10px] uppercase tracking-wider text-brass-deep">
                           <th className="p-2 sm:p-3">File Name</th>
-                          <th className="p-2 sm:p-3 hidden sm:table-cell">Created Date</th>
-                          <th className="p-2 sm:p-3 hidden sm:table-cell">File Size</th>
-                          <th className="p-2 sm:p-3 text-right">Actions</th>
+                          <th className="hidden p-2 sm:table-cell sm:p-3">Created Date</th>
+                          <th className="hidden p-2 sm:table-cell sm:p-3">File Size</th>
+                          <th className="p-2 text-right sm:p-3">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-rule font-serif text-ink-soft">
@@ -470,22 +470,22 @@ function AccountPageBody() {
                           const sizeKb = file.size ? `${(Number(file.size) / 1024).toFixed(1)} KB` : 'Unknown';
                           const createdDate = new Date(file.createdTime).toLocaleString();
                           return (
-                            <tr key={file.id} className="hover:bg-parchment-deep/20 transition-colors">
-                              <td className="p-2 sm:p-3 font-mono font-medium truncate max-w-[150px] sm:max-w-[200px]" title={file.name}>
+                            <tr key={file.id} className="transition-colors hover:bg-parchment-deep/20">
+                              <td className="max-w-[150px] truncate p-2 font-mono font-medium sm:max-w-[200px] sm:p-3" title={file.name}>
                                 {file.name}
-                                <span className="block sm:hidden text-[10px] text-ink-mute font-serif italic mt-0.5">
+                                <span className="mt-0.5 block font-serif text-[10px] italic text-ink-mute sm:hidden">
                                   {createdDate} · {sizeKb}
                                 </span>
                               </td>
-                              <td className="p-2 sm:p-3 hidden sm:table-cell">{createdDate}</td>
-                              <td className="p-2 sm:p-3 hidden sm:table-cell">{sizeKb}</td>
-                              <td className="p-2 sm:p-3 text-right">
+                              <td className="hidden p-2 sm:table-cell sm:p-3">{createdDate}</td>
+                              <td className="hidden p-2 sm:table-cell sm:p-3">{sizeKb}</td>
+                              <td className="p-2 text-right sm:p-3">
                                 <div className="inline-flex gap-1">
                                   <button
                                     type="button"
                                     onClick={() => handleRestore(file.id, file.name)}
                                     disabled={backupActionStatus !== null}
-                                    className="text-[10px] px-2 py-1 rounded border border-moss/45 text-moss hover:bg-moss hover:text-parchment font-display uppercase tracking-wider disabled:opacity-50 transition-colors"
+                                    className="rounded border border-moss/45 px-2 py-1 font-display text-[10px] uppercase tracking-wider text-moss transition-colors hover:bg-moss hover:text-parchment disabled:opacity-50"
                                     title="Restore campaigns from this backup"
                                   >
                                     Restore
@@ -494,7 +494,7 @@ function AccountPageBody() {
                                     type="button"
                                     onClick={() => handleDeleteBackup(file.id, file.name)}
                                     disabled={backupActionStatus !== null}
-                                    className="text-[10px] px-2 py-1 rounded border border-crimson/50 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider disabled:opacity-50 transition-colors"
+                                    className="rounded border border-crimson/50 px-2 py-1 font-display text-[10px] uppercase tracking-wider text-crimson transition-colors hover:bg-crimson hover:text-parchment disabled:opacity-50"
                                     title="Delete backup file"
                                   >
                                     <Trash2 size={10} />
@@ -520,7 +520,7 @@ function AccountPageBody() {
 export default function AccountPage() {
   return (
     <Suspense fallback={
-      <main className="min-h-screen flex items-center justify-center text-sm text-ink-mute italic font-serif">Loading…</main>
+      <main className="flex min-h-screen items-center justify-center font-serif text-sm italic text-ink-mute">Loading…</main>
     }>
       <AccountPageBody />
     </Suspense>

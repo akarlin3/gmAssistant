@@ -27,7 +27,7 @@ type Props = {
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider mb-0.5">
+    <div className="mb-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep">
       {children}
     </div>
   );
@@ -145,7 +145,7 @@ export default function SidekickAddPanel({ isPro, onAdd }: Props) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="text-xs text-wine hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider"
+        className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-wine hover:text-crimson"
         title="Build a Tasha sidekick (solo-mode companion)"
       >
         <UserPlus size={12} /> Add Sidekick
@@ -154,20 +154,20 @@ export default function SidekickAddPanel({ isPro, onAdd }: Props) {
   }
 
   return (
-    <div className="w-full rounded border border-wine/40 bg-wine/[0.04] p-3 space-y-3 my-2">
+    <div className="my-2 w-full space-y-3 rounded border border-wine/40 bg-wine/[0.04] p-3">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-display uppercase tracking-wider text-wine flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 font-display text-xs uppercase tracking-wider text-wine">
           <UserPlus size={12} /> Add Sidekick (Tasha's Cauldron)
         </div>
         <button
           onClick={() => setOpen(false)}
-          className="text-[10px] text-ink-mute hover:text-crimson font-display uppercase tracking-wider"
+          className="font-display text-[10px] uppercase tracking-wider text-ink-mute hover:text-crimson"
         >
           Close
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <div>
           <Label>Class</Label>
           <select
@@ -223,7 +223,7 @@ export default function SidekickAddPanel({ isPro, onAdd }: Props) {
         </div>
       </div>
 
-      <div className="text-[11px] text-ink-soft font-serif italic">
+      <div className="font-serif text-[11px] italic text-ink-soft">
         {SIDEKICK_CLASSES.find((c) => c.id === classId)?.blurb}
         {isSpellcaster && ` · ${SPELL_LISTS.find((l) => l.id === spellList)?.blurb}`}
       </div>
@@ -235,14 +235,14 @@ export default function SidekickAddPanel({ isPro, onAdd }: Props) {
           onChange={(e) => setConcept(e.target.value)}
           placeholder='e.g. "Grizzled retired soldier who joined the party after his village burned. Quiet, loyal, secretly afraid of fire."'
           rows={3}
-          className="w-full bg-parchment border border-rule rounded px-2 py-1.5 text-sm font-serif text-ink placeholder:text-ink-faint placeholder:italic focus:outline-none focus:border-crimson resize-none [field-sizing:content]"
+          className="w-full resize-none rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink [field-sizing:content] placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
         />
       </div>
 
-      <div className="flex flex-wrap gap-3 items-center">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={addTemplate}
-          className="text-xs px-2.5 py-1 rounded border border-brass-deep/50 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass font-display uppercase tracking-wider flex items-center gap-1.5"
+          className="flex items-center gap-1.5 rounded border border-brass-deep/50 px-2.5 py-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:border-brass hover:bg-brass hover:text-parchment"
           title="Prefill a sidekick card from Tasha class tables — no AI"
         >
           <Plus size={12} /> Add from Template
@@ -252,7 +252,7 @@ export default function SidekickAddPanel({ isPro, onAdd }: Props) {
           <button
             onClick={generateWithAi}
             disabled={generating}
-            className="text-xs px-2.5 py-1 rounded border border-crimson/60 text-crimson hover:bg-crimson hover:text-parchment hover:border-crimson font-display uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-wait"
+            className="flex items-center gap-1.5 rounded border border-crimson/60 px-2.5 py-1 font-display text-xs uppercase tracking-wider text-crimson hover:border-crimson hover:bg-crimson hover:text-parchment disabled:cursor-wait disabled:opacity-50"
             title="Use Claude to fill name, race, ability scores, equipment, personality and backstory from your concept"
           >
             <Sparkles size={12} /> {generating ? 'Generating…' : 'Generate with AI'}
@@ -262,7 +262,7 @@ export default function SidekickAddPanel({ isPro, onAdd }: Props) {
         )}
 
         {error && (
-          <span className="text-xs text-crimson italic" title={error}>
+          <span className="text-xs italic text-crimson" title={error}>
             {error}
           </span>
         )}
