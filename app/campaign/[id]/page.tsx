@@ -34,7 +34,31 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   }, [id, user]);
 
   if (authLoading || loading) {
-    return <main className="flex min-h-screen items-center justify-center text-xs text-zinc-500">Loading…</main>;
+    return (
+      <main className="min-h-screen bg-parchment flex flex-col">
+        <header className="h-14 border-b border-rule bg-parchment px-4 flex items-center gap-3">
+          <div className="h-5 w-5 bg-parchment-deep animate-pulse rounded-sm" />
+          <div className="h-4 w-32 bg-parchment-deep animate-pulse rounded-sm" />
+        </header>
+        <div className="flex flex-1">
+          <aside className="w-[240px] border-r border-rule bg-parchment-soft p-4 hidden md:flex flex-col gap-3">
+            <div className="h-3 w-16 bg-parchment-deep animate-pulse rounded-sm mb-2" />
+            <div className="h-8 w-full bg-parchment-deep animate-pulse rounded-sm" />
+            <div className="h-8 w-full bg-parchment-deep animate-pulse rounded-sm" />
+            <div className="h-8 w-full bg-parchment-deep animate-pulse rounded-sm" />
+          </aside>
+          <div className="flex-1 p-6">
+            <div className="max-w-4xl mx-auto space-y-4">
+              <div className="h-8 w-48 bg-parchment-deep animate-pulse rounded-sm" />
+              <div className="h-4 w-full bg-parchment-deep animate-pulse rounded-sm" />
+              <div className="h-4 w-full bg-parchment-deep animate-pulse rounded-sm" />
+              <div className="h-4 w-2/3 bg-parchment-deep animate-pulse rounded-sm" />
+              <div className="h-32 w-full mt-6 bg-parchment-deep animate-pulse rounded-sm" />
+            </div>
+          </div>
+        </div>
+      </main>
+    );
   }
   if (error) {
     return (

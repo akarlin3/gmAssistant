@@ -59,6 +59,7 @@ export default function InitiativePanel({
   state, onChange, monsters, pcs, onClose, variant = 'floating', onEnded,
 }: Props) {
   const [addMode, setAddMode] = useState<'monster' | 'pc' | 'manual' | null>(null);
+  const [selectedPcInit, setSelectedPcInit] = useState<{pc: Character, init: number} | null>(null);
   const [search, setSearch] = useState('');
   const [manualForm, setManualForm] = useState({
     name: '', initiative: 10, hpMax: 10, side: 'enemy' as CombatantSide,
@@ -113,15 +114,10 @@ export default function InitiativePanel({
     setSearch('');
   };
 
-  const addFromPC = (pc: Character) => {
+  const addFromPC = (pc: Character, overrideInit?: number) => {
     const hpMax = hpExtractMax(pc.hpMax) || hpExtractMax(pc.hp) || 10;
     const acN = parseInt(pc.ac || '', 10);
-    const promptStr = window.prompt(`Initiative roll for ${pc.name || 'PC'} (modifier ${pcInitiativeMod(pc) >= 0 ? '+' : ''}${pcInitiativeMod(pc)}):`, '');
-    let initiative = rollInitiative(pcInitiativeMod(pc));
-    if (promptStr && promptStr.trim()) {
-      const parsed = parseInt(promptStr, 10);
-      if (!isNaN(parsed)) initiative = parsed;
-    }
+    const initiative = overrideInit ?? rollInitiative(pcInitiativeMod(pc));
     const c: Combatant = {
       id: makeCombatantId(),
       name: pc.name || 'PC',
@@ -133,6 +129,7 @@ export default function InitiativePanel({
     };
     addCombatant(c);
     setAddMode(null);
+    setSelectedPcInit(null);
   };
 
   const addManual = () => {
@@ -217,7 +214,7 @@ export default function InitiativePanel({
           <button
             onClick={() => update(prevTurn(init))}
             disabled={init.combatants.length === 0}
-            className="text-xs px-2 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-display uppercase tracking-wider whitespace-nowrap"
+            className="text-xs px-3 py-1.5 min-h-[44px] rounded border border-rule text-ink-soft hover:bg-parchment-deep disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-display uppercase tracking-wider whitespace-nowrap"
             title="Previous turn"
           >
             <ChevronLeft size={12} /> Prev
@@ -225,7 +222,7 @@ export default function InitiativePanel({
           <button
             onClick={() => update(nextTurn(init))}
             disabled={init.combatants.length === 0}
-            className="text-xs px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-display uppercase tracking-wider whitespace-nowrap"
+            className="text-xs px-3 py-1.5 min-h-[44px] rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-display uppercase tracking-wider whitespace-nowrap"
             title="Next turn"
           >
             Next <ChevronRight size={12} />
@@ -258,8 +255,8 @@ export default function InitiativePanel({
 
             <div className="mt-2 flex items-center gap-2">
               <Heart size={12} className="text-crimson flex-shrink-0" />
-              <button onClick={() => adjustHp(active.id, -5)} className="text-xs px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep">−5</button>
-              <button onClick={() => adjustHp(active.id, -1)} className="text-xs px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep">−1</button>
+              <button onClick={() => adjustHp(active.id, -5)} className="text-xs px-2 py-1 min-h-[44px] min-w-[44px] rounded border border-rule text-ink-soft hover:bg-parchment-deep">−5</button>
+              <button onClick={() => adjustHp(active.id, -1)} className="text-xs px-2 py-1 min-h-[44px] min-w-[44px] rounded border border-rule text-ink-soft hover:bg-parchment-deep">−1</button>
               <input
                 type="number"
                 value={active.hp.current}
@@ -267,11 +264,11 @@ export default function InitiativePanel({
                   const v = parseInt(e.target.value || '0', 10);
                   updateCombatant(active.id, { hp: { ...active.hp, current: isNaN(v) ? 0 : v } });
                 }}
-                className="w-14 text-center bg-parchment-soft border border-rule rounded px-1 py-0.5 text-sm text-ink font-serif"
+                className="w-14 min-h-[44px] text-center bg-parchment-soft border border-rule rounded px-1 py-0.5 text-sm text-ink font-serif"
               />
               <span className="text-xs text-ink-mute font-serif">/ {active.hp.max}</span>
-              <button onClick={() => adjustHp(active.id, 1)} className="text-xs px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep">+1</button>
-              <button onClick={() => adjustHp(active.id, 5)} className="text-xs px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep">+5</button>
+              <button onClick={() => adjustHp(active.id, 1)} className="text-xs px-2 py-1 min-h-[44px] min-w-[44px] rounded border border-rule text-ink-soft hover:bg-parchment-deep">+1</button>
+              <button onClick={() => adjustHp(active.id, 5)} className="text-xs px-2 py-1 min-h-[44px] min-w-[44px] rounded border border-rule text-ink-soft hover:bg-parchment-deep">+5</button>
             </div>
 
             <div className="mt-2 h-1.5 bg-parchment-deep rounded-sm overflow-hidden border border-rule">
@@ -287,7 +284,7 @@ export default function InitiativePanel({
                 <select
                   value=""
                   onChange={(e) => { if (e.target.value) toggleCondition(active.id, e.target.value); }}
-                  className="bg-parchment-soft border border-rule rounded px-1 py-0.5 text-[10px] text-ink-soft font-serif"
+                  className="bg-parchment-soft border border-rule rounded px-2 py-1 min-h-[44px] text-[10px] text-ink-soft font-serif"
                 >
                   <option value="">+ Add…</option>
                   {CONDITIONS.filter(c => !active.conditions.includes(c)).map(c => (
@@ -303,7 +300,7 @@ export default function InitiativePanel({
                     <button
                       key={c}
                       onClick={() => toggleCondition(active.id, c)}
-                      className="text-[10px] px-1.5 py-0.5 rounded border border-wine/40 bg-wine/10 text-wine hover:bg-wine hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1"
+                      className="text-[10px] px-2 py-1 min-h-[44px] rounded border border-wine/40 bg-wine/10 text-wine hover:bg-wine hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1"
                     >
                       {c} <X size={9} />
                     </button>
@@ -415,21 +412,41 @@ export default function InitiativePanel({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">Add PC</span>
-              <button onClick={() => setAddMode(null)} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+              <button onClick={() => { setAddMode(null); setSelectedPcInit(null); }} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
             </div>
             <div className="max-h-40 overflow-y-auto space-y-0.5">
               {pcs.length === 0 && (
                 <p className="text-[11px] text-ink-mute italic font-serif px-1">No characters yet. Add some on the Prep tab.</p>
               )}
               {pcs.map(pc => (
-                <button
-                  key={pc.id}
-                  onClick={() => addFromPC(pc)}
-                  className="w-full text-left text-xs px-2 py-1 rounded text-ink-soft hover:bg-parchment-deep hover:text-ink font-serif flex items-center gap-2"
-                >
-                  <span className="flex-1 truncate">{pc.name || 'Unnamed'}</span>
-                  <span className="text-[10px] text-ink-mute">{pc.classLevel || '—'}</span>
-                </button>
+                <div key={pc.id}>
+                  <button
+                    onClick={() => setSelectedPcInit({ pc, init: rollInitiative(pcInitiativeMod(pc)) })}
+                    className="w-full text-left text-xs px-2 py-1 rounded text-ink-soft hover:bg-parchment-deep hover:text-ink font-serif flex items-center gap-2"
+                  >
+                    <span className="flex-1 truncate">{pc.name || 'Unnamed'}</span>
+                    <span className="text-[10px] text-ink-mute">{pc.classLevel || '—'}</span>
+                  </button>
+                  {selectedPcInit?.pc.id === pc.id && (
+                    <div className="px-2 py-1.5 mt-1 bg-brass/10 border border-brass/30 rounded flex items-center gap-2">
+                      <span className="text-[10px] font-display uppercase tracking-wider text-brass-deep flex-1">Initiative:</span>
+                      <input
+                        type="number"
+                        value={selectedPcInit.init}
+                        onChange={e => setSelectedPcInit({ pc, init: parseInt(e.target.value || '0', 10) || 0 })}
+                        className="w-12 bg-parchment-soft border border-rule rounded px-1 py-0.5 text-xs text-ink font-serif text-center"
+                        autoFocus
+                        onKeyDown={e => { if (e.key === 'Enter') addFromPC(pc, selectedPcInit.init); }}
+                      />
+                      <button
+                        onClick={() => addFromPC(pc, selectedPcInit.init)}
+                        className="text-[10px] px-2 py-0.5 rounded bg-brass text-parchment font-display uppercase tracking-wider hover:bg-brass-deep"
+                      >
+                        Confirm
+                      </button>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           </div>

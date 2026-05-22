@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   ArrowLeft, Flag, Dice5, Sparkles, ChevronDown, ChevronRight, Check,
   Eye, EyeOff, Plus, Swords, NotebookPen, Target, Map, Users, ScrollText,
@@ -58,12 +58,21 @@ export default function RunSessionView({
     monsters: true, magicItems: true, goals: true, clocks: true,
   });
   const [strongStartDone, setStrongStartDone] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
   const toggleSection = (k: SectionKey) => setSection(s => ({ ...s, [k]: !s[k] }));
 
   const events = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
   const pushEvent = (e: ChangeEvent) => {
     setVal('__sessionChangeEvents', [...events, e]);
+    setToast('Added to Session Log');
   };
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const usedScenes = (get('__sessionUsedScenes', []) as string[]) || [];
   const toggleSceneUsed = (text: string) => {
@@ -188,6 +197,27 @@ export default function RunSessionView({
           </button>
         </header>
 
+        <div className="sticky top-0 z-20 flex overflow-x-auto bg-parchment/90 backdrop-blur border-b border-rule py-2 gap-2 hide-scrollbar -mx-3 px-3 sm:-mx-5 sm:px-5 md:-mx-6 md:px-6">
+          {SECTION_KEYS.map(k => {
+            const Icon = SECTION_META[k].icon;
+            return (
+              <button
+                key={k}
+                onClick={() => {
+                  setSection(s => ({ ...s, [k]: true }));
+                  setTimeout(() => {
+                    document.getElementById(`section-${k}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 0);
+                }}
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-rule bg-parchment px-3 py-1 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep hover:text-ink"
+              >
+                <Icon size={10} className="text-brass-deep" />
+                {SECTION_META[k].label}
+              </button>
+            );
+          })}
+        </div>
+
         {strongStart && (
           <section className="rounded border-2 border-crimson/50 bg-crimson/5 p-3 shadow-card sm:p-4">
             <div className="mb-1.5 flex items-start gap-2">
@@ -223,7 +253,7 @@ export default function RunSessionView({
 
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_360px]">
           <div className="space-y-3">
-            <SectionShell title={SECTION_META.scenes.label} icon={SECTION_META.scenes.icon} open={section.scenes} onToggle={() => toggleSection('scenes')} count={scenes.length}>
+            <SectionShell id="section-scenes" title={SECTION_META.scenes.label} icon={SECTION_META.scenes.icon} open={section.scenes} onToggle={() => toggleSection('scenes')} count={scenes.length}>
               {scenes.length === 0 ? <Empty>No scenes prepped.</Empty> : (
                 <ul className="space-y-1">
                   {scenes.map((s, i) => {
@@ -245,7 +275,7 @@ export default function RunSessionView({
               )}
             </SectionShell>
 
-            <SectionShell title={SECTION_META.secrets.label} icon={SECTION_META.secrets.icon} open={section.secrets} onToggle={() => toggleSection('secrets')} count={secrets.length}>
+            <SectionShell id="section-secrets" title={SECTION_META.secrets.label} icon={SECTION_META.secrets.icon} open={section.secrets} onToggle={() => toggleSection('secrets')} count={secrets.length}>
               {secrets.length === 0 ? <Empty>No secrets prepped.</Empty> : (
                 <ul className="space-y-1">
                   {secrets.map((s, i) => {
@@ -267,7 +297,7 @@ export default function RunSessionView({
               )}
             </SectionShell>
 
-            <SectionShell title={SECTION_META.npcs.label} icon={SECTION_META.npcs.icon} open={section.npcs} onToggle={() => toggleSection('npcs')} count={npcs.length}>
+            <SectionShell id="section-npcs" title={SECTION_META.npcs.label} icon={SECTION_META.npcs.icon} open={section.npcs} onToggle={() => toggleSection('npcs')} count={npcs.length}>
               {npcs.length === 0 ? <Empty>No NPCs prepped.</Empty> : (
                 <ul className="space-y-1.5">
                   {npcs.map((n: any, i: number) => (
@@ -277,7 +307,7 @@ export default function RunSessionView({
               )}
             </SectionShell>
 
-            <SectionShell title={SECTION_META.locations.label} icon={SECTION_META.locations.icon} open={section.locations} onToggle={() => toggleSection('locations')} count={locations.length}>
+            <SectionShell id="section-locations" title={SECTION_META.locations.label} icon={SECTION_META.locations.icon} open={section.locations} onToggle={() => toggleSection('locations')} count={locations.length}>
               {locations.length === 0 ? <Empty>No locations prepped.</Empty> : (
                 <ul className="space-y-1">
                   {locations.map((l: any, i: number) => (
@@ -295,7 +325,7 @@ export default function RunSessionView({
               )}
             </SectionShell>
 
-            <SectionShell title={SECTION_META.monsters.label} icon={SECTION_META.monsters.icon} open={section.monsters} onToggle={() => toggleSection('monsters')} count={monstersList.length}>
+            <SectionShell id="section-monsters" title={SECTION_META.monsters.label} icon={SECTION_META.monsters.icon} open={section.monsters} onToggle={() => toggleSection('monsters')} count={monstersList.length}>
               {monstersList.length === 0 ? <Empty>No monsters prepped.</Empty> : (
                 <ul className="space-y-1">
                   {monstersList.map((m, i) => (
@@ -307,7 +337,7 @@ export default function RunSessionView({
               )}
             </SectionShell>
 
-            <SectionShell title={SECTION_META.magicItems.label} icon={SECTION_META.magicItems.icon} open={section.magicItems} onToggle={() => toggleSection('magicItems')} count={magicItemsList.length}>
+            <SectionShell id="section-magicItems" title={SECTION_META.magicItems.label} icon={SECTION_META.magicItems.icon} open={section.magicItems} onToggle={() => toggleSection('magicItems')} count={magicItemsList.length}>
               {magicItemsList.length === 0 ? <Empty>No magic items prepped.</Empty> : (
                 <ul className="space-y-1">
                   {magicItemsList.map((it, i) => {
@@ -329,7 +359,7 @@ export default function RunSessionView({
               )}
             </SectionShell>
 
-            <SectionShell title={SECTION_META.goals.label} icon={SECTION_META.goals.icon} open={section.goals} onToggle={() => toggleSection('goals')} count={pcGoals.length}>
+            <SectionShell id="section-goals" title={SECTION_META.goals.label} icon={SECTION_META.goals.icon} open={section.goals} onToggle={() => toggleSection('goals')} count={pcGoals.length}>
               {pcGoals.length === 0 ? <Empty>No PC goals prepped.</Empty> : (
                 <ul className="space-y-1.5">
                   {pcGoals.map((g: any, i: number) => (
@@ -352,7 +382,7 @@ export default function RunSessionView({
               )}
             </SectionShell>
 
-            <SectionShell title={SECTION_META.clocks.label} icon={SECTION_META.clocks.icon} open={section.clocks} onToggle={() => toggleSection('clocks')} count={clocks.length}>
+            <SectionShell id="section-clocks" title={SECTION_META.clocks.label} icon={SECTION_META.clocks.icon} open={section.clocks} onToggle={() => toggleSection('clocks')} count={clocks.length}>
               {clocks.length === 0 ? <Empty>No clocks prepped.</Empty> : (
                 <ul className="space-y-1.5">
                   {clocks.map((c: any, i: number) => {
@@ -433,6 +463,15 @@ export default function RunSessionView({
         <NoteSeed pushEvent={pushEvent} />
       </div>
 
+      {toast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-2 fade-in duration-200">
+          <div className="bg-ink text-parchment px-4 py-2 rounded shadow-lg font-serif text-sm flex items-center gap-2">
+            <Check size={14} className="text-emerald-400" />
+            {toast}
+          </div>
+        </div>
+      )}
+
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-rule bg-parchment shadow-page">
         <div className="mx-auto flex max-w-7xl items-start gap-2 p-2 sm:p-3">
           <NotebookPen size={14} className="mt-1.5 flex-shrink-0 text-brass-deep" />
@@ -450,12 +489,12 @@ export default function RunSessionView({
 }
 
 export function SectionShell({
-  title, icon: Icon, open, onToggle, count, children,
+  title, icon: Icon, open, onToggle, count, children, id
 }: {
-  title: string; icon: any; open: boolean; onToggle: () => void; count?: number; children: React.ReactNode;
+  title: string; icon: any; open: boolean; onToggle: () => void; count?: number; children: React.ReactNode; id?: string;
 }) {
   return (
-    <section className="rounded border border-rule bg-parchment-soft shadow-card">
+    <section id={id} className="scroll-mt-20 rounded border border-rule bg-parchment-soft shadow-card">
       <button onClick={onToggle} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-parchment-deep/30">
         <Icon size={14} className="flex-shrink-0 text-brass-deep" />
         <span className="flex-1 font-display text-sm tracking-wide text-ink">{title}</span>

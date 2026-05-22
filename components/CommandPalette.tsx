@@ -80,6 +80,26 @@ function scoreItem(item: CommandItem, query: string): number {
   return score;
 }
 
+function HighlightMatch({ text, query }: { text: string; query: string }) {
+  if (!query.trim() || !text) return <>{text}</>;
+  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return <>{text}</>;
+
+  const regex = new RegExp(`(${tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (tokens.some(t => t === part.toLowerCase())) {
+          return <strong key={i} className="text-crimson font-semibold">{part}</strong>;
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 export default function CommandPalette({
   open,
   onClose,
@@ -245,10 +265,12 @@ export default function CommandPalette({
                 ) : (
                   <span className="w-3.5 flex-shrink-0" />
                 )}
-                <span className="min-w-0 flex-1 truncate font-serif">{item.label}</span>
+                <span className="min-w-0 flex-1 truncate font-serif">
+                  <HighlightMatch text={item.label} query={query} />
+                </span>
                 {item.sublabel && (
                   <span className="max-w-[40%] truncate font-serif text-xs italic text-ink-mute">
-                    {item.sublabel}
+                    <HighlightMatch text={item.sublabel} query={query} />
                   </span>
                 )}
                 {active && (
