@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start -p ${PORT:-3000} -H 0.0.0.0",
     "lint": "next lint",
-    "test": "node --import tsx --test lib/generators/__tests__/*.test.ts"
+    "test": "node --import tsx --test lib/**/__tests__/*.test.ts lib/__tests__/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
