@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Cinzel, EB_Garamond } from 'next/font/google';
 import { AuthProvider } from '@/lib/firebase/auth-context';
 import { ConfirmProvider } from '@/components/ConfirmDialog';
@@ -22,6 +22,20 @@ const garamond = EB_Garamond({
 export const metadata: Metadata = {
   title: 'Gamemaster Assistant',
   description: 'TTRPG campaign prep — Lazy DM · CCD · Proactive Roleplaying',
+  manifest: '/manifest.ts',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'GM Assist',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#b1201e',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
  
 export default function RootLayout({ children }: { children: React.ReactNode }) {

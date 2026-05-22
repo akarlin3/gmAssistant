@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
+    "@ducanh2912/next-pwa": "^10.2.9",
     "firebase": "^11.10.0",
     "firebase-admin": "^13.10.0",
     "jose": "^5.10.0",

@@ -5,6 +5,8 @@
 html, body {
   background: #f5ecd7;
   color: #1a1410;
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -181,3 +183,7 @@ textarea:focus-visible {
   animation: gm-shimmer-anim 3s infinite ease-in-out;
 }
 
+/* 11. Mobile fixes for inputs to prevent zooming on iOS */
+input, textarea, select {
+  font-size: 16px;
+}
