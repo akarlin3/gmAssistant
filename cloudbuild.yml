@@ -70,3 +70,17 @@ steps:
     args: ['run', 'build']
     # Build last so a typecheck/lint/test failure short-circuits the slow step.
     waitFor: ['typecheck', 'lint', 'test-node', 'test-vitest']
+
+  - id: deploy
+    name: 'node:20'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if [ "$BRANCH_NAME" = "main" ]; then
+          echo "Merging into main, deploying to Firebase..."
+          npx -y firebase-tools@latest deploy --non-interactive --force
+        else
+          echo "Not on main branch ($BRANCH_NAME), skipping deploy."
+        fi
+    waitFor: ['build']
