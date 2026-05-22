@@ -8,12 +8,12 @@ function getEnv(value: string | undefined): string | undefined {
 }
 
 const firebaseConfig = {
-  apiKey: getEnv(process.env.NEXT_PUBLIC_FIREBASE_API_KEY) || 'AIzaSyCWKBxIi9DTuA8hiSMCDUCkNiG_fsFlxyg',
-  authDomain: getEnv(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) || 'campaign-prep-fc9ed.firebaseapp.com',
-  projectId: getEnv(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) || 'campaign-prep-fc9ed',
-  storageBucket: getEnv(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) || 'campaign-prep-fc9ed.firebasestorage.app',
-  messagingSenderId: getEnv(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID) || '549573496390',
-  appId: getEnv(process.env.NEXT_PUBLIC_FIREBASE_APP_ID) || '1:549573496390:web:0e718df86b18bbbbb28447',
+  apiKey: 'AIzaSyCWKBxIi9DTuA8hiSMCDUCkNiG_fsFlxyg',
+  authDomain: 'campaign-prep-fc9ed.firebaseapp.com',
+  projectId: 'campaign-prep-fc9ed',
+  storageBucket: 'campaign-prep-fc9ed.firebasestorage.app',
+  messagingSenderId: '549573496390',
+  appId: '1:549573496390:web:0e718df86b18bbbbb28447',
 };
 
 
