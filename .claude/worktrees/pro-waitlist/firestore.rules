@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /campaigns/{campaignId} {
+      allow read: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+    }
+
+    // Subscription state — written server-side only (Firebase Admin SDK from Stripe webhook).
+    // Clients read their own doc to react to status changes in real time.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // customer-id -> uid lookup, used by the webhook to resolve which user a Stripe customer maps to.
+    // Server-only, never readable by clients.
+    match /stripeCustomers/{customerId} {
+      allow read, write: if false;
+    }
+
+    // Pro waitlist signups — clients write their own doc directly from the
+    // Firebase Web SDK (the deployment can't use the Admin SDK because
+    // service-account key creation is blocked by org policy). The schema is
+    // locked here and the doc is write-once.
+    match /proWaitlist/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.email is string
+        && request.resource.data.createdAtMs is number
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'createdAtMs', 'createdAt']);
+      allow update, delete: if false;
+    }
+  }
+}

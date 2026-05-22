@@ -2244,6 +2244,16 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
   const jumpToNextUp = useCallback(() => {
     if (!nextUp) return;
+    
+    let targetMode: Mode = 'prep';
+    let targetSubview = 'flow';
+    if (nextUp.phaseId === 'p0') { targetMode = 'plan'; targetSubview = 'pitch'; }
+    else if (nextUp.phaseId === 'p1') { targetMode = 'plan'; targetSubview = 'world'; }
+    else if (nextUp.phaseId === 'p2') { targetMode = 'plan'; targetSubview = 'pcs'; }
+    else if (nextUp.phaseId === 'p4' || nextUp.phaseId === 'p5' || nextUp.phaseId === 'p6') { targetMode = 'plan'; targetSubview = 'fronts'; }
+    
+    setMode(targetMode);
+    setSubview(targetSubview);
     setPhaseOpen(p => ({ ...p, [nextUp.phaseId]: true }));
     setOpen(o => ({ ...o, [nextUp.sectionId]: true }));
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -2520,6 +2530,11 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     characterId?: string;
     anchor?: string;
   }) => {
+    if (target.mode === 'run' && mode !== 'run' && nextUp) {
+      if (!window.confirm(`You have unfinished prep targets (e.g. ${nextUp.label}). Are you sure you want to start the session anyway?`)) {
+        return;
+      }
+    }
     const nextSubview =
       target.subview && isValidSubview(target.mode, target.subview)
         ? target.subview
@@ -2550,6 +2565,11 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   const handleModeChange = (m: Mode) => {
     if (!confirmUnsavedNav()) return;
     if (m === mode) return;
+    if (m === 'run' && nextUp) {
+      if (!window.confirm(`You have unfinished prep targets (e.g. ${nextUp.label}). Are you sure you want to start the session anyway?`)) {
+        return;
+      }
+    }
     setMode(m);
     setSubview(defaultSubview(m));
   };

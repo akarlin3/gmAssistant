@@ -15,6 +15,7 @@ import { makeEvent, type ChangeEvent } from '@/lib/sessionEvents';
 import { LockedInline } from '@/components/LockedFeature';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { generatePlotSegues } from '@/lib/generators/plot-segue';
+import { generateQuickInspire } from '@/lib/generators/quick-inspire';
 import type { CampaignContext, PlotSegueType } from '@/lib/generators/types';
 
 type Get = (k: string, fb: any) => any;
@@ -592,6 +593,7 @@ export function QuickInspire({ campaignContext }: { campaignContext?: CampaignCo
   const [history, setHistory] = useState<InspireResult[]>([]);
   const [rolling, setRolling] = useState(false);
   const [error, setError] = useState('');
+  const [aiBased, setAiBased] = useState(false);
 
   const tableEntries = useMemo(() => {
     return Object.values(TABLES).map(t => ({ id: t.id, title: t.title })).sort((a, b) => a.title.localeCompare(b.title));
@@ -630,9 +632,25 @@ export function QuickInspire({ campaignContext }: { campaignContext?: CampaignCo
       }
       return;
     }
+    const t = TABLES[tableId];
+    if (aiBased) {
+      if (!isPro) return;
+      setRolling(true);
+      try {
+        const user = (await import('@/lib/firebase/client')).getFirebaseAuth().currentUser;
+        if (!user) throw new Error('Not signed in');
+        const idToken = await user.getIdToken();
+        const result = await generateQuickInspire(t.title, idToken, campaignContext);
+        if (result && result.entry) pushHistory(tableId, t.title, result.entry);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Roll failed');
+      } finally {
+        setRolling(false);
+      }
+      return;
+    }
     const entry = rollTable(tableId);
     if (!entry) return;
-    const t = TABLES[tableId];
     pushHistory(tableId, t.title, entry);
   };
 
@@ -651,7 +669,7 @@ export function QuickInspire({ campaignContext }: { campaignContext?: CampaignCo
             {tableEntries.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
           </optgroup>
         </select>
-        {isSegue && !isPro ? (
+        {((isSegue || aiBased) && !isPro) ? (
           <LockedInline label="Roll (Pro)" />
         ) : (
           <button
@@ -662,6 +680,18 @@ export function QuickInspire({ campaignContext }: { campaignContext?: CampaignCo
             {rolling ? 'Rolling…' : 'Roll'}
           </button>
         )}
+      </div>
+      <div className="flex items-center gap-1.5">
+        <input 
+          type="checkbox" 
+          id="aiBasedQuickInspire" 
+          checked={aiBased} 
+          onChange={(e) => setAiBased(e.target.checked)} 
+          className="rounded border-rule text-crimson focus:ring-crimson cursor-pointer"
+        />
+        <label htmlFor="aiBasedQuickInspire" className="text-[11px] text-ink-soft cursor-pointer select-none flex items-center gap-1">
+          Make all rolls AI based {aiBased && !isPro && <LockedInline label="(Pro)" />}
+        </label>
       </div>
       {error && <p className="text-[10px] text-crimson italic" title={error}>{error}</p>}
       {history.length === 0 ? (

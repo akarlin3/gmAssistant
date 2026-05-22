@@ -1,0 +1,19 @@
+connectorId: example
+generate:
+  adminNodeSdk:
+    - outputDir: ../../src/dataconnect-admin-generated
+      package: "@dataconnect/admin-generated"
+      packageJsonDir: ../..
+    - outputDir: ../../gmbuilder/src/dataconnect-admin-generated
+      package: "@dataconnect/admin-generated"
+      packageJsonDir: ../../gmbuilder
+    - outputDir: ../../functions/src/dataconnect-admin-generated
+      package: "@dataconnect/admin-generated"
+      packageJsonDir: ../../functions
+  javascriptSdk:
+    - outputDir: ../../src/dataconnect-generated
+      package: "@dataconnect/generated"
+      packageJsonDir: ../..
+      react: true
+      angular: false
+      clientCache: {}

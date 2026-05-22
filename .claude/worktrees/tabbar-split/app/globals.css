@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  background: #f5ecd7;
+  color: #1a1410;
+}
+
+body {
+  background-image:
+    radial-gradient(rgba(122, 90, 30, 0.04) 1px, transparent 1px),
+    radial-gradient(rgba(122, 90, 30, 0.03) 1px, transparent 1px);
+  background-size: 24px 24px, 13px 13px;
+  background-position: 0 0, 7px 11px;
+}
+
+.flourish {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.flourish::before,
+.flourish::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #d8c9a5 30%, #d8c9a5 70%, transparent);
+}
+
+.flourish > span {
+  color: #a87f2e;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+}

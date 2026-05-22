@@ -1,0 +1,14 @@
+{
+  "version": "2",
+  "projectNumber": "549573496390",
+  "projectId": "campaign-prep-fc9ed",
+  "appId": "1:549573496390:web:0e718df86b18bbbbb28447",
+  "realtimeDatabaseInstanceUri": "https://campaign-prep-fc9ed-default-rtdb.firebaseio.com",
+  "realtimeDatabaseUrl": "",
+  "storageBucket": "campaign-prep-fc9ed.firebasestorage.app",
+  "locationId": "",
+  "apiKey": "AIzaSyCWKBxIi9DTuA8hiSMCDUCkNiG_fsFlxyg",
+  "authDomain": "campaign-prep-fc9ed.firebaseapp.com",
+  "messagingSenderId": "549573496390",
+  "measurementId": ""
+}

@@ -1,0 +1,11 @@
+{
+  "projects": {
+    "default": "campaign-prep-fc9ed"
+  },
+  "targets": {},
+  "etags": {
+    "campaign-prep-fc9ed": {
+      "extensionInstances": {}
+    }
+  }
+}

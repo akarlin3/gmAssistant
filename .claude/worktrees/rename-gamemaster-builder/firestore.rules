@@ -1,0 +1,34 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /campaigns/{campaignId} {
+      allow read: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+    }
+
+    // Subscription state — written server-side only (Firebase Admin SDK from Stripe webhook).
+    // Clients read their own doc to react to status changes in real time.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // customer-id -> uid lookup, used by the webhook to resolve which user a Stripe customer maps to.
+    // Server-only, never readable by clients.
+    match /stripeCustomers/{customerId} {
+      allow read, write: if false;
+    }
+  }
+}

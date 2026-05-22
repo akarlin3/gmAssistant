@@ -1,0 +1,50 @@
+type User @table {
+  displayName: String!
+  email: String
+  photoUrl: String
+  createdAt: Timestamp!
+}
+
+type Campaign @table {
+  user: User!
+  name: String!
+  description: String
+  gameSystem: String
+  createdAt: Timestamp!
+}
+
+type Npc @table {
+  campaign: Campaign!
+  name: String!
+  description: String
+  stats: String
+  imageUrl: String
+  status: String
+  createdAt: Timestamp!
+}
+
+type Encounter @table {
+  campaign: Campaign!
+  name: String!
+  location: String!
+  difficulty: String!
+  description: String
+  status: String
+  createdAt: Timestamp!
+}
+
+type EncounterNpc @table(key: ["encounter", "npc"]) {
+  encounter: Encounter!
+  npc: Npc!
+  roleInEncounter: String
+  createdAt: Timestamp!
+}
+
+type Note @table {
+  user: User!
+  content: String!
+  campaign: Campaign
+  npc: Npc
+  encounter: Encounter
+  createdAt: Timestamp!
+}
