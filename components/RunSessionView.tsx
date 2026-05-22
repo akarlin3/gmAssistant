@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import {
   ArrowLeft, Flag, Dice5, Sparkles, ChevronDown, ChevronRight, Check,
   Eye, EyeOff, Plus, Swords, NotebookPen, Target, Map, Users, ScrollText,
-  Skull, Gem, Zap,
+  Skull, Gem, Zap, BookOpen,
 } from 'lucide-react';
 import { TABLES, rollTable } from '@/lib/inspirationTables';
 import InitiativePanel from './InitiativePanel';
@@ -26,6 +26,7 @@ type Props = {
   characters: Character[];
   onEndSession: () => void;
   onExitWithoutEnding: () => void;
+  onOpenLibrary: () => void;
   // Campaign genre/tone/pitch/world/setting facts — passed into AI-backed
   // Quick Inspire segue rolls so prose fits the campaign.
   campaignContext?: CampaignContext;
@@ -49,7 +50,7 @@ const SECTION_META: Record<SectionKey, { label: string; icon: any }> = {
 };
 
 export default function RunSessionView({
-  get, setVal, characters, onEndSession, onExitWithoutEnding, campaignContext,
+  get, setVal, characters, onEndSession, onExitWithoutEnding, onOpenLibrary, campaignContext,
 }: Props) {
   const [section, setSection] = useState<Record<SectionKey, boolean>>({
     scenes: true, secrets: true, npcs: true, locations: true,
@@ -163,6 +164,13 @@ export default function RunSessionView({
               title="Hide run mode without ending the session"
             >
               <ArrowLeft size={12} /> Hide
+            </button>
+            <button
+              onClick={onOpenLibrary}
+              className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1"
+              title="Open Library without ending the session"
+            >
+              <BookOpen size={12} /> Library
             </button>
             <h1 className="font-display text-lg sm:text-xl tracking-wide text-ink flex items-center gap-2">
               <Swords size={18} className="text-crimson" /> Run Session

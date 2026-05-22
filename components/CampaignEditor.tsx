@@ -2798,6 +2798,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           characters={characters}
           onEndSession={() => setVal('__sessionEndedAt', Date.now())}
           onExitWithoutEnding={() => setVal('__runSessionOpen', false)}
+          onOpenLibrary={() => {
+            setVal('__runSessionOpen', false);
+            setState(s => ({ ...s, __mode: 'library', __subview: 'generators' }));
+          }}
           campaignContext={generatorCampaignContext}
         />
         {finalizerModal}
