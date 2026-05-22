@@ -200,7 +200,7 @@ export default function InitiativePanel({
   }, [monsters, search]);
 
   const containerCls = variant === 'floating'
-    ? 'fixed bottom-3 right-3 left-3 md:left-auto md:w-[360px] max-h-[80vh] md:max-h-[85vh] flex flex-col rounded-lg border border-rule bg-parchment-soft shadow-page z-30'
+    ? 'fixed bottom-[88px] right-3 left-3 md:left-auto md:w-[360px] max-h-[70vh] md:max-h-[75vh] flex flex-col rounded-lg border border-rule bg-parchment-soft shadow-page z-30'
     : 'flex flex-col rounded border border-rule bg-parchment-soft';
 
   return (
@@ -208,14 +208,16 @@ export default function InitiativePanel({
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-rule bg-parchment">
         <div className="flex items-center gap-2 min-w-0">
           <Swords size={14} className="text-crimson flex-shrink-0" />
-          <span className="font-display uppercase tracking-wider text-sm text-ink">Initiative</span>
-          <span className="text-xs text-brass-deep font-display">Round {init.round}</span>
+          {variant !== 'inline' && (
+            <span className="font-display uppercase tracking-wider text-sm text-ink truncate">Initiative</span>
+          )}
+          <span className="text-xs text-brass-deep font-display whitespace-nowrap flex-shrink-0">Round {init.round}</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={() => update(prevTurn(init))}
             disabled={init.combatants.length === 0}
-            className="text-xs px-2 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-display uppercase tracking-wider"
+            className="text-xs px-2 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-display uppercase tracking-wider whitespace-nowrap"
             title="Previous turn"
           >
             <ChevronLeft size={12} /> Prev
@@ -223,14 +225,16 @@ export default function InitiativePanel({
           <button
             onClick={() => update(nextTurn(init))}
             disabled={init.combatants.length === 0}
-            className="text-xs px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-display uppercase tracking-wider"
+            className="text-xs px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-display uppercase tracking-wider whitespace-nowrap"
             title="Next turn"
           >
             Next <ChevronRight size={12} />
           </button>
-          <button onClick={onClose} className="text-ink-mute hover:text-crimson ml-1" title="Close">
-            <X size={16} />
-          </button>
+          {variant !== 'inline' && (
+            <button onClick={onClose} className="text-ink-mute hover:text-crimson ml-1 flex-shrink-0" title="Close">
+              <X size={16} />
+            </button>
+          )}
         </div>
       </div>
 

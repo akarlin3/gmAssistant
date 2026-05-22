@@ -13,18 +13,22 @@ import {
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo, parseLevelFromClassLevel } from '@/lib/encounterMath';
+import dynamic from 'next/dynamic';
 import DiceRoller, { type Macro } from './DiceRoller';
-import SpellsTab, { type Spell } from './SpellsTab';
-import DMRefTab from './DMRefTab';
+import type { Spell } from './SpellsTab';
 import StrongStartPicker from './StrongStartPicker';
 import CharacterCard from './CharacterCard';
 import SidekickAddPanel from './SidekickAddPanel';
-import NamesTab from './NamesTab';
-import LocationsTab from './LocationsTab';
-import MonstersTab, { type HomebrewMonster } from './MonstersTab';
-import GeneratorsTab from './generators/GeneratorsTab';
+import type { HomebrewMonster } from './MonstersTab';
 import SummonButton from './SummonButton';
 import SummonModal from './SummonModal';
+
+const SpellsTab = dynamic(() => import('./SpellsTab'));
+const DMRefTab = dynamic(() => import('./DMRefTab'));
+const NamesTab = dynamic(() => import('./NamesTab'));
+const LocationsTab = dynamic(() => import('./LocationsTab'));
+const MonstersTab = dynamic(() => import('./MonstersTab'));
+const GeneratorsTab = dynamic(() => import('./generators/GeneratorsTab'));
 import {
   SECTION_GENERATORS,
   getLastUsed,
@@ -37,18 +41,21 @@ import type { EntityRef } from '@/lib/generators/types';
 import { applySummonAction, type SummonSaveAction } from '@/lib/generators/summon-actions';
 import VivifyPanel, { type VivifyHistoryEntry } from './VivifyPanel';
 import ChaseTracker from './ChaseTracker';
-import ToolsTab from './ToolsTab';
 import type { Chase } from '@/lib/chaseTables';
 import TrapBuilder from './TrapBuilder';
 import type { Trap } from '@/lib/trapTables';
 import InitiativePanel from './InitiativePanel';
 import type { InitiativeState } from '@/lib/initiative';
-import RunSessionView, { QuickDice, QuickInspire, PanelShell, SectionShell } from './RunSessionView';
-import PrepWizardView from './PrepWizardView';
-import Session0Wizard, { makeWizardPC } from './Session0Wizard';
-import SessionLogTab from './SessionLogTab';
+import { QuickDice, QuickInspire, PanelShell, SectionShell } from './RunSessionView';
+import { makeWizardPC } from './Session0Wizard';
 import SessionLogFinalizer from './SessionLogFinalizer';
 import { type ChangeEvent, type ChangeEventKind, makeEvent } from '@/lib/sessionEvents';
+
+const ToolsTab = dynamic(() => import('./ToolsTab'));
+const RunSessionView = dynamic(() => import('./RunSessionView'));
+const PrepWizardView = dynamic(() => import('./PrepWizardView'));
+const Session0Wizard = dynamic(() => import('./Session0Wizard'));
+const SessionLogTab = dynamic(() => import('./SessionLogTab'));
 import type { SessionLogEntry } from '@/lib/sessionLog';
 import { nextSessionNumber } from '@/lib/sessionLog';
 import type { PrepWizardRun } from '@/lib/prepWizard';
@@ -2442,7 +2449,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   // or has failed. Hidden once we're back to 'synced'.
   const SyncPill = () => {
     if (syncState === 'synced') return null;
-    const base = 'fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border text-xs font-display uppercase tracking-wider flex items-center gap-2 transition-opacity';
+    const isRun = get('__runSessionOpen', false);
+    const base = `fixed ${isRun ? 'bottom-[88px]' : 'bottom-4'} left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border text-xs font-display uppercase tracking-wider flex items-center gap-2 transition-all`;
     if (syncState === 'pending') {
       return (
         <div className={`${base} border-brass-deep/60 bg-parchment text-brass-deep`}>
@@ -4330,7 +4338,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       {get('__runSessionOpen', false) && !get('__initiativeOpen', false) && (
         <button
           onClick={() => setVal('__initiativeOpen', true)}
-          className="fixed bottom-3 right-3 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full border border-crimson/60 bg-parchment shadow-page text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider text-xs"
+          className="fixed bottom-[88px] right-4 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full border border-crimson/60 bg-parchment shadow-page text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider text-xs"
           title="Open initiative tracker"
         >
           <Swords size={14} /> Initiative
@@ -4368,7 +4376,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         onClick={() => setShortcutsOpen(true)}
         title="Keyboard shortcuts (press ?)"
         aria-label="Keyboard shortcuts"
-        className="fixed bottom-4 left-4 z-30 w-8 h-8 rounded-full border border-rule bg-parchment-soft text-brass-deep hover:bg-brass hover:text-parchment shadow-page font-display text-sm leading-none flex items-center justify-center"
+        className={`fixed left-4 z-30 w-8 h-8 rounded-full border border-rule bg-parchment-soft text-brass-deep hover:bg-brass hover:text-parchment shadow-page font-display text-sm leading-none flex items-center justify-center transition-all ${
+          get('__runSessionOpen', false) ? 'bottom-[88px]' : 'bottom-4'
+        }`}
       >
         ?
       </button>
@@ -4378,7 +4388,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       {undoToast && (
         <div
           role="status"
-          className="fixed bottom-4 left-16 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 gm-toast"
+          className={`fixed left-16 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 gm-toast transition-all ${
+            get('__runSessionOpen', false) ? 'bottom-[88px]' : 'bottom-4'
+          }`}
         >
           {undoToast}
         </div>
@@ -4391,7 +4403,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             scrollToEntity(summonToast.primaryEntityId);
             flashHighlight(summonToast.primaryEntityId);
           }}
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 hover:bg-brass hover:text-parchment"
+          className={`fixed left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 hover:bg-brass hover:text-parchment transition-all ${
+            get('__runSessionOpen', false) ? 'bottom-[88px]' : 'bottom-4'
+          }`}
           title="Click to re-scroll"
         >
           <Check size={12} /> {summonToast.text}

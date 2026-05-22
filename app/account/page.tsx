@@ -153,9 +153,11 @@ function AccountPageBody() {
       }
 
       setBackupActionStatus(`Restoring ${backupCampaigns.length} campaigns…`);
-      for (const c of backupCampaigns) {
-        await importCampaign(user.uid, c.name, c.data || {}, c.done || {});
-      }
+      await Promise.all(
+        backupCampaigns.map((c: any) =>
+          importCampaign(user.uid, c.name, c.data || {}, c.done || {})
+        )
+      );
 
       setBackupSuccess(`Successfully restored ${backupCampaigns.length} campaigns! They are now available on your Campaigns page.`);
     } catch (e: any) {
