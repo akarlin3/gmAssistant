@@ -1,7 +1,7 @@
 'use client';
 
-import { Compass, ClipboardCheck, Swords, BookOpen, type LucideIcon } from 'lucide-react';
-import type { Mode } from '@/lib/modes';
+import { Compass, ClipboardCheck, Swords, BookOpen, User, Users, type LucideIcon } from 'lucide-react';
+import type { Audience, Mode, ModeSubview } from '@/lib/modes';
 import { MODES, MODE_ORDER } from '@/lib/modes';
 
 const MODE_ICONS: Record<Mode, LucideIcon> = {
@@ -53,28 +53,76 @@ export default function ModeNav({ mode, subview, onModeChange, onSubviewChange }
         aria-label={`${MODES[mode].label} sub-view`}
         className="flex flex-wrap items-center gap-1 border-b border-rule pb-1.5"
       >
-        {activeSubviews.map(sv => {
-          const active = sv.id === subview;
-          return (
-            <button
-              key={sv.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => onSubviewChange(sv.id)}
-              title={sv.description}
-              className={`text-xs px-2.5 py-1 rounded font-display uppercase tracking-wider transition-colors border ${
-                active
-                  ? 'bg-crimson/15 text-crimson border-crimson/60'
-                  : 'text-ink-soft hover:bg-parchment-deep border-transparent'
-              }`}
-            >
-              {sv.label}
-            </button>
-          );
-        })}
+        {groupSubviewsByAudience(activeSubviews).map((group, gi) => (
+          <div key={gi} className={gi > 0 ? 'border-l border-rule ml-1 pl-2 flex items-center gap-1' : 'flex items-center gap-1'}>
+            {group.map(sv => (
+              <SubviewPill
+                key={sv.id}
+                sv={sv}
+                active={sv.id === subview}
+                onClick={() => onSubviewChange(sv.id)}
+              />
+            ))}
+          </div>
+        ))}
       </nav>
     </div>
+  );
+}
+
+// Cluster consecutive same-audience subviews into adjacent groups so a
+// vertical divider can slip between them. Subviews without an audience tag
+// fall into their own single-element group, which renders without a divider
+// from its neighbor — preserving the look of modes that don't use this.
+function groupSubviewsByAudience(subviews: readonly ModeSubview[]): ModeSubview[][] {
+  const groups: ModeSubview[][] = [];
+  for (const sv of subviews) {
+    const last = groups[groups.length - 1];
+    if (last && last[0].audience === sv.audience) last.push(sv);
+    else groups.push([sv]);
+  }
+  return groups;
+}
+
+const AUDIENCE_ICON: Record<Audience, LucideIcon> = {
+  solo: User,
+  together: Users,
+};
+
+const AUDIENCE_LABEL: Record<Audience, string> = {
+  solo: 'Solo prep — done without the players',
+  together: 'With players — done collaboratively at the table',
+};
+
+function SubviewPill({
+  sv,
+  active,
+  onClick,
+}: {
+  sv: ModeSubview;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const Icon = sv.audience ? AUDIENCE_ICON[sv.audience] : null;
+  const tooltip = sv.audience
+    ? `${AUDIENCE_LABEL[sv.audience]} · ${sv.description}`
+    : sv.description;
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      title={tooltip}
+      className={`text-xs px-2.5 py-1 rounded font-display uppercase tracking-wider transition-colors border flex items-center gap-1.5 ${
+        active
+          ? 'bg-crimson/15 text-crimson border-crimson/60'
+          : 'text-ink-soft hover:bg-parchment-deep border-transparent'
+      }`}
+    >
+      {Icon && <Icon size={11} className={active ? 'text-crimson' : sv.audience === 'together' ? 'text-moss' : 'text-wine'} />}
+      {sv.label}
+    </button>
   );
 }
 
