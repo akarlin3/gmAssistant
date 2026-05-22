@@ -1,14 +1,3 @@
-// Single source of truth for table-roll utilities used by every generator.
-// Supports uniform and weighted tables, deterministic via SeededRng.
-//
-// Convention: a "table" is one of
-//   - T[]                          — uniform pick
-//   - WeightedEntry<T>[]           — weighted pick (entry.weight is integer)
-//
-// Use `rollOn(table, rng)` for one pick and `rollMultiple(table, n, opts)`
-// for many. With `unique: true`, duplicate values are filtered (best effort —
-// if `n` exceeds the table size, returns as many as available).
-
 import type { SeededRng } from '@/lib/generators/rng';
 
 export type WeightedEntry<T> = { value: T; weight: number };
@@ -21,6 +10,8 @@ function isWeighted<T>(table: readonly (T | WeightedEntry<T>)[]): table is reado
     && 'weight' in (table[0] as object);
 }
 
+export function rollOn<T>(table: readonly WeightedEntry<T>[], rng: SeededRng): T;
+export function rollOn<T>(table: readonly T[], rng: SeededRng): T;
 export function rollOn<T>(table: readonly T[] | readonly WeightedEntry<T>[], rng: SeededRng): T {
   if (table.length === 0) throw new Error('rollOn: empty table');
   if (!isWeighted(table)) {
@@ -38,6 +29,18 @@ export function rollOn<T>(table: readonly T[] | readonly WeightedEntry<T>[], rng
 }
 
 export function rollMultiple<T>(
+  table: readonly WeightedEntry<T>[],
+  n: number,
+  rng: SeededRng,
+  opts?: { unique?: boolean },
+): T[];
+export function rollMultiple<T>(
+  table: readonly T[],
+  n: number,
+  rng: SeededRng,
+  opts?: { unique?: boolean },
+): T[];
+export function rollMultiple<T>(
   table: readonly T[] | readonly WeightedEntry<T>[],
   n: number,
   rng: SeededRng,
@@ -47,7 +50,7 @@ export function rollMultiple<T>(
   const seen = new Set<T>();
   let safety = n * 20;
   while (out.length < n && safety-- > 0) {
-    const v = rollOn(table, rng);
+    const v = rollOn(table as any, rng) as T;
     if (opts?.unique) {
       if (seen.has(v)) continue;
       seen.add(v);
@@ -58,14 +61,14 @@ export function rollMultiple<T>(
 }
 
 // Tiered table lookup — chooses a sub-table by tier key, then rolls.
-export function rollOnTiered<K extends string, T>(
-  tables: Record<K, readonly T[] | readonly WeightedEntry<T>[]>,
+export function rollOnTiered<TMap extends Record<string, readonly any[] | readonly WeightedEntry<any>[]>, K extends keyof TMap>(
+  tables: TMap,
   tier: K,
   rng: SeededRng,
-): T {
-  const table = tables[tier];
+): TMap[K] extends readonly (infer T)[] | readonly WeightedEntry<infer T>[] ? T : never {
+  const table = tables[tier as string];
   if (!table) throw new Error(`rollOnTiered: no table for tier "${String(tier)}"`);
-  return rollOn(table, rng);
+  return rollOn(table as any, rng) as any;
 }
 
 // Roll NdS as the sum of N dice with S sides each, using the seeded RNG.
