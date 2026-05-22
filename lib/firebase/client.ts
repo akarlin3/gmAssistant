@@ -8,12 +8,12 @@ function getEnv(value: string | undefined): string | undefined {
 }
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyCWKBxIi9DTuA8hiSMCDUCkNiG_fsFlxyg',
-  authDomain: 'campaign-prep-fc9ed.firebaseapp.com',
-  projectId: 'campaign-prep-fc9ed',
-  storageBucket: 'campaign-prep-fc9ed.firebasestorage.app',
-  messagingSenderId: '549573496390',
-  appId: '1:549573496390:web:0e718df86b18bbbbb28447',
+  apiKey: getEnv(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+  authDomain: getEnv(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+  projectId: getEnv(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+  storageBucket: getEnv(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: getEnv(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+  appId: getEnv(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
 };
 
 
