@@ -4,10 +4,11 @@ import { useMemo, useState, useEffect } from 'react';
 import {
   ArrowLeft, Flag, Dice5, Sparkles, ChevronDown, ChevronRight, Check,
   Eye, EyeOff, Plus, Swords, NotebookPen, Target, Map, Users, ScrollText,
-  Skull, Gem, Zap, BookOpen,
+  Skull, Gem, Zap, BookOpen, Pin, PinOff, Wand2, Loader2, X,
 } from 'lucide-react';
 import { TABLES, rollTable } from '@/lib/inspirationTables';
 import InitiativePanel from './InitiativePanel';
+import MonsterStatBlock from './MonsterStatBlock';
 import type { InitiativeState } from '@/lib/initiative';
 import type { HomebrewMonster } from './MonstersTab';
 import type { Character } from '@/lib/character-schema';
@@ -16,7 +17,11 @@ import { LockedInline } from '@/components/LockedFeature';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { generatePlotSegues } from '@/lib/generators/plot-segue';
 import { generateQuickInspire } from '@/lib/generators/quick-inspire';
+import { describeScene } from '@/lib/generators/describe-scene';
 import type { CampaignContext, PlotSegueType } from '@/lib/generators/types';
+
+type PinKind = 'scene' | 'npc' | 'location' | 'monster' | 'item';
+type PinRef = { kind: PinKind; key: string };
 
 type Get = (k: string, fb: any) => any;
 type SetVal = (k: string, v: any) => void;
@@ -163,6 +168,35 @@ export default function RunSessionView({
   const initiativeOpen = !!get('__initiativeOpen', false);
   const setInitiativeOpen = (v: boolean) => setVal('__initiativeOpen', v);
 
+  const homebrewMonstersRaw = get('homebrewMonsters', []) as HomebrewMonster[];
+  const homebrewMonsters = useMemo(() => homebrewMonstersRaw || [], [homebrewMonstersRaw]);
+  const [statBlockSlug, setStatBlockSlug] = useState<string | null>(null);
+  const statBlockMonster = useMemo(
+    () => (statBlockSlug ? homebrewMonsters.find(m => m.slug === statBlockSlug) ?? null : null),
+    [statBlockSlug, homebrewMonsters],
+  );
+
+  const pinned = (get('__sessionPinned', []) as PinRef[]) || [];
+  const isPinned = (kind: PinKind, key: string) =>
+    pinned.some(p => p.kind === kind && p.key === key);
+  const togglePin = (kind: PinKind, key: string) => {
+    if (isPinned(kind, key)) {
+      setVal('__sessionPinned', pinned.filter(p => !(p.kind === kind && p.key === key)));
+    } else {
+      setVal('__sessionPinned', [...pinned, { kind, key }]);
+    }
+  };
+
+  const sceneDescriptions = (get('__sessionSceneDescriptions', {}) as Record<string, string>) || {};
+  const setSceneDescription = (sceneText: string, description: string) => {
+    setVal('__sessionSceneDescriptions', { ...sceneDescriptions, [sceneText]: description });
+  };
+  const clearSceneDescription = (sceneText: string) => {
+    const next = { ...sceneDescriptions };
+    delete next[sceneText];
+    setVal('__sessionSceneDescriptions', next);
+  };
+
   return (
     <main className="min-h-screen p-3 pb-32 sm:p-5 md:p-6">
       <div className="mx-auto max-w-7xl space-y-3">
@@ -251,26 +285,38 @@ export default function RunSessionView({
           </section>
         )}
 
+        <StageBar
+          pinned={pinned}
+          scenes={scenes}
+          npcs={npcs}
+          locations={locations}
+          monsters={monstersList}
+          items={magicItemsList}
+          homebrewMonsters={homebrewMonsters}
+          sceneDescriptions={sceneDescriptions}
+          onUnpin={togglePin}
+          onOpenStatBlock={(slug) => setStatBlockSlug(slug)}
+        />
+
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_360px]">
           <div className="space-y-3">
             <SectionShell id="section-scenes" title={SECTION_META.scenes.label} icon={SECTION_META.scenes.icon} open={section.scenes} onToggle={() => toggleSection('scenes')} count={scenes.length}>
               {scenes.length === 0 ? <Empty>No scenes prepped.</Empty> : (
                 <ul className="space-y-1">
-                  {scenes.map((s, i) => {
-                    const used = usedScenes.includes(s);
-                    return (
-                      <li key={i} className={`flex items-start gap-2 rounded border px-2 py-1.5 ${used ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
-                        <button
-                          onClick={() => toggleSceneUsed(s)}
-                          className={`mt-0.5 flex size-4 flex-shrink-0 items-center justify-center rounded-sm border ${used ? 'border-brass-deep bg-brass text-parchment' : 'border-ink-mute bg-parchment'}`}
-                          title={used ? 'Unmark used' : 'Mark used this session'}
-                        >
-                          {used && <Check size={10} strokeWidth={3} />}
-                        </button>
-                        <span className={`font-serif text-sm ${used ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{s}</span>
-                      </li>
-                    );
-                  })}
+                  {scenes.map((s, i) => (
+                    <SceneRow
+                      key={i}
+                      text={s}
+                      used={usedScenes.includes(s)}
+                      pinned={isPinned('scene', s)}
+                      description={sceneDescriptions[s] || ''}
+                      onToggleUsed={() => toggleSceneUsed(s)}
+                      onTogglePin={() => togglePin('scene', s)}
+                      onDescribed={(desc) => setSceneDescription(s, desc)}
+                      onClearDescription={() => clearSceneDescription(s)}
+                      campaignContext={campaignContext}
+                    />
+                  ))}
                 </ul>
               )}
             </SectionShell>
@@ -300,9 +346,17 @@ export default function RunSessionView({
             <SectionShell id="section-npcs" title={SECTION_META.npcs.label} icon={SECTION_META.npcs.icon} open={section.npcs} onToggle={() => toggleSection('npcs')} count={npcs.length}>
               {npcs.length === 0 ? <Empty>No NPCs prepped.</Empty> : (
                 <ul className="space-y-1.5">
-                  {npcs.map((n: any, i: number) => (
-                    <NPCRow key={i} npc={n} />
-                  ))}
+                  {npcs.map((n: any, i: number) => {
+                    const key = n.name || `__npc_${i}`;
+                    return (
+                      <NPCRow
+                        key={i}
+                        npc={n}
+                        pinned={isPinned('npc', key)}
+                        onTogglePin={() => togglePin('npc', key)}
+                      />
+                    );
+                  })}
                 </ul>
               )}
             </SectionShell>
@@ -310,17 +364,24 @@ export default function RunSessionView({
             <SectionShell id="section-locations" title={SECTION_META.locations.label} icon={SECTION_META.locations.icon} open={section.locations} onToggle={() => toggleSection('locations')} count={locations.length}>
               {locations.length === 0 ? <Empty>No locations prepped.</Empty> : (
                 <ul className="space-y-1">
-                  {locations.map((l: any, i: number) => (
-                    <li key={i} className="rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
-                      <div className="text-ink">{l.name || `Location ${i + 1}`}</div>
-                      {l.type && <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{l.type}</div>}
-                      {Array.isArray(l.aspects) && l.aspects.filter(Boolean).length > 0 && (
-                        <ul className="ml-3 mt-0.5 list-disc text-[11px] italic text-ink-soft">
-                          {l.aspects.filter(Boolean).map((a: string, j: number) => <li key={j}>{a}</li>)}
-                        </ul>
-                      )}
-                    </li>
-                  ))}
+                  {locations.map((l: any, i: number) => {
+                    const key = l.name || `__loc_${i}`;
+                    const pin = isPinned('location', key);
+                    return (
+                      <li key={i} className="flex items-start gap-2 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
+                        <PinToggle pinned={pin} onClick={() => togglePin('location', key)} />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-ink">{l.name || `Location ${i + 1}`}</div>
+                          {l.type && <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{l.type}</div>}
+                          {Array.isArray(l.aspects) && l.aspects.filter(Boolean).length > 0 && (
+                            <ul className="ml-3 mt-0.5 list-disc text-[11px] italic text-ink-soft">
+                              {l.aspects.filter(Boolean).map((a: string, j: number) => <li key={j}>{a}</li>)}
+                            </ul>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </SectionShell>
@@ -328,11 +389,25 @@ export default function RunSessionView({
             <SectionShell id="section-monsters" title={SECTION_META.monsters.label} icon={SECTION_META.monsters.icon} open={section.monsters} onToggle={() => toggleSection('monsters')} count={monstersList.length}>
               {monstersList.length === 0 ? <Empty>No monsters prepped.</Empty> : (
                 <ul className="space-y-1">
-                  {monstersList.map((m, i) => (
-                    <li key={i} className="rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink-soft">
-                      {m}
-                    </li>
-                  ))}
+                  {monstersList.map((m, i) => {
+                    const hb = homebrewMonsters.find(h => h.name === m);
+                    const key = hb ? hb.slug : m;
+                    return (
+                      <li key={i} className="flex items-center gap-2 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink-soft">
+                        <PinToggle pinned={isPinned('monster', key)} onClick={() => togglePin('monster', key)} />
+                        <span className="flex-1 truncate">{m}</span>
+                        {hb && (
+                          <button
+                            onClick={() => setStatBlockSlug(hb.slug)}
+                            className="font-display text-[10px] uppercase tracking-wider text-brass-deep hover:text-crimson underline decoration-dotted underline-offset-2"
+                            title="Open stat block"
+                          >
+                            Stat
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </SectionShell>
@@ -351,7 +426,8 @@ export default function RunSessionView({
                         >
                           {given && <Check size={10} strokeWidth={3} />}
                         </button>
-                        <span className={`font-serif text-sm ${given ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{it}</span>
+                        <span className={`flex-1 font-serif text-sm ${given ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{it}</span>
+                        <PinToggle pinned={isPinned('item', it)} onClick={() => togglePin('item', it)} />
                       </li>
                     );
                   })}
@@ -463,6 +539,10 @@ export default function RunSessionView({
         <NoteSeed pushEvent={pushEvent} />
       </div>
 
+      {statBlockMonster && (
+        <MonsterStatBlock monster={statBlockMonster} onClose={() => setStatBlockSlug(null)} />
+      )}
+
       {toast && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-2 fade-in duration-200">
           <div className="bg-ink text-parchment px-4 py-2 rounded shadow-lg font-serif text-sm flex items-center gap-2">
@@ -527,15 +607,18 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <p className="font-serif text-xs italic text-ink-mute">{children}</p>;
 }
 
-function NPCRow({ npc }: { npc: any }) {
+function NPCRow({ npc, pinned, onTogglePin }: { npc: any; pinned: boolean; onTogglePin: () => void }) {
   const [open, setOpen] = useState(false);
   return (
     <li className="rounded border border-rule bg-parchment font-serif text-sm">
-      <button onClick={() => setOpen(o => !o)} className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-parchment-deep/30">
-        {open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />}
-        <span className="flex-1 truncate text-ink">{npc.name || 'Unnamed NPC'}</span>
-        {npc.type && <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">{npc.type}</span>}
-      </button>
+      <div className="flex items-center gap-1">
+        <button onClick={() => setOpen(o => !o)} className="flex flex-1 items-center gap-2 px-2 py-1.5 text-left hover:bg-parchment-deep/30">
+          {open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />}
+          <span className="flex-1 truncate text-ink">{npc.name || 'Unnamed NPC'}</span>
+          {npc.type && <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">{npc.type}</span>}
+        </button>
+        <div className="pr-2"><PinToggle pinned={pinned} onClick={onTogglePin} /></div>
+      </div>
       {open && (
         <div className="space-y-0.5 border-t border-rule px-3 pb-2 pt-1 text-[12px] text-ink-soft">
           {npc.faction && <div><span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Faction · </span>{npc.faction}</div>}
@@ -547,6 +630,216 @@ function NPCRow({ npc }: { npc: any }) {
         </div>
       )}
     </li>
+  );
+}
+
+function PinToggle({ pinned, onClick }: { pinned: boolean; onClick: () => void }) {
+  const Icon = pinned ? PinOff : Pin;
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-shrink-0 rounded p-1 transition-colors ${pinned ? 'text-crimson hover:bg-crimson/10' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10'}`}
+      title={pinned ? 'Unpin from Stage' : 'Pin to Stage'}
+    >
+      <Icon size={12} />
+    </button>
+  );
+}
+
+function SceneRow({
+  text, used, pinned, description, onToggleUsed, onTogglePin, onDescribed, onClearDescription, campaignContext,
+}: {
+  text: string;
+  used: boolean;
+  pinned: boolean;
+  description: string;
+  onToggleUsed: () => void;
+  onTogglePin: () => void;
+  onDescribed: (d: string) => void;
+  onClearDescription: () => void;
+  campaignContext?: CampaignContext;
+}) {
+  const { isPro } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const runDescribe = async () => {
+    if (!isPro || loading) return;
+    setErr('');
+    setLoading(true);
+    try {
+      const user = (await import('@/lib/firebase/client')).getFirebaseAuth().currentUser;
+      if (!user) throw new Error('Not signed in');
+      const idToken = await user.getIdToken();
+      const res = await describeScene(text, idToken, campaignContext);
+      onDescribed(res.description);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Description failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <li className={`rounded border ${used ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
+      <div className="flex items-start gap-2 px-2 py-1.5">
+        <button
+          onClick={onToggleUsed}
+          className={`mt-0.5 flex size-4 flex-shrink-0 items-center justify-center rounded-sm border ${used ? 'border-brass-deep bg-brass text-parchment' : 'border-ink-mute bg-parchment'}`}
+          title={used ? 'Unmark used' : 'Mark used this session'}
+        >
+          {used && <Check size={10} strokeWidth={3} />}
+        </button>
+        <span className={`flex-1 font-serif text-sm ${used ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{text}</span>
+        {isPro ? (
+          <button
+            onClick={runDescribe}
+            disabled={loading}
+            className="flex flex-shrink-0 items-center gap-1 rounded border border-brass-deep/50 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment disabled:opacity-50"
+            title="Generate a short read-aloud description"
+          >
+            {loading ? <Loader2 size={10} className="animate-spin" /> : <Wand2 size={10} />}
+            {loading ? 'Describing…' : 'Describe'}
+          </button>
+        ) : (
+          <LockedInline label="Describe" />
+        )}
+        <PinToggle pinned={pinned} onClick={onTogglePin} />
+      </div>
+      {err && <p className="px-2 pb-1 text-[10px] italic text-crimson">{err}</p>}
+      {description && (
+        <div className="border-t border-rule/60 bg-parchment-soft px-2 py-1.5">
+          <div className="mb-0.5 flex items-center justify-between gap-2">
+            <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">Read-aloud</span>
+            <button
+              onClick={onClearDescription}
+              className="text-ink-mute hover:text-crimson"
+              title="Clear description"
+            >
+              <X size={10} />
+            </button>
+          </div>
+          <p className="whitespace-pre-wrap font-serif text-[12px] italic text-ink-soft">{description}</p>
+        </div>
+      )}
+    </li>
+  );
+}
+
+function StageBar({
+  pinned, scenes, npcs, locations, monsters, items, homebrewMonsters, sceneDescriptions, onUnpin, onOpenStatBlock,
+}: {
+  pinned: PinRef[];
+  scenes: string[];
+  npcs: any[];
+  locations: any[];
+  monsters: string[];
+  items: string[];
+  homebrewMonsters: HomebrewMonster[];
+  sceneDescriptions: Record<string, string>;
+  onUnpin: (kind: PinKind, key: string) => void;
+  onOpenStatBlock: (slug: string) => void;
+}) {
+  if (pinned.length === 0) return null;
+
+  const KIND_ICON: Record<PinKind, any> = {
+    scene: NotebookPen,
+    npc: Users,
+    location: Map,
+    monster: Skull,
+    item: Gem,
+  };
+
+  const renderContent = (p: PinRef): React.ReactNode => {
+    if (p.kind === 'scene') {
+      const desc = sceneDescriptions[p.key] || '';
+      return (
+        <>
+          <p className="font-serif text-sm text-ink">{p.key}</p>
+          {desc && (
+            <p className="mt-1 whitespace-pre-wrap font-serif text-[12px] italic text-ink-soft">{desc}</p>
+          )}
+        </>
+      );
+    }
+    if (p.kind === 'npc') {
+      const n = npcs.find((x: any) => (x.name || '') === p.key);
+      if (!n) return <p className="font-serif text-sm text-ink-mute italic">{p.key} (removed)</p>;
+      return (
+        <>
+          <p className="font-serif text-sm text-ink">{n.name || 'Unnamed NPC'}</p>
+          <div className="mt-0.5 space-y-0.5 text-[11px] text-ink-soft">
+            {n.faction && <div><span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">Faction · </span>{n.faction}</div>}
+            {n.goal && <div><span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">Goal · </span>{n.goal}</div>}
+            {n.mannerism && <div><span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">Mannerism · </span>{n.mannerism}</div>}
+          </div>
+        </>
+      );
+    }
+    if (p.kind === 'location') {
+      const l = locations.find((x: any) => (x.name || '') === p.key);
+      if (!l) return <p className="font-serif text-sm text-ink-mute italic">{p.key} (removed)</p>;
+      return (
+        <>
+          <p className="font-serif text-sm text-ink">{l.name || 'Location'}</p>
+          {l.type && <p className="font-display text-[9px] uppercase tracking-wider text-brass-deep">{l.type}</p>}
+          {Array.isArray(l.aspects) && l.aspects.filter(Boolean).length > 0 && (
+            <ul className="ml-3 mt-0.5 list-disc text-[11px] italic text-ink-soft">
+              {l.aspects.filter(Boolean).map((a: string, j: number) => <li key={j}>{a}</li>)}
+            </ul>
+          )}
+        </>
+      );
+    }
+    if (p.kind === 'monster') {
+      const hb = homebrewMonsters.find(h => h.slug === p.key);
+      const name = hb?.name || monsters.find(m => m === p.key) || p.key;
+      return (
+        <>
+          <p className="font-serif text-sm text-ink">{name}</p>
+          {hb && (
+            <button
+              onClick={() => onOpenStatBlock(hb.slug)}
+              className="mt-1 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:text-crimson underline decoration-dotted underline-offset-2"
+            >
+              Open stat block
+            </button>
+          )}
+        </>
+      );
+    }
+    return <p className="font-serif text-sm text-ink">{p.key}</p>;
+  };
+
+  return (
+    <div className="rounded border-2 border-brass-deep/50 bg-brass/5 p-2 shadow-card">
+      <div className="mb-1.5 flex items-center justify-between gap-2 px-1">
+        <span className="flex items-center gap-1.5 font-display text-[10px] uppercase tracking-wider text-brass-deep">
+          <Pin size={10} /> Stage · pinned for quick reference
+        </span>
+        <span className="font-serif text-[10px] italic text-ink-mute">{pinned.length}</span>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {pinned.map((p) => {
+          const Icon = KIND_ICON[p.kind];
+          return (
+            <div key={`${p.kind}:${p.key}`} className="relative rounded border border-rule bg-parchment p-2 pr-7 shadow-sm">
+              <div className="mb-0.5 flex items-center gap-1 font-display text-[9px] uppercase tracking-wider text-brass-deep">
+                <Icon size={10} /> {p.kind}
+              </div>
+              {renderContent(p)}
+              <button
+                onClick={() => onUnpin(p.kind, p.key)}
+                className="absolute right-1 top-1 rounded p-1 text-ink-mute hover:bg-crimson/10 hover:text-crimson"
+                title="Unpin"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

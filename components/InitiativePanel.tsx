@@ -12,6 +12,7 @@ import {
 } from '@/lib/initiative';
 import type { HomebrewMonster } from './MonstersTab';
 import type { Character } from '@/lib/character-schema';
+import MonsterStatBlock from './MonsterStatBlock';
 
 type Props = {
   state: InitiativeState | null;
@@ -64,6 +65,11 @@ export default function InitiativePanel({
   const [manualForm, setManualForm] = useState({
     name: '', initiative: 10, hpMax: 10, side: 'enemy' as CombatantSide,
   });
+  const [statBlockSlug, setStatBlockSlug] = useState<string | null>(null);
+  const statBlockMonster = useMemo(
+    () => (statBlockSlug ? monsters.find(m => m.slug === statBlockSlug) ?? null : null),
+    [statBlockSlug, monsters],
+  );
 
   const init = state || emptyInitiative();
   const sorted = useMemo(() => sortInitiative(init.combatants), [init.combatants]);
@@ -241,7 +247,17 @@ export default function InitiativePanel({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-display tracking-wide text-base text-ink truncate">{active.name}</span>
+                  {active.sourceMonsterId && monsters.some(m => m.slug === active.sourceMonsterId) ? (
+                    <button
+                      onClick={() => setStatBlockSlug(active.sourceMonsterId!)}
+                      className="font-display tracking-wide text-base text-ink truncate underline decoration-dotted decoration-brass-deep underline-offset-2 hover:text-crimson"
+                      title="Open stat block"
+                    >
+                      {active.name}
+                    </button>
+                  ) : (
+                    <span className="font-display tracking-wide text-base text-ink truncate">{active.name}</span>
+                  )}
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider ${SIDE_BADGE[active.side]}`}>{SIDE_LABEL[active.side]}</span>
                 </div>
                 <div className="text-[11px] text-ink-mute font-serif">
@@ -338,6 +354,15 @@ export default function InitiativePanel({
                     <span className="text-[10px] text-ink-mute font-serif flex items-center gap-0.5 flex-shrink-0">
                       <Shield size={9} /> {c.ac}
                     </span>
+                  )}
+                  {c.sourceMonsterId && monsters.some(m => m.slug === c.sourceMonsterId) && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setStatBlockSlug(c.sourceMonsterId!); }}
+                      className="text-[10px] text-brass-deep hover:text-crimson flex-shrink-0 font-display uppercase tracking-wider underline decoration-dotted underline-offset-2"
+                      title="Open stat block"
+                    >
+                      Stat
+                    </button>
                   )}
                 </div>
                 {c.conditions.length > 0 && (
@@ -519,6 +544,10 @@ export default function InitiativePanel({
           </details>
         )}
       </div>
+
+      {statBlockMonster && (
+        <MonsterStatBlock monster={statBlockMonster} onClose={() => setStatBlockSlug(null)} />
+      )}
     </div>
   );
 }

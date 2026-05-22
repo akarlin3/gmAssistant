@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Cinzel, EB_Garamond } from 'next/font/google';
 import { AuthProvider } from '@/lib/firebase/auth-context';
 import { ConfirmProvider } from '@/components/ConfirmDialog';
+import SyncIndicator from '@/components/SyncIndicator';
 import './globals.css';
  
 const cinzel = Cinzel({
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <ConfirmProvider>
             {children}
+            <SyncIndicator />
           </ConfirmProvider>
         </AuthProvider>
       </body>

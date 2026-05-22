@@ -1,6 +1,12 @@
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  Firestore,
+} from 'firebase/firestore';
 
 function getEnv(value: string | undefined): string | undefined {
   if (!value || value === 'undefined' || value.trim() === '') return undefined;
@@ -45,7 +51,18 @@ export function getFirebaseAuth(): Auth {
 
 export function getDb(): Firestore {
   if (_db) return _db;
-  _db = getFirestore(getFirebaseApp());
+  const app = getFirebaseApp();
+  if (typeof window !== 'undefined') {
+    try {
+      _db = initializeFirestore(app, {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+      });
+    } catch {
+      _db = getFirestore(app);
+    }
+  } else {
+    _db = getFirestore(app);
+  }
   return _db;
 }
 
