@@ -43,7 +43,7 @@ describe('POST /api/generators/enhance', () => {
   };
 
   it('returns 401 if no auth header', async () => {
-    vi.mocked(readBearerToken).mockReturnValue(null);
+    vi.mocked(readBearerToken).mockReturnValue('');
     const req = createRequest({}, '');
     const res = await POST(req);
     expect(res.status).toBe(401);
@@ -64,7 +64,7 @@ describe('POST /api/generators/enhance', () => {
   it('returns 500 if missing API key', async () => {
     delete process.env.ANTHROPIC_API_KEY;
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
 
     const req = createRequest({ kind: validKind, result: validResult });
     const res = await POST(req);
@@ -75,7 +75,7 @@ describe('POST /api/generators/enhance', () => {
 
   it('returns 400 for invalid json', async () => {
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
 
     const req = new NextRequest('http://localhost:3000/api/generators/enhance', {
       method: 'POST',
@@ -90,7 +90,7 @@ describe('POST /api/generators/enhance', () => {
 
   it('returns 400 for missing kind', async () => {
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
 
     let req = createRequest({ result: validResult });
     let res = await POST(req);
@@ -100,7 +100,7 @@ describe('POST /api/generators/enhance', () => {
 
   it('successfully generates response', async () => {
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
     const mockEnhanced = { ...validResult, enhanced: true };
     vi.mocked(enhanceResult).mockResolvedValue(mockEnhanced as any);
 
@@ -114,7 +114,7 @@ describe('POST /api/generators/enhance', () => {
 
   it('passes campaignContext correctly', async () => {
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
     vi.mocked(enhanceResult).mockResolvedValue({} as any);
 
     const campaignContext = { partyLevel: 5, setting: 'test' };
@@ -126,9 +126,9 @@ describe('POST /api/generators/enhance', () => {
 
   it('handles Anthropic API errors', async () => {
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
 
-    const mockError = new Anthropic.APIError(429, 'Rate limited');
+    const mockError = new (Anthropic.APIError as any)(429, 'Rate limited');
     vi.mocked(enhanceResult).mockRejectedValue(mockError);
 
     const req = createRequest({ kind: validKind, result: validResult });
@@ -140,7 +140,7 @@ describe('POST /api/generators/enhance', () => {
 
   it('handles generic errors', async () => {
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
     vi.mocked(enhanceResult).mockRejectedValue(new Error('Generic failure'));
 
     const req = createRequest({ kind: validKind, result: validResult });

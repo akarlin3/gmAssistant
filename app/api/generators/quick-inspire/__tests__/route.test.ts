@@ -38,7 +38,7 @@ describe('POST /api/generators/quick-inspire', () => {
   };
 
   it('returns 401 if no auth header', async () => {
-    vi.mocked(readBearerToken).mockReturnValue(null);
+    vi.mocked(readBearerToken).mockReturnValue('');
     const req = createRequest({}, '');
     const res = await POST(req);
     expect(res.status).toBe(401);
@@ -59,7 +59,7 @@ describe('POST /api/generators/quick-inspire', () => {
   it('returns 500 if missing API key', async () => {
     delete process.env.ANTHROPIC_API_KEY;
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
 
     const req = createRequest({ tableTitle: 'Test' });
     const res = await POST(req);
@@ -70,7 +70,7 @@ describe('POST /api/generators/quick-inspire', () => {
 
   it('returns 400 for invalid json', async () => {
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
 
     const req = new NextRequest('http://localhost:3000/api/generators/quick-inspire', {
       method: 'POST',
@@ -85,7 +85,7 @@ describe('POST /api/generators/quick-inspire', () => {
 
   it('returns 400 for missing tableTitle', async () => {
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
 
     const req = createRequest({ notTableTitle: 'Test' });
     const res = await POST(req);
@@ -96,7 +96,7 @@ describe('POST /api/generators/quick-inspire', () => {
 
   it('successfully generates response', async () => {
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
     const mockResult = { entry: 'test response' };
     vi.mocked(callQuickInspire).mockResolvedValue(mockResult);
 
@@ -110,7 +110,7 @@ describe('POST /api/generators/quick-inspire', () => {
 
   it('passes campaignContext correctly', async () => {
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
     vi.mocked(callQuickInspire).mockResolvedValue({ entry: 'test' });
 
     const campaignContext = { partyLevel: 5, setting: 'test' };
@@ -122,9 +122,9 @@ describe('POST /api/generators/quick-inspire', () => {
 
   it('handles Anthropic API errors', async () => {
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
 
-    const mockError = new Anthropic.APIError(429, 'Rate limited');
+    const mockError = new (Anthropic.APIError as any)(429, 'Rate limited');
     vi.mocked(callQuickInspire).mockRejectedValue(mockError);
 
     const req = createRequest({ tableTitle: 'Test' });
@@ -136,7 +136,7 @@ describe('POST /api/generators/quick-inspire', () => {
 
   it('handles generic errors', async () => {
     vi.mocked(readBearerToken).mockReturnValue('test-token');
-    vi.mocked(verifyPro).mockResolvedValue({ ok: true });
+    vi.mocked(verifyPro).mockResolvedValue({ ok: true, email: 'test@test.com', uid: 'test-uid' });
     vi.mocked(callQuickInspire).mockRejectedValue(new Error('Generic failure'));
 
     const req = createRequest({ tableTitle: 'Test' });
