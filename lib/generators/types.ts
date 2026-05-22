@@ -401,6 +401,7 @@ export type CampaignContext = {
   pitch?: string;
   worldFacts?: string[];
   settingFacts?: string[];
+  partyLevel?: number;
 };
 
 export function hasCampaignContext(c: CampaignContext | undefined | null): c is CampaignContext {
@@ -410,6 +411,7 @@ export function hasCampaignContext(c: CampaignContext | undefined | null): c is 
       (c.tone && c.tone.length) ||
       (c.pitch && c.pitch.trim()) ||
       (c.worldFacts && c.worldFacts.length) ||
-      (c.settingFacts && c.settingFacts.length),
+      (c.settingFacts && c.settingFacts.length) ||
+      (c.partyLevel !== undefined && c.partyLevel > 0)
   );
 }

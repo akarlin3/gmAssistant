@@ -34,7 +34,33 @@ function trimContext(ctx?: CampaignContext): CampaignContext | undefined {
   if (world && world.length) out.worldFacts = world;
   const setting = ctx.settingFacts?.filter((t) => t && t.trim());
   if (setting && setting.length) out.settingFacts = setting;
+  if (typeof ctx.partyLevel === 'number' && ctx.partyLevel > 0) out.partyLevel = ctx.partyLevel;
   return out;
+}
+
+function getTierInfo(level?: number): { name: string; description: string } | null {
+  if (level === undefined || level <= 0) return null;
+  if (level <= 4) {
+    return {
+      name: 'Tier 1 (Local / Apprentice, levels 1–4)',
+      description: 'Generate details with intimate, gritty, localized, and personal scale. Focus on basic/mundane threats, local village rumors, simple magic, and immediate personal stakes suitable for local heroes.',
+    };
+  } else if (level <= 10) {
+    return {
+      name: 'Tier 2 (Regional / Heroic, levels 5–10)',
+      description: 'Generate details with regional, larger-scale, and heroic scale. Focus on regional threats, kingdom-level importance, moderately dangerous/mysterious magic, and significant local renown.',
+    };
+  } else if (level <= 16) {
+    return {
+      name: 'Tier 3 (National / Planar, levels 11–16)',
+      description: 'Generate details with spectacular, epic, and planar scale. Focus on continent-level significance, extraplanar influence, spectacular reality-bending magic, and legendary artifacts/threats.',
+    };
+  } else {
+    return {
+      name: 'Tier 4 (Cosmic / Mythic, levels 17–20+)',
+      description: 'Generate details with mythic, cosmic, and apocalyptic scale. Focus on world-ending/apocalyptic threats, interactions with deities/demigods, reality-warping events, legendary artifacts that shape space and time, and multiversal consequences.',
+    };
+  }
 }
 
 export async function callQuickInspire(
@@ -48,10 +74,18 @@ export async function callQuickInspire(
     campaignContext: ctx,
   });
 
+  let systemPrompt = SYSTEM;
+  if (ctx?.partyLevel) {
+    const tierInfo = getTierInfo(ctx.partyLevel);
+    if (tierInfo) {
+      systemPrompt += `\n\nCRITICAL: The current player/party level is ${ctx.partyLevel}, which corresponds to ${tierInfo.name}. You MUST scale the drama, stakes, and epicness of the generated detail to match this tier: ${tierInfo.description}`;
+    }
+  }
+
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
-    system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
+    system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
     output_config: { format: { type: 'json_schema', schema: SCHEMA } },
     messages: [{ role: 'user', content: user }],
   });

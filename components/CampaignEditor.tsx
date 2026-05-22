@@ -12,7 +12,7 @@ import {
   Compass, NotebookPen, Zap, Gem,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
-import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounterMath';
+import { CR_TO_XP, encounterMultiplier, difficultyForSolo, parseLevelFromClassLevel } from '@/lib/encounterMath';
 import DiceRoller, { type Macro } from './DiceRoller';
 import SpellsTab, { type Spell } from './SpellsTab';
 import DMRefTab from './DMRefTab';
@@ -2198,6 +2198,13 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     [state.__runSessionOpen],
   );
 
+  const parsedLevels = ((state.characters as Character[]) || [])
+    .map(c => c.isSidekick ? c.sidekickLevel : parseLevelFromClassLevel(c.classLevel))
+    .filter((lvl): lvl is number => lvl !== null && lvl > 0);
+  const partyLevel = parsedLevels.length > 0
+    ? Math.round(parsedLevels.reduce((a, b) => a + b, 0) / parsedLevels.length)
+    : undefined;
+
   // Snapshot of the campaign's premise/theme fields for AI-enhance grounding.
   // Each field is read out of `state`; the helper inside GeneratorPanel hides
   // the "Use campaign context" checkbox when every field is empty.
@@ -2207,6 +2214,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     pitch: typeof state.pitch === 'string' ? state.pitch : '',
     worldFacts: Array.isArray(state.gWorld) ? (state.gWorld as string[]) : [],
     settingFacts: Array.isArray(state.facts) ? (state.facts as string[]) : [],
+    partyLevel,
   };
 
   const completedCount = Object.values(done).filter(Boolean).length;

@@ -75,6 +75,7 @@ function trimContext(ctx?: CampaignContext): CampaignContext | undefined {
   if (world && world.length) out.worldFacts = world;
   const setting = ctx.settingFacts?.filter((t) => t && t.trim());
   if (setting && setting.length) out.settingFacts = setting;
+  if (typeof ctx.partyLevel === 'number' && ctx.partyLevel > 0) out.partyLevel = ctx.partyLevel;
   return out;
 }
 
