@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, X, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, X, Sparkles, User, Users, Plus, Trash2 } from 'lucide-react';
 import { emptyCharacter, makeCharacterId, type Character } from '@/lib/character-schema';
 
 const TRUTH_PLACEHOLDERS = [
@@ -21,9 +21,11 @@ const PITCH_EXAMPLES = [
 
 type WizardPatch = {
   name?: string;
+  soloMode?: boolean;
   pitch?: string;
   truths?: string[];
   pc?: { name: string; concept: string; goal: string };
+  pcs?: Array<{ name: string; player?: string; concept?: string; goal?: string }>;
   front?: { name: string; goal: string; firstSign: string };
 };
 
@@ -46,30 +48,40 @@ export default function Session0Wizard({
 }: Session0WizardProps) {
   const [step, setStep] = useState<Step>(1);
 
-  // Screen 1
+  // Screen 1: Name and Mode
   const [name, setName] = useState(initialName || 'New Campaign');
+  const [wizardSoloMode, setWizardSoloMode] = useState<boolean>(initialSoloMode);
 
-  // Screen 2
+  // Screen 2: Pitch
   const [pitch, setPitch] = useState('');
 
-  // Screen 3
+  // Screen 3: World Truths
   const [truthsMode, setTruthsMode] = useState<'three' | 'six'>(
     initialSoloMode ? 'three' : 'six',
   );
   const [truths, setTruths] = useState<string[]>(['', '', '', '', '', '']);
 
-  // Screen 4
+  // Sync truthsMode when wizardSoloMode changes
+  useEffect(() => {
+    setTruthsMode(wizardSoloMode ? 'three' : 'six');
+  }, [wizardSoloMode]);
+
+  // Screen 4: Solo Character
   const [pcName, setPcName] = useState('');
   const [pcConcept, setPcConcept] = useState('');
   const [pcGoal, setPcGoal] = useState('');
 
-  // Screen 5
+  // Screen 4: Group Characters roster
+  const [groupPcs, setGroupPcs] = useState<Array<{ name: string; player: string; concept: string; goal: string }>>([
+    { name: '', player: '', concept: '', goal: '' }
+  ]);
+
+  // Screen 5: Front
   const [frontName, setFrontName] = useState('');
   const [frontGoal, setFrontGoal] = useState('');
   const [frontFirstSign, setFrontFirstSign] = useState('');
 
-  // Tracks which screens were skipped vs filled — used by the finish patch
-  // and the summary screen.
+  // Tracks which screens were skipped vs filled
   const [skipped, setSkipped] = useState<Record<Step, boolean>>({
     1: false, 2: false, 3: false, 4: false, 5: false, 6: false,
   });
@@ -95,13 +107,29 @@ export default function Session0Wizard({
   );
 
   const buildPatch = (): WizardPatch => {
-    const patch: WizardPatch = {};
+    const patch: WizardPatch = {
+      soloMode: wizardSoloMode,
+    };
     if (!skipped[1] && name.trim()) patch.name = name.trim();
     if (!skipped[2] && pitch.trim()) patch.pitch = pitch.trim();
     if (!skipped[3] && filledTruths.length > 0) patch.truths = filledTruths;
-    if (!skipped[4] && pcName.trim()) {
-      patch.pc = { name: pcName.trim(), concept: pcConcept.trim(), goal: pcGoal.trim() };
+    
+    if (wizardSoloMode) {
+      if (!skipped[4] && pcName.trim()) {
+        patch.pc = { name: pcName.trim(), concept: pcConcept.trim(), goal: pcGoal.trim() };
+      }
+    } else {
+      const filledPcs = groupPcs.filter(p => p.name.trim());
+      if (!skipped[4] && filledPcs.length > 0) {
+        patch.pcs = filledPcs.map(p => ({
+          name: p.name.trim(),
+          player: p.player.trim(),
+          concept: p.concept.trim(),
+          goal: p.goal.trim(),
+        }));
+      }
     }
+    
     if (!skipped[5] && frontName.trim()) {
       patch.front = { name: frontName.trim(), goal: frontGoal.trim(), firstSign: frontFirstSign.trim() };
     }
@@ -149,20 +177,102 @@ export default function Session0Wizard({
       </header>
 
       <div className="flex-1 px-4 sm:px-8 py-6 sm:py-10">
-        <div className="max-w-xl mx-auto">
+        <div className="max-w-2xl mx-auto">
           {step === 1 && (
             <Screen
-              title="Name the campaign"
-              subtitle="Give your campaign a working title. You can change it later."
+              title="Welcome to your new campaign"
+              subtitle="Let's lay down the foundation. You can adjust all of this later in the campaign editor."
             >
-              <textarea
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                rows={1}
-                autoFocus
-                placeholder="e.g. The Last Wells"
-                className="w-full bg-parchment border border-rule rounded px-3 py-2 text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-none [field-sizing:content]"
-              />
+              <div className="space-y-5">
+                <div>
+                  <div className="text-xs font-display uppercase tracking-wider text-brass-deep mb-1">Campaign Title</div>
+                  <textarea
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    rows={1}
+                    autoFocus
+                    placeholder="e.g. The Last Wells"
+                    className="w-full bg-parchment border border-rule rounded px-3 py-2 text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-none [field-sizing:content]"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs font-display uppercase tracking-wider text-brass-deep">Choose Campaign Type</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Solo Card */}
+                    <button
+                      type="button"
+                      onClick={() => setWizardSoloMode(true)}
+                      className={`text-left p-4 rounded border transition-all duration-200 flex flex-col justify-between hover:shadow-md ${
+                        wizardSoloMode
+                          ? 'border-crimson bg-crimson/5 ring-1 ring-crimson/30 shadow-sm'
+                          : 'border-rule bg-parchment hover:border-brass/60'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`p-1.5 rounded ${wizardSoloMode ? 'bg-crimson/15 text-crimson' : 'bg-parchment-deep text-ink-soft'}`}>
+                            <User size={18} />
+                          </div>
+                          <span className="font-display tracking-wide font-semibold text-ink">Solo Campaign</span>
+                        </div>
+                        <p className="text-xs font-serif text-ink-soft italic leading-relaxed mb-3">
+                          Designed for 1 player (either GM-less or with 1 GM). Streamlined requirements and tailored guidelines for lone survival.
+                        </p>
+                        <ul className="text-[11px] font-sans text-ink-soft space-y-1 pl-1 list-disc list-inside">
+                          <li><strong>3</strong> World Truths recommended</li>
+                          <li><strong>1</strong> Central Player Character focus</li>
+                          <li>Sidekick companions enabled</li>
+                          <li>Lighter, faster preparation targets</li>
+                        </ul>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-4 self-end">
+                        <span className={`text-[10px] font-display uppercase tracking-wider py-0.5 px-2 rounded border ${
+                          wizardSoloMode ? 'bg-crimson/10 border-crimson text-crimson' : 'border-rule text-ink-mute'
+                        }`}>
+                          {wizardSoloMode ? 'Selected' : 'Select'}
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Group Card */}
+                    <button
+                      type="button"
+                      onClick={() => setWizardSoloMode(false)}
+                      className={`text-left p-4 rounded border transition-all duration-200 flex flex-col justify-between hover:shadow-md ${
+                        !wizardSoloMode
+                          ? 'border-crimson bg-crimson/5 ring-1 ring-crimson/30 shadow-sm'
+                          : 'border-rule bg-parchment hover:border-brass/60'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`p-1.5 rounded ${!wizardSoloMode ? 'bg-crimson/15 text-crimson' : 'bg-parchment-deep text-ink-soft'}`}>
+                            <Users size={18} />
+                          </div>
+                          <span className="font-display tracking-wide font-semibold text-ink">Group Campaign</span>
+                        </div>
+                        <p className="text-xs font-serif text-ink-soft italic leading-relaxed mb-3">
+                          The classic experience for 2-6 players plus 1 GM. Full collaborative worldbuilding and party dynamics tracking.
+                        </p>
+                        <ul className="text-[11px] font-sans text-ink-soft space-y-1 pl-1 list-disc list-inside">
+                          <li><strong>6</strong> World Truths recommended</li>
+                          <li>Full Player Character roster</li>
+                          <li>Traditional Session 0 safety tools</li>
+                          <li>Standard scale preparation targets</li>
+                        </ul>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-4 self-end">
+                        <span className={`text-[10px] font-display uppercase tracking-wider py-0.5 px-2 rounded border ${
+                          !wizardSoloMode ? 'bg-crimson/10 border-crimson text-crimson' : 'border-rule text-ink-mute'
+                        }`}>
+                          {!wizardSoloMode ? 'Selected' : 'Select'}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </Screen>
           )}
 
@@ -190,8 +300,8 @@ export default function Session0Wizard({
 
           {step === 3 && (
             <Screen
-              title="Truths of Your World"
-              subtitle="Things that are non-negotiably true. Solo play often does well with three."
+              title={truthsMode === 'three' ? "World Truths (Solo)" : "World Truths (Group)"}
+              subtitle={truthsMode === 'three' ? "Things that are non-negotiably true. Solo campaigns thrive on 3 highly focused truths." : "Things that are non-negotiably true. Group campaigns use 6 truths to detail the active landscape."}
             >
               <div className="flex items-center gap-1 p-1 rounded border border-rule bg-parchment-deep/30 w-fit">
                 <button
@@ -232,14 +342,130 @@ export default function Session0Wizard({
             </Screen>
           )}
 
-          {step === 4 && (
+          {step === 4 && wizardSoloMode && (
             <Screen
               title="Your Character"
-              subtitle="Just enough to start. You can flesh them out from the Reference tab later."
+              subtitle="Just enough to start. Since this is a solo campaign, you will focus on one central protagonist."
             >
               <LabeledField label="Name" value={pcName} onChange={setPcName} placeholder="e.g. Wren of the Salt Roads" autoFocus />
               <LabeledField label="Concept (one line)" value={pcConcept} onChange={setPcConcept} placeholder="e.g. Disgraced sky-knight seeking redemption" />
               <LabeledField label="Goal (one line)" value={pcGoal} onChange={setPcGoal} placeholder="e.g. Find who betrayed my order" />
+              <div className="p-3 bg-wine/5 border border-wine/10 rounded mt-3 text-xs font-serif italic text-ink-soft">
+                <span className="font-display uppercase tracking-wider text-[10px] text-wine font-semibold not-italic mr-1 block sm:inline">Solo Note:</span>
+                Solo level-1 characters are vulnerable. You can add a Tasha's-style Sidekick companion to level with you in the editor later.
+              </div>
+            </Screen>
+          )}
+
+          {step === 4 && !wizardSoloMode && (
+            <Screen
+              title="Initial Player Roster"
+              subtitle="Add the players and characters in your group (optional). You can leave this blank and collaboratively fill it out in your Session 0."
+            >
+              <div className="space-y-3 pt-2">
+                <div className="hidden sm:grid grid-cols-12 gap-2 text-[10px] font-display uppercase tracking-wider text-brass-deep px-1">
+                  <div className="col-span-3">Player</div>
+                  <div className="col-span-3">Character Name</div>
+                  <div className="col-span-3">Concept</div>
+                  <div className="col-span-2">Goal</div>
+                  <div className="col-span-1 text-center">Delete</div>
+                </div>
+
+                <div className="space-y-2">
+                  {groupPcs.map((pc, idx) => (
+                    <div key={idx} className="flex flex-col sm:grid sm:grid-cols-12 gap-2 p-2 sm:p-2.5 rounded border sm:border-0 border-rule bg-parchment-deep/30 sm:bg-transparent">
+                      <div className="col-span-3">
+                        <span className="sm:hidden text-[9px] font-display uppercase tracking-wider text-brass-deep block mb-0.5">Player</span>
+                        <input
+                          type="text"
+                          value={pc.player}
+                          onChange={(e) => {
+                            const next = [...groupPcs];
+                            next[idx].player = e.target.value;
+                            setGroupPcs(next);
+                          }}
+                          placeholder="e.g. Alex"
+                          className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <span className="sm:hidden text-[9px] font-display uppercase tracking-wider text-brass-deep block mb-0.5">Character Name</span>
+                        <input
+                          type="text"
+                          value={pc.name}
+                          onChange={(e) => {
+                            const next = [...groupPcs];
+                            next[idx].name = e.target.value;
+                            setGroupPcs(next);
+                          }}
+                          placeholder="e.g. Brog the Stout"
+                          className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <span className="sm:hidden text-[9px] font-display uppercase tracking-wider text-brass-deep block mb-0.5">Concept</span>
+                        <input
+                          type="text"
+                          value={pc.concept}
+                          onChange={(e) => {
+                            const next = [...groupPcs];
+                            next[idx].concept = e.target.value;
+                            setGroupPcs(next);
+                          }}
+                          placeholder="e.g. Jolly cleric of light"
+                          className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <span className="sm:hidden text-[9px] font-display uppercase tracking-wider text-brass-deep block mb-0.5">Goal</span>
+                        <input
+                          type="text"
+                          value={pc.goal}
+                          onChange={(e) => {
+                            const next = [...groupPcs];
+                            next[idx].goal = e.target.value;
+                            setGroupPcs(next);
+                          }}
+                          placeholder="e.g. Rebuild temple"
+                          className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif focus:border-crimson focus:outline-none"
+                        />
+                      </div>
+                      <div className="col-span-1 flex items-center justify-center pt-2 sm:pt-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGroupPcs(groupPcs.filter((_, i) => i !== idx));
+                          }}
+                          className="p-1 rounded text-ink-mute hover:text-crimson hover:bg-parchment-deep transition-colors"
+                          title="Remove player"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between items-center pt-1 flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGroupPcs([...groupPcs, { name: '', player: '', concept: '', goal: '' }]);
+                    }}
+                    className="text-xs px-2.5 py-1 rounded border border-brass-deep text-brass-deep hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-1"
+                  >
+                    <Plus size={12} /> Add PC
+                  </button>
+                  <span className="text-[10px] text-ink-mute font-serif italic">
+                    You can also generate characters collaboratively inside the campaign editor later.
+                  </span>
+                </div>
+
+                <div className="p-3 bg-brass-deep/5 border border-brass-deep/10 rounded mt-2 text-xs font-serif italic text-ink-soft">
+                  <span className="font-display uppercase tracking-wider text-[10px] text-brass-deep font-semibold not-italic mr-1 block sm:inline">Collaborative Session 0:</span>
+                  Traditional group play is most successful when players craft characters together. Hook their backgrounds into the world truths you set in Step 3!
+                </div>
+              </div>
             </Screen>
           )}
 
@@ -260,6 +486,8 @@ export default function Session0Wizard({
               pitch={pitch}
               truthsCount={filledTruths.length}
               pcName={pcName}
+              pcsCount={groupPcs.filter(p => p.name.trim()).length}
+              soloMode={wizardSoloMode}
               frontName={frontName}
               skipped={skipped}
               onOpen={finalize}
@@ -337,21 +565,28 @@ function LabeledField({
 }
 
 function FinishScreen({
-  name, pitch, truthsCount, pcName, frontName, skipped, onOpen,
+  name, pitch, truthsCount, pcName, pcsCount, soloMode, frontName, skipped, onOpen,
 }: {
   name: string;
   pitch: string;
   truthsCount: number;
   pcName: string;
+  pcsCount: number;
+  soloMode: boolean;
   frontName: string;
   skipped: Record<Step, boolean>;
   onOpen: () => void;
 }) {
+  const pcSummaryValue = soloMode 
+    ? (pcName || '—') 
+    : (pcsCount > 0 ? `${pcsCount} Player character${pcsCount === 1 ? '' : 's'}` : '—');
+
   const summary: Array<{ label: string; value: string; ok: boolean }> = [
     { label: 'Campaign', value: name || '—', ok: !skipped[1] && !!name.trim() },
+    { label: 'Mode', value: soloMode ? 'Solo Play' : 'Group Play', ok: true },
     { label: 'Pitch', value: pitch ? (pitch.length > 60 ? pitch.slice(0, 60) + '…' : pitch) : '—', ok: !skipped[2] && !!pitch.trim() },
     { label: 'Truths', value: truthsCount > 0 ? String(truthsCount) : '—', ok: !skipped[3] && truthsCount > 0 },
-    { label: 'PC', value: pcName || '—', ok: !skipped[4] && !!pcName.trim() },
+    { label: 'PC Roster', value: pcSummaryValue, ok: !skipped[4] && (soloMode ? !!pcName.trim() : pcsCount > 0) },
     { label: 'Front', value: frontName || '—', ok: !skipped[5] && !!frontName.trim() },
   ];
 

@@ -2831,19 +2831,45 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         }}
         onFinish={(patch) => {
           if (patch.name) setName(patch.name);
+          if (patch.soloMode !== undefined) setSoloMode(patch.soloMode);
           setState(s => {
             const next: Record<string, any> = { ...s, __session0Done: true };
+            if (patch.soloMode !== undefined) next.__soloMode = patch.soloMode;
             if (patch.pitch) next.pitch = patch.pitch;
             if (patch.truths && patch.truths.length > 0) {
               const existing = Array.isArray(s.gWorld) ? (s.gWorld as string[]) : [];
               next.gWorld = [...existing, ...patch.truths];
             }
-            if (patch.pc) {
-              const existingChars = Array.isArray(s.characters) ? (s.characters as Character[]) : [];
-              next.characters = [...existingChars, makeWizardPC(patch.pc.name, patch.pc.concept)];
-              if (patch.pc.goal) {
-                const existingGoals = Array.isArray(s.pcGoals) ? (s.pcGoals as any[]) : [];
-                next.pcGoals = [...existingGoals, { text: patch.pc.goal, timeframe: 'short', success: '', failure: '', linked: '' }];
+            if (patch.soloMode) {
+              if (patch.pc) {
+                const existingChars = Array.isArray(s.characters) ? (s.characters as Character[]) : [];
+                next.characters = [...existingChars, makeWizardPC(patch.pc.name, patch.pc.concept)];
+                if (patch.pc.goal) {
+                  const existingGoals = Array.isArray(s.pcGoals) ? (s.pcGoals as any[]) : [];
+                  next.pcGoals = [...existingGoals, { text: patch.pc.goal, timeframe: 'short', success: '', failure: '', linked: '' }];
+                }
+              }
+            } else {
+              if (patch.pcs && patch.pcs.length > 0) {
+                const existingChars = Array.isArray(s.characters) ? (s.characters as Character[]) : [];
+                const newChars = patch.pcs.map(p => {
+                  const char = makeWizardPC(p.name, p.concept || '');
+                  char.player = p.player || '';
+                  return char;
+                });
+                next.characters = [...existingChars, ...newChars];
+
+                const goalsToAdd = patch.pcs.filter(p => p.goal && p.goal.trim()).map(p => ({
+                  text: p.goal!.trim(),
+                  timeframe: 'short',
+                  success: '',
+                  failure: '',
+                  linked: '',
+                }));
+                if (goalsToAdd.length > 0) {
+                  const existingGoals = Array.isArray(s.pcGoals) ? (s.pcGoals as any[]) : [];
+                  next.pcGoals = [...existingGoals, ...goalsToAdd];
+                }
               }
             }
             if (patch.front) {
