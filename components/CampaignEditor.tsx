@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateCampaign, deleteCampaign as deleteCampaignDoc, archiveCampaign, unarchiveCampaign, copyCampaign, type Campaign } from '@/lib/firebase/campaigns';
+import { updateWorld, createWorld, type World } from '@/lib/firebase/worlds';
+import { WORLD_KEYS } from '@/lib/worldData';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
@@ -1992,7 +1994,21 @@ const Phase = ({ n, title, sub, methods, audience, children, expanded, onToggle,
   </div>
 );
 
-export default function CampaignEditor({ campaign, userEmail, isPro = false }: { campaign: Campaign; userEmail: string; isPro?: boolean }) {
+export default function CampaignEditor({
+  campaign,
+  rawCampaign,
+  world,
+  userEmail,
+  isPro = false,
+  worldOnlyMode = false,
+}: {
+  campaign: Campaign;
+  rawCampaign?: Campaign;
+  world?: World | null;
+  userEmail: string;
+  isPro?: boolean;
+  worldOnlyMode?: boolean;
+}) {
   const router = useRouter();
   const confirmModal = useConfirm();
   const [name, setName] = useState(campaign.name);
@@ -2152,14 +2168,61 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   const saveToDB = useCallback(async (payload: { name: string; data: Record<string, any>; done: Record<string, boolean> }) => {
     setSyncState('saving');
     try {
-      await updateCampaign(campaign.id, payload);
+      const worldPatch: Record<string, any> = {};
+      const campaignPatch: Record<string, any> = {};
+
+      for (const [k, v] of Object.entries(payload.data)) {
+        if (WORLD_KEYS.includes(k as any) && campaign.worldId) {
+          worldPatch[k] = v;
+        } else {
+          campaignPatch[k] = v;
+        }
+      }
+
+      const promises = [];
+      promises.push(updateCampaign(campaign.id, { name: payload.name, data: campaignPatch, done: payload.done }));
+      
+      if (campaign.worldId && Object.keys(worldPatch).length > 0) {
+        promises.push(updateWorld(campaign.worldId, { data: worldPatch }));
+      }
+      
+      await Promise.all(promises);
+
       setSyncState('synced');
       setSyncError('');
     } catch (err: any) {
       setSyncState('error');
       setSyncError(err?.message || 'Unknown error');
     }
-  }, [campaign.id]);
+  }, [campaign.id, campaign.worldId]);
+
+  const handleConvertToWorld = async () => {
+    if (campaign.worldId) return;
+    confirmModal({
+      title: 'Convert to Shared World?',
+      body: 'This moves all static lore (NPCs, locations, items, factions, etc.) into a central World that other campaigns can share. This cannot be undone.',
+      confirmLabel: 'Convert to World',
+      onConfirm: async () => {
+        try {
+          setSyncState('saving');
+          const worldData: Record<string, any> = {};
+          const newCampaignData = { ...state };
+          for (const key of WORLD_KEYS) {
+            if (newCampaignData[key] !== undefined) {
+              worldData[key] = newCampaignData[key];
+              delete newCampaignData[key];
+            }
+          }
+          const newWorldId = await createWorld(campaign.userId, `${campaign.name} (World)`, worldData);
+          await updateCampaign(campaign.id, { worldId: newWorldId, data: newCampaignData });
+          setSyncState('synced');
+        } catch (err: any) {
+          setSyncError(err.message);
+          setSyncState('error');
+        }
+      }
+    });
+  };
 
   useEffect(() => {
     if (initialLoadRef.current) {
@@ -3259,6 +3322,25 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   Archived
                 </span>
               )}
+              {worldOnlyMode ? (
+                <span className="text-[10px] not-italic px-1.5 py-0.5 rounded-sm border border-moss/60 bg-moss/10 text-moss font-display uppercase tracking-wider flex-shrink-0">
+                  Shared World
+                </span>
+              ) : campaign.worldId ? (
+                <button
+                  onClick={() => router.push(`/world/${campaign.worldId}`)}
+                  className="text-[10px] not-italic px-2 py-0.5 rounded border border-indigo-700/60 bg-indigo-50 text-indigo-700 font-display uppercase tracking-wider flex-shrink-0 hover:bg-indigo-100 transition-colors flex items-center gap-1"
+                >
+                  <Globe size={10} /> World Linked
+                </button>
+              ) : (
+                <button
+                  onClick={handleConvertToWorld}
+                  className="text-[10px] not-italic px-2 py-0.5 rounded border border-brass-deep/60 bg-brass/5 text-brass-deep font-display uppercase tracking-wider flex-shrink-0 hover:bg-brass/10 transition-colors"
+                >
+                  Convert to Shared World
+                </button>
+              )}
               <div
                 role="group"
                 aria-label="Prep target mode"
@@ -3380,6 +3462,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             subview={subview}
             onModeChange={handleModeChange}
             onSubviewChange={handleSubviewChange}
+            worldOnlyMode={worldOnlyMode}
           />
 
         <div key={`${mode}:${subview}`} className="gm-tab-enter space-y-4">

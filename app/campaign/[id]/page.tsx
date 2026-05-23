@@ -3,7 +3,8 @@
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/firebase/auth-context';
-import { subscribeToCampaign, type Campaign } from '@/lib/firebase/campaigns';
+import { type Campaign } from '@/lib/firebase/campaigns';
+import { useCampaignAndWorld } from '@/lib/useCampaignAndWorld';
 import CampaignEditor from '@/components/CampaignEditor';
 import PlayerView from '@/components/PlayerView';
 
@@ -11,30 +12,28 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const { user, loading: authLoading, isPro } = useAuth();
   const router = useRouter();
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { campaign, rawCampaign, world, loading, error } = useCampaignAndWorld(id);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login');
   }, [user, authLoading, router]);
 
-  useEffect(() => {
-    if (!user) return;
-    const unsub = subscribeToCampaign(
-      id,
-      (c) => {
-        if (!c) { setError('Campaign not found'); setLoading(false); return; }
-        const isOwner = c.userId === user.uid;
-        const isPlayer = (c.playerIds || []).includes(user.uid);
-        if (!isOwner && !isPlayer) { setError('Access denied. You are not a member of this campaign.'); setLoading(false); return; }
-        setCampaign(c);
-        setLoading(false);
-      },
-      (err) => { setError(err.message); setLoading(false); }
-    );
-    return unsub;
-  }, [id, user]);
+  if (campaign && user) {
+    const isOwner = campaign.userId === user.uid;
+    const isPlayer = (campaign.playerIds || []).includes(user.uid);
+    if (!isOwner && !isPlayer) {
+      return (
+        <main className="flex min-h-screen items-center justify-center p-5">
+          <div className="space-y-3 text-center">
+            <p className="text-sm text-red-400">Access denied. You are not a member of this campaign.</p>
+            <button onClick={() => router.replace('/campaign')} className="rounded border border-zinc-800 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-900">
+              Back to campaigns
+            </button>
+          </div>
+        </main>
+      );
+    }
+  }
 
   if (authLoading || loading) {
     return (
@@ -67,7 +66,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     return (
       <main className="flex min-h-screen items-center justify-center p-5">
         <div className="space-y-3 text-center">
-          <p className="text-sm text-red-400">{error}</p>
+          <p className="text-sm text-red-400">{error.message}</p>
           <button onClick={() => router.replace('/campaign')} className="rounded border border-zinc-800 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-900">
             Back to campaigns
           </button>
@@ -83,5 +82,5 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     return <PlayerView campaign={campaign} userEmail={user.email ?? ''} />;
   }
 
-  return <CampaignEditor campaign={campaign} userEmail={user.email ?? ''} isPro={isPro} />;
+  return <CampaignEditor campaign={campaign} rawCampaign={rawCampaign ?? undefined} world={world ?? undefined} userEmail={user.email ?? ''} isPro={isPro} />;
 }

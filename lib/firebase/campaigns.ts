@@ -10,6 +10,7 @@ import { getDb } from './client';
 export type Campaign = {
   id: string;
   userId: string;
+  worldId?: string;
   name: string;
   data: Record<string, any>;
   done: Record<string, boolean>;
@@ -61,12 +62,14 @@ export function subscribeToCampaign(
   );
 }
 
-export async function createCampaign(userId: string, name = 'Untitled Campaign') {
-  const ref = await addDoc(campaignsCol(), {
+export async function createCampaign(userId: string, name = 'Untitled Campaign', worldId?: string) {
+  const payload: any = {
     userId, name, data: {}, done: {}, playerIds: [], pendingPlayers: [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  };
+  if (worldId) payload.worldId = worldId;
+  const ref = await addDoc(campaignsCol(), payload);
   return ref.id;
 }
 

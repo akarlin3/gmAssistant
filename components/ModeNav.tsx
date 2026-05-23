@@ -16,12 +16,16 @@ type Props = {
   subview: string;
   onModeChange: (mode: Mode) => void;
   onSubviewChange: (subview: string) => void;
+  worldOnlyMode?: boolean;
 };
 
-export default function ModeNav({ mode, subview, onModeChange, onSubviewChange }: Props) {
-  const primaryModes = MODE_ORDER.filter(m => MODES[m].emphasis === 'primary');
-  const mutedModes = MODE_ORDER.filter(m => MODES[m].emphasis === 'muted');
-  const activeSubviews = MODES[mode].subviews;
+export default function ModeNav({ mode, subview, onModeChange, onSubviewChange, worldOnlyMode }: Props) {
+  const primaryModes = worldOnlyMode ? ['plan'] as Mode[] : MODE_ORDER.filter(m => MODES[m].emphasis === 'primary');
+  const mutedModes = worldOnlyMode ? [] : MODE_ORDER.filter(m => MODES[m].emphasis === 'muted');
+  let activeSubviews = MODES[mode].subviews;
+  if (worldOnlyMode && mode === 'plan') {
+    activeSubviews = activeSubviews.filter(s => s.id === 'pitch' || s.id === 'world');
+  }
 
   return (
     <div className="space-y-2">

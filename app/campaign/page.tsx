@@ -10,7 +10,8 @@ import {
   copyCampaign,
   type Campaign,
 } from '@/lib/firebase/campaigns';
-import { Plus, ScrollText, Pin, Archive, ArchiveRestore, Trash2, ChevronDown, ChevronRight, MoreHorizontal, ExternalLink, Copy, Cloud } from 'lucide-react';
+import { subscribeToUserWorlds, type World } from '@/lib/firebase/worlds';
+import { Plus, ScrollText, Pin, Archive, ArchiveRestore, Trash2, ChevronDown, ChevronRight, MoreHorizontal, ExternalLink, Copy, Cloud, X } from 'lucide-react';
 import { AccountMenu } from '@/components/AccountMenu';
 import { relativeTime } from '@/lib/relativeTime';
 
@@ -90,10 +91,13 @@ export default function CampaignListPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [worlds, setWorlds] = useState<World[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedWorldId, setSelectedWorldId] = useState<string>('');
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -103,12 +107,17 @@ export default function CampaignListPage() {
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    const unsub = subscribeToUserCampaigns(
+    const unsubC = subscribeToUserCampaigns(
       user.uid,
       (items) => { setCampaigns(items); setLoading(false); setError(null); },
       (err) => { setError(err.message); setLoading(false); }
     );
-    return unsub;
+    const unsubW = subscribeToUserWorlds(
+      user.uid,
+      (items) => { setWorlds(items); },
+      (err) => { console.error('Failed to load worlds', err); }
+    );
+    return () => { unsubC(); unsubW(); };
   }, [user]);
 
   useEffect(() => {
@@ -136,7 +145,7 @@ export default function CampaignListPage() {
   const handleCreate = async () => {
     if (!user) return;
     try {
-      const id = await createCampaign(user.uid);
+      const id = await createCampaign(user.uid, 'Untitled Campaign', selectedWorldId || undefined);
       router.push(`/campaign/${id}`);
     } catch (e: any) {
       setError(e?.message || 'Failed to create campaign');
@@ -308,7 +317,7 @@ export default function CampaignListPage() {
             </div>
           </header>
 
-          <button onClick={handleCreate} className="flex w-full items-center justify-center gap-2 rounded border-2 border-dashed border-brass/60 p-5 font-display text-sm uppercase tracking-wider text-brass-deep transition-colors hover:border-crimson hover:bg-parchment hover:text-crimson">
+          <button onClick={() => setShowCreateModal(true)} className="flex w-full items-center justify-center gap-2 rounded border-2 border-dashed border-brass/60 p-5 font-display text-sm uppercase tracking-wider text-brass-deep transition-colors hover:border-crimson hover:bg-parchment hover:text-crimson">
             <Plus size={16} /> New Campaign
           </button>
 
@@ -350,6 +359,39 @@ export default function CampaignListPage() {
           )}
         </div>
       </div>
+
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-[2px]" onClick={() => setShowCreateModal(false)}>
+          <div className="w-full max-w-sm space-y-4 rounded-lg border border-rule bg-parchment p-5 shadow-page" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg tracking-wide text-ink">New Campaign</h2>
+              <button onClick={() => setShowCreateModal(false)} className="text-ink-mute hover:text-crimson"><X size={16} /></button>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block font-display text-xs uppercase tracking-wider text-ink-soft">Shared World (Optional)</label>
+              <select
+                value={selectedWorldId}
+                onChange={(e) => setSelectedWorldId(e.target.value)}
+                className="w-full rounded border border-rule bg-parchment-soft p-2 text-sm text-ink focus:border-crimson focus:outline-none"
+              >
+                <option value="">None (Standalone Campaign)</option>
+                {worlds.map((w) => (
+                  <option key={w.id} value={w.id}>{w.name}</option>
+                ))}
+              </select>
+              <p className="text-[10px] uppercase font-display tracking-wider text-ink-mute">
+                Select a shared world to link this campaign to common lore.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setShowCreateModal(false)} className="rounded px-3 py-1.5 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">Cancel</button>
+              <button onClick={handleCreate} className="rounded bg-crimson px-4 py-1.5 font-display text-xs uppercase tracking-wider text-parchment hover:bg-wine">Create</button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
