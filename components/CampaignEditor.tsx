@@ -7,7 +7,7 @@ import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
-  Download, Upload, ScrollText, ArrowLeft, Cloud, CloudOff,
+  Download, Upload, ScrollText, ArrowLeft, ArrowRight, Cloud, CloudOff,
   FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench, SlidersHorizontal, Copy,
   Compass, NotebookPen, Zap, Gem,
 } from 'lucide-react';
@@ -2021,6 +2021,24 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     window.scrollTo(0, 0);
   }, [mode, subview]);
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
+  const [progressOpen, setProgressOpen] = useState(false);
+  const progressMenuRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (!progressOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (!progressMenuRef.current?.contains(e.target as Node)) setProgressOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setProgressOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [progressOpen]);
   const [prepTargetsOpen, setPrepTargetsOpen] = useState(false);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -2244,7 +2262,15 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     partyLevel,
   };
 
-  const completedCount = Object.values(done).filter(Boolean).length;
+  const completedCount = Object.values(state.done || {}).filter(Boolean).length;
+  
+  const PREP_GROUPS = [
+    { name: 'Premise', keys: ['pitch', 'genre', 'g-lines', 'g-mech'], labels: ['Quick Pitch', 'Genre Statement', 'Content Lines', 'Mechanics & System'] },
+    { name: 'World', keys: ['g-world', 'facts', 'g-fnl'], labels: ['World Facts', 'Setting Facts', 'Req. Factions, NPCs & Locations'] },
+    { name: 'Characters', keys: ['pc', 'goals'], labels: ['Player Characters', 'PC Goals'] },
+    { name: 'Fronts', keys: ['factions', 'conflicts', 'secrets', 'handouts'], labels: ['Factions', 'Active Conflicts', 'Secrets & Clues', 'Handouts / Lore'] },
+    { name: 'Per-Session', keys: ['s1-review', 's2-start', 's3-scenes', 's4-secrets', 's5-loc', 's6-npc', 's7-mon', 's8-rew'], labels: ['1. Review PCs', '2. Strong Start', '3. Outline Scenes', '4. Define Secrets', '5. Develop Locations', '6. Outline NPCs', '7. Choose Monsters', '8. Select Rewards'] },
+  ];
 
   // Lowest-progress prep target — drives the "Next Up" pill at the top of the
   // Prep Flow tab. Picks the section with the largest gap to target, with
@@ -2283,7 +2309,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     let targetMode: Mode = 'prep';
     let targetSubview = 'flow';
     if (nextUp.phaseId === 'p0') { targetMode = 'plan'; targetSubview = 'pitch'; }
-    else if (nextUp.phaseId === 'p1') { targetMode = 'plan'; targetSubview = 'world'; }
+    else if (nextUp.phaseId === 'p1') { targetMode = 'plan'; targetSubview = 'worldbuild'; }
     else if (nextUp.phaseId === 'p2') { targetMode = 'plan'; targetSubview = 'pcs'; }
     else if (nextUp.phaseId === 'p4' || nextUp.phaseId === 'p5' || nextUp.phaseId === 'p6') { targetMode = 'plan'; targetSubview = 'fronts'; }
     
@@ -2297,8 +2323,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     }));
   }, [nextUp]);
 
-  const sessionLogs = (state.sessionLogs as SessionLog[]) || [];
+  const sessionLogs = (get('sessionLogs', []) as any[]);
   const sortedSessionLogs = [...sessionLogs].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const sessionLogsV2 = (get('sessionLogV2', []) as any[]);
   const addSessionLog = () => {
     const id = makeLogId();
     const next: SessionLog = { id, title: `Session ${sessionLogs.length + 1}`, date: todayISO(), body: '' };
@@ -2471,21 +2498,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     if (syncState === 'synced') return null;
     const isRun = get('__runSessionOpen', false);
     const base = `fixed ${isRun ? 'bottom-[88px]' : 'bottom-4'} left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border text-xs font-display uppercase tracking-wider flex items-center gap-2 transition-all`;
-    if (syncState === 'pending') {
-      return (
-        <div className={`${base} border-brass-deep/60 bg-parchment text-brass-deep`}>
-          <span className="w-1.5 h-1.5 rounded-full bg-brass-deep animate-pulse" />
-          Saving in 1.5s…
-        </div>
-      );
-    }
-    if (syncState === 'saving') {
-      return (
-        <div className={`${base} border-moss/60 bg-moss/10 text-moss`}>
-          <Cloud size={12} className="animate-pulse" />
-          Saving…
-        </div>
-      );
+    if (syncState === 'pending' || syncState === 'saving') {
+      return null;
     }
     return (
       <button
@@ -2550,7 +2564,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   // and Next-Up jump so we route to the right tab before scrolling.
   const PHASE_TO_VIEW: Record<string, { mode: Mode; subview: string }> = {
     p0: { mode: 'plan', subview: 'pitch' },
-    p1: { mode: 'plan', subview: 'world' },
+    p1: { mode: 'plan', subview: 'worldbuild' },
     p2: { mode: 'plan', subview: 'pcs' },
     p3: { mode: 'prep', subview: 'flow' },
     p4: { mode: 'plan', subview: 'fronts' },
@@ -2680,7 +2694,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
   const VIEW_META: Array<{ mode: Mode; subview: string; label: string; icon: any; keywords?: string[] }> = [
     { mode: 'plan',    subview: 'pitch',     label: 'Premise',     icon: Compass,         keywords: ['hook', 'givens', 'truths'] },
-    { mode: 'plan',    subview: 'world',     label: 'World',       icon: BookOpen,        keywords: ['setting', 'factions', 'reference', 'downtime'] },
+    { mode: 'plan',    subview: 'worldbuild',     label: 'Worldbuild',       icon: BookOpen,        keywords: ['setting', 'factions', 'reference', 'downtime'] },
     { mode: 'plan',    subview: 'pcs',       label: 'Characters',  icon: User,            keywords: ['pc', 'goals', 'sidekick'] },
     { mode: 'plan',    subview: 'fronts',    label: 'Fronts',      icon: Target,          keywords: ['clocks', 'audits', 'tracking', 'ending', 'secrets revealed'] },
     { mode: 'prep',    subview: 'flow',      label: 'Prep Flow',   icon: ScrollText,      keywords: ['lazy dm', '8 step', 'next session'] },
@@ -2692,9 +2706,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     { mode: 'run',     subview: 'dmref',     label: 'DM Ref',      icon: BookOpen,        keywords: ['rules', 'madness', 'travel'] },
     { mode: 'run',     subview: 'chase',     label: 'Chase',       icon: Footprints,      keywords: ['chase tracker'] },
     { mode: 'run',     subview: 'log',       label: 'Sessions',    icon: Calendar,        keywords: ['session log', 'recap'] },
-    { mode: 'library', subview: 'generators',label: 'Generators',  icon: Wand2,           keywords: ['tavern', 'treasure', 'shop', 'dungeon', 'settlement', 'trinket'] },
-    { mode: 'library', subview: 'names',     label: 'Names',       icon: User,            keywords: ['npc names'] },
-    { mode: 'library', subview: 'locations', label: 'Locations',   icon: Map },
+    { mode: 'library', subview: 'generators',label: 'Generators',  icon: Wand2,           keywords: ['tavern', 'treasure', 'shop', 'dungeon', 'settlement', 'trinket', 'names', 'locations'] },
     { mode: 'library', subview: 'monsters',  label: 'Monsters',    icon: Skull,           keywords: ['stat block', 'bestiary'] },
     { mode: 'library', subview: 'traps',     label: 'Traps',       icon: Hash },
     { mode: 'library', subview: 'vivify',    label: 'Vivify',      icon: Sparkles,        keywords: ['ai description', 'prose'] },
@@ -2986,7 +2998,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         group: 'Downtime',
         keywords: [typeLabel],
         icon: Calendar,
-        run: () => navigateTo({ mode: 'plan', subview: 'world' }),
+        run: () => navigateTo({ mode: 'plan', subview: 'worldbuild' }),
       });
     });
 
@@ -3029,58 +3041,55 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, soloMode, sortedSessionLogs, characters, generatorLogs]);
 
-  const sessionEndedAt = get('__sessionEndedAt', 0) as number;
-  const finalizerOpen = sessionEndedAt > 0;
-  const clearSessionState = () => {
-    setState(s => {
-      const next = { ...s };
-      delete next.__activeSessionId;
-      delete next.__sessionStartedAt;
-      delete next.__sessionEndedAt;
-      delete next.__sessionChangeEvents;
-      delete next.__sessionScratchpad;
-      delete next.__sessionUsedScenes;
-      next.__runSessionOpen = false;
-      return next;
-    });
-  };
-  const saveSessionLog = (entry: SessionLogEntry) => {
-    const existing = (state.sessionLogV2 as SessionLogEntry[]) || [];
-    setVal('sessionLogV2', [...existing, entry]);
-    clearSessionState();
-  };
-  const discardSession = () => {
-    clearSessionState();
-  };
-
-  const finalizerModal = finalizerOpen ? (() => {
-    const existingEntries = (get('sessionLogV2', []) as SessionLogEntry[]);
-    const nextNumber = nextSessionNumber(existingEntries);
-    const runs = (get('prepWizardRuns', []) as PrepWizardRun[]) || [];
-    const matchingRun = runs.find(r => r.forSessionNumber === nextNumber) || null;
-    return (
-      <SessionLogFinalizer
-        sessionId={(get('__activeSessionId', `session_${Date.now()}`) as string)}
-        startedAt={(get('__sessionStartedAt', sessionEndedAt) as number)}
-        endedAt={sessionEndedAt}
-        scratchpad={(get('__sessionScratchpad', '') as string)}
-        events={(get('__sessionChangeEvents', []) as ChangeEvent[])}
-        existingEntries={existingEntries}
-        hasPrepWizardRun={!!matchingRun}
-        onSave={saveSessionLog}
-        onDiscard={discardSession}
-      />
-    );
-  })() : null;
-
-  if (get('__runSessionOpen', false)) {
-    return (
-      <>
         <RunSessionView
           get={get}
           setVal={setVal}
           characters={characters}
-          onEndSession={() => setVal('__sessionEndedAt', Date.now())}
+          onEndSession={() => {
+            const sessionId = get('__activeSessionId', `session_${Date.now()}`) as string;
+            const startedAt = get('__sessionStartedAt', Date.now()) as number;
+            const endedAt = Date.now();
+            const scratchpad = get('__sessionScratchpad', '') as string;
+            const events = get('__sessionChangeEvents', []) as any[];
+            const existingEntries = get('sessionLogV2', []) as any[];
+            
+            const keptEvents = events.filter((e: any) => !e.dismissed);
+            const nextNumber = Math.max(0, ...existingEntries.map(e => e.number || 0)) + 1;
+            const entry = {
+              id: sessionId,
+              number: nextNumber,
+              date: new Date().toISOString().split('T')[0],
+              startedAt,
+              endedAt,
+              title: `Session ${nextNumber}`,
+              recap: scratchpad || '',
+              events: keptEvents,
+              secretsRevealed: keptEvents.filter((e: any) => e.kind === 'secret_revealed').map((e: any) => e.summary),
+              scenesUsed: keptEvents.filter((e: any) => e.kind === 'scene_used').map((e: any) => e.summary.replace(/^Used scene:\s*/, '')),
+              goalUpdates: keptEvents.filter((e: any) => e.kind === 'goal_status').map((e: any) => {
+                const [goalText] = e.summary.split(': ');
+                const fromTo = e.summary.split(': ')[1] || '';
+                const [from, to] = fromTo.split(' → ');
+                return { goal: goalText || '', from: from || String(e.before ?? ''), to: to || String(e.after ?? '') };
+              }),
+            };
+            
+            setVal('sessionLogV2', [...existingEntries, entry]);
+            
+            setState(s => {
+              const next = { ...s };
+              delete next.__activeSessionId;
+              delete next.__sessionStartedAt;
+              delete next.__sessionEndedAt;
+              delete next.__sessionChangeEvents;
+              delete next.__sessionScratchpad;
+              delete next.__sessionUsedScenes;
+              next.__runSessionOpen = false;
+              return next;
+            });
+            
+            router.push(`/campaign/${campaign.id}/recap/${sessionId}`);
+          }}
           onExitWithoutEnding={() => setVal('__runSessionOpen', false)}
           onOpenLibrary={() => {
             setVal('__runSessionOpen', false);
@@ -3088,7 +3097,6 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           }}
           campaignContext={generatorCampaignContext}
         />
-        {finalizerModal}
       </>
     );
   }
@@ -3223,7 +3231,6 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <ArrowLeft size={12} /> All Campaigns
               </button>
               <div className="flex items-center gap-2">
-                <PlayersManager campaign={campaign} />
                 <SyncIndicator />
                 <AccountMenu
                   onExport={exportJSON}
@@ -3276,6 +3283,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   <Users size={12} /> Group
                 </button>
               </div>
+              {!soloMode && (
+                <PlayersManager campaign={campaign} />
+              )}
             </div>
             <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
 
@@ -3316,8 +3326,48 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   <Play size={12} /> Run Session
                 </button>
               </div>
-              <div className="text-xs text-brass-deep font-display uppercase tracking-wider">
-                {completedCount} Steps Done
+              <div className="relative" ref={progressMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setProgressOpen(!progressOpen)}
+                  className="flex items-center gap-1.5 rounded-full border border-moss/45 bg-moss/5 px-2.5 py-1 hover:bg-moss/10 transition-colors"
+                >
+                  <div className="font-display text-[10px] uppercase tracking-wider text-moss flex items-center gap-1">
+                    {completedCount} Steps Done <ChevronDown size={10} className={`transition-transform ${progressOpen ? 'rotate-180' : ''}`} />
+                  </div>
+                </button>
+                {progressOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-64 rounded border border-rule bg-parchment-soft shadow-page z-30 max-h-[80vh] overflow-y-auto">
+                    <div className="p-3 border-b border-rule font-display text-xs uppercase tracking-wider text-ink bg-parchment-deep/50">
+                      Uncompleted Tasks
+                    </div>
+                    <div className="p-2 space-y-3">
+                      {PREP_GROUPS.map(g => {
+                        const uncompleted = g.keys.map((k, i) => ({ k, label: g.labels[i] })).filter(x => !state.done?.[x.k]);
+                        if (uncompleted.length === 0) return null;
+                        return (
+                          <div key={g.name}>
+                            <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep mb-1 px-1">
+                              {g.name}
+                            </div>
+                            <ul className="space-y-1">
+                              {uncompleted.map(u => (
+                                <li key={u.k} className="font-serif text-xs text-ink-soft flex items-start gap-1.5 px-1 leading-tight">
+                                  <span className="text-crimson/60 mt-0.5">•</span> <span>{u.label}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })}
+                      {PREP_GROUPS.every(g => g.keys.every(k => state.done?.[k])) && (
+                        <div className="text-center font-serif text-xs italic text-moss p-2">
+                          All standard prep steps are complete!
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </header>
@@ -3396,7 +3446,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             </Phase>
             )}
 
-            {mode === 'plan' && subview === 'world' && (
+            {mode === 'plan' && subview === 'worldbuild' && (
             <Phase n="1" title="Session −1" sub="Collaborative Worldbuilding" methods={['ccd', 'pr']} audience="together" icon={Users} expanded={phaseOpen.p1} onToggle={() => togglePhase('p1')}>
               <BookQuote source="CCD ch. 2">Session −1 is a long creative session in which the group brings ideas to define a setting.</BookQuote>
               <SoloNote>With one player, this becomes a 2-person conversation. Take turns. Hold back on conflict-stage so player gets first authority.</SoloNote>
@@ -3867,7 +3917,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             )}
           </div>
 
-        {mode === 'plan' && subview === 'world' && (
+        {mode === 'plan' && subview === 'worldbuild' && (
           <div className="space-y-3 text-sm">
             <div className="rounded border border-rule bg-parchment p-4 shadow-card">
               <h2 className="font-display text-lg tracking-wide text-ink mb-2">The Three Methodologies</h2>
@@ -3963,9 +4013,24 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 </button>
               </div>
               <div className="space-y-2">
-                {sortedSessionLogs.length === 0 && (
+                {sortedSessionLogs.length === 0 && sessionLogsV2.length === 0 && (
                   <p className="text-sm text-ink-mute italic font-serif">No sessions yet. Click "New Session" to start a log.</p>
                 )}
+                {sessionLogsV2.slice().reverse().map((log: any) => (
+                  <div key={log.id} className="rounded border border-rule bg-parchment p-3 flex items-center justify-between">
+                    <div>
+                      <div className="font-display tracking-wide text-sm text-ink">
+                        {log.title || `Session ${log.number}`}
+                      </div>
+                      <div className="text-[11px] text-ink-mute font-serif">
+                        {log.date}
+                      </div>
+                    </div>
+                    <button onClick={() => router.push(`/campaign/${campaign.id}/recap/${log.id}`)} className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1 bg-brass-deep/10 px-2 py-1 rounded">
+                      View Recap <ArrowRight size={12} />
+                    </button>
+                  </div>
+                ))}
                 {sortedSessionLogs.map((log) => (
                   <div key={log.id} data-cp-anchor={`session:${log.id}`}>
                     <SessionLogCard
@@ -4025,7 +4090,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           </div>
         )}
 
-        {mode === 'plan' && subview === 'world' && (() => {
+        {mode === 'plan' && subview === 'worldbuild' && (() => {
           const downtime = (get('downtime', []) as DowntimeEntry[]) || [];
           const active = downtime.filter(e => !e.archived);
           const archived = downtime.filter(e => !!e.archived);
@@ -4268,32 +4333,6 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             ))}
           />
         )}
-
-        {mode === 'library' && subview === 'names' && (isPro ? (
-          <NamesTab
-            logEntries={logEntriesFor('names')}
-            onLogEntriesChange={setLogEntriesFor('names')}
-            onAddToCampaign={addToCampaignFor('names')}
-          />
-        ) : (
-          <LockedPanel title="Names Generator">
-            Generate culture-rooted first and last names for NPCs, towns, and places — powered by Claude.
-            Mix Western European with Drow, batch fifty at a time, or roll a single random one.
-          </LockedPanel>
-        ))}
-
-        {mode === 'library' && subview === 'locations' && (isPro ? (
-          <LocationsTab
-            logEntries={logEntriesFor('locations')}
-            onLogEntriesChange={setLogEntriesFor('locations')}
-            onAddToCampaign={addToCampaignFor('locations')}
-          />
-        ) : (
-          <LockedPanel title="Locations Generator">
-            Generate evocative location names with type tag, cultural tradition, and a one-line
-            atmospheric blurb — across settlements, wilderness, sites, and planar realms. Powered by Claude.
-          </LockedPanel>
-        ))}
 
         {mode === 'library' && subview === 'monsters' && (
           <MonstersTab
