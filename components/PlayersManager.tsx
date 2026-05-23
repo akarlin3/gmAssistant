@@ -33,11 +33,11 @@ export default function PlayersManager({ campaign }: { campaign: Campaign }) {
 
   return (
     <div className="relative group inline-block">
-      <button className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-parchment-deep">
+      <button className="text-xs font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded bg-moss/10 text-moss hover:bg-moss hover:text-parchment border border-moss/40 shadow-sm">
         <Users size={14} />
-        Players ({playerIds.length})
+        {playerIds.length === 0 ? 'Invite players' : `Players (${playerIds.length})`}
         {pendingPlayers.length > 0 && (
-          <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-crimson text-[10px] text-parchment">
+          <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-crimson text-[10px] text-parchment shadow-sm animate-pulse">
             {pendingPlayers.length}
           </span>
         )}

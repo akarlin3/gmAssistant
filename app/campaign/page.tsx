@@ -10,7 +10,7 @@ import {
   copyCampaign,
   type Campaign,
 } from '@/lib/firebase/campaigns';
-import { Plus, ScrollText, Pin, Archive, ArchiveRestore, Trash2, ChevronDown, ChevronRight, MoreHorizontal, ExternalLink, Copy } from 'lucide-react';
+import { Plus, ScrollText, Pin, Archive, ArchiveRestore, Trash2, ChevronDown, ChevronRight, MoreHorizontal, ExternalLink, Copy, Cloud } from 'lucide-react';
 import { AccountMenu } from '@/components/AccountMenu';
 import { relativeTime } from '@/lib/relativeTime';
 
@@ -296,7 +296,16 @@ export default function CampaignListPage() {
               </div>
               <h1 className="mt-1 font-display text-2xl tracking-wide text-crimson sm:text-3xl">Your Campaigns</h1>
             </div>
-            <AccountMenu />
+            <div className="flex items-center gap-3">
+              <Link
+                href="/account?action=backup"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded border border-rule px-2.5 py-1 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep hover:text-crimson transition-colors"
+                title="Back up all campaigns to Google Drive"
+              >
+                <Cloud size={12} className="text-brass-deep" /> Back up to Drive
+              </Link>
+              <AccountMenu />
+            </div>
           </header>
 
           <button onClick={handleCreate} className="flex w-full items-center justify-center gap-2 rounded border-2 border-dashed border-brass/60 p-5 font-display text-sm uppercase tracking-wider text-brass-deep transition-colors hover:border-crimson hover:bg-parchment hover:text-crimson">

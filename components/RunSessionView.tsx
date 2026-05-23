@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from 'react';
 import {
   ArrowLeft, Flag, Dice5, Sparkles, ChevronDown, ChevronRight, Check,
   Eye, EyeOff, Plus, Swords, NotebookPen, Target, Map, Users, ScrollText,
-  Skull, Gem, Zap, BookOpen, Pin, PinOff, Wand2, Loader2, X,
+  Skull, Gem, Zap, BookOpen, Pin, PinOff, Wand2, Loader2, X, Wrench, ChevronUp, Clock,
 } from 'lucide-react';
 import { TABLES, rollTable } from '@/lib/inspirationTables';
 import InitiativePanel from './InitiativePanel';
@@ -197,6 +197,49 @@ export default function RunSessionView({
     setVal('__sessionSceneDescriptions', next);
   };
 
+  const [longSessionPrompt, setLongSessionPrompt] = useState(false);
+  const [sessionDurationHours, setSessionDurationHours] = useState(0);
+  useEffect(() => {
+    const startedAt = get('__sessionStartedAt', Date.now()) as number;
+    const hours = (Date.now() - startedAt) / (1000 * 60 * 60);
+    setSessionDurationHours(hours);
+    if (hours > 4) {
+      setLongSessionPrompt(true);
+    }
+  }, [get]);
+
+  const [mobileToolsExpanded, setMobileToolsExpanded] = useState(true);
+
+  const toolsContent = (
+    <>
+      <PanelShell title="Initiative" icon={Swords} open={initiativeOpen} onToggle={() => setInitiativeOpen(!initiativeOpen)}>
+        {initiativeOpen ? (
+          <InitiativePanel
+            variant="inline"
+            state={(get('__initiative', null) as InitiativeState | null)}
+            onChange={(next) => setVal('__initiative', next)}
+            monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
+            pcs={characters}
+            onClose={() => setInitiativeOpen(false)}
+            onEnded={(summary) => {
+              pushEvent(makeEvent('other', summary));
+            }}
+          />
+        ) : (
+          <p className="px-1 font-serif text-xs italic text-ink-mute">Tap to expand and track turns, HP, conditions.</p>
+        )}
+      </PanelShell>
+
+      <PanelShell title="Quick Dice" icon={Dice5} open={true} onToggle={() => {}}>
+        <QuickDice />
+      </PanelShell>
+
+      <PanelShell title="Quick Inspire" icon={Sparkles} open={true} onToggle={() => {}}>
+        <QuickInspire campaignContext={campaignContext} />
+      </PanelShell>
+    </>
+  );
+
   return (
     <main className="min-h-screen p-3 pb-32 sm:p-5 md:p-6">
       <div className="mx-auto max-w-7xl space-y-3">
@@ -327,15 +370,15 @@ export default function RunSessionView({
                   {secrets.map((s, i) => {
                     const revealed = !!revSec[i];
                     return (
-                      <li key={i} className={`flex items-start gap-2 rounded border px-2 py-1.5 ${revealed ? 'border-emerald-700/40 bg-emerald-100/30' : 'border-rule bg-parchment'}`}>
+                      <li key={i} className={`flex items-start gap-2 rounded border px-2 py-1.5 ${revealed ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
                         <button
                           onClick={() => setRevSec(i, !revealed, s)}
-                          className="mt-0.5 flex-shrink-0 text-ink-mute hover:text-emerald-700"
+                          className={`mt-0.5 flex size-4 flex-shrink-0 items-center justify-center rounded-sm border ${revealed ? 'border-brass-deep bg-brass text-parchment' : 'border-ink-mute bg-parchment hover:border-brass-deep'}`}
                           title={revealed ? 'Unmark revealed' : 'Mark revealed'}
                         >
-                          {revealed ? <Eye size={14} className="text-emerald-700" /> : <EyeOff size={14} />}
+                          {revealed && <Check size={10} strokeWidth={3} />}
                         </button>
-                        <span className={`font-serif text-sm ${revealed ? 'text-ink-mute' : 'text-ink-soft'}`}>{s}</span>
+                        <span className={`font-serif text-sm ${revealed ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{s}</span>
                       </li>
                     );
                   })}
@@ -507,40 +550,49 @@ export default function RunSessionView({
             )}
           </div>
 
-          <div className="space-y-3 pr-1 lg:sticky lg:top-3 lg:max-h-[calc(100vh-1.5rem)] lg:self-start lg:overflow-y-auto">
-            <PanelShell title="Initiative" icon={Swords} open={initiativeOpen} onToggle={() => setInitiativeOpen(!initiativeOpen)}>
-              {initiativeOpen ? (
-                <InitiativePanel
-                  variant="inline"
-                  state={(get('__initiative', null) as InitiativeState | null)}
-                  onChange={(next) => setVal('__initiative', next)}
-                  monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
-                  pcs={characters}
-                  onClose={() => setInitiativeOpen(false)}
-                  onEnded={(summary) => {
-                    pushEvent(makeEvent('other', summary));
-                  }}
-                />
-              ) : (
-                <p className="px-1 font-serif text-xs italic text-ink-mute">Tap to expand and track turns, HP, conditions.</p>
-              )}
-            </PanelShell>
-
-            <PanelShell title="Quick Dice" icon={Dice5} open={true} onToggle={() => {}}>
-              <QuickDice />
-            </PanelShell>
-
-            <PanelShell title="Quick Inspire" icon={Sparkles} open={true} onToggle={() => {}}>
-              <QuickInspire campaignContext={campaignContext} />
-            </PanelShell>
+          <div className="hidden lg:block space-y-3 pr-1 lg:sticky lg:top-3 lg:max-h-[calc(100vh-1.5rem)] lg:self-start lg:overflow-y-auto">
+            {toolsContent}
           </div>
         </div>
 
         <NoteSeed pushEvent={pushEvent} />
       </div>
 
+      {/* Mobile Tools Drawer */}
+      <div className={`lg:hidden fixed left-0 right-0 z-30 bg-parchment/95 backdrop-blur border-t border-rule shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] transition-transform duration-300 flex flex-col ${mobileToolsExpanded ? 'bottom-[56px] translate-y-0' : 'bottom-[56px] translate-y-full'}`}>
+        <button
+          onClick={() => setMobileToolsExpanded(!mobileToolsExpanded)}
+          className="absolute right-4 -top-8 bg-parchment border border-rule border-b-0 rounded-t px-3 py-1.5 text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-1.5 shadow-[0_-2px_4px_rgba(0,0,0,0.05)]"
+        >
+          <Wrench size={12} /> Tools {mobileToolsExpanded ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+        </button>
+        <div className="max-h-[45vh] overflow-y-auto p-3 space-y-3">
+          {toolsContent}
+        </div>
+      </div>
+
       {statBlockMonster && (
         <MonsterStatBlock monster={statBlockMonster} onClose={() => setStatBlockSlug(null)} />
+      )}
+
+      {longSessionPrompt && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-in fade-in duration-300">
+          <div className="bg-parchment-soft border-2 border-brass-deep/60 px-4 py-3 rounded shadow-lg flex items-start gap-3 w-[90vw] max-w-sm">
+            <Clock size={16} className="text-brass-deep mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="font-display text-xs uppercase tracking-wider text-brass-deep mb-1">Long Session</div>
+              <p className="font-serif text-sm text-ink-soft mb-2">
+                {sessionDurationHours > 12 
+                  ? "You've been in Run Session mode for over 12 hours! You definitely forgot to end the session."
+                  : "You've been in Run Session mode for over 4 hours. Did you forget to end the previous session?"}
+              </p>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setLongSessionPrompt(false)} className="px-2 py-1 text-xs text-ink-mute hover:bg-parchment-deep rounded">Dismiss</button>
+                <button onClick={() => { setLongSessionPrompt(false); onEndSession(); }} className="px-2 py-1 text-xs text-crimson hover:bg-crimson/10 border border-crimson/30 rounded font-display uppercase tracking-wider">End Session</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {toast && (
