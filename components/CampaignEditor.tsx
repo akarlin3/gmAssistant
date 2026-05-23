@@ -69,6 +69,7 @@ import type { PrepWizardRun } from '@/lib/prepWizard';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { buildPatch as buildCampaignPatch, type CampaignDestKey, type SelectableItem } from '@/lib/generators/addToCampaign';
 import { AccountMenu } from './AccountMenu';
+import PlayersManager from './PlayersManager';
 import { LockedInline, LockedPanel } from './LockedFeature';
 import { useConfirm } from '@/components/ConfirmDialog';
 import CommandPalette, { type CommandItem } from './CommandPalette';
@@ -510,7 +511,13 @@ const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) 
     <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
       <div className="flex justify-between gap-2">
         <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
-        <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <label className="flex items-center gap-1 text-[10px] text-ink-soft uppercase font-display tracking-wider cursor-pointer select-none">
+            <input type="checkbox" checked={!!data.isPublic} onChange={(e) => onChange({ ...data, isPublic: e.target.checked })} className="accent-wine" />
+            Public
+          </label>
+          <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div><CardLabel>Type</CardLabel>
@@ -564,7 +571,13 @@ const LocationCard = ({ data, onChange, onRemove }: any) => (
   <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
     <div className="flex justify-between gap-2">
       <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Evocative Name" />
-      <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <label className="flex items-center gap-1 text-[10px] text-ink-soft uppercase font-display tracking-wider cursor-pointer select-none">
+          <input type="checkbox" checked={!!data.isPublic} onChange={(e) => onChange({ ...data, isPublic: e.target.checked })} className="accent-wine" />
+          Public
+        </label>
+        <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+      </div>
     </div>
     <div><CardLabel>Type</CardLabel>
       <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
@@ -3210,6 +3223,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <ArrowLeft size={12} /> All Campaigns
               </button>
               <div className="flex items-center gap-2">
+                <PlayersManager campaign={campaign} />
                 <SyncIndicator />
                 <AccountMenu
                   onExport={exportJSON}
@@ -3393,6 +3407,16 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="facts" title="Setting Facts" methods={['ccd']} done={done.facts} onToggle={toggleDone} open={open.facts} onToggleOpen={toggleOpen}>
                 <Pitfall>Don't pre-load all the secrets. Players still need new ones to discover.</Pitfall>
                 <ListField items={get('facts', [])} onChange={(v) => setVal('facts', v)} placeholder="A fact about the world" rows={2} target={tgt('facts')} />
+              </Section>
+              <Section id="secrets" title="Secrets & Clues" methods={['ccd', 'pr']} done={done.secrets} onToggle={toggleDone} open={open.secrets} onToggleOpen={toggleOpen}>
+                <BookQuote source="PR ch. 5">Secrets are the currency of the game. They shouldn't be gated behind high rolls.</BookQuote>
+                <Pitfall>Secrets without context (like "the duke is actually a lizard") don't drive action. Tie them to character goals.</Pitfall>
+                <TargetBar current={countFilled('secrets', get('secrets', []))} target={tgt('secrets')} source={TARGETS.secrets.source} />
+                <ListField items={get('secrets', [])} onChange={(v) => setVal('secrets', v)} placeholder="A secret someone doesn't want known" rows={2} target={tgt('secrets')} />
+              </Section>
+              <Section id="handouts" title="Handouts / Lore (Public)" methods={[]} done={done.handouts} onToggle={toggleDone} open={open.handouts} onToggleOpen={toggleOpen}>
+                <div className="text-[10px] text-ink-mute uppercase font-display tracking-wider mb-2">Visible to players via invite link</div>
+                <Field value={get('handouts', '')} onChange={(v) => setVal('handouts', v)} placeholder="Notes, rumors, or handouts that players can see..." rows={6} />
               </Section>
               <Section id="factions" title="Factions" methods={['pr', 'ccd']} done={done.factions} onToggle={toggleDone} open={open.factions} onToggleOpen={toggleOpen} icon={Users}>
                 <BookQuote source="PR ch. 2">Think of factions, not individual NPCs, as the GM-controlled counterparts of the party.</BookQuote>

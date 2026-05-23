@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { subscribeToCampaign, type Campaign } from '@/lib/firebase/campaigns';
 import CampaignEditor from '@/components/CampaignEditor';
+import PlayerView from '@/components/PlayerView';
 
 export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -24,7 +25,9 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       id,
       (c) => {
         if (!c) { setError('Campaign not found'); setLoading(false); return; }
-        if (c.userId !== user.uid) { setError('Access denied'); setLoading(false); return; }
+        const isOwner = c.userId === user.uid;
+        const isPlayer = (c.playerIds || []).includes(user.uid);
+        if (!isOwner && !isPlayer) { setError('Access denied. You are not a member of this campaign.'); setLoading(false); return; }
         setCampaign(c);
         setLoading(false);
       },
@@ -73,6 +76,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     );
   }
   if (!campaign || !user) return null;
+
+  const isOwner = campaign.userId === user.uid;
+
+  if (!isOwner) {
+    return <PlayerView campaign={campaign} userEmail={user.email ?? ''} />;
+  }
 
   return <CampaignEditor campaign={campaign} userEmail={user.email ?? ''} isPro={isPro} />;
 }

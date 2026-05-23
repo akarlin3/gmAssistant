@@ -5,14 +5,18 @@ service cloud.firestore {
 
     match /campaigns/{campaignId} {
       allow read: if request.auth != null
-        && resource.data.userId == request.auth.uid;
+        && (resource.data.userId == request.auth.uid || 
+            (resource.data.playerIds != null && request.auth.uid in resource.data.playerIds));
 
       allow create: if request.auth != null
         && request.resource.data.userId == request.auth.uid;
 
       allow update: if request.auth != null
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == request.auth.uid;
+        && (
+          (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid)
+          ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingPlayers', 'updatedAt']))
+        );
 
       allow delete: if request.auth != null
         && resource.data.userId == request.auth.uid;

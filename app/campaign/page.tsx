@@ -25,6 +25,7 @@ type Enriched = {
   lastPlayed: Date | null;
   status: Status;
   sortKey: number;
+  isPlayer: boolean;
 };
 
 const STATUS_STYLE: Record<Status, { border: string; bg: string; text: string; label: string }> = {
@@ -36,10 +37,11 @@ const STATUS_STYLE: Record<Status, { border: string; bg: string; text: string; l
 
 const STATUS_ORDER: Record<Status, number> = { active: 0, hiatus: 1, new: 2, archived: 3 };
 
-function enrich(c: Campaign): Enriched {
+function enrich(c: Campaign, userId?: string): Enriched {
   const data = (c.data ?? {}) as Record<string, any>;
   const pinned = data.__pinned === true;
   const archived = Boolean(c.archivedAt);
+  const isPlayer = userId ? (c.playerIds || []).includes(userId) : false;
 
   const pitch =
     typeof data.pitch === 'string' ? data.pitch.split('\n')[0].trim() : '';
@@ -73,7 +75,7 @@ function enrich(c: Campaign): Enriched {
     status = days < 30 ? 'active' : 'hiatus';
   }
 
-  return { raw: c, pinned, archived, pitch, pcName, lastPlayed, status, sortKey: lastPlayed?.getTime() ?? 0 };
+  return { raw: c, pinned, archived, pitch, pcName, lastPlayed, status, sortKey: lastPlayed?.getTime() ?? 0, isPlayer };
 }
 
 function sortActive(items: Enriched[]): Enriched[] {
@@ -121,7 +123,8 @@ export default function CampaignListPage() {
   }, [menuOpen]);
 
   const { active, archived } = useMemo(() => {
-    const enriched = campaigns.map(enrich);
+    if (!user) return { active: [], archived: [] };
+    const enriched = campaigns.map(c => enrich(c, user.uid));
     return {
       active: sortActive(enriched.filter((e) => !e.archived)),
       archived: enriched
@@ -190,6 +193,11 @@ export default function CampaignListPage() {
             <span className={`rounded-sm border px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider ${sty.border} ${sty.bg} ${sty.text} flex-shrink-0`}>
               {sty.label}
             </span>
+            {e.isPlayer && (
+              <span className="rounded-sm border border-wine/40 bg-wine/10 text-wine px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider flex-shrink-0">
+                Player
+              </span>
+            )}
             {e.pinned && (
               <Pin size={12} className="flex-shrink-0 text-brass-deep" fill="currentColor" />
             )}
