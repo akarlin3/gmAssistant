@@ -50,7 +50,7 @@ export function useCampaignAndWorld(campaignId: string) {
         setWorldLoading(false);
       }
     );
-  }, [campaign?.worldId]); // intentionally depend only on worldId, not the whole campaign object
+  }, [campaign?.id, campaign?.worldId]); // depend on id to know when it loads, and worldId to subscribe
 
   const loading = campaignLoading || worldLoading;
   const error = campaignError || worldError;

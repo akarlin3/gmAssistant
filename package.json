@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start -p ${PORT:-3000} -H 0.0.0.0",
     "lint": "next lint",
-    "test": "npm run test:node && npm run test:vitest", "test:node": "node --import tsx --test lib/generators/__tests__/*.test.ts lib/__tests__/*.test.ts", "test:vitest": "vitest run"
+    "test": "npm run test:node && npm run test:vitest",
+    "test:node": "node --import tsx --test lib/generators/__tests__/*.test.ts lib/__tests__/*.test.ts",
+    "test:vitest": "vitest run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
