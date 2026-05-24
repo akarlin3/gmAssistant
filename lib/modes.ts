@@ -73,8 +73,6 @@ export const MODES: Record<Mode, ModeDef> = {
     emphasis: 'muted',
     subviews: [
       { id: 'generators', label: 'Generators', description: 'Tavern, dungeon, settlement, shops, hoards' },
-      { id: 'names',      label: 'Names',      description: 'AI-generated names' },
-      { id: 'locations',  label: 'Locations',  description: 'AI-generated locations' },
       { id: 'monsters',   label: 'Monsters',   description: 'Homebrew monster builder' },
       { id: 'traps',      label: 'Traps',      description: 'Trap builder' },
       { id: 'vivify',     label: 'Vivify',     description: 'AI prose for prep elements' },
@@ -99,8 +97,8 @@ export const LEGACY_TAB_MAP: Record<string, { mode: Mode; subview: string }> = {
   dice:        { mode: 'run',     subview: 'dice' },
   spells:      { mode: 'run',     subview: 'spells' },
   generators:  { mode: 'library', subview: 'generators' },
-  names:       { mode: 'library', subview: 'names' },
-  locations:   { mode: 'library', subview: 'locations' },
+  names:       { mode: 'library', subview: 'generators' },
+  locations:   { mode: 'library', subview: 'generators' },
   monsters:    { mode: 'library', subview: 'monsters' },
   vivify:      { mode: 'library', subview: 'vivify' },
   traps:       { mode: 'library', subview: 'traps' },
@@ -115,8 +113,8 @@ export const LEGACY_TAB_MAP: Record<string, { mode: Mode; subview: string }> = {
 export const LEGACY_SUBVIEW_REMAP: Record<string, { mode: Mode; subview: string }> = {
   'prep:generate': { mode: 'library', subview: 'generators' },
   'prep:vivify':   { mode: 'library', subview: 'vivify' },
-  'prep:names':    { mode: 'library', subview: 'names' },
-  'prep:locations':{ mode: 'library', subview: 'locations' },
+  'prep:names':    { mode: 'library', subview: 'generators' },
+  'prep:locations':{ mode: 'library', subview: 'generators' },
   'prep:monsters': { mode: 'library', subview: 'monsters' },
   'prep:traps':    { mode: 'library', subview: 'traps' },
 };

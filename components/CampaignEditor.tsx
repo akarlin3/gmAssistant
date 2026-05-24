@@ -3075,8 +3075,8 @@ export default function CampaignEditor({
       'dice': 'Dice',
     };
     const LOG_TO_VIEW: Record<string, { mode: Mode; subview: string }> = {
-      'names':         { mode: 'library', subview: 'names' },
-      'locations':     { mode: 'library', subview: 'locations' },
+      'names':         { mode: 'library', subview: 'generators' },
+      'locations':     { mode: 'library', subview: 'generators' },
       'monster-roll':  { mode: 'library', subview: 'monsters' },
       'monster-scale': { mode: 'library', subview: 'monsters' },
       'dice':          { mode: 'run',     subview: 'dice' },
