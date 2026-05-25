@@ -24,6 +24,7 @@ import SidekickAddPanel from './SidekickAddPanel';
 import type { HomebrewMonster } from './MonstersTab';
 import SummonButton from './SummonButton';
 import SummonModal from './SummonModal';
+import { normalizeItem } from '@/lib/playerMode/types';
 
 const SpellsTab = dynamic(() => import('./SpellsTab'));
 const DMRefTab = dynamic(() => import('./DMRefTab'));
@@ -1277,7 +1278,10 @@ function RunSessionInlineActive({
   const scratchpad = (get('__sessionScratchpad', '') as string) || '';
 
   const monstersList = (get('monsters', []) as string[]) || [];
-  const magicItemsList = (get('items', []) as string[]) || [];
+  const magicItemsList = (get('items', []) as any[]) || [];
+  const normalizedItems = magicItemsList.map((it, i) => normalizeItem(it, i));
+  const playerConfig = (get('player', {}) as any) || {};
+  const roster = playerConfig.roster || [];
   const givenItems = (get('__sessionItemsGiven', []) as string[]) || [];
   const pcGoals = (get('pcGoals', []) as any[]) || [];
   const clocks = (get('clocks', []) as any[]) || [];
@@ -1508,20 +1512,91 @@ function RunSessionInlineActive({
           </ActivePrepGroup>
 
           <ActivePrepGroup title="Magic Items" icon={Gem} count={magicItemsList.length}>
-            {magicItemsList.length === 0 ? <Empty>No magic items prepped.</Empty> : magicItemsList.map((it, i) => {
-              const given = givenItems.includes(it);
-              return (
-                <CompactCard
-                  key={i}
-                  label={it}
-                  status={given ? 'used' : undefined}
-                  action={{
-                    label: given ? 'Unmark' : 'Mark Given',
-                    onClick: () => toggleItemGiven(it),
-                  }}
-                />
-              );
-            })}
+            {normalizedItems.length === 0 ? (
+              <Empty>No magic items prepped.</Empty>
+            ) : (
+              <div className="space-y-2 w-full">
+                {normalizedItems.map((item, i) => {
+                  const isAssigned = !!item.assignedPlayerId;
+                  return (
+                    <div
+                      key={item.id}
+                      className={`p-3 rounded border font-serif text-sm transition-all duration-150 ${
+                        isAssigned
+                          ? 'border-brass/60 bg-brass/10 shadow-sm'
+                          : 'border-rule bg-parchment hover:border-brass/45'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1 space-y-1">
+                          <div className={`font-semibold text-ink ${isAssigned ? 'text-ink-mute' : ''}`}>
+                            {item.name || 'Unnamed Item'}
+                          </div>
+                          {item.description && (
+                            <p className="text-xs text-ink-soft italic whitespace-pre-wrap">
+                              {item.description}
+                            </p>
+                          )}
+
+                          {/* GM Controls inside Session Running panel */}
+                          <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 items-center text-[11px] border-t border-rule/30 pt-2 font-sans">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">
+                                Assigned to:
+                              </span>
+                              <select
+                                value={item.assignedPlayerId || ''}
+                                onChange={(e) => {
+                                  const slotId = e.target.value || undefined;
+                                  const nextItems = [...magicItemsList];
+                                  nextItems[i] = { ...item, assignedPlayerId: slotId };
+                                  setVal('items', nextItems);
+
+                                  if (slotId) {
+                                    const player = roster.find((r: any) => r.slotId === slotId);
+                                    const name = player ? player.displayName : 'Player';
+                                    trackEvent('magic_item_given', `Magic item "${item.name}" assigned to ${name}`);
+                                  } else {
+                                    trackEvent('other', `Magic item "${item.name}" unassigned`);
+                                  }
+                                }}
+                                className="rounded border border-rule bg-parchment px-1.5 py-0.5 text-ink-soft cursor-pointer focus:outline-none"
+                              >
+                                <option value="">Unassigned</option>
+                                {roster.map((r: any) => (
+                                  <option key={r.slotId} value={r.slotId}>{r.displayName}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {isAssigned && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">
+                                  Player sees:
+                                </span>
+                                <select
+                                  value={item.playerVisibility || 'full'}
+                                  onChange={(e) => {
+                                    const vis = e.target.value as 'name-only' | 'full';
+                                    const nextItems = [...magicItemsList];
+                                    nextItems[i] = { ...item, playerVisibility: vis };
+                                    setVal('items', nextItems);
+                                  }}
+                                  className="rounded border border-rule bg-parchment px-1.5 py-0.5 text-ink-soft cursor-pointer focus:outline-none"
+                                >
+                                  <option value="full">Name & Description</option>
+                                  <option value="name-only">Name Only</option>
+                                </select>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </ActivePrepGroup>
 
           <ActivePrepGroup title="PC Goals" icon={Target} count={pcGoals.length}>
@@ -1756,14 +1831,15 @@ function ExpandableCard({
 type LookupKind = 'all' | 'npcs' | 'locations' | 'secrets' | 'factions' | 'items';
 
 function LookupView({
-  npcs, locations, secrets, factions, magicItems, revealedSecrets,
+  npcs, locations, secrets, factions, magicItems, revealedSecrets, roster
 }: {
   npcs: any[];
   locations: any[];
   secrets: string[];
   factions: any[];
-  magicItems: string[];
+  magicItems: any[];
   revealedSecrets: Record<number, boolean>;
+  roster?: any[];
 }) {
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<LookupKind>('all');
@@ -1789,7 +1865,11 @@ function LookupView({
   const filteredFactions = factions.map((f, i) => ({ f, i })).filter(({ f }) =>
     matches(f.name || '') || matches(f.archetype || '') || matches(f.identity || '') || matches(f.area || '')
   );
-  const filteredItems = magicItems.map((m, i) => ({ m, i })).filter(({ m }) => matches(m || ''));
+
+  const normalizedItems = magicItems.map((it, i) => normalizeItem(it, i));
+  const filteredItems = normalizedItems.map((m, i) => ({ m, i })).filter(({ m }) =>
+    matches(m.name || '') || matches(m.description || '')
+  );
 
   const totalCount = filteredNpcs.length + filteredLocs.length + filteredSecrets.length + filteredFactions.length + filteredItems.length;
 
@@ -1909,11 +1989,16 @@ function LookupView({
 
       {showItems && filteredItems.length > 0 && (
         <LookupGroup title="Magic Items" icon={Gift}>
-          {filteredItems.map(({ m, i }) => (
-            <div key={`item-${i}`} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif text-ink-soft">
-              {m}
-            </div>
-          ))}
+          {filteredItems.map(({ m, i }) => {
+            const player = roster?.find(r => r.slotId === m.assignedPlayerId);
+            return (
+              <div key={`item-${i}`} className="px-3 py-2 rounded border border-rule bg-parchment text-sm font-serif text-ink-soft space-y-1 shadow-sm">
+                <div className="font-semibold text-ink">{m.name}</div>
+                {m.description && <div className="text-xs text-ink-soft/80 italic">{m.description}</div>}
+                {player && <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep mt-0.5">Carried by: {player.displayName}</div>}
+              </div>
+            );
+          })}
         </LookupGroup>
       )}
     </div>
@@ -4360,13 +4445,16 @@ export default function CampaignEditor({
         )}
 
         {mode === 'run' && subview === 'lookup' && (() => {
+          const playerConfig = (get('player', {}) as any) || {};
+          const roster = playerConfig.roster || [];
           return <LookupView
             npcs={get('npcs', []) as any[]}
             locations={get('locations', []) as any[]}
             secrets={get('secrets', []) as string[]}
             factions={get('factions', []) as any[]}
-            magicItems={get('items', []) as string[]}
+            magicItems={get('items', []) as any[]}
             revealedSecrets={get('revSec', {}) as Record<number, boolean>}
+            roster={roster}
           />;
         })()}
 

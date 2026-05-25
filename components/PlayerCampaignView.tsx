@@ -5,7 +5,7 @@
 // No edit affordances; mobile-first.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollText, Users, Map, Flag, Clock, BookOpen, UserCircle } from 'lucide-react';
+import { ScrollText, Users, Map, Flag, Clock, BookOpen, UserCircle, Gift } from 'lucide-react';
 import { subscribeSlotProjection } from '@/lib/playerMode/playerClient';
 import type { SlotProjection } from '@/lib/playerMode/types';
 
@@ -88,6 +88,9 @@ export default function PlayerCampaignView({
     }
     if (projection.sessionLog.length > 0) out.push({ id: 'log', label: 'Log', icon: <ScrollText size={15} /> });
     if (projection.handouts) out.push({ id: 'handouts', label: 'Handouts', icon: <BookOpen size={15} /> });
+    if (projection.items && projection.items.length > 0) {
+      out.push({ id: 'items', label: 'My Items', icon: <Gift size={15} /> });
+    }
     return out;
   }, [projection]);
 
@@ -157,6 +160,19 @@ export default function PlayerCampaignView({
               ) : active === 'handouts' ? (
                 <div className="whitespace-pre-wrap rounded border border-rule bg-parchment p-4 font-serif text-sm leading-relaxed text-ink-soft shadow-card">
                   {projection.handouts}
+                </div>
+              ) : active === 'items' ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {projection.items?.map((it) => (
+                    <div key={it.id} className="rounded border border-rule bg-parchment p-3 shadow-card space-y-1.5 font-serif text-sm">
+                      <div className="font-semibold text-ink text-base">{it.name}</div>
+                      {it.description && (
+                        <p className="text-ink-soft whitespace-pre-wrap leading-relaxed">
+                          {it.description}
+                        </p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">

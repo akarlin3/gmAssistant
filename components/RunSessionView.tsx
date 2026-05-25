@@ -20,6 +20,7 @@ import { generatePlotSegues } from '@/lib/generators/plot-segue';
 import { generateQuickInspire } from '@/lib/generators/quick-inspire';
 import { describeScene } from '@/lib/generators/describe-scene';
 import type { CampaignContext, PlotSegueType } from '@/lib/generators/types';
+import { normalizeItem, type PlayerConfig, type CampaignItem } from '@/lib/playerMode/types';
 
 type PinKind = 'scene' | 'npc' | 'location' | 'monster' | 'item';
 type PinRef = { kind: PinKind; key: string };
@@ -160,7 +161,10 @@ export default function RunSessionView({
   const npcs = (get('npcs', []) as any[]) || [];
   const locations = (get('locations', []) as any[]) || [];
   const monstersList = (get('monsters', []) as string[]) || [];
-  const magicItemsList = (get('items', []) as string[]) || [];
+  const magicItemsList = (get('items', []) as any[]) || [];
+  const normalizedItems = magicItemsList.map((it, i) => normalizeItem(it, i));
+  const playerConfig = (get('player', {}) as any) || {};
+  const roster = playerConfig.roster || [];
   const strongStart = ((get('strongStart', '') as string) || '').trim();
 
   const scratchpad = (get('__sessionScratchpad', '') as string) || '';
@@ -345,7 +349,7 @@ export default function RunSessionView({
           npcs={npcs}
           locations={locations}
           monsters={monstersList}
-          items={magicItemsList}
+          items={normalizedItems.map(it => it.name)}
           homebrewMonsters={homebrewMonsters}
           sceneDescriptions={sceneDescriptions}
           onUnpin={togglePin}
@@ -467,25 +471,93 @@ export default function RunSessionView({
             </SectionShell>
 
             <SectionShell id="section-magicItems" title={SECTION_META.magicItems.label} icon={SECTION_META.magicItems.icon} open={section.magicItems} onToggle={() => toggleSection('magicItems')} count={magicItemsList.length}>
-              {magicItemsList.length === 0 ? <Empty>No magic items prepped.</Empty> : (
-                <ul className="space-y-1">
-                  {magicItemsList.map((it, i) => {
-                    const given = givenItems.includes(it);
+              {normalizedItems.length === 0 ? (
+                <Empty>No magic items prepped.</Empty>
+              ) : (
+                <div className="space-y-2">
+                  {normalizedItems.map((item, i) => {
+                    const isAssigned = !!item.assignedPlayerId;
                     return (
-                      <li key={i} className={`flex items-start gap-2 rounded border px-2 py-1.5 ${given ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
-                        <button
-                          onClick={() => toggleItemGiven(it)}
-                          className={`mt-0.5 flex size-4 flex-shrink-0 items-center justify-center rounded-sm border ${given ? 'border-brass-deep bg-brass text-parchment' : 'border-ink-mute bg-parchment hover:border-brass-deep'}`}
-                          title={given ? 'Unmark given' : 'Mark given this session'}
-                        >
-                          {given && <Check size={10} strokeWidth={3} />}
-                        </button>
-                        <span className={`flex-1 font-serif text-sm ${given ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{it}</span>
-                        <PinToggle pinned={isPinned('item', it)} onClick={() => togglePin('item', it)} />
-                      </li>
+                      <div
+                        key={item.id}
+                        className={`p-3 rounded-lg border font-serif text-sm transition-all duration-150 ${
+                          isAssigned
+                            ? 'border-brass/60 bg-brass/10 shadow-sm'
+                            : 'border-rule bg-parchment hover:border-brass/45'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex-1 space-y-1">
+                            <div className="flex justify-between items-start gap-2">
+                              <div className={`font-semibold text-ink ${isAssigned ? 'text-ink-mute' : ''}`}>
+                                {item.name || 'Unnamed Item'}
+                              </div>
+                              <PinToggle pinned={isPinned('item', item.name)} onClick={() => togglePin('item', item.name)} />
+                            </div>
+                            {item.description && (
+                              <p className="text-xs text-ink-soft italic whitespace-pre-wrap">
+                                {item.description}
+                              </p>
+                            )}
+
+                            {/* GM Controls inside Full-Screen Run panel */}
+                            <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 items-center text-[11px] border-t border-rule/30 pt-2 font-sans">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">
+                                  Assigned to:
+                                </span>
+                                <select
+                                  value={item.assignedPlayerId || ''}
+                                  onChange={(e) => {
+                                    const slotId = e.target.value || undefined;
+                                    const nextItems = [...magicItemsList];
+                                    nextItems[i] = { ...item, assignedPlayerId: slotId };
+                                    setVal('items', nextItems);
+
+                                    if (slotId) {
+                                      const player = roster.find((r: any) => r.slotId === slotId);
+                                      const name = player ? player.displayName : 'Player';
+                                      pushEvent(makeEvent('magic_item_given', `Magic item "${item.name}" assigned to ${name}`));
+                                    } else {
+                                      pushEvent(makeEvent('other', `Magic item "${item.name}" unassigned`));
+                                    }
+                                  }}
+                                  className="rounded border border-rule bg-parchment px-1.5 py-0.5 text-ink-soft cursor-pointer focus:outline-none"
+                                >
+                                  <option value="">Unassigned</option>
+                                  {roster.map((r: any) => (
+                                    <option key={r.slotId} value={r.slotId}>{r.displayName}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {isAssigned && (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">
+                                    Player sees:
+                                  </span>
+                                  <select
+                                    value={item.playerVisibility || 'full'}
+                                    onChange={(e) => {
+                                      const vis = e.target.value as 'name-only' | 'full';
+                                      const nextItems = [...magicItemsList];
+                                      nextItems[i] = { ...item, playerVisibility: vis };
+                                      setVal('items', nextItems);
+                                    }}
+                                    className="rounded border border-rule bg-parchment px-1.5 py-0.5 text-ink-soft cursor-pointer focus:outline-none"
+                                  >
+                                    <option value="full">Name & Description</option>
+                                    <option value="name-only">Name Only</option>
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     );
                   })}
-                </ul>
+                </div>
               )}
             </SectionShell>
 

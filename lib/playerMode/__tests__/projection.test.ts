@@ -98,4 +98,46 @@ describe('buildSlotProjection', () => {
     expect(meta.roster).toHaveLength(1);
     expect(meta).not.toHaveProperty('entities');
   });
+
+  it('projects only assigned items to the active slot', () => {
+    const data = seedCampaignData();
+    // Prep 2 items: 1 string (legacy), 1 object assigned to slot-b
+    data.items = [
+      'Flame Tongue (rare) — A fiery blade',
+      {
+        id: 'structured_item_1',
+        name: 'Mithral Chainmail',
+        description: 'Light metal armor',
+        assignedPlayerId: 'slot-b',
+        playerVisibility: 'full'
+      }
+    ];
+
+    const projA = buildSlotProjection(data, 'C', 'slot-a');
+    expect(projA.items).toHaveLength(0); // none assigned to slot-a
+
+    const projB = buildSlotProjection(data, 'C', 'slot-b');
+    expect(projB.items).toHaveLength(1);
+    expect(projB.items![0].name).toBe('Mithral Chainmail');
+    expect(projB.items![0].description).toBe('Light metal armor');
+  });
+
+  it('redacts item description if playerVisibility is set to name-only', () => {
+    const data = seedCampaignData();
+    data.items = [
+      {
+        id: 'structured_item_1',
+        name: 'Mithral Chainmail',
+        description: 'Light metal armor',
+        assignedPlayerId: 'slot-b',
+        playerVisibility: 'name-only'
+      }
+    ];
+
+    const projB = buildSlotProjection(data, 'C', 'slot-b');
+    expect(projB.items).toHaveLength(1);
+    expect(projB.items![0].name).toBe('Mithral Chainmail');
+    expect(projB.items![0]).not.toHaveProperty('description');
+  });
 });
+

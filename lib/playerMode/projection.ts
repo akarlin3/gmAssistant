@@ -6,6 +6,7 @@
 import { resolveVisibility } from './resolveVisibility';
 import {
   PLAYER_ENTITY_TYPES,
+  normalizeItem,
   type EntityVisibility,
   type PlayerConfig,
   type PlayerEntityType,
@@ -113,6 +114,28 @@ export function buildSlotProjection(
     if (visible) sessionLog.push(redactLogEntry(entry));
   }
 
+  // Project assigned items for this slot
+  const projectedItems: Array<{ id: string; name: string; description?: string }> = [];
+  if (Array.isArray(data.items)) {
+    data.items.forEach((it: any, index: number) => {
+      const normalized = normalizeItem(it, index);
+      if (normalized.assignedPlayerId === slotId) {
+        if (normalized.playerVisibility === 'full') {
+          projectedItems.push({
+            id: normalized.id,
+            name: normalized.name,
+            description: normalized.description,
+          });
+        } else {
+          projectedItems.push({
+            id: normalized.id,
+            name: normalized.name,
+          });
+        }
+      }
+    });
+  }
+
   return {
     campaignName,
     tokenVersion: config.tokenVersion,
@@ -121,5 +144,6 @@ export function buildSlotProjection(
     handouts,
     sessionLog,
     updatedAtMs: nowMs,
+    items: projectedItems,
   };
 }

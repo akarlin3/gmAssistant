@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import { type Campaign } from '@/lib/firebase/campaigns';
-import { Users, ScrollText, Map, User, BookOpen, Music, ChevronDown, ChevronRight } from 'lucide-react';
+import { Users, ScrollText, Map, User, BookOpen, Music, ChevronDown, ChevronRight, Gift } from 'lucide-react';
 import CharacterCard from './CharacterCard';
 import { AccountMenu } from './AccountMenu';
 import { MusicPlayer } from './RunSessionView';
+import { normalizeItem } from '@/lib/playerMode/types';
 
 export default function PlayerView({ campaign, userEmail }: { campaign: Campaign, userEmail: string }) {
   const [activeTab, setActiveTab] = useState<'characters' | 'recaps' | 'lore'>('characters');
@@ -17,6 +18,13 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
   const npcs = Array.isArray(campaign.data.npcs) ? campaign.data.npcs.filter(n => n.isPublic) : [];
   const locations = Array.isArray(campaign.data.locations) ? campaign.data.locations.filter(l => l.isPublic) : [];
   const handouts = campaign.data.handouts || '';
+
+  const playerConfig = (campaign.data.player as any) || {};
+  const roster = playerConfig.roster || [];
+  const rawItems = Array.isArray(campaign.data.items) ? campaign.data.items : [];
+  const assignedItems = rawItems
+    .map((it, i) => normalizeItem(it, i))
+    .filter(it => !!it.assignedPlayerId && it.name.trim().length > 0);
 
   // Simple read-only toggle state for character cards
   const [openCharIds, setOpenCharIds] = useState<Record<string, boolean>>({});
@@ -210,6 +218,35 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
                         </ul>
                       </div>
                     ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Magic Items */}
+              {assignedItems.length > 0 && (
+                <section>
+                  <h2 className="font-display text-xl tracking-wide text-brass-deep mb-3 border-b border-rule/60 pb-1 flex items-center gap-2">
+                    <Gift size={18} /> Party Magic Items
+                  </h2>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {assignedItems.map((it: any, i: number) => {
+                      const player = roster.find((r: any) => r.slotId === it.assignedPlayerId);
+                      return (
+                        <div key={it.id || i} className="bg-parchment border border-rule rounded p-3 shadow-card space-y-2">
+                          <div className="font-display text-lg tracking-wide text-ink">{it.name}</div>
+                          {player && (
+                            <div className="text-xs uppercase font-display tracking-wider text-brass-deep">
+                              Carried by: {player.displayName}
+                            </div>
+                          )}
+                          {it.playerVisibility === 'full' && it.description && (
+                            <div className="font-serif text-sm text-ink-soft whitespace-pre-wrap leading-relaxed">
+                              {it.description}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </section>
               )}

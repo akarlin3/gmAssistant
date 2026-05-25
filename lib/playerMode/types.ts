@@ -74,4 +74,35 @@ export type SlotProjection = {
   handouts: string | null;
   sessionLog: Array<Record<string, unknown>>;
   updatedAtMs: number;
+  items?: Array<{ id: string; name: string; description?: string }>;
 };
+
+export type CampaignItem = {
+  id: string;
+  name: string;
+  description?: string;
+  assignedPlayerId?: string; // roster slotId
+  playerVisibility?: 'name-only' | 'full';
+};
+
+export function normalizeItem(it: string | Record<string, any>, index: number): CampaignItem {
+  if (typeof it === 'string') {
+    const parts = it.split(' — ');
+    const name = parts[0] || '';
+    const description = parts.slice(1).join(' — ') || '';
+    return {
+      id: `item_${index}`,
+      name,
+      description,
+      playerVisibility: 'full'
+    };
+  }
+  return {
+    id: it.id || `item_${index}`,
+    name: it.name || '',
+    description: it.description || '',
+    assignedPlayerId: it.assignedPlayerId,
+    playerVisibility: it.playerVisibility || 'full'
+  };
+}
+
