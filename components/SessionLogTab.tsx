@@ -108,7 +108,10 @@ export default function SessionLogTab({ entries, onChange, campaignId }: Props) 
             inCompare={compareIds.includes(entry.id)}
             campaignId={campaignId}
             onToggleOpen={() => setOpenIds(o => ({ ...o, [entry.id]: !o[entry.id] }))}
-            onEdit={() => setEditingId(entry.id)}
+            onEdit={() => {
+              setEditingId(entry.id);
+              setOpenIds(o => ({ ...o, [entry.id]: true }));
+            }}
             onCancelEdit={() => setEditingId(null)}
             onChange={(patch) => updateEntry(entry.id, patch)}
             onSaveEdit={() => setEditingId(null)}
