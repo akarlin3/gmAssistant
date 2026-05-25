@@ -1181,9 +1181,11 @@ function parseYoutubeUrl(urlOrId: string): { playlistId: string | null; videoId:
 export function MusicPlayer({
   playlistUrl,
   onChangePlaylist,
+  readOnly = false,
 }: {
   playlistUrl: string;
-  onChangePlaylist: (v: string) => void;
+  onChangePlaylist?: (v: string) => void;
+  readOnly?: boolean;
 }) {
   const [inputUrl, setInputUrl] = useState(playlistUrl);
   const [error, setError] = useState('');
@@ -1196,6 +1198,7 @@ export function MusicPlayer({
 
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();
+    if (readOnly || !onChangePlaylist) return;
     setError('');
     const { playlistId: pId, videoId: vId } = parseYoutubeUrl(inputUrl);
     if (!pId && !vId) {
@@ -1206,6 +1209,7 @@ export function MusicPlayer({
   };
 
   const handleDisconnect = () => {
+    if (readOnly || !onChangePlaylist) return;
     setInputUrl('');
     onChangePlaylist('');
     setError('');
@@ -1264,18 +1268,28 @@ export function MusicPlayer({
               </div>
               {playlistId ? 'Playlist active' : 'Video active'}
             </div>
-            <button
-              onClick={handleDisconnect}
-              className="font-display text-[10px] uppercase tracking-wider text-crimson hover:text-crimson-soft hover:underline"
-            >
-              Disconnect
-            </button>
+            {!readOnly && (
+              <button
+                onClick={handleDisconnect}
+                className="font-display text-[10px] uppercase tracking-wider text-crimson hover:text-crimson-soft hover:underline"
+              >
+                Disconnect
+              </button>
+            )}
           </div>
         </div>
         <p className="px-1 font-serif text-[10px] italic leading-normal text-ink-mute mt-0.5">
           <strong>Note:</strong> Some official tracks restrict external embedding. If the embedded player displays "Video unavailable", click the button above to play the full list directly in a new tab.
         </p>
       </div>
+    );
+  }
+
+  if (readOnly) {
+    return (
+      <p className="font-serif text-xs italic text-ink-mute text-center py-2">
+        No music is playing.
+      </p>
     );
   }
 

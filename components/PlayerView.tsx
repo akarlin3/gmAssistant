@@ -2,13 +2,16 @@
 
 import React, { useState } from 'react';
 import { type Campaign } from '@/lib/firebase/campaigns';
-import { Users, ScrollText, Map, User, BookOpen } from 'lucide-react';
+import { Users, ScrollText, Map, User, BookOpen, Music, ChevronDown, ChevronRight } from 'lucide-react';
 import CharacterCard from './CharacterCard';
 import { AccountMenu } from './AccountMenu';
+import { MusicPlayer } from './RunSessionView';
 
 export default function PlayerView({ campaign, userEmail }: { campaign: Campaign, userEmail: string }) {
   const [activeTab, setActiveTab] = useState<'characters' | 'recaps' | 'lore'>('characters');
+  const [musicOpen, setMusicOpen] = useState(true);
 
+  const playlistUrl = campaign.data.__sessionPlaylist || '';
   const characters = Array.isArray(campaign.data.characters) ? campaign.data.characters : [];
   const sessionLogs = Array.isArray(campaign.data.sessionLogs) ? campaign.data.sessionLogs : [];
   const npcs = Array.isArray(campaign.data.npcs) ? campaign.data.npcs.filter(n => n.isPublic) : [];
@@ -33,6 +36,43 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
           </div>
           <AccountMenu />
         </header>
+
+        {/* Live Session Music (Pulsing Widget) */}
+        {playlistUrl && (
+          <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-4 space-y-3">
+            <button
+              onClick={() => setMusicOpen(!musicOpen)}
+              className="flex w-full items-center justify-between text-left focus:outline-none"
+            >
+              <div className="flex items-center gap-2">
+                <div className="relative flex items-center justify-center">
+                  <Music className="text-crimson" size={18} />
+                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-crimson opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-crimson"></span>
+                  </span>
+                </div>
+                <div>
+                  <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
+                    Session Ambiance
+                  </div>
+                  <h2 className="font-display text-sm tracking-wide text-ink">Live Music from GM</h2>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] font-serif text-ink-mute italic">
+                  {musicOpen ? 'Hide player' : 'Show player'}
+                </span>
+                {musicOpen ? <ChevronDown size={16} className="text-ink-mute" /> : <ChevronRight size={16} className="text-ink-mute" />}
+              </div>
+            </button>
+            {musicOpen && (
+              <div className="border-t border-rule/60 pt-3">
+                <MusicPlayer playlistUrl={playlistUrl} readOnly={true} />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Navigation */}
         <div className="flex gap-2 border-b border-rule pb-2">
