@@ -10,6 +10,27 @@ import { formatDuration } from '@/lib/sessionLog';
 import type { ChangeEvent, ChangeEventKind } from '@/lib/sessionEvents';
 import { CHANGE_EVENT_LABELS } from '@/lib/sessionEvents';
 
+const getLocalDateString = (ms: number) => {
+  const d = new Date(ms);
+  const YYYY = d.getFullYear();
+  const MM = String(d.getMonth() + 1).padStart(2, '0');
+  const DD = String(d.getDate()).padStart(2, '0');
+  return `${YYYY}-${MM}-${DD}`;
+};
+
+const getLocalTimeString = (ms: number) => {
+  const d = new Date(ms);
+  const HH = String(d.getHours()).padStart(2, '0');
+  const MM = String(d.getMinutes()).padStart(2, '0');
+  return `${HH}:${MM}`;
+};
+
+const parseLocalStart = (dateStr: string, timeStr: string) => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hour, minute] = timeStr.split(':').map(Number);
+  return new Date(year, month - 1, day, hour, minute).getTime();
+};
+
 type Props = {
   entries: SessionLogEntry[];
   onChange: (entries: SessionLogEntry[]) => void;
@@ -218,7 +239,7 @@ function SessionCard({
         <div className="space-y-2 border-t border-rule px-3 pb-3 pt-1">
           {editing ? (
             <div className="space-y-2">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_180px]">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[2fr_1.5fr_1fr_1.2fr]">
                 <label className="space-y-1">
                   <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Title</span>
                   <input
@@ -232,9 +253,71 @@ function SessionCard({
                   <input
                     type="date"
                     value={entry.date}
-                    onChange={(e) => onChange({ date: e.target.value })}
+                    onChange={(e) => {
+                      const newDate = e.target.value;
+                      const durationMs = entry.endedAt - entry.startedAt;
+                      const currentLocalTime = getLocalTimeString(entry.startedAt);
+                      const newStartedAt = parseLocalStart(newDate, currentLocalTime);
+                      onChange({
+                        date: newDate,
+                        startedAt: newStartedAt,
+                        endedAt: newStartedAt + durationMs
+                      });
+                    }}
                     className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink"
                   />
+                </label>
+                <label className="space-y-1">
+                  <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Start Time</span>
+                  <input
+                    type="time"
+                    value={getLocalTimeString(entry.startedAt)}
+                    onChange={(e) => {
+                      const newTime = e.target.value || "00:00";
+                      const durationMs = entry.endedAt - entry.startedAt;
+                      const currentLocalDate = getLocalDateString(entry.startedAt);
+                      const newStartedAt = parseLocalStart(currentLocalDate, newTime);
+                      onChange({
+                        startedAt: newStartedAt,
+                        endedAt: newStartedAt + durationMs
+                      });
+                    }}
+                    className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Duration</span>
+                  <div className="flex items-center gap-1.5 pt-0.5">
+                    <input
+                      type="number"
+                      min={0}
+                      value={Math.floor(Math.max(0, Math.round((entry.endedAt - entry.startedAt) / 60000)) / 60)}
+                      onChange={(e) => {
+                        const currentDur = Math.max(0, Math.round((entry.endedAt - entry.startedAt) / 60000));
+                        const h = parseInt(e.target.value || '0', 10);
+                        const m = currentDur % 60;
+                        const newDurationMs = (h * 60 + m) * 60000;
+                        onChange({ endedAt: entry.startedAt + newDurationMs });
+                      }}
+                      className="w-12 rounded border border-rule bg-parchment-soft px-1 py-0.5 font-serif text-sm text-ink text-center"
+                    />
+                    <span className="text-[11px] font-serif text-ink-mute">h</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={59}
+                      value={Math.max(0, Math.round((entry.endedAt - entry.startedAt) / 60000)) % 60}
+                      onChange={(e) => {
+                        const currentDur = Math.max(0, Math.round((entry.endedAt - entry.startedAt) / 60000));
+                        const h = Math.floor(currentDur / 60);
+                        const m = parseInt(e.target.value || '0', 10);
+                        const newDurationMs = (h * 60 + m) * 60000;
+                        onChange({ endedAt: entry.startedAt + newDurationMs });
+                      }}
+                      className="w-12 rounded border border-rule bg-parchment-soft px-1 py-0.5 font-serif text-sm text-ink text-center"
+                    />
+                    <span className="text-[11px] font-serif text-ink-mute">m</span>
+                  </div>
                 </label>
               </div>
               <label className="block space-y-1">

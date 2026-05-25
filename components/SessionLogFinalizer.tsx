@@ -45,7 +45,22 @@ export default function SessionLogFinalizer({
 }: Props) {
   const initialNumber = useMemo(() => nextSessionNumber(existingEntries), [existingEntries]);
   const [title, setTitle] = useState(`Session ${initialNumber}`);
-  const [date, setDate] = useState(todayISO());
+  const [date, setDate] = useState(() => {
+    const d = new Date(startedAt);
+    const YYYY = d.getFullYear();
+    const MM = String(d.getMonth() + 1).padStart(2, '0');
+    const DD = String(d.getDate()).padStart(2, '0');
+    return `${YYYY}-${MM}-${DD}`;
+  });
+  const [startTime, setStartTime] = useState(() => {
+    const d = new Date(startedAt);
+    const HH = String(d.getHours()).padStart(2, '0');
+    const MM = String(d.getMinutes()).padStart(2, '0');
+    return `${HH}:${MM}`;
+  });
+  const [durationMinutes, setDurationMinutes] = useState(() => {
+    return Math.max(0, Math.round((endedAt - startedAt) / 60000));
+  });
   const [recap, setRecap] = useState(scratchpad || '');
   const [xpText, setXpText] = useState('');
   const [draftEvents, setDraftEvents] = useState<ChangeEvent[]>(events);
@@ -69,14 +84,19 @@ export default function SessionLogFinalizer({
   };
 
   const handleSave = () => {
+    const [year, month, day] = date.split('-').map(Number);
+    const [hour, minute] = startTime.split(':').map(Number);
+    const finalStartedAt = new Date(year, month - 1, day, hour, minute).getTime();
+    const finalEndedAt = finalStartedAt + (durationMinutes * 60000);
+
     const keptEvents = draftEvents.filter(e => !e.dismissed);
     const xpAwardedNum = parseInt(xpText.trim() || '0', 10);
     const entry: SessionLogEntry = {
       id: sessionId,
       number: initialNumber,
       date,
-      startedAt,
-      endedAt,
+      startedAt: finalStartedAt,
+      endedAt: finalEndedAt,
       title: title.trim() || `Session ${initialNumber}`,
       recap,
       xpAwarded: isNaN(xpAwardedNum) || xpAwardedNum === 0 ? undefined : xpAwardedNum,
@@ -104,7 +124,7 @@ export default function SessionLogFinalizer({
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_180px]">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[2fr_1.5fr_1fr_1.2fr]">
             <label className="space-y-1">
               <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Title</span>
               <input
@@ -121,6 +141,45 @@ export default function SessionLogFinalizer({
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink"
               />
+            </label>
+            <label className="space-y-1">
+              <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Start Time</span>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value || "00:00")}
+                className="w-full rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Duration</span>
+              <div className="flex items-center gap-1.5 pt-0.5">
+                <input
+                  type="number"
+                  min={0}
+                  value={Math.floor(durationMinutes / 60)}
+                  onChange={(e) => {
+                    const h = parseInt(e.target.value || '0', 10);
+                    const m = durationMinutes % 60;
+                    setDurationMinutes(h * 60 + m);
+                  }}
+                  className="w-12 rounded border border-rule bg-parchment px-1.5 py-1 font-serif text-sm text-ink text-center"
+                />
+                <span className="text-[11px] font-serif text-ink-mute">h</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={59}
+                  value={durationMinutes % 60}
+                  onChange={(e) => {
+                    const h = Math.floor(durationMinutes / 60);
+                    const m = parseInt(e.target.value || '0', 10);
+                    setDurationMinutes(h * 60 + m);
+                  }}
+                  className="w-12 rounded border border-rule bg-parchment px-1.5 py-1 font-serif text-sm text-ink text-center"
+                />
+                <span className="text-[11px] font-serif text-ink-mute">m</span>
+              </div>
             </label>
           </div>
 
