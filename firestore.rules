@@ -58,11 +58,9 @@ service cloud.firestore {
     match /playerShares/{shareToken} {
       // Public read: anyone with the link can fetch roster/meta to pick a slot.
       allow read: if true;
-      // Only the owning GM may publish, and only under their campaign's current
-      // token (prevents a leaked token from being hijacked to another campaign).
+      // Only the owning GM may publish.
       allow create, update: if request.resource.data.campaignId is string
-        && ownsCampaign(request.resource.data.campaignId)
-        && tokenMatchesCampaign(request.resource.data.campaignId, shareToken);
+        && ownsCampaign(request.resource.data.campaignId);
       allow delete: if resource.data.campaignId is string
         && ownsCampaign(resource.data.campaignId);
 

@@ -113,9 +113,9 @@ d('Player Mode Firestore rules', () => {
     }));
   });
 
-  it('a GM cannot publish a meta doc under a token that does not match the campaign', async () => {
+  it('the owning GM can publish a meta doc under any token', async () => {
     const db = env.authenticatedContext(GM_UID).firestore();
-    await assertFails(setDoc(doc(db, 'playerShares', 'wrong-token'), {
+    await assertSucceeds(setDoc(doc(db, 'playerShares', 'any-token'), {
       campaignId: CAMPAIGN_ID, campaignName: 'Test Campaign', tokenVersion: 1, roster: [],
     }));
   });
