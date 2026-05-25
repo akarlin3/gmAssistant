@@ -75,6 +75,9 @@ import { AccountMenu } from './AccountMenu';
 import PlayersManager from './PlayersManager';
 import { LockedInline, LockedPanel } from './LockedFeature';
 import { useConfirm } from '@/components/ConfirmDialog';
+import PlayerModePanel from './PlayerModePanel';
+import { initPlayerMode } from '@/lib/playerMode/migration';
+import type { PlayerConfig } from '@/lib/playerMode/types';
 import CommandPalette, { type CommandItem } from './CommandPalette';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import {
@@ -2014,7 +2017,7 @@ export default function CampaignEditor({
   const confirmModal = useConfirm();
   const [name, setName] = useState(campaign.name);
   const [initialMigration] = useState(() => migrateSessionLogs(campaign.data || {}));
-  const [state, setState] = useState<Record<string, any>>(() => migrateCharacters(initialMigration.initialState));
+  const [state, setState] = useState<Record<string, any>>(() => initPlayerMode(migrateCharacters(initialMigration.initialState)).data);
   const [done, setDone] = useState<Record<string, boolean>>(campaign.done || {});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [openLogs, setOpenLogs] = useState<Record<string, boolean>>(
@@ -3901,6 +3904,17 @@ export default function CampaignEditor({
                 </div>
               </Section>
             </Phase>
+            )}
+
+            {mode === 'plan' && subview === 'players' && state.player && (
+              <PlayerModePanel
+                campaignId={campaign.id}
+                campaignName={name}
+                data={state}
+                config={state.player as PlayerConfig}
+                onConfigChange={(cfg) => setVal('player', cfg)}
+                confirm={confirmModal}
+              />
             )}
 
             {mode === 'plan' && subview === 'fronts' && (

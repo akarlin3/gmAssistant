@@ -42,6 +42,7 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'worldbuild',  label: 'Worldbuild',      description: 'Session −1 collaborative worldbuilding with players',  audience: 'together' },
       { id: 'pcs',    label: 'Characters', description: 'Session 0 character creation with players',            audience: 'together' },
       { id: 'fronts', label: 'Fronts',     description: 'Faction clocks, audits, threads, ending',              audience: 'solo' },
+      { id: 'players', label: 'Players',   description: 'Share a read-only view with your players',             audience: 'solo' },
     ],
   },
   prep: {
