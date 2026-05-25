@@ -2589,7 +2589,7 @@ export default function CampaignEditor({
     if (nextUp.phaseId === 'p0') { targetMode = 'plan'; targetSubview = 'pitch'; }
     else if (nextUp.phaseId === 'p1') { targetMode = 'plan'; targetSubview = 'worldbuild'; }
     else if (nextUp.phaseId === 'p2') { targetMode = 'plan'; targetSubview = 'pcs'; }
-    else if (nextUp.phaseId === 'p4' || nextUp.phaseId === 'p5' || nextUp.phaseId === 'p6') { targetMode = 'plan'; targetSubview = 'fronts'; }
+    else if (nextUp.phaseId === 'p4' || nextUp.phaseId === 'p5' || nextUp.phaseId === 'p6') { targetMode = 'prep'; targetSubview = 'fronts'; }
     
     setMode(targetMode);
     setSubview(targetSubview);
@@ -2837,17 +2837,17 @@ export default function CampaignEditor({
     }));
   };
 
-  // Each prep section also belongs to a Plan sub-view (Phases 0-2 live there;
-  // Phases 3 is Prep/Flow; Phases 4-6 are Plan/Fronts). Used by the palette
+  // Each prep section also belongs to a Plan/Prep sub-view (Phases 0-2 live under Plan;
+  // Phases 3 is Prep/Flow; Phases 4-6 are Prep/Fronts). Used by the palette
   // and Next-Up jump so we route to the right tab before scrolling.
   const PHASE_TO_VIEW: Record<string, { mode: Mode; subview: string }> = {
     p0: { mode: 'plan', subview: 'pitch' },
     p1: { mode: 'plan', subview: 'worldbuild' },
     p2: { mode: 'plan', subview: 'pcs' },
     p3: { mode: 'prep', subview: 'flow' },
-    p4: { mode: 'plan', subview: 'fronts' },
-    p5: { mode: 'plan', subview: 'fronts' },
-    p6: { mode: 'plan', subview: 'fronts' },
+    p4: { mode: 'prep', subview: 'fronts' },
+    p5: { mode: 'prep', subview: 'fronts' },
+    p6: { mode: 'prep', subview: 'fronts' },
   };
 
   const navigateTo = (target: {
@@ -2974,7 +2974,7 @@ export default function CampaignEditor({
     { mode: 'plan',    subview: 'pitch',     label: 'Premise',     icon: Compass,         keywords: ['hook', 'givens', 'truths'] },
     { mode: 'plan',    subview: 'worldbuild',     label: 'Worldbuild',       icon: BookOpen,        keywords: ['setting', 'factions', 'reference', 'downtime'] },
     { mode: 'plan',    subview: 'pcs',       label: 'Characters',  icon: User,            keywords: ['pc', 'goals', 'sidekick'] },
-    { mode: 'plan',    subview: 'fronts',    label: 'Fronts',      icon: Target,          keywords: ['clocks', 'audits', 'tracking', 'ending', 'secrets revealed'] },
+    { mode: 'prep',    subview: 'fronts',    label: 'Fronts',      icon: Target,          keywords: ['clocks', 'audits', 'tracking', 'ending', 'secrets revealed'] },
     { mode: 'prep',    subview: 'flow',      label: 'Prep Flow',   icon: ScrollText,      keywords: ['lazy dm', '8 step', 'next session'] },
     { mode: 'prep',    subview: 'wizard',    label: 'Prep Wizard', icon: ClipboardList,   keywords: ['guided', 'walkthrough'] },
     { mode: 'run',     subview: 'session',   label: 'Run Session', icon: Swords,          keywords: ['active', 'table'] },
@@ -3165,7 +3165,7 @@ export default function CampaignEditor({
       });
     });
 
-    // PC goals — track progress in the 'track' tab where the goal-progress
+    // PC goals — track progress in the 'fronts' subview under Prep where the goal-progress
     // card lives, but expose the same prep-tab anchor as a sublabel hint.
     const goals = (get('pcGoals', []) as Array<{ text?: string; timeframe?: string; status?: string }>);
     goals.forEach((g, i) => {
@@ -3212,7 +3212,7 @@ export default function CampaignEditor({
         group: 'Faction clocks',
         keywords: [faction],
         icon: Target,
-        run: () => { setPhaseOpen(p => ({ ...p, p4: true })); navigateTo({ mode: 'plan', subview: 'fronts' }); },
+        run: () => { setPhaseOpen(p => ({ ...p, p4: true })); navigateTo({ mode: 'prep', subview: 'fronts' }); },
       });
     });
 
@@ -4061,7 +4061,7 @@ export default function CampaignEditor({
               />
             )}
 
-            {mode === 'plan' && subview === 'fronts' && (
+            {mode === 'prep' && subview === 'fronts' && (
             <>
             <Phase n="4" title="Between Sessions · Faction Clocks" sub="Update Faction Progress" methods={['ccd']} audience="solo" icon={Target} expanded={phaseOpen.p4} onToggle={() => togglePhase('p4')}>
               <BookQuote source="CCD ch. 6">Glance at faction clocks once per session.</BookQuote>
@@ -4223,7 +4223,7 @@ export default function CampaignEditor({
           </div>
         )}
 
-        {mode === 'plan' && subview === 'fronts' && (
+        {mode === 'prep' && subview === 'fronts' && (
           <div className="space-y-3 text-sm">
             <div className="rounded border border-rule bg-parchment p-3 shadow-card">
               <div className="flex items-center justify-between mb-2">

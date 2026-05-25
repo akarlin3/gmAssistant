@@ -41,7 +41,6 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'pitch',  label: 'Premise',    description: 'Hook, givens, and six truths',                         audience: 'solo' },
       { id: 'worldbuild',  label: 'Worldbuild',      description: 'Session −1 collaborative worldbuilding with players',  audience: 'together' },
       { id: 'pcs',    label: 'Characters', description: 'Session 0 character creation with players',            audience: 'together' },
-      { id: 'fronts', label: 'Fronts',     description: 'Faction clocks, audits, threads, ending',              audience: 'solo' },
       { id: 'players', label: 'Players',   description: 'Share a read-only view with your players',             audience: 'solo' },
     ],
   },
@@ -52,6 +51,7 @@ export const MODES: Record<Mode, ModeDef> = {
     subviews: [
       { id: 'flow',   label: 'Flow',   description: 'The 8-step prep checklist' },
       { id: 'wizard', label: 'Wizard', description: 'Guided prep walkthrough' },
+      { id: 'fronts', label: 'Fronts',     description: 'Faction clocks, audits, threads, ending',              audience: 'solo' },
     ],
   },
   run: {
@@ -93,7 +93,7 @@ export const MODE_ORDER: readonly Mode[] = ['plan', 'prep', 'run', 'library'];
 export const LEGACY_TAB_MAP: Record<string, { mode: Mode; subview: string }> = {
   prep:        { mode: 'prep',    subview: 'flow' },
   ref:         { mode: 'plan',    subview: 'worldbuild' },
-  track:       { mode: 'plan',    subview: 'fronts' },
+  track:       { mode: 'prep',    subview: 'fronts' },
   down:        { mode: 'plan',    subview: 'worldbuild' },
   dice:        { mode: 'run',     subview: 'dice' },
   spells:      { mode: 'run',     subview: 'spells' },
