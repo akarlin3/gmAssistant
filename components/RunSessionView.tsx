@@ -1131,15 +1131,51 @@ function NoteSeed({ pushEvent }: { pushEvent: (e: ChangeEvent) => void }) {
   );
 }
 
-function parsePlaylistId(urlOrId: string): string | null {
+function parseYoutubeUrl(urlOrId: string): { playlistId: string | null; videoId: string | null } {
   const trimmed = urlOrId.trim();
-  if (!trimmed) return null;
-  if (/^[a-zA-Z0-9_-]{18,40}$/.test(trimmed)) {
-    return trimmed;
+  if (!trimmed) return { playlistId: null, videoId: null };
+
+  if (/^PL[a-zA-Z0-9_-]{16,38}$/.test(trimmed) || /^[a-zA-Z0-9_-]{18,40}$/.test(trimmed)) {
+    if (trimmed.startsWith('PL')) {
+      return { playlistId: trimmed, videoId: null };
+    }
+    if (trimmed.length === 11) {
+      return { playlistId: null, videoId: trimmed };
+    }
   }
-  const match = trimmed.match(/[&?]list=([a-zA-Z0-9_-]+)/);
-  if (match) return match[1];
-  return null;
+
+  let playlistId: string | null = null;
+  let videoId: string | null = null;
+
+  try {
+    const url = new URL(trimmed);
+    playlistId = url.searchParams.get('list');
+    
+    if (url.pathname === '/watch') {
+      videoId = url.searchParams.get('v');
+    } else if (url.pathname.startsWith('/embed/')) {
+      const parts = url.pathname.split('/');
+      if (parts[2] && parts[2] !== 'videoseries') {
+        videoId = parts[2];
+      }
+    } else {
+      const hostname = url.hostname.toLowerCase();
+      if (hostname === 'youtu.be') {
+        videoId = url.pathname.slice(1);
+      }
+    }
+  } catch (e) {
+    const listMatch = trimmed.match(/[&?]list=([a-zA-Z0-9_-]+)/);
+    if (listMatch) playlistId = listMatch[1];
+
+    const vMatch = trimmed.match(/[&?]v=([a-zA-Z0-9_-]+)/);
+    if (vMatch) videoId = vMatch[1];
+    
+    const shortMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+    if (shortMatch) videoId = shortMatch[1];
+  }
+
+  return { playlistId, videoId };
 }
 
 export function MusicPlayer({
@@ -1156,14 +1192,14 @@ export function MusicPlayer({
     setInputUrl(playlistUrl);
   }, [playlistUrl]);
 
-  const playlistId = parsePlaylistId(playlistUrl);
+  const { playlistId, videoId } = parseYoutubeUrl(playlistUrl);
 
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const id = parsePlaylistId(inputUrl);
-    if (!id) {
-      setError('Invalid YouTube playlist URL or ID. Please enter a valid playlist link.');
+    const { playlistId: pId, videoId: vId } = parseYoutubeUrl(inputUrl);
+    if (!pId && !vId) {
+      setError('Invalid YouTube playlist or video URL. Please enter a valid link.');
       return;
     }
     onChangePlaylist(inputUrl);
@@ -1175,13 +1211,24 @@ export function MusicPlayer({
     setError('');
   };
 
-  if (playlistId) {
+  if (playlistId || videoId) {
+    let embedUrl = '';
+    if (playlistId) {
+      if (videoId) {
+        embedUrl = `https://www.youtube.com/embed/${videoId}?list=${playlistId}&enablejsapi=1`;
+      } else {
+        embedUrl = `https://www.youtube.com/embed/videoseries?list=${playlistId}&enablejsapi=1`;
+      }
+    } else if (videoId) {
+      embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
+    }
+
     return (
       <div className="space-y-3">
         <div className="relative aspect-video w-full overflow-hidden rounded border border-rule bg-ink shadow-sm">
           <iframe
-            src={`https://www.youtube.com/embed/videoseries?list=${playlistId}&enablejsapi=1`}
-            title="YouTube Music Playlist"
+            src={embedUrl}
+            title="YouTube Music Player"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             className="absolute inset-0 h-full w-full border-0"
@@ -1195,7 +1242,7 @@ export function MusicPlayer({
               <span className="w-[2px] bg-crimson rounded-full animate-bounce h-1.5" style={{ animationDelay: '0.2s', animationDuration: '0.5s' }} />
               <span className="w-[2px] bg-crimson rounded-full animate-bounce h-2.5" style={{ animationDelay: '0.4s', animationDuration: '0.7s' }} />
             </div>
-            Playlist active
+            {playlistId ? 'Playlist active' : 'Video active'}
           </div>
           <button
             onClick={handleDisconnect}
@@ -1204,6 +1251,9 @@ export function MusicPlayer({
             Disconnect
           </button>
         </div>
+        <p className="px-1 font-serif text-[10px] italic leading-normal text-ink-mute mt-1">
+          <strong>Tip:</strong> If you see "Video unavailable", ensure the playlist/video is public/unlisted and that the tracks allow embedding (some official music videos restrict third-party playback).
+        </p>
       </div>
     );
   }
@@ -1211,7 +1261,7 @@ export function MusicPlayer({
   return (
     <form onSubmit={handleConnect} className="space-y-2">
       <p className="font-serif text-xs italic text-ink-mute">
-        Enter a YouTube playlist link to play background ambiance or battle tracks during play.
+        Enter a YouTube playlist or video link to play background ambiance or battle tracks during play.
       </p>
       <div className="flex gap-1.5">
         <input
@@ -1221,7 +1271,7 @@ export function MusicPlayer({
             setInputUrl(e.target.value);
             if (error) setError('');
           }}
-          placeholder="Paste YouTube playlist URL or ID..."
+          placeholder="Paste YouTube playlist URL, video, or ID..."
           className="flex-1 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
         />
         <button
