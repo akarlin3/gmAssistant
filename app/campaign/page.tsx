@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/firebase/auth-context';
 import {
-  subscribeToUserCampaigns, createCampaign, updateCampaign,
+  subscribeToUserCampaigns, updateCampaign,
   archiveCampaign, unarchiveCampaign, deleteCampaign,
   copyCampaign,
   type Campaign,
@@ -13,7 +13,9 @@ import {
 import { subscribeToUserWorlds, type World } from '@/lib/firebase/worlds';
 import { Plus, ScrollText, Pin, Archive, ArchiveRestore, Trash2, ChevronDown, ChevronRight, MoreHorizontal, ExternalLink, Copy, Cloud, X } from 'lucide-react';
 import { AccountMenu } from '@/components/AccountMenu';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { relativeTime } from '@/lib/relativeTime';
+import { lastSessionDate, lastOpenedDate } from '@/lib/lastPlayed';
 
 type Status = 'active' | 'hiatus' | 'new' | 'archived';
 
@@ -24,6 +26,7 @@ type Enriched = {
   pitch: string;
   pcName: string | null;
   lastPlayed: Date | null;
+  lastOpened: Date | null;
   status: Status;
   sortKey: number;
   isPlayer: boolean;
@@ -54,17 +57,10 @@ function enrich(c: Campaign, userId?: string): Enriched {
       : null;
 
   const sessionLogs = Array.isArray(data.sessionLogs) ? data.sessionLogs : [];
-  const dates = sessionLogs
-    .map((l: any) => (typeof l?.date === 'string' ? l.date : ''))
-    .filter(Boolean)
-    .sort()
-    .reverse();
-  const lastPlayedISO = dates[0];
-  const lastPlayed = lastPlayedISO
-    ? new Date(lastPlayedISO + 'T12:00:00')
-    : c.updatedAt
-      ? new Date(c.updatedAt.toMillis())
-      : null;
+  // "Last played" reflects actual play only — never `updatedAt` — so opening
+  // or editing a campaign no longer moves the timestamp (B-06).
+  const lastPlayed = lastSessionDate(c);
+  const lastOpened = lastOpenedDate(c);
 
   let status: Status;
   if (archived) status = 'archived';
@@ -76,7 +72,7 @@ function enrich(c: Campaign, userId?: string): Enriched {
     status = days < 30 ? 'active' : 'hiatus';
   }
 
-  return { raw: c, pinned, archived, pitch, pcName, lastPlayed, status, sortKey: lastPlayed?.getTime() ?? 0, isPlayer };
+  return { raw: c, pinned, archived, pitch, pcName, lastPlayed, lastOpened, status, sortKey: lastPlayed?.getTime() ?? 0, isPlayer };
 }
 
 function sortActive(items: Enriched[]): Enriched[] {
@@ -90,6 +86,7 @@ function sortActive(items: Enriched[]): Enriched[] {
 export default function CampaignListPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const confirmDialog = useConfirm();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [worlds, setWorlds] = useState<World[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,29 +139,47 @@ export default function CampaignListPage() {
     };
   }, [campaigns]);
 
-  const handleCreate = async () => {
-    if (!user) return;
-    try {
-      const id = await createCampaign(user.uid, 'Untitled Campaign', selectedWorldId || undefined);
-      router.push(`/campaign/${id}`);
-    } catch (e: any) {
-      setError(e?.message || 'Failed to create campaign');
-    }
+  const handleCreate = () => {
+    // Defer the Firestore write until the user finishes the setup wizard
+    // (B-03). The new-campaign route runs the wizard in-memory and only
+    // creates the doc on completion; closing it writes nothing.
+    setShowCreateModal(false);
+    const qs = selectedWorldId ? `?worldId=${encodeURIComponent(selectedWorldId)}` : '';
+    router.push(`/campaign/new${qs}`);
   };
 
   const handleArchive = async (c: Campaign) => {
-    if (!confirm(`Archive "${c.name}"? It will be hidden from your main list — you can restore it from the Archived section.`)) return;
+    const ok = await confirmDialog({
+      title: 'Archive campaign?',
+      message: `Archive "${c.name}"? It will be hidden from your main list — you can restore it from the Archived section.`,
+      confirmText: 'Archive',
+    });
+    if (!ok) return;
     try { await archiveCampaign(c.id); } catch (e: any) { setError(e?.message || 'Archive failed'); }
   };
   const handleUnarchive = async (c: Campaign) => {
     try { await unarchiveCampaign(c.id); } catch (e: any) { setError(e?.message || 'Unarchive failed'); }
   };
   const handleDelete = async (c: Campaign) => {
-    if (!confirm(`Delete "${c.name}"? This cannot be undone.`)) return;
+    // Use the in-app (non-blocking) confirm dialog rather than window.confirm,
+    // which freezes the renderer under CDP/automation and could stack with the
+    // B-01 index error to make delete appear to hang (B-02).
+    const ok = await confirmDialog({
+      title: 'Delete campaign?',
+      message: `Delete "${c.name}"? This cannot be undone.`,
+      confirmText: 'Delete',
+      isDestructive: true,
+    });
+    if (!ok) return;
     try { await deleteCampaign(c.id); } catch (e: any) { setError(e?.message || 'Delete failed'); }
   };
   const handleCopy = async (c: Campaign) => {
-    if (!confirm(`Create a copy of "${c.name}"?`)) return;
+    const ok = await confirmDialog({
+      title: 'Make a copy?',
+      message: `Create a copy of "${c.name}"?`,
+      confirmText: 'Copy',
+    });
+    if (!ok) return;
     try {
       const id = await copyCampaign(c.id);
       router.push(`/campaign/${id}`);
@@ -221,7 +236,9 @@ export default function CampaignListPage() {
           <div className="ml-6 mt-1 flex flex-wrap items-center gap-2 font-serif text-xs italic text-brass-deep">
             {e.pcName && <span>PC: {e.pcName}</span>}
             {e.pcName && <span className="text-ink-faint">·</span>}
-            <span>Last played: {relativeTime(e.lastPlayed)}</span>
+            <span title={e.lastOpened ? `Last opened: ${relativeTime(e.lastOpened)}` : undefined}>
+              Last played: {relativeTime(e.lastPlayed) || 'never'}
+            </span>
           </div>
         </Link>
 

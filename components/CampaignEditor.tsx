@@ -49,9 +49,10 @@ import type { Trap } from '@/lib/trapTables';
 import InitiativePanel from './InitiativePanel';
 import type { InitiativeState } from '@/lib/initiative';
 import { QuickDice, QuickInspire, PanelShell, SectionShell } from './RunSessionView';
-import { makeWizardPC } from './Session0Wizard';
+import { applySession0Patch } from '@/lib/session0';
 import SessionLogFinalizer from './SessionLogFinalizer';
 import { type ChangeEvent, type ChangeEventKind, makeEvent } from '@/lib/sessionEvents';
+import { markOpened, markSessionPlayed } from '@/lib/lastPlayed';
 
 const ToolsTab = dynamic(() => import('./ToolsTab'));
 const RunSessionView = dynamic(() => import('./RunSessionView'));
@@ -1123,7 +1124,7 @@ function RunSessionInlineIdle({
 
   const startNewSession = (openOverlay: boolean) => {
     const sid = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    setState(s => ({
+    setState(s => markSessionPlayed({
       ...s,
       __activeSessionId: sid,
       __sessionStartedAt: Date.now(),
@@ -2246,6 +2247,18 @@ export default function CampaignEditor({
     return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
   }, [name, state, done, soloMode, saveToDB]);
 
+  // B-06: record "last opened" exactly once per mount. This is distinct from
+  // "last played" (which only moves on session start/end), so viewing a
+  // campaign no longer bumps its "Last played" timestamp. Skip the undo
+  // snapshot so this bookkeeping write never lands on the Cmd+Z stack.
+  const openedMarkedRef = useRef(false);
+  useEffect(() => {
+    if (openedMarkedRef.current) return;
+    openedMarkedRef.current = true;
+    skipNextSnapshotRef.current = true;
+    setState(s => markOpened(s));
+  }, []);
+
   const get = (k: string, fb: any) => state[k] !== undefined ? state[k] : fb;
   const setVal = (k: string, v: any) => setState(s => ({ ...s, [k]: v }));
   const prepTargetOverrides = (state[OVERRIDES_STATE_KEY] as PrepTargetOverrides | undefined) || {};
@@ -3151,7 +3164,7 @@ export default function CampaignEditor({
               delete next.__sessionScratchpad;
               delete next.__sessionUsedScenes;
               next.__runSessionOpen = false;
-              return next;
+              return markSessionPlayed(next);
             });
             
             router.push(`/campaign/${campaign.id}/recap/${sessionId}`);
@@ -3190,7 +3203,7 @@ export default function CampaignEditor({
       next.__sessionChangeEvents = [];
       next.__sessionUsedScenes = [];
       next.__runSessionOpen = true;
-      return next;
+      return markSessionPlayed(next);
     });
   };
 
@@ -3222,59 +3235,7 @@ export default function CampaignEditor({
         onFinish={(patch) => {
           if (patch.name) setName(patch.name);
           if (patch.soloMode !== undefined) setSoloMode(patch.soloMode);
-          setState(s => {
-            const next: Record<string, any> = { ...s, __session0Done: true };
-            if (patch.soloMode !== undefined) next.__soloMode = patch.soloMode;
-            if (patch.pitch) next.pitch = patch.pitch;
-            if (patch.truths && patch.truths.length > 0) {
-              const existing = Array.isArray(s.gWorld) ? (s.gWorld as string[]) : [];
-              next.gWorld = [...existing, ...patch.truths];
-            }
-            if (patch.soloMode) {
-              if (patch.pc) {
-                const existingChars = Array.isArray(s.characters) ? (s.characters as Character[]) : [];
-                next.characters = [...existingChars, makeWizardPC(patch.pc.name, patch.pc.concept)];
-                if (patch.pc.goal) {
-                  const existingGoals = Array.isArray(s.pcGoals) ? (s.pcGoals as any[]) : [];
-                  next.pcGoals = [...existingGoals, { text: patch.pc.goal, timeframe: 'short', success: '', failure: '', linked: '' }];
-                }
-              }
-            } else {
-              if (patch.pcs && patch.pcs.length > 0) {
-                const existingChars = Array.isArray(s.characters) ? (s.characters as Character[]) : [];
-                const newChars = patch.pcs.map(p => {
-                  const char = makeWizardPC(p.name, p.concept || '');
-                  char.player = p.player || '';
-                  return char;
-                });
-                next.characters = [...existingChars, ...newChars];
-
-                const goalsToAdd = patch.pcs.filter(p => p.goal && p.goal.trim()).map(p => ({
-                  text: p.goal!.trim(),
-                  timeframe: 'short',
-                  success: '',
-                  failure: '',
-                  linked: '',
-                }));
-                if (goalsToAdd.length > 0) {
-                  const existingGoals = Array.isArray(s.pcGoals) ? (s.pcGoals as any[]) : [];
-                  next.pcGoals = [...existingGoals, ...goalsToAdd];
-                }
-              }
-            }
-            if (patch.front) {
-              const existingClocks = Array.isArray(s.clocks) ? (s.clocks as any[]) : [];
-              const firstSignNote = patch.front.firstSign ? `First sign: ${patch.front.firstSign}` : '';
-              next.clocks = [...existingClocks, {
-                text: patch.front.goal || '',
-                faction: patch.front.name,
-                max: 6,
-                filled: 0,
-                notes: firstSignNote,
-              }];
-            }
-            return next;
-          });
+          setState(s => applySession0Patch(s, patch));
           setSession0Open(false);
           setMode('plan');
           setSubview('pitch');

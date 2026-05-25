@@ -214,6 +214,8 @@ export default function CommandPalette({
           <input
             ref={inputRef}
             type="text"
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Jump to a tab, NPC, location, session, action…"

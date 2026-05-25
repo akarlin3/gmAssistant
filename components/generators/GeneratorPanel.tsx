@@ -10,7 +10,7 @@
 // Inputs are declared via a config array; the panel renders them, holds
 // their state, and passes the typed values into `generate`.
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Sparkles, Save, Shuffle, RefreshCw, Wand2, Check } from 'lucide-react';
 import { LockedInline } from '@/components/LockedFeature';
 import { useAuth } from '@/lib/firebase/auth-context';
@@ -111,6 +111,11 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
   const [useCampaign, setUseCampaign] = useState(true);
   const [error, setError] = useState('');
   const lastSeedRef = useRef<number | null>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+  // Set when a result lands via Generate/Reroll so the post-render effect knows
+  // to scroll the result into view (B-09). Enhance and saved-log renders leave
+  // it false, so they don't yank the viewport.
+  const scrollPendingRef = useRef(false);
 
   const runGenerate = useCallback((seed?: number) => {
     setError('');
@@ -120,11 +125,20 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
     lastSeedRef.current = rng.seed;
     try {
       const r = generate(deriveInputs<I>(inputs, state), rng);
+      scrollPendingRef.current = true;
       setResult(r);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Generate failed');
     }
   }, [generate, inputs, state]);
+
+  // After a fresh Generate/Reroll commits, bring the result panel into view so
+  // it isn't stranded below the fold on shorter viewports.
+  useEffect(() => {
+    if (!result || !scrollPendingRef.current) return;
+    scrollPendingRef.current = false;
+    resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [result]);
 
   const onReroll = useCallback(() => runGenerate(undefined), [runGenerate]);
 
@@ -246,7 +260,7 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
       </div>
 
       {result && (
-        <div className="space-y-3 rounded border border-rule bg-parchment p-3 shadow-card">
+        <div ref={resultRef} className="space-y-3 rounded border border-rule bg-parchment p-3 shadow-card">
           <div className="flex flex-wrap items-center gap-2">
             {saveToCampaign && (
               <button

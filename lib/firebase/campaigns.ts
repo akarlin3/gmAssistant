@@ -73,6 +73,28 @@ export async function createCampaign(userId: string, name = 'Untitled Campaign',
   return ref.id;
 }
 
+// Create a campaign with initial data in a single write. Used by the New
+// Campaign wizard so the Firestore doc is only created once the user finishes
+// the wizard (B-03) — closing it before then writes nothing.
+export async function createCampaignFromWizard(
+  userId: string,
+  opts: { name: string; data: Record<string, any>; worldId?: string },
+) {
+  const payload: any = {
+    userId,
+    name: opts.name,
+    data: opts.data ?? {},
+    done: {},
+    playerIds: [],
+    pendingPlayers: [],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  if (opts.worldId) payload.worldId = opts.worldId;
+  const ref = await addDoc(campaignsCol(), payload);
+  return ref.id;
+}
+
 export async function updateCampaign(
   campaignId: string,
   patch: { name?: string; data?: Record<string, any>; done?: Record<string, boolean>; worldId?: string; }
