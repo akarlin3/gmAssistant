@@ -31,6 +31,21 @@ let _db: Firestore | null = null;
 export function getFirebaseApp(): FirebaseApp {
   if (_app) return _app;
   
+  // Check for missing runtime environment variables to prevent silent failures and clarify "auth/api-key-not-valid" errors
+  if (typeof window !== 'undefined') {
+    const missingVars = Object.entries(firebaseConfig)
+      .filter(([_, val]) => !val)
+      .map(([key]) => `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`);
+      
+    if (missingVars.length > 0) {
+      console.warn(
+        `[Firebase SDK] Warning: The following environment variables are missing at runtime: \n` +
+        missingVars.map(v => ` - ${v}`).join('\n') +
+        `\n\nIf you recently added these to your .env files, please restart your development server (e.g., stop 'npm run dev' and start it again) to bake them into the client bundle.`
+      );
+    }
+  }
+
   // Use the standard default app to ensure federated Auth (popup/redirects) works correctly
   const existingApp = getApps().find(app => app.name === '[DEFAULT]');
   
