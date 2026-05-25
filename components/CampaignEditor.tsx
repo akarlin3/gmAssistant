@@ -1297,8 +1297,10 @@ function RunSessionInlineActive({
   }, []);
 
   const toggleSceneUsed = (text: string) => {
+    const currentEvents = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
     if (usedScenes.includes(text)) {
       setVal('__sessionUsedScenes', usedScenes.filter(s => s !== text));
+      setVal('__sessionChangeEvents', currentEvents.filter(e => !(e.kind === 'scene_used' && e.summary === `Used scene: ${text}`)));
       return;
     }
     setVal('__sessionUsedScenes', [...usedScenes, text]);
@@ -1308,16 +1310,32 @@ function RunSessionInlineActive({
   const setRevealed = (i: number, value: boolean, text: string) => {
     const next = { ...revSec, [i]: value };
     setVal('revSec', next);
-    if (value && !revSec[i]) trackEvent('secret_revealed', text);
+    const currentEvents = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
+    if (value && !revSec[i]) {
+      trackEvent('secret_revealed', text);
+    } else if (!value && revSec[i]) {
+      setVal('__sessionChangeEvents', currentEvents.filter(e => !(e.kind === 'secret_revealed' && e.summary === text)));
+    }
   };
 
-  const toggleItemGiven = (text: string) => {
+  const toggleItemGiven = (text: string, assignedPlayerId?: string) => {
+    const givenItems = (get('__sessionItemsGiven', []) as string[]) || [];
+    const currentEvents = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
     if (givenItems.includes(text)) {
       setVal('__sessionItemsGiven', givenItems.filter(s => s !== text));
+      setVal('__sessionChangeEvents', currentEvents.filter(e => !(e.kind === 'magic_item_given' && (e.summary === `Magic item given: ${text}` || e.summary.startsWith(`Magic item "${text}"`)))));
       return;
     }
     setVal('__sessionItemsGiven', [...givenItems, text]);
-    trackEvent('magic_item_given', `Magic item given: ${text}`);
+    let summary = `Magic item given: ${text}`;
+    if (assignedPlayerId) {
+      const playerConfig = (get('player', {}) as any) || {};
+      const roster = playerConfig.roster || [];
+      const player = roster.find((r: any) => r.slotId === assignedPlayerId);
+      const name = player ? player.displayName : 'Player';
+      summary = `Magic item "${text}" given to ${name}`;
+    }
+    trackEvent('magic_item_given', summary);
   };
 
   const updateGoalStatus = (i: number, status: string) => {
@@ -1517,79 +1535,100 @@ function RunSessionInlineActive({
             ) : (
               <div className="space-y-2 w-full">
                 {normalizedItems.map((item, i) => {
+                  const isGiven = givenItems.includes(item.name);
                   const isAssigned = !!item.assignedPlayerId;
                   return (
                     <div
                       key={item.id}
-                      className={`p-3 rounded border font-serif text-sm transition-all duration-150 ${
-                        isAssigned
+                      className={`p-3 rounded border font-serif text-sm transition-all duration-150 flex gap-2 items-start ${
+                        isGiven
                           ? 'border-brass/60 bg-brass/10 shadow-sm'
                           : 'border-rule bg-parchment hover:border-brass/45'
                       }`}
                     >
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="flex-1 space-y-1">
-                          <div className={`font-semibold text-ink ${isAssigned ? 'text-ink-mute' : ''}`}>
+                      <button
+                        onClick={() => toggleItemGiven(item.name, item.assignedPlayerId)}
+                        className={`mt-0.5 flex size-4 flex-shrink-0 items-center justify-center rounded-sm border ${
+                          isGiven
+                            ? 'border-brass-deep bg-brass text-parchment'
+                            : 'border-ink-mute bg-parchment hover:border-brass-deep'
+                        }`}
+                        title={isGiven ? 'Unmark item given' : 'Mark item given this session'}
+                      >
+                        {isGiven && <Check size={10} strokeWidth={3} />}
+                      </button>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className={`font-semibold text-ink ${isGiven ? 'text-ink-mute' : ''}`}>
                             {item.name || 'Unnamed Item'}
                           </div>
-                          {item.description && (
-                            <p className="text-xs text-ink-soft italic whitespace-pre-wrap">
-                              {item.description}
-                            </p>
-                          )}
+                        </div>
+                        {item.description && (
+                          <p className="text-xs text-ink-soft italic whitespace-pre-wrap">
+                            {item.description}
+                          </p>
+                        )}
 
-                          {/* GM Controls inside Session Running panel */}
-                          <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 items-center text-[11px] border-t border-rule/30 pt-2 font-sans">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">
-                                Assigned to:
-                              </span>
-                              <select
-                                value={item.assignedPlayerId || ''}
-                                onChange={(e) => {
-                                  const slotId = e.target.value || undefined;
-                                  const nextItems = [...magicItemsList];
-                                  nextItems[i] = { ...item, assignedPlayerId: slotId };
-                                  setVal('items', nextItems);
+                        {/* GM Controls inside Session Running panel */}
+                        <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 items-center text-[11px] border-t border-rule/30 pt-2 font-sans">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">
+                              Assigned to:
+                            </span>
+                            <select
+                              value={item.assignedPlayerId || ''}
+                              onChange={(e) => {
+                                const slotId = e.target.value || undefined;
+                                const nextItems = [...magicItemsList];
+                                nextItems[i] = { ...item, assignedPlayerId: slotId };
+                                setVal('items', nextItems);
 
+                                if (givenItems.includes(item.name)) {
+                                  const currentEvents = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
+                                  let newSummary = `Magic item given: ${item.name}`;
                                   if (slotId) {
                                     const player = roster.find((r: any) => r.slotId === slotId);
                                     const name = player ? player.displayName : 'Player';
-                                    trackEvent('magic_item_given', `Magic item "${item.name}" assigned to ${name}`);
-                                  } else {
-                                    trackEvent('other', `Magic item "${item.name}" unassigned`);
+                                    newSummary = `Magic item "${item.name}" given to ${name}`;
                                   }
+                                  const nextEvents = currentEvents.map(ev => {
+                                    if (ev.kind === 'magic_item_given' && (ev.summary === `Magic item given: ${item.name}` || ev.summary.startsWith(`Magic item "${item.name}"`))) {
+                                      return { ...ev, summary: newSummary };
+                                    }
+                                    return ev;
+                                  });
+                                  setVal('__sessionChangeEvents', nextEvents);
+                                }
+                              }}
+                              className="rounded border border-rule bg-parchment px-1.5 py-0.5 text-ink-soft cursor-pointer focus:outline-none"
+                            >
+                              <option value="">Unassigned</option>
+                              {roster.map((r: any) => (
+                                <option key={r.slotId} value={r.slotId}>{r.displayName}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {isAssigned && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">
+                                Player sees:
+                              </span>
+                              <select
+                                value={item.playerVisibility || 'full'}
+                                onChange={(e) => {
+                                  const vis = e.target.value as 'name-only' | 'full';
+                                  const nextItems = [...magicItemsList];
+                                  nextItems[i] = { ...item, playerVisibility: vis };
+                                  setVal('items', nextItems);
                                 }}
                                 className="rounded border border-rule bg-parchment px-1.5 py-0.5 text-ink-soft cursor-pointer focus:outline-none"
                               >
-                                <option value="">Unassigned</option>
-                                {roster.map((r: any) => (
-                                  <option key={r.slotId} value={r.slotId}>{r.displayName}</option>
-                                ))}
+                                <option value="full">Name & Description</option>
+                                <option value="name-only">Name Only</option>
                               </select>
                             </div>
-
-                            {isAssigned && (
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">
-                                  Player sees:
-                                </span>
-                                <select
-                                  value={item.playerVisibility || 'full'}
-                                  onChange={(e) => {
-                                    const vis = e.target.value as 'name-only' | 'full';
-                                    const nextItems = [...magicItemsList];
-                                    nextItems[i] = { ...item, playerVisibility: vis };
-                                    setVal('items', nextItems);
-                                  }}
-                                  className="rounded border border-rule bg-parchment px-1.5 py-0.5 text-ink-soft cursor-pointer focus:outline-none"
-                                >
-                                  <option value="full">Name & Description</option>
-                                  <option value="name-only">Name Only</option>
-                                </select>
-                              </div>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </div>
                     </div>
