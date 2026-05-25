@@ -11,7 +11,7 @@ import {
 
 describe('lastPlayed (B-06)', () => {
   test('markOpened sets lastOpenedAt but never touches lastSessionAt', () => {
-    const before = { [LAST_SESSION_KEY]: 1000 };
+    const before: Record<string, number> = { [LAST_SESSION_KEY]: 1000 };
     const after = markOpened(before, 5000);
     assert.equal(after[LAST_OPENED_KEY], 5000);
     // The session timestamp is untouched — viewing must not move "Last played".
@@ -28,7 +28,7 @@ describe('lastPlayed (B-06)', () => {
   });
 
   test('markSessionPlayed stamps lastSessionAt', () => {
-    const data = markSessionPlayed({}, 7777);
+    const data = markSessionPlayed({} as Record<string, number>, 7777);
     assert.equal(data[LAST_SESSION_KEY], 7777);
     assert.equal(getLastSessionAt({ data }), 7777);
   });
