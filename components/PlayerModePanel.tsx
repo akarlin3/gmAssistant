@@ -76,7 +76,7 @@ export default function PlayerModePanel({
     [config, data.npcs, data.locations, data.factions, data.characters, data.clocks, data.handouts, data.playerLog],
   );
   useEffect(() => {
-    if (roster.length === 0) return;
+    if (!config?.shareToken) return;
     if (publishTimer.current) clearTimeout(publishTimer.current);
     publishTimer.current = setTimeout(() => { void doPublish(); }, 1500);
     return () => { if (publishTimer.current) clearTimeout(publishTimer.current); };
@@ -343,7 +343,7 @@ export default function PlayerModePanel({
           {publishState === 'error' && <span className="text-crimson">Publish failed — check your connection.</span>}
           {publishState === 'idle' && roster.length === 0 && 'Add a roster slot to start sharing.'}
         </span>
-        <button onClick={() => void doPublish()} disabled={roster.length === 0} className="rounded border border-brass px-3 py-1 font-display uppercase tracking-wider text-brass-deep hover:bg-brass/10 disabled:opacity-40">
+        <button onClick={() => void doPublish()} disabled={!config?.shareToken} className="rounded border border-brass px-3 py-1 font-display uppercase tracking-wider text-brass-deep hover:bg-brass/10 disabled:opacity-40">
           Publish now
         </button>
       </div>
