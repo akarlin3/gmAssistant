@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, X, Sparkles, User, Users, Plus, Trash2 } from 'lucide-react';
-import { emptyCharacter, makeCharacterId, type Character } from '@/lib/character-schema';
+import type { WizardPatch } from '@/lib/session0';
 
 const TRUTH_PLACEHOLDERS = [
   'A terrible power lurks beneath the village.',
@@ -18,16 +18,6 @@ const PITCH_EXAMPLES = [
   'Find the lost city beneath the salt.',
   'Magic is dying — what\'s left is dangerous.',
 ];
-
-type WizardPatch = {
-  name?: string;
-  soloMode?: boolean;
-  pitch?: string;
-  truths?: string[];
-  pc?: { name: string; concept: string; goal: string };
-  pcs?: Array<{ name: string; player?: string; concept?: string; goal?: string }>;
-  front?: { name: string; goal: string; firstSign: string };
-};
 
 export type Session0WizardProps = {
   initialName: string;
@@ -614,15 +604,4 @@ function FinishScreen({
       </button>
     </div>
   );
-}
-
-// Helper used by the parent to materialize a Character object for the PC patch.
-export function makeWizardPC(name: string, concept: string): Character {
-  const base = emptyCharacter();
-  return {
-    ...base,
-    id: makeCharacterId(),
-    name,
-    notes: concept || '',
-  };
 }
