@@ -1196,6 +1196,11 @@ function RunSessionInlineIdle({
   const scenesCount = (get('scenes', []) as string[]).length;
 
   const startNewSession = (openOverlay: boolean) => {
+    if (nextUp) {
+      if (!window.confirm(`You have unfinished prep targets (e.g. ${nextUp.label}). Are you sure you want to start the session anyway?`)) {
+        return;
+      }
+    }
     const sid = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     setState(s => markSessionPlayed({
       ...s,
@@ -2927,11 +2932,6 @@ export default function CampaignEditor({
     characterId?: string;
     anchor?: string;
   }) => {
-    if (target.mode === 'run' && mode !== 'run' && nextUp) {
-      if (!window.confirm(`You have unfinished prep targets (e.g. ${nextUp.label}). Are you sure you want to start the session anyway?`)) {
-        return;
-      }
-    }
     const nextSubview =
       target.subview && isValidSubview(target.mode, target.subview)
         ? target.subview
@@ -2962,11 +2962,6 @@ export default function CampaignEditor({
   const handleModeChange = (m: Mode) => {
     if (!confirmUnsavedNav()) return;
     if (m === mode) return;
-    if (m === 'run' && nextUp) {
-      if (!window.confirm(`You have unfinished prep targets (e.g. ${nextUp.label}). Are you sure you want to start the session anyway?`)) {
-        return;
-      }
-    }
     setMode(m);
     setSubview(defaultSubview(m));
   };
@@ -3423,6 +3418,11 @@ export default function CampaignEditor({
     });
   };
   const startSessionFromPrep = () => {
+    if (nextUp) {
+      if (!window.confirm(`You have unfinished prep targets (e.g. ${nextUp.label}). Are you sure you want to start the session anyway?`)) {
+        return;
+      }
+    }
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     setState(s => {
       const next = { ...s };
@@ -3589,6 +3589,11 @@ export default function CampaignEditor({
                 <button
                   type="button"
                   onClick={() => {
+                    if (nextUp) {
+                      if (!window.confirm(`You have unfinished prep targets (e.g. ${nextUp.label}). Are you sure you want to start the session anyway?`)) {
+                        return;
+                      }
+                    }
                     const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
                     setState(s => ({
                       ...s,
