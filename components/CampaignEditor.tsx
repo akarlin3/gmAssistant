@@ -310,20 +310,42 @@ const ListField = ({
   rowIdFor,
   highlightId,
 }: {
-  items: string[];
-  onChange: (v: string[]) => void;
+  items: (string | any)[];
+  onChange: (v: any[]) => void;
   placeholder: string;
   rows?: number;
   target?: number;
   rowIdFor?: (i: number) => string;
   highlightId?: string | null;
 }) => {
-  const update = (i: number, v: string) => { const next = [...items]; next[i] = v; onChange(next); };
+  const getStringValue = (item: any): string => {
+    if (typeof item === 'string') return item;
+    if (!item) return '';
+    const name = item.name || '';
+    const desc = item.description || '';
+    return desc ? `${name} — ${desc}` : name;
+  };
+
+  const update = (i: number, v: string) => {
+    const next = [...items];
+    const current = next[i];
+    if (current && typeof current === 'object') {
+      const parts = v.split(' — ');
+      next[i] = {
+        ...current,
+        name: parts[0] || '',
+        description: parts.slice(1).join(' — ') || ''
+      };
+    } else {
+      next[i] = v;
+    }
+    onChange(next);
+  };
   const add = () => onChange([...items, '']);
   const remove = (i: number) => onChange(items.filter((_, j) => j !== i));
   // Count only authored rows toward the target — empty rows are scaffolding,
   // not progress.
-  const filled = items.filter(s => s.trim().length > 0).length;
+  const filled = items.filter(s => getStringValue(s).trim().length > 0).length;
   const remaining = Math.max(0, target - filled);
 
   return (
@@ -338,7 +360,7 @@ const ListField = ({
             className={`flex gap-2 items-center transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
           >
             <span className="text-brass-deep font-display text-xs w-5 text-right">{i + 1}.</span>
-            <div className="flex-1"><Field value={item} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} /></div>
+            <div className="flex-1"><Field value={getStringValue(item)} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} /></div>
             <button onClick={() => remove(i)} className="text-ink-mute hover:text-crimson px-1"><X size={14} /></button>
           </div>
         );
@@ -3230,10 +3252,10 @@ export default function CampaignEditor({
       });
     });
 
-    // Magic items live in the Phase 3 / step 8 prep section as a string list.
-    const magicItems = (get('items', []) as string[]);
+    // Magic items live in the Phase 3 / step 8 prep section as a string or object list.
+    const magicItems = (get('items', []) as any[]);
     magicItems.forEach((m, i) => {
-      const text = (m || '').trim();
+      const text = (typeof m === 'string' ? m : m?.name || '').trim();
       if (!text) return;
       items.push({
         id: `magic:${i}`,
