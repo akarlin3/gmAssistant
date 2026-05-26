@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Sparkles, Save, Trash2, Copy, ChevronDown, ChevronRight, X, Send } from 'lucide-react';
 import { getFirebaseAuth } from '@/lib/firebase/client';
-import { TEMPLATES, buildSystemPrompt, type Template } from '@/lib/vivifyContext';
+import { TEMPLATES, type Template } from '@/lib/vivifyContext';
 
 export type VivifyHistoryEntry = {
   id: string;
@@ -54,14 +54,13 @@ export default function VivifyPanel({ data, history, onHistoryChange }: Props) {
       if (!user) throw new Error('Not signed in');
       const idToken = await user.getIdToken();
 
-      const systemPrompt = buildSystemPrompt(template, data);
       const res = await fetch('/api/vivify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ systemPrompt, userMessage: input }),
+        body: JSON.stringify({ templateId: template.id, input, data }),
         signal: controller.signal,
       });
 

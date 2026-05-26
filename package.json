@@ -2,11 +2,17 @@
   "name": "gamemaster-builder",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p ${PORT:-3000} -H 0.0.0.0",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "npm run test:node && npm run test:vitest",
     "test:node": "node --import tsx --test lib/generators/__tests__/*.test.ts lib/__tests__/*.test.ts",
     "test:vitest": "vitest run",
@@ -39,6 +45,7 @@
     "firebase-tools": "^15.18.0",
     "jsdom": "^29.1.1",
     "postcss": "^8.5.15",
+    "prettier": "^3.8.3",
     "tailwindcss": "^3.4.19",
     "tsx": "^4.22.3",
     "typescript": "^5.9.3",

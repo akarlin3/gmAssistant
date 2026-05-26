@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import { readBearerToken, verifyPro } from '@/lib/verify-pro';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { CR_TO_XP } from '@/lib/encounterMath';
 
 export const runtime = 'nodejs';
@@ -180,6 +181,9 @@ export async function POST(req: NextRequest) {
 
   const verified = await verifyPro(idToken);
   if (!verified.ok) return NextResponse.json({ error: verified.message }, { status: verified.status });
+
+  const limited = enforceRateLimit(verified.uid);
+  if (limited) return limited;
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
