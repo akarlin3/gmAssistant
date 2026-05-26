@@ -38,6 +38,7 @@ function isTransient(err: unknown): boolean {
 export async function withRetry<T>(
   operation: () => Promise<T>,
   maxAttempts = 3,
+  baseDelayMs = 300,
 ): Promise<T> {
   let lastError: unknown;
 
@@ -57,7 +58,7 @@ export async function withRetry<T>(
         break;
       }
 
-      const delay = 300 * Math.pow(2, attempt) + Math.random() * 200;
+      const delay = baseDelayMs * Math.pow(2, attempt) + Math.random() * 50;
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
