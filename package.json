@@ -16,6 +16,7 @@
     "test": "npm run test:node && npm run test:vitest",
     "test:node": "node --import tsx --test lib/generators/__tests__/*.test.ts lib/__tests__/*.test.ts",
     "test:vitest": "vitest run",
+    "test:e2e": "playwright test",
     "test:rules": "firebase emulators:exec --only firestore --project player-mode-rules-test \"vitest run lib/playerMode/__tests__/rules.test.ts\""
   },
   "dependencies": {
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",
+    "@playwright/test": "^1.49.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.19.19",

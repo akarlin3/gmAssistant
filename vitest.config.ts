@@ -8,7 +8,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/cypress/**', '**/.{idea,git,cache,output,temp}/**', 'lib/generators/__tests__/*.test.ts', 'lib/__tests__/*.test.ts'], // EXCLUDE node native tests from vitest
+    exclude: ['**/node_modules/**', '**/dist/**', '**/cypress/**', '**/.{idea,git,cache,output,temp}/**', 'lib/generators/__tests__/*.test.ts', 'lib/__tests__/*.test.ts', 'e2e/**'], // EXCLUDE node native tests + Playwright e2e from vitest
   },
   resolve: {
     alias: {
