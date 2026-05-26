@@ -3381,6 +3381,8 @@ export default function CampaignEditor({
             setState(s => ({ ...s, __mode: 'library', __subview: 'generators' }));
           }}
           campaignContext={generatorCampaignContext}
+          campaignId={campaign.id}
+          campaignName={name}
         />
         <SyncPill />
       </>

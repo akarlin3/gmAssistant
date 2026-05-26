@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft, Flag, Dice5, Sparkles, ChevronDown, ChevronRight, Check,
   Eye, EyeOff, Plus, Swords, NotebookPen, Target, Map, Users, ScrollText,
@@ -20,7 +20,9 @@ import { generatePlotSegues } from '@/lib/generators/plot-segue';
 import { generateQuickInspire } from '@/lib/generators/quick-inspire';
 import { describeScene } from '@/lib/generators/describe-scene';
 import type { CampaignContext, PlotSegueType } from '@/lib/generators/types';
-import { normalizeItem, type PlayerConfig, type CampaignItem } from '@/lib/playerMode/types';
+import { normalizeItem, type PlayerConfig, type CampaignItem, type EntityVisibility, type PlayerEntityType } from '@/lib/playerMode/types';
+import { publishProjections } from '@/lib/playerMode/publish';
+import { makeLogEntryId, applyNarrationReveal, type PlayerLogEntry, type Mention } from '@/lib/playerMode/sessionLog';
 
 type PinKind = 'scene' | 'npc' | 'location' | 'monster' | 'item';
 type PinRef = { kind: PinKind; key: string };
@@ -35,9 +37,9 @@ type Props = {
   onEndSession: () => void;
   onExitWithoutEnding: () => void;
   onOpenLibrary: () => void;
-  // Campaign genre/tone/pitch/world/setting facts — passed into AI-backed
-  // Quick Inspire segue rolls so prose fits the campaign.
   campaignContext?: CampaignContext;
+  campaignId?: string;
+  campaignName?: string;
 };
 
 const SECTION_KEYS = [
@@ -58,7 +60,7 @@ const SECTION_META: Record<SectionKey, { label: string; icon: any }> = {
 };
 
 export default function RunSessionView({
-  get, setVal, characters, onEndSession, onExitWithoutEnding, onOpenLibrary, campaignContext,
+  get, setVal, characters, onEndSession, onExitWithoutEnding, onOpenLibrary, campaignContext, campaignId, campaignName,
 }: Props) {
   const [section, setSection] = useState<Record<SectionKey, boolean>>({
     scenes: true, secrets: true, npcs: true, locations: true,
@@ -66,6 +68,93 @@ export default function RunSessionView({
   });
   const [strongStartDone, setStrongStartDone] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  // --- REAL-TIME PLAYER SHARING & AUTO-PUBLISH SYSTEM ---
+  const playerConfig = (get('player', {}) as PlayerConfig) || {};
+  const playerLog = (get('playerLog', []) as PlayerLogEntry[]) || [];
+
+  const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'done' | 'error'>('idle');
+  const publishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const publishSignature = useMemo(
+    () => JSON.stringify({
+      p: playerConfig,
+      n: get('npcs', []),
+      l: get('locations', []),
+      f: get('factions', []),
+      c: get('characters', []),
+      k: get('clocks', []),
+      h: get('handouts', ''),
+      s: playerLog,
+      i: get('items', []),
+    }),
+    [playerConfig, get, playerLog],
+  );
+
+  useEffect(() => {
+    if (!playerConfig?.shareToken || !campaignId) return;
+    if (publishTimer.current) clearTimeout(publishTimer.current);
+    publishTimer.current = setTimeout(() => {
+      void (async () => {
+        setPublishState('publishing');
+        try {
+          const dataToPublish = {
+            player: playerConfig,
+            npcs: get('npcs', []),
+            locations: get('locations', []),
+            factions: get('factions', []),
+            characters: get('characters', []),
+            clocks: get('clocks', []),
+            handouts: get('handouts', ''),
+            playerLog,
+            items: get('items', []),
+          };
+          await publishProjections(campaignId, campaignName || 'Campaign', dataToPublish);
+          setPublishState('done');
+          setTimeout(() => setPublishState('idle'), 2000);
+        } catch (e) {
+          console.error('[RunSessionView] publish failed', e);
+          setPublishState('error');
+        }
+      })();
+    }, 1500);
+    return () => { if (publishTimer.current) clearTimeout(publishTimer.current); };
+  }, [publishSignature, campaignId, campaignName]);
+
+  // Generic helper to post narrative clues/events to the player feed
+  const shareToPlayerLog = (text: string, mentions: Mention[] = []) => {
+    const nextLog = [...playerLog, {
+      id: makeLogEntryId(),
+      text: text.trim(),
+      mentions,
+      visibility: { mode: 'party' },
+      authorRef: 'gm',
+      postedAtMs: Date.now(),
+    }];
+    setVal('playerLog', nextLog);
+
+    if (mentions.length > 0) {
+      const nextConfig = applyNarrationReveal(playerConfig, mentions, { mode: 'party' });
+      setVal('player', nextConfig);
+    }
+    setToast('Shared with players!');
+  };
+
+  // Helper to toggle formal public/private visibility of campaign entities (NPCs, Locations, Clocks)
+  const toggleEntityShare = (type: PlayerEntityType, id: string) => {
+    const ev = { ...(playerConfig.entityVisibility ?? {}) };
+    const bucket = { ...(ev[type] ?? {}) };
+    const curVis = bucket[id];
+    
+    if (curVis && curVis.mode === 'party') {
+      delete bucket[id];
+    } else {
+      bucket[id] = { mode: 'party' };
+    }
+    ev[type] = bucket;
+    setVal('player', { ...playerConfig, entityVisibility: ev });
+    setToast(bucket[id] ? 'Shared with players!' : 'Removed from player view');
+  };
 
   const toggleSection = (k: SectionKey) => setSection(s => ({ ...s, [k]: !s[k] }));
 
@@ -180,7 +269,6 @@ export default function RunSessionView({
   const monstersList = (get('monsters', []) as string[]) || [];
   const magicItemsList = (get('items', []) as any[]) || [];
   const normalizedItems = magicItemsList.map((it, i) => normalizeItem(it, i));
-  const playerConfig = (get('player', {}) as any) || {};
   const roster = playerConfig.roster || [];
   const strongStart = ((get('strongStart', '') as string) || '').trim();
 
@@ -297,6 +385,37 @@ export default function RunSessionView({
             <span className="font-serif text-xs italic text-ink-mute">
               Started {new Date(get('__sessionStartedAt', Date.now()) as number).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
+            {playerConfig?.shareToken && (
+              <div className="flex items-center gap-1.5 rounded-full border border-rule/50 bg-parchment px-2.5 py-0.5 text-[10px] font-display uppercase tracking-wider shadow-sm select-none">
+                {publishState === 'publishing' ? (
+                  <>
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brass opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-brass-deep"></span>
+                    </span>
+                    <span className="text-brass-deep font-semibold">Syncing...</span>
+                  </>
+                ) : publishState === 'error' ? (
+                  <>
+                    <span className="h-2 w-2 rounded-full bg-crimson"></span>
+                    <span className="text-crimson font-semibold">Sync Error</span>
+                  </>
+                ) : publishState === 'done' ? (
+                  <>
+                    <span className="h-2 w-2 rounded-full bg-moss"></span>
+                    <span className="text-moss font-semibold">Synced</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-moss opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-moss"></span>
+                    </span>
+                    <span className="text-moss font-semibold">Live Sharing</span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
           <button
             onClick={onEndSession}
@@ -327,38 +446,59 @@ export default function RunSessionView({
           })}
         </div>
 
-        {strongStart && (
-          <section className="rounded border-2 border-crimson/50 bg-crimson/5 p-3 shadow-card sm:p-4">
-            <div className="mb-1.5 flex items-start gap-2">
-              <Zap size={16} className="mt-0.5 flex-shrink-0 text-crimson" />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-baseline justify-between gap-3">
-                  <h2 className="font-display text-sm uppercase tracking-wide text-crimson sm:text-base">
-                    Strong Start
-                  </h2>
-                  <button
-                    onClick={() => {
-                      const next = !strongStartDone;
-                      setStrongStartDone(next);
-                      if (next) pushEvent(makeEvent('other', 'Strong start delivered'));
-                    }}
-                    className={`flex items-center gap-1 rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
-                      strongStartDone
-                        ? 'border-brass-deep bg-brass text-parchment'
-                        : 'border-brass-deep/60 text-brass-deep hover:bg-brass/10'
-                    }`}
-                  >
-                    {strongStartDone && <Check size={10} strokeWidth={3} />}
-                    {strongStartDone ? 'Delivered' : 'Mark Delivered'}
-                  </button>
+        {strongStart && (() => {
+          const isShared = playerLog.some(e => e.text.includes(strongStart));
+          return (
+            <section className="rounded border-2 border-crimson/50 bg-crimson/5 p-3 shadow-card sm:p-4">
+              <div className="mb-1.5 flex items-start gap-2">
+                <Zap size={16} className="mt-0.5 flex-shrink-0 text-crimson" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-3">
+                    <h2 className="font-display text-sm uppercase tracking-wide text-crimson sm:text-base">
+                      Strong Start
+                    </h2>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          if (isShared) return;
+                          shareToPlayerLog(`Story Intro: ${strongStart}`);
+                        }}
+                        disabled={isShared}
+                        className={`flex items-center gap-1 rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+                          isShared
+                            ? 'border-moss bg-moss/10 text-moss cursor-default'
+                            : 'border-brass-deep/60 text-brass-deep hover:bg-brass/10'
+                        }`}
+                        title={isShared ? 'Shared with Players' : 'Share with Players'}
+                      >
+                        <Eye size={10} />
+                        {isShared ? 'Shared' : 'Share'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          const next = !strongStartDone;
+                          setStrongStartDone(next);
+                          if (next) pushEvent(makeEvent('other', 'Strong start delivered'));
+                        }}
+                        className={`flex items-center gap-1 rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
+                          strongStartDone
+                            ? 'border-brass-deep bg-brass text-parchment'
+                            : 'border-brass-deep/60 text-brass-deep hover:bg-brass/10'
+                        }`}
+                      >
+                        {strongStartDone && <Check size={10} strokeWidth={3} />}
+                        {strongStartDone ? 'Delivered' : 'Mark Delivered'}
+                      </button>
+                    </div>
+                  </div>
+                  <p className={`mt-1 whitespace-pre-wrap font-serif text-sm text-ink-soft sm:text-base ${strongStartDone ? 'italic opacity-60' : ''}`}>
+                    {strongStart}
+                  </p>
                 </div>
-                <p className={`mt-1 whitespace-pre-wrap font-serif text-sm text-ink-soft sm:text-base ${strongStartDone ? 'italic opacity-60' : ''}`}>
-                  {strongStart}
-                </p>
               </div>
-            </div>
-          </section>
-        )}
+            </section>
+          );
+        })()}
 
         <StageBar
           pinned={pinned}
@@ -378,20 +518,26 @@ export default function RunSessionView({
             <SectionShell id="section-scenes" title={SECTION_META.scenes.label} icon={SECTION_META.scenes.icon} open={section.scenes} onToggle={() => toggleSection('scenes')} count={scenes.length}>
               {scenes.length === 0 ? <Empty>No scenes prepped.</Empty> : (
                 <ul className="space-y-1">
-                  {scenes.map((s, i) => (
-                    <SceneRow
-                      key={i}
-                      text={s}
-                      used={usedScenes.includes(s)}
-                      pinned={isPinned('scene', s)}
-                      description={sceneDescriptions[s] || ''}
-                      onToggleUsed={() => toggleSceneUsed(s)}
-                      onTogglePin={() => togglePin('scene', s)}
-                      onDescribed={(desc) => setSceneDescription(s, desc)}
-                      onClearDescription={() => clearSceneDescription(s)}
-                      campaignContext={campaignContext}
-                    />
-                  ))}
+                  {scenes.map((s, i) => {
+                    const desc = sceneDescriptions[s] || '';
+                    const isShared = desc && playerLog.some(entry => entry.text.includes(desc));
+                    return (
+                      <SceneRow
+                        key={i}
+                        text={s}
+                        used={usedScenes.includes(s)}
+                        pinned={isPinned('scene', s)}
+                        description={desc}
+                        onToggleUsed={() => toggleSceneUsed(s)}
+                        onTogglePin={() => togglePin('scene', s)}
+                        onDescribed={(desc) => setSceneDescription(s, desc)}
+                        onClearDescription={() => clearSceneDescription(s)}
+                        campaignContext={campaignContext}
+                        shared={!!isShared}
+                        onShare={() => shareToPlayerLog(`Scene: ${s}\n\n${desc}`)}
+                      />
+                    );
+                  })}
                 </ul>
               )}
             </SectionShell>
@@ -401,6 +547,7 @@ export default function RunSessionView({
                 <ul className="space-y-1">
                   {secrets.map((s, i) => {
                     const revealed = !!revSec[i];
+                    const isShared = playerLog.some(entry => entry.text.includes(s));
                     return (
                       <li key={i} className={`flex items-start gap-2 rounded border px-2 py-1.5 ${revealed ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
                         <button
@@ -409,6 +556,17 @@ export default function RunSessionView({
                           title={revealed ? 'Unmark revealed' : 'Mark revealed'}
                         >
                           {revealed && <Check size={10} strokeWidth={3} />}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (isShared) return;
+                            shareToPlayerLog(`Clue: ${s}`);
+                          }}
+                          disabled={isShared}
+                          className={`mt-0.5 p-0.5 transition-colors ${isShared ? 'text-moss cursor-default' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10 rounded'}`}
+                          title={isShared ? 'Shared with Players' : 'Share with Players'}
+                        >
+                          <Eye size={12} />
                         </button>
                         <span className={`font-serif text-sm ${revealed ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{s}</span>
                       </li>
@@ -423,12 +581,15 @@ export default function RunSessionView({
                 <ul className="space-y-1.5">
                   {npcs.map((n: any, i: number) => {
                     const key = n.name || `__npc_${i}`;
+                    const isShared = playerConfig.entityVisibility?.npcs?.[n.id]?.mode === 'party';
                     return (
                       <NPCRow
                         key={i}
                         npc={n}
                         pinned={isPinned('npc', key)}
                         onTogglePin={() => togglePin('npc', key)}
+                        shared={isShared}
+                        onToggleShare={() => toggleEntityShare('npcs', n.id)}
                       />
                     );
                   })}
@@ -442,9 +603,17 @@ export default function RunSessionView({
                   {locations.map((l: any, i: number) => {
                     const key = l.name || `__loc_${i}`;
                     const pin = isPinned('location', key);
+                    const isShared = playerConfig.entityVisibility?.locations?.[l.id]?.mode === 'party';
                     return (
                       <li key={i} className="flex items-start gap-2 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
                         <PinToggle pinned={pin} onClick={() => togglePin('location', key)} />
+                        <button
+                          onClick={() => toggleEntityShare('locations', l.id)}
+                          className={`mt-0.5 p-1 transition-colors ${isShared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10'}`}
+                          title={isShared ? 'Shared with Players (Click to hide)' : 'Share with Players'}
+                        >
+                          {isShared ? <Eye size={12} /> : <EyeOff size={12} />}
+                        </button>
                         <div className="min-w-0 flex-1">
                           <div className="text-ink">{l.name || `Location ${i + 1}`}</div>
                           {l.type && <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{l.type}</div>}
@@ -467,9 +636,21 @@ export default function RunSessionView({
                   {monstersList.map((m, i) => {
                     const hb = homebrewMonsters.find(h => h.name === m);
                     const key = hb ? hb.slug : m;
+                    const isShared = playerLog.some(entry => entry.text.includes(`Encountered: ${m}`));
                     return (
                       <li key={i} className="flex items-center gap-2 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink-soft">
                         <PinToggle pinned={isPinned('monster', key)} onClick={() => togglePin('monster', key)} />
+                        <button
+                          onClick={() => {
+                            if (isShared) return;
+                            shareToPlayerLog(`Encountered: ${m}${hb?.challenge_rating ? ` — CR ${hb.challenge_rating}` : ''}`);
+                          }}
+                          disabled={isShared}
+                          className={`p-1 transition-colors ${isShared ? 'text-moss cursor-default' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10 rounded'}`}
+                          title={isShared ? 'Shared with Players' : 'Share with Players'}
+                        >
+                          <Eye size={12} />
+                        </button>
                         <span className="flex-1 truncate">{m}</span>
                         {hb && (
                           <button
@@ -495,6 +676,7 @@ export default function RunSessionView({
                   {normalizedItems.map((item, i) => {
                     const isGiven = givenItems.includes(item.name);
                     const isAssigned = !!item.assignedPlayerId;
+                    const isShared = playerLog.some(entry => entry.text.includes(`Found Item: ${item.name}`));
                     return (
                       <div
                         key={item.id}
@@ -520,7 +702,20 @@ export default function RunSessionView({
                             <div className={`font-semibold text-ink ${isGiven ? 'text-ink-mute' : ''}`}>
                               {item.name || 'Unnamed Item'}
                             </div>
-                            <PinToggle pinned={isPinned('item', item.name)} onClick={() => togglePin('item', item.name)} />
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  if (isShared) return;
+                                  shareToPlayerLog(`Found Item: ${item.name}${item.description ? ` — ${item.description}` : ''}`);
+                                }}
+                                disabled={isShared}
+                                className={`p-1 transition-colors ${isShared ? 'text-moss cursor-default' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10 rounded'}`}
+                                title={isShared ? 'Shared with Party Feed' : 'Share with Party Feed'}
+                              >
+                                <Eye size={12} />
+                              </button>
+                              <PinToggle pinned={isPinned('item', item.name)} onClick={() => togglePin('item', item.name)} />
+                            </div>
                           </div>
                           {item.description && (
                             <p className="text-xs text-ink-soft italic whitespace-pre-wrap">
@@ -600,9 +795,24 @@ export default function RunSessionView({
             <SectionShell id="section-goals" title={SECTION_META.goals.label} icon={SECTION_META.goals.icon} open={section.goals} onToggle={() => toggleSection('goals')} count={pcGoals.length}>
               {pcGoals.length === 0 ? <Empty>No PC goals prepped.</Empty> : (
                 <ul className="space-y-1.5">
-                  {pcGoals.map((g: any, i: number) => (
-                    <li key={i} className="rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
-                      <div className="text-ink-soft">{g.text || `Goal ${i + 1}`}</div>
+                  {pcGoals.map((g: any, i: number) => {
+                    const isShared = g.text && playerLog.some(entry => entry.text.includes(g.text));
+                    return (
+                      <li key={i} className="rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="text-ink-soft">{g.text || `Goal ${i + 1}`}</div>
+                          <button
+                            onClick={() => {
+                              if (isShared) return;
+                              shareToPlayerLog(`Quest Update: "${g.text}" is currently ${g.status || 'Active'}.`);
+                            }}
+                            disabled={isShared}
+                            className={`p-1 transition-colors ${isShared ? 'text-moss cursor-default' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10 rounded'}`}
+                            title={isShared ? 'Shared with Players' : 'Share with Players'}
+                          >
+                            <Eye size={12} />
+                          </button>
+                        </div>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {['Active', 'Progressed', 'Completed', 'Failed'].map(s => (
                           <button
@@ -615,7 +825,8 @@ export default function RunSessionView({
                         ))}
                       </div>
                     </li>
-                  ))}
+                  );
+                  })}
                 </ul>
               )}
             </SectionShell>
@@ -626,11 +837,21 @@ export default function RunSessionView({
                   {clocks.map((c: any, i: number) => {
                     const max = c.max || 6;
                     const filled = c.filled || 0;
+                    const isShared = playerConfig.entityVisibility?.clocks?.[c.id]?.mode === 'party';
                     return (
                       <li key={i} className="space-y-1 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-ink">{c.text || `Clock ${i + 1}`}</span>
-                          <span className="font-display text-[11px] text-brass-deep">{filled}/{max}</span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => toggleEntityShare('clocks', c.id)}
+                              className={`p-1 transition-colors ${isShared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10'}`}
+                              title={isShared ? 'Shared with Players (Click to hide)' : 'Share with Players'}
+                            >
+                              {isShared ? <Eye size={12} /> : <EyeOff size={12} />}
+                            </button>
+                            <span className="font-display text-[11px] text-brass-deep">{filled}/{max}</span>
+                          </div>
                         </div>
                         {c.faction && <div className="text-[10px] italic text-ink-mute">{c.faction}</div>}
                         <div className="flex gap-0.5">
@@ -778,7 +999,15 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <p className="font-serif text-xs italic text-ink-mute">{children}</p>;
 }
 
-function NPCRow({ npc, pinned, onTogglePin }: { npc: any; pinned: boolean; onTogglePin: () => void }) {
+function NPCRow({
+  npc, pinned, onTogglePin, shared, onToggleShare,
+}: {
+  npc: any;
+  pinned: boolean;
+  onTogglePin: () => void;
+  shared: boolean;
+  onToggleShare: () => void;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <li className="rounded border border-rule bg-parchment font-serif text-sm">
@@ -787,6 +1016,13 @@ function NPCRow({ npc, pinned, onTogglePin }: { npc: any; pinned: boolean; onTog
           {open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />}
           <span className="flex-1 truncate text-ink">{npc.name || 'Unnamed NPC'}</span>
           {npc.type && <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">{npc.type}</span>}
+        </button>
+        <button
+          onClick={onToggleShare}
+          className={`p-1 transition-colors ${shared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10'}`}
+          title={shared ? 'Shared with Players (Click to hide)' : 'Share with Players'}
+        >
+          {shared ? <Eye size={12} /> : <EyeOff size={12} />}
         </button>
         <div className="pr-2"><PinToggle pinned={pinned} onClick={onTogglePin} /></div>
       </div>
@@ -818,7 +1054,7 @@ function PinToggle({ pinned, onClick }: { pinned: boolean; onClick: () => void }
 }
 
 function SceneRow({
-  text, used, pinned, description, onToggleUsed, onTogglePin, onDescribed, onClearDescription, campaignContext,
+  text, used, pinned, description, onToggleUsed, onTogglePin, onDescribed, onClearDescription, campaignContext, shared, onShare,
 }: {
   text: string;
   used: boolean;
@@ -829,6 +1065,8 @@ function SceneRow({
   onDescribed: (d: string) => void;
   onClearDescription: () => void;
   campaignContext?: CampaignContext;
+  shared: boolean;
+  onShare: () => void;
 }) {
   const { isPro } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -882,13 +1120,28 @@ function SceneRow({
         <div className="border-t border-rule/60 bg-parchment-soft px-2 py-1.5">
           <div className="mb-0.5 flex items-center justify-between gap-2">
             <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">Read-aloud</span>
-            <button
-              onClick={onClearDescription}
-              className="text-ink-mute hover:text-crimson"
-              title="Clear description"
-            >
-              <X size={10} />
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={onShare}
+                disabled={shared}
+                className={`flex items-center gap-1 rounded px-1.5 py-0.5 font-display text-[9px] uppercase tracking-wider transition-colors ${
+                  shared
+                    ? 'bg-moss/10 text-moss cursor-default font-semibold'
+                    : 'bg-brass/20 text-brass-deep hover:bg-brass hover:text-parchment font-semibold'
+                }`}
+                title={shared ? 'Shared with Players' : 'Share with Players'}
+              >
+                <Eye size={10} />
+                {shared ? 'Shared' : 'Share'}
+              </button>
+              <button
+                onClick={onClearDescription}
+                className="text-ink-mute hover:text-crimson"
+                title="Clear description"
+              >
+                <X size={10} />
+              </button>
+            </div>
           </div>
           <p className="whitespace-pre-wrap font-serif text-[12px] italic text-ink-soft">{description}</p>
         </div>
