@@ -11,7 +11,7 @@ import {
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy, Clock,
   Download, Upload, ScrollText, ArrowLeft, ArrowRight, Cloud, CloudOff,
   FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench, SlidersHorizontal, Copy,
-  Compass, NotebookPen, Zap, Gem, Globe, Music,
+  Compass, NotebookPen, Zap, Gem, Globe, Music, Eye, EyeOff,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo, parseLevelFromClassLevel } from '@/lib/encounterMath';
@@ -310,6 +310,8 @@ const ListField = ({
   target = 0,
   rowIdFor,
   highlightId,
+  isShared,
+  onToggleShare,
 }: {
   items: (string | any)[];
   onChange: (v: any[]) => void;
@@ -318,6 +320,8 @@ const ListField = ({
   target?: number;
   rowIdFor?: (i: number) => string;
   highlightId?: string | null;
+  isShared?: (i: number) => boolean;
+  onToggleShare?: (i: number) => void;
 }) => {
   const getStringValue = (item: any): string => {
     if (typeof item === 'string') return item;
@@ -354,14 +358,33 @@ const ListField = ({
       {items.map((item, i) => {
         const rid = rowIdFor ? rowIdFor(i) : undefined;
         const highlighted = !!rid && highlightId === rid;
+        const valStr = getStringValue(item);
+        const hasContent = valStr.trim().length > 0;
+        const shared = hasContent && isShared && onToggleShare ? isShared(i) : false;
         return (
           <div
             key={i}
             id={rid ? `entity-${rid}` : undefined}
-            className={`flex gap-2 items-center transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
+            className={`flex gap-2 items-center transition-shadow rounded ${
+              highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''
+            } ${
+              shared ? 'bg-moss/5 border border-moss/10 px-1 py-0.5' : ''
+            }`}
           >
             <span className="text-brass-deep font-display text-xs w-5 text-right">{i + 1}.</span>
-            <div className="flex-1"><Field value={getStringValue(item)} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} /></div>
+            <div className="flex-1"><Field value={valStr} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} /></div>
+            {onToggleShare && isShared && hasContent && (
+              <button
+                type="button"
+                onClick={() => onToggleShare(i)}
+                className={`p-1 transition-colors ${
+                  shared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10'
+                }`}
+                title={shared ? 'Shared with Players (Click to hide)' : 'Share with Players'}
+              >
+                {shared ? <Eye size={12} /> : <EyeOff size={12} />}
+              </button>
+            )}
             <button onClick={() => remove(i)} className="text-ink-mute hover:text-crimson px-1"><X size={14} /></button>
           </div>
         );
@@ -547,10 +570,19 @@ const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) 
       <div className="flex justify-between gap-2">
         <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
         <div className="flex items-center gap-2 flex-shrink-0">
-          <label className="flex items-center gap-1 text-[10px] text-ink-soft uppercase font-display tracking-wider cursor-pointer select-none">
-            <input type="checkbox" checked={!!data.isPublic} onChange={(e) => onChange({ ...data, isPublic: e.target.checked })} className="accent-wine" />
-            Public
-          </label>
+          <button
+            type="button"
+            onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
+            className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+              data.isPublic
+                ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
+                : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+            }`}
+            title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
+          >
+            {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
+            {data.isPublic ? 'Shared' : 'Private'}
+          </button>
           <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
         </div>
       </div>
@@ -607,10 +639,19 @@ const LocationCard = ({ data, onChange, onRemove }: any) => (
     <div className="flex justify-between gap-2">
       <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Evocative Name" />
       <div className="flex items-center gap-2 flex-shrink-0">
-        <label className="flex items-center gap-1 text-[10px] text-ink-soft uppercase font-display tracking-wider cursor-pointer select-none">
-          <input type="checkbox" checked={!!data.isPublic} onChange={(e) => onChange({ ...data, isPublic: e.target.checked })} className="accent-wine" />
-          Public
-        </label>
+        <button
+          type="button"
+          onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
+          className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+            data.isPublic
+              ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
+              : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+          }`}
+          title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
+        >
+          {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
+          {data.isPublic ? 'Shared' : 'Private'}
+        </button>
         <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
       </div>
     </div>
@@ -3963,26 +4004,45 @@ export default function CampaignEditor({
                 <TargetBar current={countFilled('locations', get('locations', []), get('player', {}))} target={tgt('locations')} source={TARGETS.locations.source} />
                 {(get('locations', []) as any[])
                   .map((l: any, index: number) => ({ l, index }))
-                  .filter(({ l }) => {
+                  .map(({ l, index }) => {
+                    const entityId = l?.id ?? `loc-${index}`;
+                    const highlighted = highlightEntityId === entityId;
                     const playerConfig = get('player', {});
                     const isShared = l.isPublic === true ||
                       playerConfig?.entityVisibility?.locations?.[l.id]?.mode === 'party' ||
                       playerConfig?.entityVisibility?.locations?.[l.id]?.mode === 'custom';
-                    return !isShared;
-                  })
-                  .map(({ l, index }) => {
-                    const entityId = l?.id ?? `loc-${index}`;
-                    const highlighted = highlightEntityId === entityId;
                     return (
                       <div
                         key={index}
                         id={`entity-${entityId}`}
                         data-cp-anchor={`location:${index}`}
-                        className={`transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
+                        className={`transition-shadow rounded ${
+                          highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''
+                        } ${
+                          isShared ? 'ring-1 ring-moss/30 bg-moss/5 border border-moss/20' : ''
+                        }`}
                       >
-                        <LocationCard data={l} onChange={(v: any) => {
-                          const next = [...(get('locations', []) as any[])]; next[index] = v; setVal('locations', next);
-                        }} onRemove={() => setVal('locations', (get('locations', []) as any[]).filter((_: any, j: number) => j !== index))} />
+                        <LocationCard
+                          data={l}
+                          onChange={(v: any) => {
+                            const next = [...(get('locations', []) as any[])];
+                            next[index] = v;
+                            setVal('locations', next);
+                            
+                            // Synchronize playerConfig.entityVisibility
+                            const curConfig = get('player', {});
+                            const ev = { ...(curConfig.entityVisibility ?? {}) };
+                            const bucket = { ...(ev.locations ?? {}) };
+                            if (v.isPublic) {
+                              bucket[l.id] = { mode: 'party' };
+                            } else {
+                              delete bucket[l.id];
+                            }
+                            ev.locations = bucket;
+                            setVal('player', { ...curConfig, entityVisibility: ev });
+                          }}
+                          onRemove={() => setVal('locations', (get('locations', []) as any[]).filter((_: any, j: number) => j !== index))}
+                        />
                       </div>
                     );
                   })}
@@ -4012,26 +4072,45 @@ export default function CampaignEditor({
                 <TargetBar current={countFilled('npcs', get('npcs', []), get('player', {}))} target={tgt('npcs')} source={TARGETS.npcs.source} />
                 {(get('npcs', []) as any[])
                   .map((n: any, index: number) => ({ n, index }))
-                  .filter(({ n }) => {
+                  .map(({ n, index }) => {
+                    const entityId = n?.id ?? `npc-${index}`;
+                    const highlighted = highlightEntityId === entityId;
                     const playerConfig = get('player', {});
                     const isShared = n.isPublic === true ||
                       playerConfig?.entityVisibility?.npcs?.[n.id]?.mode === 'party' ||
                       playerConfig?.entityVisibility?.npcs?.[n.id]?.mode === 'custom';
-                    return !isShared;
-                  })
-                  .map(({ n, index }) => {
-                    const entityId = n?.id ?? `npc-${index}`;
-                    const highlighted = highlightEntityId === entityId;
                     return (
                       <div
                         key={index}
                         id={`entity-${entityId}`}
                         data-cp-anchor={`npc:${index}`}
-                        className={`transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
+                        className={`transition-shadow rounded ${
+                          highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''
+                        } ${
+                          isShared ? 'ring-1 ring-moss/30 bg-moss/5 border border-moss/20' : ''
+                        }`}
                       >
-                        <NPCCard data={n} onChange={(v: any) => {
-                          const next = [...(get('npcs', []) as any[])]; next[index] = v; setVal('npcs', next);
-                        }} onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== index))} />
+                        <NPCCard
+                          data={n}
+                          onChange={(v: any) => {
+                            const next = [...(get('npcs', []) as any[])];
+                            next[index] = v;
+                            setVal('npcs', next);
+                            
+                            // Synchronize playerConfig.entityVisibility
+                            const curConfig = get('player', {});
+                            const ev = { ...(curConfig.entityVisibility ?? {}) };
+                            const bucket = { ...(ev.npcs ?? {}) };
+                            if (v.isPublic) {
+                              bucket[n.id] = { mode: 'party' };
+                            } else {
+                              delete bucket[n.id];
+                            }
+                            ev.npcs = bucket;
+                            setVal('player', { ...curConfig, entityVisibility: ev });
+                          }}
+                          onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== index))}
+                        />
                       </div>
                     );
                   })}
@@ -4080,6 +4159,37 @@ export default function CampaignEditor({
                   target={tgt('monsters')}
                   rowIdFor={(i) => `monsters-${i}`}
                   highlightId={highlightEntityId}
+                  isShared={(i) => {
+                    const m = get('monsters', [])[i];
+                    if (!m) return false;
+                    const name = typeof m === 'string' ? m.split(' — ')[0] : m.name || '';
+                    const playerLog = (get('playerLog', []) as any[]) || [];
+                    return playerLog.some(entry => entry.text && entry.text.includes(`Encountered: ${name}`));
+                  }}
+                  onToggleShare={(i) => {
+                    const m = get('monsters', [])[i];
+                    if (!m) return;
+                    const name = typeof m === 'string' ? m.split(' — ')[0] : m.name || '';
+                    const playerLog = (get('playerLog', []) as any[]) || [];
+                    const isCurrentlyShared = playerLog.some(entry => entry.text && entry.text.includes(`Encountered: ${name}`));
+                    
+                    if (isCurrentlyShared) {
+                      // Remove it from playerLog
+                      const nextLog = playerLog.filter(entry => !(entry.text && entry.text.includes(`Encountered: ${name}`)));
+                      setVal('playerLog', nextLog);
+                    } else {
+                      // Add it to playerLog
+                      const nextLog = [...playerLog, {
+                        id: makeLogId(),
+                        text: `Encountered: ${name}`,
+                        mentions: [],
+                        visibility: { mode: 'party' },
+                        authorRef: 'gm',
+                        postedAtMs: Date.now(),
+                      }];
+                      setVal('playerLog', nextLog);
+                    }
+                  }}
                 />
                 {SECTION_GENERATORS.monsters.length > 0 && (() => {
                   const lastUsed = getLastUsed(state, 'monsters');

@@ -73,6 +73,7 @@ export default function PlayerCampaignView({
 }) {
   const [projection, setProjection] = useState<SlotProjection | null | undefined>(undefined);
   const [active, setActive] = useState<string>('');
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const unsub = subscribeSlotProjection(token, slotId, setProjection, () => setProjection(null));
@@ -95,6 +96,53 @@ export default function PlayerCampaignView({
   }, [projection]);
 
   useEffect(() => {
+    if (!projection || tabs.length === 0) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash;
+
+    let targetType: string | null = null;
+    let targetId: string | null = null;
+
+    if (params.has('npc')) {
+      targetType = 'npcs';
+      targetId = params.get('npc');
+    } else if (params.has('location')) {
+      targetType = 'locations';
+      targetId = params.get('location');
+    } else if (params.has('faction')) {
+      targetType = 'factions';
+      targetId = params.get('faction');
+    } else if (hash) {
+      const match = hash.match(/^#(npc|location|faction)-(.*)$/);
+      if (match) {
+        targetType = match[1] === 'npc' ? 'npcs' : match[1] === 'location' ? 'locations' : 'factions';
+        targetId = match[2];
+      }
+    }
+
+    if (targetType && targetId) {
+      const list = projection.entities[targetType as keyof SlotProjection['entities']];
+      const exists = Array.isArray(list) && list.some((e: any) => e.id === targetId);
+
+      if (!exists) {
+        // Intercept and immediately redirect (clean URL, show alert)
+        const newUrl = window.location.pathname;
+        window.history.replaceState(null, '', newUrl);
+        setAlertMessage(`Access Denied: The requested ${targetType.replace(/s$/, '').toUpperCase()} is hidden or private.`);
+        setActive(tabs[0]?.id || '');
+      } else {
+        // Safe access: navigate to the tab and scroll to the entity card
+        setActive(targetType);
+        const elementId = `entity-${targetId}`;
+        setTimeout(() => {
+          document.getElementById(elementId)?.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      }
+    }
+  }, [projection, tabs]);
+
+  useEffect(() => {
     if (tabs.length > 0 && !tabs.some((t) => t.id === active)) setActive(tabs[0].id);
   }, [tabs, active]);
 
@@ -113,6 +161,13 @@ export default function PlayerCampaignView({
             <button onClick={onSwitch} className="font-display text-[10px] uppercase tracking-wider text-crimson hover:text-wine">Switch player</button>
           </div>
         </header>
+
+        {alertMessage && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded relative font-serif text-sm flex items-center justify-between shadow-card" role="alert">
+            <span>{alertMessage}</span>
+            <button onClick={() => setAlertMessage(null)} className="text-red-500 hover:text-red-700 font-bold px-2 py-1 text-base">&times;</button>
+          </div>
+        )}
 
         {projection === undefined && (
           <p className="py-10 text-center font-serif text-sm italic text-ink-mute">Loading…</p>

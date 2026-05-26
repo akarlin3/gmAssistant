@@ -11,6 +11,7 @@ import { normalizeItem } from '@/lib/playerMode/types';
 export default function PlayerView({ campaign, userEmail }: { campaign: Campaign, userEmail: string }) {
   const [activeTab, setActiveTab] = useState<'characters' | 'recaps' | 'lore'>('characters');
   const [musicOpen, setMusicOpen] = useState(true);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   const playlistUrl = campaign.data.__sessionPlaylist || '';
   const characters = Array.isArray(campaign.data.characters) ? campaign.data.characters : [];
@@ -19,6 +20,48 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
   const npcs = Array.isArray(campaign.data.npcs) ? campaign.data.npcs.filter(n => n.isPublic) : [];
   const locations = Array.isArray(campaign.data.locations) ? campaign.data.locations.filter(l => l.isPublic) : [];
   const handouts = campaign.data.handouts || '';
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash;
+
+    let targetType: string | null = null;
+    let targetId: string | null = null;
+
+    if (params.has('npc')) {
+      targetType = 'npcs';
+      targetId = params.get('npc');
+    } else if (params.has('location')) {
+      targetType = 'locations';
+      targetId = params.get('location');
+    } else if (hash) {
+      const match = hash.match(/^#(npc|location)-(.*)$/);
+      if (match) {
+        targetType = match[1] === 'npc' ? 'npcs' : 'locations';
+        targetId = match[2];
+      }
+    }
+
+    if (targetType && targetId) {
+      const list = targetType === 'npcs' ? npcs : locations;
+      const exists = list.some((e: any) => e.id === targetId);
+
+      if (!exists) {
+        // Intercept and immediately redirect (clean URL, show alert)
+        const newUrl = window.location.pathname;
+        window.history.replaceState(null, '', newUrl);
+        setAlertMessage(`Access Denied: The requested ${targetType.replace(/s$/, '').toUpperCase()} is private or hidden.`);
+        setActiveTab('characters');
+      } else {
+        // Safe access: navigate to lore and scroll to card
+        setActiveTab('lore');
+        const elementId = `entity-${targetId}`;
+        setTimeout(() => {
+          document.getElementById(elementId)?.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      }
+    }
+  }, [npcs, locations]);
 
   const allRecaps = useMemo(() => {
     const list: Array<{ id: string; title: string; date: string; body: string }> = [];
@@ -67,6 +110,13 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
           </div>
           <AccountMenu />
         </header>
+
+        {alertMessage && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded relative font-serif text-sm flex items-center justify-between shadow-card" role="alert">
+            <span>{alertMessage}</span>
+            <button onClick={() => setAlertMessage(null)} className="text-red-500 hover:text-red-700 font-bold px-2 py-1 text-base">&times;</button>
+          </div>
+        )}
 
         {/* Live Session Music (Pulsing Widget) */}
         {playlistUrl && (
@@ -206,7 +256,7 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
                   </h2>
                   <div className="grid md:grid-cols-2 gap-4">
                     {npcs.map((n: any, i: number) => (
-                      <div key={i} className="bg-parchment border border-rule rounded p-3 shadow-card space-y-2">
+                      <div key={n.id || i} id={n.id ? `entity-${n.id}` : undefined} className="bg-parchment border border-rule rounded p-3 shadow-card space-y-2">
                         <div className="font-display text-lg tracking-wide text-ink">{n.name || 'Unnamed NPC'}</div>
                         <div className="text-xs uppercase font-display tracking-wider text-brass-deep">
                           {[n.archetype, n.type].filter(Boolean).join(' · ')}
@@ -231,7 +281,7 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
                   </h2>
                   <div className="grid md:grid-cols-2 gap-4">
                     {locations.map((l: any, i: number) => (
-                      <div key={i} className="bg-parchment border border-rule rounded p-3 shadow-card space-y-2">
+                      <div key={l.id || i} id={l.id ? `entity-${l.id}` : undefined} className="bg-parchment border border-rule rounded p-3 shadow-card space-y-2">
                         <div className="font-display text-lg tracking-wide text-ink">{l.name || 'Unnamed Location'}</div>
                         <div className="text-xs uppercase font-display tracking-wider text-brass-deep">{l.type}</div>
                         <ul className="list-disc pl-4 font-serif text-sm text-ink-soft space-y-1">
