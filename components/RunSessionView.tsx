@@ -1585,10 +1585,10 @@ function parseYoutubeUrl(urlOrId: string): { playlistId: string | null; videoId:
 }
 
 const DEFAULT_SCENARIOS = [
-  { id: 'tavern', name: '🍻 Tavern Ambiance', url: 'https://www.youtube.com/playlist?list=PL2V6X2N_s14E9F7-M6WcI_qJ202w9420v' },
-  { id: 'combat', name: '⚔ Epic Combat', url: 'https://www.youtube.com/playlist?list=PL6T1g8k3J46yEPLfA1w_1uT8F52093h41' },
-  { id: 'dungeon', name: '🧭 Dark Dungeon', url: 'https://www.youtube.com/playlist?list=PL6T1g8k3J46zZf94pD59j3U6h3s12L1H1' },
-  { id: 'creepy', name: '💀 Eerie Suspense', url: 'https://www.youtube.com/playlist?list=PL6T1g8k3J46yE258c7tZ1A2rO02W1H1H1' },
+  { id: 'tavern', name: '🍻 Tavern Ambiance', url: 'https://music.youtube.com/playlist?list=PLMISnIZ64usLtFZB6qQz5ZwAIGac9u51C' },
+  { id: 'combat', name: '⚔ Epic Combat', url: 'https://music.youtube.com/playlist?list=PLMISnIZ64usL75jru3fcE5FSeBNvPGrNR' },
+  { id: 'dungeon', name: '🧭 Dark Dungeon', url: 'https://music.youtube.com/playlist?list=PLMISnIZ64usJN0bbHZaIGlUbLcLx3WIN0' },
+  { id: 'creepy', name: '💀 Eerie Suspense', url: 'https://music.youtube.com/playlist?list=PLMISnIZ64usLdXApbAah04QGU7COj7_eX' },
 ];
 
 export function MusicPlayer({
@@ -1735,6 +1735,9 @@ export function MusicPlayer({
               try {
                 setVolume(player.getVolume() || 100);
                 setIsMuted(player.isMuted() || false);
+                if (playlistId) {
+                  player.setShuffle(true);
+                }
               } catch (err) {
                 console.warn('Could not read initial player settings', err);
               }
@@ -1747,6 +1750,9 @@ export function MusicPlayer({
                 setIsPlaying(true);
                 onChangePlaying?.(true);
                 try {
+                  if (playlistId) {
+                    event.target.setShuffle(true);
+                  }
                   const idx = event.target.getPlaylistIndex();
                   if (typeof idx === 'number' && idx >= 0) {
                     onChangePlaylistIndex?.(idx);
@@ -1813,7 +1819,6 @@ export function MusicPlayer({
     };
   }, [playlistId, videoId, ytPlayer]);
 
-  // React to playlist/video changes in-place on the stable player instance
   useEffect(() => {
     if (!ytPlayer || !isApiReady) return;
     try {
@@ -1823,6 +1828,7 @@ export function MusicPlayer({
         } else {
           ytPlayer.cuePlaylist(playlistId, playlistIndexProp || 0);
         }
+        ytPlayer.setShuffle(true);
       } else if (videoId) {
         if (isPlayingProp) {
           ytPlayer.loadVideoById(videoId);
@@ -1967,14 +1973,16 @@ export function MusicPlayer({
                 >
                   {pl.name}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleDeletePlaylist(pl.id)}
-                  className="absolute right-1 text-ink-mute hover:text-crimson opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Delete scenario"
-                >
-                  <X size={11} />
-                </button>
+                {!['tavern', 'combat', 'dungeon', 'creepy'].includes(pl.id) && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeletePlaylist(pl.id)}
+                    className="absolute right-1 text-ink-mute hover:text-crimson opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Delete scenario"
+                  >
+                    <X size={11} />
+                  </button>
+                )}
               </div>
             );
           })}
