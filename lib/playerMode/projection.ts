@@ -212,6 +212,21 @@ export function buildSlotProjection(
     conflicts: (Array.isArray((data as any).conflicts) ? (data as any).conflicts : []).filter((_: any, i: number) => !!pv.conflicts?.[i]),
   };
 
+  // Project PC goals that the GM has flagged as public/shared.
+  const rawGoals = data.pcGoals;
+  const projectedGoals = Array.isArray(rawGoals)
+    ? rawGoals
+        .filter((g: any) => g && g.isPublic === true && typeof g.text === 'string' && g.text.trim())
+        .map((g: any) => ({
+          text: g.text,
+          timeframe: g.timeframe,
+          success: g.success,
+          failure: g.failure,
+          linked: g.linked,
+          status: g.status,
+        }))
+    : [];
+
   return {
     campaignName,
     tokenVersion: config.tokenVersion,
@@ -222,5 +237,6 @@ export function buildSlotProjection(
     updatedAtMs: nowMs,
     items: projectedItems,
     planning,
+    pcGoals: projectedGoals,
   };
 }

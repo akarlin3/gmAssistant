@@ -99,6 +99,14 @@ export type SlotProjection = {
     secrets?: string[];
     conflicts?: string[];
   };
+  pcGoals?: Array<{
+    text: string;
+    timeframe?: string;
+    success?: string;
+    failure?: string;
+    linked?: string;
+    status?: string;
+  }>;
 };
 
 export type CampaignItem = {
@@ -132,6 +140,7 @@ export type PlayerModeData = Partial<Record<PlayerEntityType, PlayerEntity[]>> &
   handouts?: unknown;
   playerLog?: readonly PlayerLogEntry[];
   items?: ReadonlyArray<string | CampaignItem>;
+  pcGoals?: readonly any[];
 };
 
 export function normalizeItem(it: string | Record<string, any>, index: number): CampaignItem {

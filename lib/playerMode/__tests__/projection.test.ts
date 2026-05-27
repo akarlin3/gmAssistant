@@ -173,5 +173,22 @@ describe('buildSlotProjection', () => {
     expect(proj.planning?.gWorld).toEqual(['Magic is dying.']);
     expect(proj.planning?.facts).toEqual(['Monsters roam the forest.']);
   });
+
+  it('projects only public PC goals and redacts internal settings', () => {
+    const data = seedCampaignData();
+    (data as any).pcGoals = [
+      { text: 'Uncover the cult', timeframe: 'mid', success: 'Cult stopped', isPublic: true, status: 'Active' },
+      { text: 'A secret GM-only goal', timeframe: 'short', success: 'GM secret', isPublic: false, status: 'Active' },
+      { text: 'Another private goal by default', timeframe: 'long' }
+    ];
+
+    const proj = buildSlotProjection(data, 'C', 'slot-a');
+    expect(proj.pcGoals).toBeDefined();
+    expect(proj.pcGoals).toHaveLength(1);
+    expect(proj.pcGoals![0].text).toBe('Uncover the cult');
+    expect(proj.pcGoals![0].timeframe).toBe('mid');
+    expect(proj.pcGoals![0].success).toBe('Cult stopped');
+    expect(proj.pcGoals![0]).not.toHaveProperty('isPublic');
+  });
 });
 

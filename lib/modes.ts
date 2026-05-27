@@ -8,7 +8,7 @@
 // LEGACY_TAB_MAP migrates state from older tab-only layouts where a single
 // `__tab` field stored one of ~16 flat tab IDs.
 
-export type Mode = 'plan' | 'prep' | 'run' | 'library';
+export type Mode = 'plan' | 'prep' | 'organize' | 'run' | 'library';
 
 // Some Plan subviews are done WITH the players at the table (Session −1
 // collaborative worldbuilding, Session 0 character creation); others are
@@ -41,7 +41,6 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'pitch',  label: 'Premise',    description: 'Hook, givens, and six truths',                         audience: 'solo' },
       { id: 'worldbuild',  label: 'Worldbuild',      description: 'Session −1 collaborative worldbuilding with players',  audience: 'together' },
       { id: 'pcs',    label: 'Characters', description: 'Session 0 character creation with players',            audience: 'together' },
-      { id: 'players', label: 'Players',   description: 'Share a read-only view with your players',             audience: 'solo' },
     ],
   },
   prep: {
@@ -56,6 +55,15 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'ending', label: 'Ending',        description: 'Threads & campaign wrap checklist', audience: 'solo' },
     ],
   },
+  organize: {
+    label: 'Organize',
+    description: 'Manage players and sessions',
+    emphasis: 'primary',
+    subviews: [
+      { id: 'players', label: 'Players',   description: 'Share a read-only view with your players',             audience: 'solo' },
+      { id: 'log',     label: 'Sessions', description: 'Session log archive' },
+    ],
+  },
   run: {
     label: 'Run',
     description: 'Table-side tools and session capture',
@@ -67,7 +75,6 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'spells',  label: 'Spells',   description: 'Spell reference' },
       { id: 'dmref',   label: 'DM Ref',   description: 'Rules reference' },
       { id: 'chase',   label: 'Chase',    description: 'Chase tracker' },
-      { id: 'log',     label: 'Sessions', description: 'Session log archive' },
     ],
   },
   library: {
@@ -88,7 +95,7 @@ export const MODES: Record<Mode, ModeDef> = {
   },
 };
 
-export const MODE_ORDER: readonly Mode[] = ['plan', 'prep', 'run', 'library'];
+export const MODE_ORDER: readonly Mode[] = ['plan', 'prep', 'organize', 'run', 'library'];
 
 // Old single-tab IDs that may live in stored state (or in legacy code paths)
 // — map them to the new (mode, subview) pair so users land somewhere sensible.
@@ -107,7 +114,7 @@ export const LEGACY_TAB_MAP: Record<string, { mode: Mode; subview: string }> = {
   traps:       { mode: 'library', subview: 'traps' },
   dmref:       { mode: 'run',     subview: 'dmref' },
   chase:       { mode: 'run',     subview: 'chase' },
-  log:         { mode: 'run',     subview: 'log' },
+  log:         { mode: 'organize', subview: 'log' },
   pointbuy:    { mode: 'library', subview: 'pointbuy' },
 };
 
