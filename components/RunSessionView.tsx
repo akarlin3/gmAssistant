@@ -1873,6 +1873,10 @@ export function MusicPlayer({
   useEffect(() => {
     if (!ytPlayer || !isApiReady) return;
 
+    // Guard against a destroyed or unmounted player iframe to prevent internal YT API crashes
+    const iframe = typeof ytPlayer.getIframe === 'function' ? ytPlayer.getIframe() : null;
+    if (!iframe || !document.body.contains(iframe)) return;
+
     try {
       // 1. Ensure volume and mute are set
       ytPlayer.setVolume(volumeRef.current);
