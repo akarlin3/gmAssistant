@@ -35,6 +35,7 @@ export type SessionLogEntry = {
   goalUpdates: GoalUpdate[];
   pinned?: boolean;
   linkedPrepItems?: LinkedPrepItem[];
+  strongStart?: string;
 };
 
 export function parseMonsterXP(monsterStr: string): number {

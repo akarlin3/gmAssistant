@@ -11,19 +11,22 @@ import {
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy, Clock,
   Download, Upload, ScrollText, ArrowLeft, ArrowRight, Cloud, CloudOff,
   FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench, SlidersHorizontal, Copy,
-  Compass, NotebookPen, Zap, Gem, Globe, Music, Eye, EyeOff,
+  Compass, NotebookPen, Zap, Gem, Globe, Music, Eye, EyeOff, Bot,
 } from 'lucide-react';
-import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo, parseLevelFromClassLevel } from '@/lib/encounterMath';
 import dynamic from 'next/dynamic';
 import DiceRoller, { type Macro } from './DiceRoller';
 import type { Spell } from './SpellsTab';
 import StrongStartPicker from './StrongStartPicker';
+import { VoiceProvider } from '@/components/voice/VoiceProvider';
+import { invalidateNpcVoiceCache } from '@/lib/voice/invalidate';
 import CharacterCard from './CharacterCard';
 import SidekickAddPanel from './SidekickAddPanel';
 import type { HomebrewMonster } from './MonstersTab';
 import SummonButton from './SummonButton';
 import SummonModal from './SummonModal';
+import WellsOracle from './WellsOracle';
+import type { OracleRoll } from '@/lib/oracle/wells';
 import { normalizeItem } from '@/lib/playerMode/types';
 
 const SpellsTab = dynamic(() => import('./SpellsTab'));
@@ -43,6 +46,10 @@ import {
 import type { EntityRef } from '@/lib/generators/types';
 import { applySummonAction, type SummonSaveAction } from '@/lib/generators/summon-actions';
 import VivifyPanel, { type VivifyHistoryEntry } from './VivifyPanel';
+import SceneModePanel from './SceneModePanel';
+import CampaignAssistant from './CampaignAssistant';
+import { SCENE_SESSIONS_KEY, type SceneEntry } from '@/lib/scene/types';
+import { sceneToMarkdown } from '@/lib/scene/export';
 import ChaseTracker from './ChaseTracker';
 import type { Chase } from '@/lib/chaseTables';
 import TrapBuilder from './TrapBuilder';
@@ -60,15 +67,20 @@ const RunSessionView = dynamic(() => import('./RunSessionView'));
 const PrepWizardView = dynamic(() => import('./PrepWizardView'));
 const Session0Wizard = dynamic(() => import('./Session0Wizard'));
 const SessionLogTab = dynamic(() => import('./SessionLogTab'));
+const LoggedTab = dynamic(() => import('./LoggedTab'));
 const HazardCalculator = dynamic(() => import('./HazardCalculator'));
 const LogisticsTab = dynamic(() => import('./LogisticsTab'));
 const NPCRelationshipWeb = dynamic(() => import('./NPCRelationshipWeb'));
 const FactionEngineTab = dynamic(() => import('./FactionEngineTab'));
+const LivingWorldTab = dynamic(() => import('./world/LivingWorldTab'));
+const MapsTab = dynamic(() => import('./maps/MapsTab'));
+import { WhileYouWereAway } from './world/WhileYouWereAway';
 import { emptyLogistics, type LogisticsState } from './LogisticsTab';
 import { emptyGraph, type RelationshipGraphState } from './NPCRelationshipWeb';
 import { emptyWorld, type FactionWorld } from '@/lib/factionEngine';
 import type { SessionLogEntry } from '@/lib/sessionLog';
 import { nextSessionNumber, recalculatePartyState, cleanPrepLists, parseMonsterName } from '@/lib/sessionLog';
+import { applyNarrationReveal } from '@/lib/playerMode/sessionLog';
 import type { PrepWizardRun } from '@/lib/prepWizard';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { buildPatch as buildCampaignPatch, type CampaignDestKey, type SelectableItem } from '@/lib/generators/addToCampaign';
@@ -77,6 +89,7 @@ import PlayersManager from './PlayersManager';
 import { LockedInline, LockedPanel } from './LockedFeature';
 import { useConfirm } from '@/components/ConfirmDialog';
 import PlayerModePanel from './PlayerModePanel';
+import { publishProjections } from '@/lib/playerMode/publish';
 import { initPlayerMode } from '@/lib/playerMode/migration';
 import type { PlayerConfig } from '@/lib/playerMode/types';
 import type { PlayerLogEntry } from '@/lib/playerMode/sessionLog';
@@ -89,6 +102,11 @@ import {
   makeCharacterId,
   normalizeCharacter,
 } from '@/lib/character-schema';
+import PartyTab from './PartyTab';
+import { type PlayerCharacter, PC_CAP } from '@/lib/pc/types';
+import { emptyPc, normalizePcs, capPcs } from '@/lib/pc/factory';
+import { syncAttackMacros, dropPcMacros, type PcMacros } from '@/lib/pc/macros';
+import { mapParsedToPc } from '@/lib/pc/from-parser';
 import { pushSnapshot, popSnapshot, type Snapshot } from '@/lib/undoStack';
 import {
   TARGETS,
@@ -110,330 +128,36 @@ import {
   isValidSubview,
   resolveInitialMode,
 } from '@/lib/modes';
-
-const M = {
-  shea: { label: 'Lazy DM', color: 'border-moss/40 bg-moss/5 text-moss' },
-  ccd: { label: 'CCD', color: 'border-brass/40 bg-brass/5 text-brass-deep' },
-  pr: { label: 'Proactive', color: 'border-wine/40 bg-wine/5 text-wine' },
-};
-
-// Mode + subview navigation. The shape of MODES, the legacy migration map,
-// and the helpers all live in lib/modes.ts so other surfaces (palette,
-// future deep-links) share a single source of truth.
-
-// Prep item targets — see lib/prepTargets.ts for the single source of truth
-// (shared with the pre-session PrepWizard).
-
-const Tag = ({ m }: { m: keyof typeof M }) => (
-  <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider ${M[m].color}`}>{M[m].label}</span>
-);
-
-const BookQuote = ({ source, children }: { source: string; children: React.ReactNode }) => (
-  <blockquote className="pl-3 border-l-2 border-crimson/70 bg-parchment-soft/60 py-2 pr-3 text-sm rounded-r">
-    <div className="font-serif italic text-ink-soft leading-relaxed">{children}</div>
-    <div className="text-brass-deep mt-1 text-xs uppercase tracking-wider font-display">— {source}</div>
-  </blockquote>
-);
-
-const SoloNote = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-start gap-2 rounded border border-wine/40 bg-wine/5 p-2.5 text-sm">
-    <User size={13} className="text-wine flex-shrink-0 mt-0.5" />
-    <div className="text-ink-soft font-serif"><span className="font-display uppercase tracking-wider text-xs text-wine">Solo Adaptation · </span>{children}</div>
-  </div>
-);
-
-const Pitfall = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-start gap-2 rounded border border-crimson/40 bg-crimson/5 p-2.5 text-sm">
-    <X size={13} className="text-crimson flex-shrink-0 mt-0.5" />
-    <div className="text-ink-soft font-serif"><span className="font-display uppercase tracking-wider text-xs text-crimson">Common Pitfall · </span>{children}</div>
-  </div>
-);
-
-const Inspire = ({
-  tableId,
-  onPick,
-  count = 5,
-  label = 'Inspire',
-  compact = false,
-  align = 'right',
-}: {
-  tableId: string;
-  onPick: (entry: string) => void;
-  count?: number;
-  label?: string;
-  compact?: boolean;
-  align?: 'left' | 'right';
-}) => {
-  const [open, setOpen] = useState(false);
-  const [picks, setPicks] = useState<string[]>([]);
-  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const popupRef = useRef<HTMLDivElement>(null);
-  const table = TABLES[tableId];
-
-  const POPUP_WIDTH = 320; // matches w-80
-  const VIEWPORT_MARGIN = 8;
-
-  const updateCoords = useCallback(() => {
-    if (!btnRef.current) return;
-    const r = btnRef.current.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const width = Math.min(POPUP_WIDTH, vw - VIEWPORT_MARGIN * 2);
-    const preferredLeft = align === 'left' ? r.left : r.right - width;
-    const left = Math.max(VIEWPORT_MARGIN, Math.min(preferredLeft, vw - width - VIEWPORT_MARGIN));
-    setCoords({ top: r.bottom + 4, left, width });
-  }, [align]);
-
-  useEffect(() => {
-    if (!open) return;
-    updateCoords();
-    const onScroll = () => updateCoords();
-    const onResize = () => updateCoords();
-    window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onResize);
-    return () => {
-      window.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', onResize);
-    };
-  }, [open, updateCoords]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDocMouseDown = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (btnRef.current?.contains(target) || popupRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', onDocMouseDown);
-    return () => document.removeEventListener('mousedown', onDocMouseDown);
-  }, [open]);
-
-  if (!table) return null;
-
-  const reroll = () => setPicks(sampleTable(tableId, count));
-
-  const toggle = () => {
-    if (!open) {
-      reroll();
-      updateCoords();
-    }
-    setOpen(o => !o);
-  };
-
-  const triggerClass = compact
-    ? "text-[10px] px-1.5 py-0.5 rounded border border-crimson/50 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment flex items-center gap-1 font-display uppercase tracking-wider"
-    : "text-[11px] px-2 py-0.5 rounded border border-brass-deep/60 bg-brass/15 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass-deep flex items-center gap-1 font-display uppercase tracking-wider";
-
-  return (
-    <div className="inline-block">
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={toggle}
-        className={triggerClass}
-        title={`Inspire from ${table.title}`}
-      >
-        <Sparkles size={11} /> {label}
-      </button>
-      {open && coords && (
-        <div
-          ref={popupRef}
-          style={{ position: 'fixed', top: coords.top, left: coords.left, width: coords.width, zIndex: 50 }}
-          className="rounded border border-brass-deep/70 bg-parchment shadow-xl p-2 space-y-1.5"
-        >
-          <div className="flex items-center justify-between text-[10px] text-ink-mute px-1 pb-1 border-b border-rule">
-            <span className="font-display uppercase tracking-wider text-brass-deep">{table.title}</span>
-            <div className="flex gap-2">
-              <button onClick={reroll} className="text-crimson hover:text-wine font-display uppercase tracking-wider">Reroll</button>
-              <button onClick={() => setOpen(false)} className="text-ink-mute hover:text-ink font-display uppercase tracking-wider">Close</button>
-            </div>
-          </div>
-          {picks.map((entry, i) => (
-            <button
-              key={i}
-              onClick={() => { onPick(entry); setOpen(false); }}
-              className="block w-full text-left text-xs px-2 py-1.5 rounded text-ink-soft hover:bg-parchment-deep hover:text-ink font-serif"
-            >
-              {entry}
-            </button>
-          ))}
-          <div className="text-[9px] text-ink-mute px-1 pt-1 italic">{table.attribution}</div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const InspireGroup = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex flex-wrap gap-1.5 items-center">{children}</div>
-);
-
-const TargetBar = ({ current, target, source }: { current: number; target: number; source?: string }) => {
-  if (target === 0) return null;
-  const pct = Math.min(100, (current / target) * 100);
-  const complete = current >= target;
-  return (
-    <div className="space-y-1" title={source}>
-      <div className="flex items-center justify-between text-xs font-serif">
-        <span className={complete ? 'text-brass-deep font-semibold' : 'text-ink-soft'}>
-          {current} of {target}
-        </span>
-        {source && <span className="text-ink-mute italic">{source}</span>}
-      </div>
-      <div className="h-1.5 bg-parchment-deep rounded-sm overflow-hidden border border-rule">
-        <div
-          className={`h-full transition-all ${complete ? 'bg-brass' : 'bg-brass/50'}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  );
-};
-
-const Example = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="rounded border border-rule bg-parchment-deep/40 p-2.5 text-sm">
-    <p className="text-brass-deep mb-1 text-xs font-display uppercase tracking-wider">Example — {title}</p>
-    <div className="text-ink-soft font-serif italic leading-relaxed">{children}</div>
-  </div>
-);
-
-const Field = ({ value, onChange, placeholder, rows = 1 }: { value: string; onChange: (v: string) => void; placeholder: string; rows?: number }) => (
-  <textarea value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows}
-    className="w-full bg-transparent border-b border-rule text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-none px-1 py-1 text-sm whitespace-pre-wrap break-words [field-sizing:content]" />
-);
-
-const ListField = ({
-  items = [],
-  onChange,
-  placeholder,
-  rows = 1,
-  target = 0,
-  rowIdFor,
-  highlightId,
-  isShared,
-  onToggleShare,
-}: {
-  items: (string | any)[];
-  onChange: (v: any[]) => void;
-  placeholder: string;
-  rows?: number;
-  target?: number;
-  rowIdFor?: (i: number) => string;
-  highlightId?: string | null;
-  isShared?: (i: number) => boolean;
-  onToggleShare?: (i: number) => void;
-}) => {
-  const getStringValue = (item: any): string => {
-    if (typeof item === 'string') return item;
-    if (!item) return '';
-    const name = item.name || '';
-    const desc = item.description || '';
-    return desc ? `${name} — ${desc}` : name;
-  };
-
-  const update = (i: number, v: string) => {
-    const next = [...items];
-    const current = next[i];
-    if (current && typeof current === 'object') {
-      const parts = v.split(' — ');
-      next[i] = {
-        ...current,
-        name: parts[0] || '',
-        description: parts.slice(1).join(' — ') || ''
-      };
-    } else {
-      next[i] = v;
-    }
-    onChange(next);
-  };
-  const add = () => onChange([...items, '']);
-  const remove = (i: number) => onChange(items.filter((_, j) => j !== i));
-  // Count only authored rows toward the target — empty rows are scaffolding,
-  // not progress.
-  const filled = items.filter(s => getStringValue(s).trim().length > 0).length;
-  const remaining = Math.max(0, target - filled);
-
-  return (
-    <div className="space-y-2">
-      {items.map((item, i) => {
-        const rid = rowIdFor ? rowIdFor(i) : undefined;
-        const highlighted = !!rid && highlightId === rid;
-        const valStr = getStringValue(item);
-        const hasContent = valStr.trim().length > 0;
-        const shared = hasContent && isShared && onToggleShare ? isShared(i) : false;
-        return (
-          <div
-            key={i}
-            id={rid ? `entity-${rid}` : undefined}
-            className={`flex gap-2 items-center transition-shadow rounded ${
-              highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''
-            } ${
-              shared ? 'bg-moss/5 border border-moss/10 px-1 py-0.5' : ''
-            }`}
-          >
-            <span className="text-brass-deep font-display text-xs w-5 text-right">{i + 1}.</span>
-            <div className="flex-1"><Field value={valStr} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} /></div>
-            {onToggleShare && isShared && hasContent && (
-              <button
-                type="button"
-                onClick={() => onToggleShare(i)}
-                className={`p-1 transition-colors ${
-                  shared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10'
-                }`}
-                title={shared ? 'Shared with Players (Click to hide)' : 'Share with Players'}
-              >
-                {shared ? <Eye size={12} /> : <EyeOff size={12} />}
-              </button>
-            )}
-            <button onClick={() => remove(i)} className="text-ink-mute hover:text-crimson px-1"><X size={14} /></button>
-          </div>
-        );
-      })}
-      {target > 0 && filled < target && (
-        <div className="ml-7 text-[11px] text-ink-mute italic font-serif">
-          {remaining} more to reach target
-          {filled === 0 && (
-            <span className="text-ink-faint"> (target: {target})</span>
-          )}
-        </div>
-      )}
-      <button onClick={add} className="ml-7 text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
-        <Plus size={12} /> Add
-      </button>
-    </div>
-  );
-};
-
-const Section = ({ id, title, methods, children, done, onToggle, open, onToggleOpen, icon: Icon }: any) => (
-  <div id={`section-${id}`} data-cp-anchor={`section:${id}`} className={`rounded border ${done ? 'border-brass/60 bg-brass/5' : 'border-rule bg-parchment-soft'} shadow-card`}>
-    <div className="flex items-center gap-2 p-2.5 sm:p-3">
-      <button
-        onClick={() => onToggle(id)}
-        className={`w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${done ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment'}`}
-        title={done ? "Mark step uncompleted" : "Mark step completed"}
-      >
-        {done && <Check size={10} strokeWidth={3} />}
-      </button>
-      <button onClick={() => onToggleOpen(id)} className="flex-1 min-w-0 flex items-center gap-2 text-left">
-        {Icon && <Icon size={14} className="text-brass-deep flex-shrink-0" />}
-        <span className="font-display text-sm tracking-wide text-ink flex-1 min-w-0">{title}</span>
-        <span className="hidden sm:flex gap-1 flex-shrink-0">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
-        <span className="text-ink-mute flex-shrink-0">{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
-      </button>
-    </div>
-    <div className={`gm-collapse ${open ? 'gm-collapse-open' : ''}`}>
-      <div className="gm-collapse-content">
-        <div className="px-2.5 sm:px-3 pb-3 border-t border-rule pt-3 space-y-3">
-          {children}
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-const CardLabel = ({ children }: { children: React.ReactNode }) => (
-  <div className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5">{children}</div>
-);
+import {
+  Tag,
+  BookQuote,
+  SoloNote,
+  Pitfall,
+  Inspire,
+  InspireGroup,
+  TargetBar,
+  Example,
+  Field,
+  ListField,
+  Section,
+  CardLabel,
+  GoalCard,
+  NPCCard,
+  LocationCard,
+} from './campaignEditor/prepPrimitives';
+import { WikiProvider, type WikiContextValue } from './wiki/WikiContext';
+import WikiTab from './wiki/WikiTab';
+import RelationshipsSection from './wiki/RelationshipsSection';
+import { buildEntityIndex, findEntity } from '@/lib/wiki/entities';
+import {
+  createRelationship,
+  addRelationship as addRelToList,
+  removeRelationship as removeRelFromList,
+  acceptSuggestion as acceptSugInList,
+  rejectSuggestion as rejectSugFromList,
+} from '@/lib/wiki/relationships';
+import { scanTextForSuggestions, pruneExpiredSuggestions } from '@/lib/wiki/suggest';
+import type { EntityType as WikiEntityType, Relationship as WikiRelationship } from '@/lib/wiki/types';
 
 const FactionCard = ({ data, onChange, onRemove }: any) => {
   const renown = typeof data.renown === 'number' ? data.renown : 0;
@@ -497,182 +221,11 @@ const FactionCard = ({ data, onChange, onRemove }: any) => {
           </span>
         </div>
       </div>
+      <RelationshipsSection entityType="faction" entityId={data.id} entityName={data.name} />
     </div>
   );
 };
 
-const GoalCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
-    <div className="flex justify-between gap-2">
-      <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="Goal Statement" rows={2} />
-      <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
-    </div>
-    <div className="grid grid-cols-3 gap-1.5">
-      {[['short', 'Short-Term'], ['mid', 'Mid-Term'], ['long', 'Long-Term']].map(([t, label]) => (
-        <button key={t} onClick={() => onChange({ ...data, timeframe: t })} className={`text-xs py-1 rounded border font-display uppercase tracking-wider ${data.timeframe === t ? 'bg-wine/10 border-wine text-wine' : 'border-rule text-ink-mute'}`}>{label}</button>
-      ))}
-    </div>
-    <div><CardLabel>Rule 3 — Success State</CardLabel>
-      <Field value={data.success} onChange={(v) => onChange({ ...data, success: v })} placeholder="What signals completion?" /></div>
-    <div><CardLabel>Rule 4 — Failure Consequence</CardLabel>
-      <Field value={data.failure} onChange={(v) => onChange({ ...data, failure: v })} placeholder="What changes if it fails?" /></div>
-    <div><CardLabel>Linked Factions / Conflicts</CardLabel>
-      <Field value={data.linked} onChange={(v) => onChange({ ...data, linked: v })} placeholder="..." /></div>
-  </div>
-);
-
-const NPCFieldRow = ({
-  label,
-  value,
-  onChange,
-  placeholder,
-  rows,
-  tableId,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  rows?: number;
-  tableId?: string;
-}) => (
-  <div>
-    <div className="flex items-center justify-between gap-2 mb-0.5">
-      <CardLabel>{label}</CardLabel>
-      {tableId && (
-        <Inspire
-          tableId={tableId}
-          compact
-          label=""
-          onPick={(e) => {
-            if (value && value.trim() && !confirm(`Replace current ${label.toLowerCase()}?`)) return;
-            onChange(e);
-          }}
-        />
-      )}
-    </div>
-    <Field value={value} onChange={onChange} placeholder={placeholder} rows={rows} />
-  </div>
-);
-
-const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) => {
-  const [showDetails, setShowDetails] = useState<boolean>(
-    defaultDetailsOpen ||
-    !!(data.appearance || data.abilities || data.talent || data.mannerism ||
-       data.interactions || data.knowledge || data.ideal || data.bond || data.flaw)
-  );
-  const archetypeInspire = (tableId: string) => (e: string) => {
-    if (data.archetype && data.archetype.trim() && !confirm('Replace current archetype?')) return;
-    onChange({ ...data, archetype: e });
-  };
-  return (
-    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
-      <div className="flex justify-between gap-2">
-        <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
-            className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
-              data.isPublic
-                ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
-                : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
-            }`}
-            title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
-          >
-            {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
-            {data.isPublic ? 'Shared' : 'Private'}
-          </button>
-          <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div><CardLabel>Type</CardLabel>
-          <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
-            <option value="">— Choose —</option>
-            <option>Ally</option><option>Villain</option><option>Patron</option><option>Rival</option><option>Neutral / Colour</option>
-          </select></div>
-        <div><CardLabel>Faction</CardLabel>
-          <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="..." /></div>
-      </div>
-      <div>
-        <div className="flex items-center justify-between gap-2 mb-0.5 flex-wrap">
-          <CardLabel>Archetype</CardLabel>
-          <div className="flex gap-1 flex-wrap">
-            <Inspire tableId="villainArchetypes" compact label="Villain" onPick={archetypeInspire('villainArchetypes')} />
-            <Inspire tableId="npcBackgroundConcepts" compact label="Background" onPick={archetypeInspire('npcBackgroundConcepts')} />
-            <Inspire tableId="raceCharacterNotes" compact label="Species" onPick={archetypeInspire('raceCharacterNotes')} />
-          </div>
-        </div>
-        <Field value={data.archetype} onChange={(v) => onChange({ ...data, archetype: v })} placeholder='e.g. "Han Solo"' />
-      </div>
-      <div><CardLabel>Active Goal</CardLabel>
-        <Field value={data.goal} onChange={(v) => onChange({ ...data, goal: v })} placeholder="What are they pursuing?" rows={2} /></div>
-      <div><CardLabel>Method of Pursuit</CardLabel>
-        <Field value={data.method} onChange={(v) => onChange({ ...data, method: v })} placeholder="Violence? Charm?" /></div>
-      <button
-        onClick={() => setShowDetails(s => !s)}
-        className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider"
-      >
-        {showDetails ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        {showDetails ? 'Hide Details' : 'Show Details'}
-      </button>
-      {showDetails && (
-        <div className="space-y-2 pt-1 border-t border-rule">
-          <NPCFieldRow label="Appearance" value={data.appearance || ''} onChange={(v) => onChange({ ...data, appearance: v })} placeholder="Distinctive physical detail or two" />
-          <NPCFieldRow label="Abilities" value={data.abilities || ''} onChange={(v) => onChange({ ...data, abilities: v })} placeholder="High/low ability — strong, slow, perceptive..." />
-          <NPCFieldRow label="Talent" value={data.talent || ''} onChange={(v) => onChange({ ...data, talent: v })} placeholder="Something they can do that's distinctive" tableId="npcTalents" />
-          <NPCFieldRow label="Mannerism" value={data.mannerism || ''} onChange={(v) => onChange({ ...data, mannerism: v })} placeholder="Small habit that makes them memorable" tableId="npcMannerisms" />
-          <NPCFieldRow label="Interactions" value={data.interactions || ''} onChange={(v) => onChange({ ...data, interactions: v })} placeholder="Default conversational stance — curious, suspicious..." tableId="npcInteractionTraits" />
-          <NPCFieldRow label="Knowledge" value={data.knowledge || ''} onChange={(v) => onChange({ ...data, knowledge: v })} placeholder="Something useful they know" rows={2} />
-          <NPCFieldRow label="Ideal" value={data.ideal || ''} onChange={(v) => onChange({ ...data, ideal: v })} placeholder="What drives them" tableId="npcIdeals" />
-          <NPCFieldRow label="Bond" value={data.bond || ''} onChange={(v) => onChange({ ...data, bond: v })} placeholder="Who or what they're tied to" tableId="npcBonds" />
-          <NPCFieldRow label="Flaw / Secret" value={data.flaw || ''} onChange={(v) => onChange({ ...data, flaw: v })} placeholder="Flaw or secret that could undermine them" tableId="npcFlawsSecrets" />
-        </div>
-      )}
-    </div>
-  );
-};
-
-const LocationCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
-    <div className="flex justify-between gap-2">
-      <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Evocative Name" />
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <button
-          type="button"
-          onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
-          className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
-            data.isPublic
-              ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
-              : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
-          }`}
-          title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
-        >
-          {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
-          {data.isPublic ? 'Shared' : 'Private'}
-        </button>
-        <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
-      </div>
-    </div>
-    <div><CardLabel>Type</CardLabel>
-      <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
-        <option value="">— Choose —</option>
-        <option>Player Base</option><option>Faction Stronghold</option><option>Wilderness Landmark</option>
-        <option>Dungeon Room / Area</option><option>Settlement</option><option>Travel Waypoint</option><option>Other</option>
-      </select></div>
-    <div><CardLabel>3 Aspects</CardLabel>
-      <div className="space-y-1">
-        {[0, 1, 2].map(i => (
-          <Field key={i} value={(data.aspects || [])[i] || ''} onChange={(v) => {
-            const aspects = [...(data.aspects || ['', '', ''])]; aspects[i] = v; onChange({ ...data, aspects });
-          }} placeholder={`Aspect ${i + 1}`} />
-        ))}
-      </div></div>
-    <div><CardLabel>Factions Present</CardLabel>
-      <Field value={data.factions} onChange={(v) => onChange({ ...data, factions: v })} placeholder="..." /></div>
-  </div>
-);
 
 type SessionLog = { id: string; title: string; date: string; body: string };
 
@@ -1261,6 +814,7 @@ function RunSessionInlineIdle({
       __sessionChangeEvents: [],
       __sessionUsedScenes: [],
       __runSessionOpen: openOverlay,
+      __livingWorldPromptDismissed: false,
     }));
   };
 
@@ -1298,7 +852,7 @@ function RunSessionInlineIdle({
           {recent.length > 0 && (
             <button
               type="button"
-              onClick={() => navigateTo({ mode: 'run', subview: 'log' })}
+              onClick={() => navigateTo({ mode: 'organize', subview: 'log' })}
               className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider"
             >
               View All →
@@ -1324,7 +878,7 @@ function RunSessionInlineIdle({
                   </div>
                   <button
                     type="button"
-                    onClick={() => navigateTo({ mode: 'run', subview: 'log' })}
+                    onClick={() => navigateTo({ mode: 'organize', subview: 'log' })}
                     className="text-[10px] px-2 py-0.5 rounded-sm border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex-shrink-0"
                   >
                     View
@@ -1391,6 +945,7 @@ function RunSessionInlineActive({
 }) {
   const sessionV2 = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
   const sessionNumber = nextSessionNumber(sessionV2);
+  const party = normalizePcs(get('pcs', []));
   const [initiativeOpen, setInitiativeOpen] = useState(false);
   const musicOpen = !!get('__musicOpen', false);
   const setMusicOpen = (v: boolean) => setVal('__musicOpen', v);
@@ -1428,7 +983,7 @@ function RunSessionInlineActive({
   const clocks = (get('clocks', []) as any[]) || [];
   const factions = (get('factions', []) as any[]) || [];
   const strongStart = ((get('strongStart', '') as string) || '').trim();
-  const [strongStartDone, setStrongStartDone] = useState(false);
+  const strongStartDone = !!get('__sessionStrongStartDelivered', false);
 
   const elapsed = formatElapsed(Date.now() - startedAt);
   const [, forceTick] = useState(0);
@@ -1571,8 +1126,13 @@ function RunSessionInlineActive({
                     <button
                       onClick={() => {
                         const next = !strongStartDone;
-                        setStrongStartDone(next);
-                        if (next) trackEvent('other', 'Strong start delivered');
+                        setVal('__sessionStrongStartDelivered', next);
+                        if (next) {
+                          trackEvent('other', 'Strong start delivered');
+                        } else {
+                          const currentEvents = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
+                          setVal('__sessionChangeEvents', currentEvents.filter(e => !(e.kind === 'other' && e.summary === 'Strong start delivered')));
+                        }
                       }}
                       className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider flex items-center gap-1 ${
                         strongStartDone
@@ -1896,6 +1456,7 @@ function RunSessionInlineActive({
                 onChange={(next) => setVal('__initiative', next)}
                 monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
                 pcs={characters}
+                party={party}
                 onClose={() => setInitiativeOpen(false)}
               />
             ) : (
@@ -2334,6 +1895,10 @@ export default function CampaignEditor({
     initialMigration.initialOpenId ? { [initialMigration.initialOpenId]: true } : {}
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
+  const [openPcs, setOpenPcs] = useState<Record<string, boolean>>({});
+  const [uploadingPc, setUploadingPc] = useState(false);
+  const [pcUploadError, setPcUploadError] = useState<string>('');
+  const pcFileInputRef = useRef<HTMLInputElement>(null);
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
   const initialModeState = useMemo(() => resolveInitialMode(initialMigration.initialState), [initialMigration.initialState]);
   const [mode, setMode] = useState<Mode>(initialModeState.mode);
@@ -2579,6 +2144,61 @@ export default function CampaignEditor({
 
   const get = (k: string, fb: any) => state[k] !== undefined ? state[k] : fb;
   const setVal = (k: string, v: any) => setState(s => ({ ...s, [k]: v }));
+
+  // uid for the per-user voice Storage path (voice/{uid}/…). For the campaign
+  // owner this is their own auth uid; falls back to the owner id on it.
+  const voiceUid = useMemo(
+    () => getFirebaseAuth().currentUser?.uid ?? campaign.userId ?? null,
+    [campaign.userId],
+  );
+
+  // --- AUTO-PUBLISH SYSTEM FOR PLAYER SHARING ---
+  const playerConfig = (get('player', {}) as PlayerConfig) || {};
+  const playerLog = (get('playerLog', []) as PlayerLogEntry[]) || [];
+
+  const publishSignature = useMemo(
+    () => JSON.stringify({
+      p: playerConfig,
+      n: get('npcs', []),
+      l: get('locations', []),
+      f: get('factions', []),
+      c: get('characters', []),
+      k: get('clocks', []),
+      h: get('handouts', ''),
+      s: playerLog,
+      i: get('items', []),
+      g: get('pcGoals', []),
+      m: get('maps', []),
+    }),
+    [playerConfig, get, playerLog],
+  );
+
+  useEffect(() => {
+    if (!playerConfig?.shareToken || !campaign.id) return;
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const dataToPublish = {
+            player: playerConfig,
+            npcs: get('npcs', []),
+            locations: get('locations', []),
+            factions: get('factions', []),
+            characters: get('characters', []),
+            clocks: get('clocks', []),
+            handouts: get('handouts', ''),
+            playerLog,
+            items: get('items', []),
+            pcGoals: get('pcGoals', []),
+            maps: get('maps', []),
+          };
+          await publishProjections(campaign.id, name || 'Campaign', dataToPublish);
+        } catch (e) {
+          console.error('[CampaignEditor] auto-publish failed', e);
+        }
+      })();
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [publishSignature, campaign.id, name, playerLog, playerConfig, get]);
   const getUsedPrep = () => {
     const sessionLogsV2 = (get('sessionLogV2', [])) || [];
     const linkedNpcIds = new Set<string>();
@@ -2695,7 +2315,10 @@ export default function CampaignEditor({
     
     const keptEvents = events.filter((e: any) => !e.dismissed);
     const nextNumber = Math.max(0, ...existingEntries.map(e => e.number || 0)) + 1;
-    const entry = {
+    const strongStartDelivered = !!get('__sessionStrongStartDelivered', false);
+    const strongStartText = ((get('strongStart', '') as string) || '').trim();
+
+    const entry: any = {
       id: sessionId,
       number: nextNumber,
       date: new Date().toISOString().split('T')[0],
@@ -2713,6 +2336,9 @@ export default function CampaignEditor({
         return { goal: goalText || '', from: from || String(e.before ?? ''), to: to || String(e.after ?? '') };
       }),
     };
+    if (strongStartDelivered && strongStartText) {
+      entry.strongStart = strongStartText;
+    }
     
     const updatedSessionLog = [...existingEntries, entry];
     const { partyXP, partyInventory, updatedCharacters } = recalculatePartyState(updatedSessionLog, characters);
@@ -2747,6 +2373,9 @@ export default function CampaignEditor({
       items: updatedItems,
       treasure: updatedTreasure
     };
+    if (strongStartDelivered && strongStartText) {
+      nextState.strongStart = '';
+    }
     delete nextState.__activeSessionId;
     delete nextState.__sessionStartedAt;
     delete nextState.__sessionEndedAt;
@@ -2754,8 +2383,23 @@ export default function CampaignEditor({
     delete nextState.__sessionScratchpad;
     delete nextState.__sessionUsedScenes;
     delete nextState.__sessionItemsGiven;
+    delete nextState.__sessionStrongStartDelivered;
     nextState.__runSessionOpen = false;
     nextState = markSessionPlayed(nextState);
+
+    // Phase 4 — auto-suggest relationships from this session's notes. Scans the
+    // recap for co-mentioned entities and appends `suggested: true` links for
+    // the GM to confirm on the Wiki tab.
+    try {
+      const idx = buildEntityIndex(nextState);
+      const existingRels: WikiRelationship[] = Array.isArray(nextState.relationships) ? nextState.relationships : [];
+      const newSuggestions = scanTextForSuggestions(entry.recap || '', idx, existingRels);
+      if (newSuggestions.length > 0) {
+        nextState.relationships = [...existingRels, ...newSuggestions];
+      }
+    } catch {
+      // Suggestion scanning is best-effort; never block ending a session.
+    }
 
     // Cancel the pending auto-save timeout so it doesn't fire after our manual save
     if (saveTimeoutRef.current) {
@@ -2839,15 +2483,16 @@ export default function CampaignEditor({
     partyLevel,
   };
 
-  const completedCount = Object.values(done || {}).filter(Boolean).length;
-  
   const PREP_GROUPS = [
     { name: 'Premise', keys: ['pitch', 'genre', 'g-lines', 'g-mech'], labels: ['Quick Pitch', 'Genre Statement', 'Content Lines', 'Mechanics & System'] },
     { name: 'World', keys: ['g-world', 'facts', 'g-fnl'], labels: ['World Facts', 'Setting Facts', 'Req. Factions, NPCs & Locations'] },
     { name: 'Characters', keys: ['pc', 'goals'], labels: ['Player Characters', 'PC Goals'] },
-    { name: 'Fronts', keys: ['factions', 'conflicts', 'secrets', 'handouts'], labels: ['Factions', 'Active Conflicts', 'Secrets & Clues', 'Handouts / Lore'] },
+    { name: 'Fronts', keys: ['factions', 'conflicts', 'secrets'], labels: ['Factions', 'Active Conflicts', 'Secrets & Clues'] },
     { name: 'Per-Session', keys: ['s1-review', 's2-start', 's3-scenes', 's4-secrets', 's5-loc', 's6-npc', 's7-mon', 's8-rew'], labels: ['1. Review PCs', '2. Strong Start', '3. Outline Scenes', '4. Define Secrets', '5. Develop Locations', '6. Outline NPCs', '7. Choose Monsters', '8. Select Rewards'] },
   ];
+
+  const totalPrepSteps = PREP_GROUPS.reduce((acc, g) => acc + g.keys.length, 0);
+  const completedCount = PREP_GROUPS.reduce((acc, g) => acc + g.keys.filter(k => done?.[k]).length, 0);
 
   // Lowest-progress prep target — drives the "Next Up" pill at the top of the
   // Prep Flow tab. Picks the section with the largest gap to target, with
@@ -2966,6 +2611,69 @@ export default function CampaignEditor({
       setCharUploadError(err?.message || 'Upload failed');
     } finally {
       setUploadingChar(false);
+    }
+  };
+
+  // ---- First-class PCs (data.pcs) -------------------------------------
+  const pcs = useMemo(() => normalizePcs(state.pcs), [state.pcs]);
+  const pcMacros = (state.pcMacros as PcMacros) || {};
+
+  const writePcs = (next: PlayerCharacter[], nextMacros?: PcMacros) => {
+    setState((s) => ({
+      ...s,
+      pcs: capPcs(next),
+      ...(nextMacros ? { pcMacros: nextMacros } : {}),
+    }));
+  };
+
+  const addPc = () => {
+    if (pcs.length >= PC_CAP) return;
+    const fresh = emptyPc();
+    writePcs([...pcs, fresh]);
+    setOpenPcs((o) => ({ ...o, [fresh.id]: true }));
+  };
+
+  const updatePc = (pc: PlayerCharacter) => {
+    const next = pcs.map((p) => (p.id === pc.id ? pc : p));
+    // Keep the PC's attack macros in sync on every save.
+    writePcs(next, syncAttackMacros(pc, pcMacros));
+  };
+
+  const removePc = (id: string) => {
+    const target = pcs.find((p) => p.id === id);
+    writePcs(pcs.filter((p) => p.id !== id), dropPcMacros(id, pcMacros));
+    setOpenPcs((o) => { const n = { ...o }; delete n[id]; return n; });
+    showUndoToast(`Deleted "${target?.name || 'PC'}" — Press ⌘Z to undo`, 5000);
+  };
+
+  const uploadPcSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (pcs.length >= PC_CAP) { setPcUploadError(`Party is full (${PC_CAP} max)`); return; }
+    setPcUploadError('');
+    setUploadingPc(true);
+    try {
+      const user = getFirebaseAuth().currentUser;
+      if (!user) throw new Error('Not signed in');
+      const idToken = await user.getIdToken();
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/parse-character-sheet', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${idToken}` },
+        body: form,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `Parse failed (${res.status})`);
+      const parsed = normalizeCharacter(body.character);
+      const pc = mapParsedToPc(parsed);
+      writePcs([...pcs, pc], syncAttackMacros(pc, pcMacros));
+      setOpenPcs((o) => ({ ...o, [pc.id]: true }));
+    } catch (err: any) {
+      setPcUploadError(err?.message || 'Upload failed');
+    } finally {
+      setUploadingPc(false);
     }
   };
 
@@ -3179,6 +2887,101 @@ export default function CampaignEditor({
     if (target.anchor) scrollToAnchor(target.anchor);
   };
 
+  // ── Campaign Wiki (cross-entity relationships) ──────────────────────────
+  // The entity index + relationships array, plus mutators, are exposed via
+  // WikiContext so the inline RelationshipsSection on each card and the Wiki
+  // tab share one source of truth without prop-threading.
+  const wikiIndex = useMemo(() => buildEntityIndex(state), [state]);
+  const wikiRelationships = useMemo<WikiRelationship[]>(
+    () => (Array.isArray(state.relationships) ? state.relationships : []),
+    [state.relationships],
+  );
+
+  // One-time prune of suggestions older than 30 days (auto-reject).
+  useEffect(() => {
+    setState((s) => {
+      if (!Array.isArray(s.relationships) || s.relationships.length === 0) return s;
+      const { relationships, changed } = pruneExpiredSuggestions(s.relationships);
+      return changed ? { ...s, relationships } : s;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const navigateToEntity = useCallback((type: WikiEntityType, id: string) => {
+    // Land on the surface that hosts this entity's card and scroll to it.
+    if (type === 'pc') {
+      navigateTo({ mode: 'plan', subview: 'pcs', characterId: id });
+      setTimeout(() => scrollToAnchor(`character:${id}`), 80);
+      return;
+    }
+    navigateTo({ mode: 'plan', subview: 'worldbuild' });
+    setTimeout(() => {
+      const el = document.getElementById(`entity-${id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 80);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const rescanForSuggestions = useCallback((): number => {
+    let added = 0;
+    setState((s) => {
+      const sources: string[] = [];
+      for (const e of (Array.isArray(s.sessionLogV2) ? s.sessionLogV2 : [])) {
+        if (e && typeof e.recap === 'string') sources.push(e.recap);
+      }
+      if (typeof s.__sessionScratchpad === 'string') sources.push(s.__sessionScratchpad);
+      for (const sc of (Array.isArray(s.sceneSessions) ? s.sceneSessions : [])) {
+        if (!sc) continue;
+        if (typeof sc.partyState === 'string') sources.push(sc.partyState);
+        if (typeof sc.summary === 'string') sources.push(sc.summary);
+        for (const t of (Array.isArray(sc.turns) ? sc.turns : [])) {
+          if (t && typeof t.pcAction === 'string') sources.push(t.pcAction);
+          if (t && typeof t.outcome === 'string') sources.push(t.outcome);
+          if (t?.response && typeof t.response.sensory === 'string') sources.push(t.response.sensory);
+        }
+      }
+      const idx = buildEntityIndex(s);
+      const existing: WikiRelationship[] = Array.isArray(s.relationships) ? s.relationships : [];
+      const found = scanTextForSuggestions(sources.join('\n\n'), idx, existing);
+      if (found.length === 0) return s;
+      added = found.length;
+      return { ...s, relationships: [...existing, ...found] };
+    });
+    return added;
+  }, []);
+
+  const wikiValue = useMemo<WikiContextValue>(() => ({
+    index: wikiIndex,
+    relationships: wikiRelationships,
+    addRelationship: (from, to, kind, notes) =>
+      setState((s) => ({
+        ...s,
+        relationships: addRelToList(
+          Array.isArray(s.relationships) ? s.relationships : [],
+          createRelationship(from, to, kind, notes),
+        ),
+      })),
+    removeRelationship: (id) =>
+      setState((s) => ({
+        ...s,
+        relationships: removeRelFromList(Array.isArray(s.relationships) ? s.relationships : [], id),
+      })),
+    acceptSuggestion: (id) =>
+      setState((s) => ({
+        ...s,
+        relationships: acceptSugInList(Array.isArray(s.relationships) ? s.relationships : [], id),
+      })),
+    rejectSuggestion: (id) =>
+      setState((s) => ({
+        ...s,
+        relationships: rejectSugFromList(Array.isArray(s.relationships) ? s.relationships : [], id),
+      })),
+    navigateToEntity,
+    resolve: (type, id) => findEntity(wikiIndex, type, id),
+    rescan: rescanForSuggestions,
+  }), [wikiIndex, wikiRelationships, navigateToEntity, rescanForSuggestions]);
+
   // Resolve a prep section ID to its (mode, subview) — used by command-palette
   // entries that target a specific section.
   const viewForSection = (sectionId: string): { mode: Mode; subview: string } => {
@@ -3265,23 +3068,28 @@ export default function CampaignEditor({
     { mode: 'plan',    subview: 'pitch',     label: 'Premise',     icon: Compass,         keywords: ['hook', 'givens', 'truths'] },
     { mode: 'plan',    subview: 'worldbuild',     label: 'Worldbuild',       icon: BookOpen,        keywords: ['setting', 'factions', 'reference', 'downtime'] },
     { mode: 'plan',    subview: 'pcs',       label: 'Characters',  icon: User,            keywords: ['pc', 'goals', 'sidekick'] },
+    { mode: 'plan',    subview: 'party',     label: 'Party',       icon: Users,           keywords: ['pc sheet', 'character sheet', 'hp', 'abilities', 'attacks', 'spell slots'] },
     { mode: 'prep',    subview: 'clocks',    label: 'Faction Clocks', icon: Clock,          keywords: ['clocks', 'factions', 'tracking'] },
     { mode: 'prep',    subview: 'arc',       label: 'Arc Planning',   icon: Layers,         keywords: ['audits', 'goals', 'secrets'] },
     { mode: 'prep',    subview: 'ending',    label: 'Ending',         icon: Trophy,         keywords: ['ending', 'wrap', 'threads'] },
     { mode: 'prep',    subview: 'flow',      label: 'Prep Flow',   icon: ScrollText,      keywords: ['lazy dm', '8 step', 'next session'] },
     { mode: 'prep',    subview: 'wizard',    label: 'Prep Wizard', icon: ClipboardList,   keywords: ['guided', 'walkthrough'] },
+    { mode: 'organize', subview: 'players',   label: 'Players',     icon: Users,          keywords: ['invite', 'share', 'collaboration'] },
+    { mode: 'organize', subview: 'log',       label: 'Sessions',    icon: Calendar,        keywords: ['session log', 'recap'] },
     { mode: 'run',     subview: 'session',   label: 'Run Session', icon: Swords,          keywords: ['active', 'table'] },
+    { mode: 'run',     subview: 'assistant', label: 'Assistant',   icon: Bot,             keywords: ['ai', 'chat', 'prep', 'plan', 'agent'] },
     { mode: 'run',     subview: 'lookup',    label: 'Lookup',      icon: Search,          keywords: ['quick reference'] },
+    { mode: 'run',     subview: 'logged',    label: 'Logged',      icon: ScrollText,      keywords: ['saved', 'library', 'generators', 'log'] },
     { mode: 'run',     subview: 'dice',      label: 'Dice',        icon: Dice5 },
     { mode: 'run',     subview: 'spells',    label: 'Spells',      icon: Sparkles },
     { mode: 'run',     subview: 'dmref',     label: 'DM Ref',      icon: BookOpen,        keywords: ['rules', 'madness', 'travel'] },
     { mode: 'run',     subview: 'chase',     label: 'Chase',       icon: Footprints,      keywords: ['chase tracker'] },
-    { mode: 'run',     subview: 'log',       label: 'Sessions',    icon: Calendar,        keywords: ['session log', 'recap'] },
     { mode: 'library', subview: 'generators',label: 'Generators',  icon: Wand2,           keywords: ['tavern', 'treasure', 'shop', 'dungeon', 'settlement', 'trinket', 'names', 'locations'] },
     { mode: 'library', subview: 'monsters',  label: 'Monsters',    icon: Skull,           keywords: ['stat block', 'bestiary'] },
     { mode: 'library', subview: 'traps',     label: 'Traps',       icon: Hash },
     { mode: 'library', subview: 'vivify',    label: 'Vivify',      icon: Sparkles,        keywords: ['ai description', 'prose'] },
     { mode: 'library', subview: 'pointbuy',  label: 'Point-Buy',   icon: Wrench,          keywords: ['point buy', 'ability scores', 'calculator', 'stats'] },
+    { mode: 'oracle',  subview: 'wells',     label: 'Oracle',      icon: Sparkles,        keywords: ['yes no', 'chaos', 'complication', 'ask', 'wells'] },
   ];
 
   const PREP_SECTION_META: Array<{ id: string; label: string }> = [
@@ -3328,7 +3136,7 @@ export default function CampaignEditor({
     }
 
     items.push(
-      { id: 'act:new-session', label: 'New session log', group: 'Actions', icon: Plus, run: () => { addSessionLog(); navigateTo({ mode: 'run', subview: 'log' }); } },
+      { id: 'act:new-session', label: 'New session log', group: 'Actions', icon: Plus, run: () => { addSessionLog(); navigateTo({ mode: 'organize', subview: 'log' }); } },
       { id: 'act:export', label: 'Export campaign JSON', group: 'Actions', icon: Download, run: () => exportJSON() },
       { id: 'act:import', label: 'Import campaign JSON', group: 'Actions', icon: Upload, run: () => fileInputRef.current?.click() },
       { id: 'act:add-character', label: 'Add character', group: 'Actions', icon: User, run: () => { addCharacter(); const v = viewForSection('pc'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 'pc' }); } },
@@ -3454,7 +3262,7 @@ export default function CampaignEditor({
         sublabel: log.date || undefined,
         group: 'Sessions',
         icon: Calendar,
-        run: () => navigateTo({ mode: 'run', subview: 'log', sessionId: log.id, anchor: `session:${log.id}` }),
+        run: () => navigateTo({ mode: 'organize', subview: 'log', sessionId: log.id, anchor: `session:${log.id}` }),
       });
     });
 
@@ -3615,6 +3423,9 @@ export default function CampaignEditor({
   if (get('__runSessionOpen', false)) {
     return (
       <>
+        <div className="mx-auto max-w-3xl px-4 pt-4">
+          <WhileYouWereAway get={get} setVal={setVal} isPro={isPro} campaignName={name} />
+        </div>
         <RunSessionView
           get={get}
           setVal={setVal}
@@ -3662,6 +3473,7 @@ export default function CampaignEditor({
       next.__sessionChangeEvents = [];
       next.__sessionUsedScenes = [];
       next.__runSessionOpen = true;
+      next.__livingWorldPromptDismissed = false;
       return markSessionPlayed(next);
     });
   };
@@ -3707,6 +3519,15 @@ export default function CampaignEditor({
   }
 
   return (
+    <VoiceProvider
+      campaignId={campaign.id}
+      uid={voiceUid}
+      isPro={isPro}
+      npcs={get('npcs', [])}
+      voiceCache={get('voiceCache', [])}
+      onVoiceCacheChange={(next) => setVal('voiceCache', next)}
+    >
+    <WikiProvider value={wikiValue}>
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
       <div className="max-w-5xl mx-auto">
         <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
@@ -3847,7 +3668,7 @@ export default function CampaignEditor({
                   className="flex items-center gap-1.5 rounded-full border border-moss/45 bg-moss/5 px-2.5 py-1 hover:bg-moss/10 transition-colors"
                 >
                   <div className="font-display text-[10px] uppercase tracking-wider text-moss flex items-center gap-1">
-                    {completedCount} Steps Done <ChevronDown size={10} className={`transition-transform ${progressOpen ? 'rotate-180' : ''}`} />
+                    {completedCount}/{totalPrepSteps} Steps Done <ChevronDown size={10} className={`transition-transform ${progressOpen ? 'rotate-180' : ''}`} />
                   </div>
                 </button>
                 {progressOpen && (
@@ -3926,22 +3747,99 @@ export default function CampaignEditor({
               <BookQuote source="CCD ch. 1">Givens are a set of things your group agrees will feature regardless of how worldbuilding ends up.</BookQuote>
               <Section id="g-world" title="World Facts" methods={['ccd']} done={done['g-world']} onToggle={toggleDone} open={open['g-world']} onToggleOpen={toggleOpen}>
                 <Example title="from CCD">"Post-apocalyptic." "The sun has gone out." "Magic has died."</Example>
-                <ListField items={get('gWorld', [])} onChange={(v) => setVal('gWorld', v)} placeholder="A world fact" target={tgt('gWorld')} />
+                <ListField
+                  items={get('gWorld', [])}
+                  onChange={(v) => setVal('gWorld', v)}
+                  placeholder="A world fact"
+                  target={tgt('gWorld')}
+                  isShared={(i) => !!get('player', {}).planningVisibility?.gWorld?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.gWorld ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.gWorld = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
               </Section>
               <Section id="g-fnl" title="Required Factions, NPCs & Locations" methods={['ccd']} done={done['g-fnl']} onToggle={toggleDone} open={open['g-fnl']} onToggleOpen={toggleOpen}>
-                <ListField items={get('gFNL', [])} onChange={(v) => setVal('gFNL', v)} placeholder="A specific entity" target={tgt('gFNL')} />
+                <ListField
+                  items={get('gFNL', [])}
+                  onChange={(v) => setVal('gFNL', v)}
+                  placeholder="A specific entity"
+                  target={tgt('gFNL')}
+                  isShared={(i) => !!get('player', {}).planningVisibility?.gFNL?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.gFNL ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.gFNL = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
               </Section>
               <Section id="g-mech" title="Mechanics & System" methods={['ccd']} done={done['g-mech']} onToggle={toggleDone} open={open['g-mech']} onToggleOpen={toggleOpen}>
                 <Field value={get('system', '')} onChange={(v) => setVal('system', v)} placeholder="System (e.g. 5e)" />
                 <CardLabel>Tone Keywords</CardLabel>
-                <ListField items={get('tone', [])} onChange={(v) => setVal('tone', v)} placeholder="A tone word" />
+                <ListField
+                  items={get('tone', [])}
+                  onChange={(v) => setVal('tone', v)}
+                  placeholder="A tone word"
+                  isShared={(i) => !!get('player', {}).planningVisibility?.tone?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.tone ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.tone = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
               </Section>
               <Section id="g-lines" title="Content Lines (Hard Nos)" methods={['ccd']} done={done['g-lines']} onToggle={toggleDone} open={open['g-lines']} onToggleOpen={toggleOpen}>
-                <ListField items={get('lines', [])} onChange={(v) => setVal('lines', v)} placeholder="A topic to avoid" target={tgt('lines')} />
+                <ListField
+                  items={get('lines', [])}
+                  onChange={(v) => setVal('lines', v)}
+                  placeholder="A topic to avoid"
+                  target={tgt('lines')}
+                  isShared={(i) => !!get('player', {}).planningVisibility?.lines?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.lines ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.lines = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
               </Section>
               <Section id="pitch" title="Quick Pitch" methods={['ccd']} done={done.pitch} onToggle={toggleDone} open={open.pitch} onToggleOpen={toggleOpen}>
                 <BookQuote source="CCD case study">Pitch the results, not the concept.</BookQuote>
                 <Field value={get('pitch', '')} onChange={(v) => setVal('pitch', v)} placeholder="2-3 sentences" rows={4} />
+                {(() => {
+                  const curConfig = get('player', {});
+                  const pitchShared = !!curConfig.planningVisibility?.pitch;
+                  return (
+                    <div className="flex justify-end mt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const pv = { ...(curConfig.planningVisibility ?? {}) };
+                          pv.pitch = !pv.pitch;
+                          setVal('player', { ...curConfig, planningVisibility: pv });
+                        }}
+                        className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded transition-colors ${
+                          pitchShared ? 'bg-moss/10 text-moss hover:bg-moss/20 font-medium' : 'bg-parchment-deep border border-rule text-ink-mute hover:text-ink'
+                        }`}
+                      >
+                        {pitchShared ? <Eye size={12} /> : <EyeOff size={12} />}
+                        {pitchShared ? 'Shared with Players' : 'Private (Click to share)'}
+                      </button>
+                    </div>
+                  );
+                })()}
                 <InspireGroup>
                   <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Goal seeds:</span>
                   <Inspire tableId="dungeonGoals" label="Dungeon" onPick={(e) => {
@@ -3968,27 +3866,76 @@ export default function CampaignEditor({
               <Section id="genre" title="Genre Statement" methods={['ccd']} done={done.genre} onToggle={toggleDone} open={open.genre} onToggleOpen={toggleOpen}>
                 <Example title="format">[tone] [genre] in [setting] where [tension]</Example>
                 <Field value={get('genre', '')} onChange={(v) => setVal('genre', v)} placeholder="One sentence" rows={2} />
+                {(() => {
+                  const curConfig = get('player', {});
+                  const genreShared = !!curConfig.planningVisibility?.genre;
+                  return (
+                    <div className="flex justify-end mt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const pv = { ...(curConfig.planningVisibility ?? {}) };
+                          pv.genre = !pv.genre;
+                          setVal('player', { ...curConfig, planningVisibility: pv });
+                        }}
+                        className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded transition-colors ${
+                          genreShared ? 'bg-moss/10 text-moss hover:bg-moss/20 font-medium' : 'bg-parchment-deep border border-rule text-ink-mute hover:text-ink'
+                        }`}
+                      >
+                        {genreShared ? <Eye size={12} /> : <EyeOff size={12} />}
+                        {genreShared ? 'Shared with Players' : 'Private (Click to share)'}
+                      </button>
+                    </div>
+                  );
+                })()}
               </Section>
               <Section id="facts" title="Setting Facts" methods={['ccd']} done={done.facts} onToggle={toggleDone} open={open.facts} onToggleOpen={toggleOpen}>
                 <Pitfall>Don't pre-load all the secrets. Players still need new ones to discover.</Pitfall>
-                <ListField items={get('facts', [])} onChange={(v) => setVal('facts', v)} placeholder="A fact about the world" rows={2} target={tgt('facts')} />
+                <ListField
+                  items={get('facts', [])}
+                  onChange={(v) => setVal('facts', v)}
+                  placeholder="A fact about the world"
+                  rows={2}
+                  target={tgt('facts')}
+                  isShared={(i) => !!get('player', {}).planningVisibility?.facts?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.facts ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.facts = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
               </Section>
               <Section id="secrets" title="Secrets & Clues" methods={['ccd', 'pr']} done={done.secrets} onToggle={toggleDone} open={open.secrets} onToggleOpen={toggleOpen}>
                 <BookQuote source="PR ch. 5">Secrets are the currency of the game. They shouldn't be gated behind high rolls.</BookQuote>
                 <Pitfall>Secrets without context (like "the duke is actually a lizard") don't drive action. Tie them to character goals.</Pitfall>
                 <TargetBar current={countFilled('secrets', get('secrets', []))} target={tgt('secrets')} source={TARGETS.secrets.source} />
-                <ListField items={get('secrets', [])} onChange={(v) => setVal('secrets', v)} placeholder="A secret someone doesn't want known" rows={2} target={tgt('secrets')} />
+                <ListField
+                  items={get('secrets', [])}
+                  onChange={(v) => setVal('secrets', v)}
+                  placeholder="A secret someone doesn't want known"
+                  rows={2}
+                  target={tgt('secrets')}
+                  isShared={(i) => !!get('player', {}).planningVisibility?.secrets?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.secrets ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.secrets = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
               </Section>
-              <Section id="handouts" title="Handouts / Lore (Public)" methods={[]} done={done.handouts} onToggle={toggleDone} open={open.handouts} onToggleOpen={toggleOpen}>
-                <div className="text-[10px] text-ink-mute uppercase font-display tracking-wider mb-2">Visible to players via invite link</div>
-                <Field value={get('handouts', '')} onChange={(v) => setVal('handouts', v)} placeholder="Notes, rumors, or handouts that players can see..." rows={6} />
-              </Section>
+
               <Section id="factions" title="Factions" methods={['pr', 'ccd']} done={done.factions} onToggle={toggleDone} open={open.factions} onToggleOpen={toggleOpen} icon={Users}>
                 <BookQuote source="PR ch. 2">Think of factions, not individual NPCs, as the GM-controlled counterparts of the party.</BookQuote>
                 <Pitfall>Factions whose goals don't overlap with PC goals are just colour.</Pitfall>
                 <TargetBar current={countFilled('factions', get('factions', []))} target={tgt('factions')} source={TARGETS.factions.source} />
                 {(get('factions', []) as any[]).map((f: any, i: number) => (
-                  <div key={i} data-cp-anchor={`faction:${i}`}>
+                  <div key={i} id={f.id ? `entity-${f.id}` : undefined} data-cp-anchor={`faction:${i}`}>
                     <FactionCard data={f} onChange={(v: any) => {
                       const next = [...(get('factions', []) as any[])]; next[i] = v; setVal('factions', next);
                       const fromR = typeof f.renown === 'number' ? f.renown : 0;
@@ -4021,7 +3968,22 @@ export default function CampaignEditor({
               </Section>
               <Section id="conflicts" title="Active Conflicts" methods={['ccd', 'pr']} done={done.conflicts} onToggle={toggleDone} open={open.conflicts} onToggleOpen={toggleOpen}>
                 <BookQuote source="CCD ch. 2">Conflicts are the end goal of worldbuilding.</BookQuote>
-                <ListField items={get('conflicts', [])} onChange={(v) => setVal('conflicts', v)} placeholder="Faction A vs Faction B over X" rows={2} target={tgt('conflicts')} />
+                <ListField
+                  items={get('conflicts', [])}
+                  onChange={(v) => setVal('conflicts', v)}
+                  placeholder="Faction A vs Faction B over X"
+                  rows={2}
+                  target={tgt('conflicts')}
+                  isShared={(i) => !!get('player', {}).planningVisibility?.conflicts?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.conflicts ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.conflicts = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
                 <InspireGroup>
                   <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
                   <Inspire tableId="twists" label="Twist" onPick={(e) => {
@@ -4136,6 +4098,30 @@ export default function CampaignEditor({
             </Phase>
             )}
 
+            {mode === 'plan' && subview === 'party' && (
+              <div className="space-y-3">
+                <PartyTab
+                  pcs={pcs}
+                  openMap={openPcs}
+                  isPro={isPro}
+                  uploading={uploadingPc}
+                  uploadError={pcUploadError}
+                  onToggleOpen={(id) => setOpenPcs(o => ({ ...o, [id]: !o[id] }))}
+                  onAdd={addPc}
+                  onUpdate={updatePc}
+                  onRemove={removePc}
+                  onUploadClick={() => pcFileInputRef.current?.click()}
+                />
+                <input
+                  ref={pcFileInputRef}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.md,.json,application/pdf,image/png,image/jpeg,image/webp,image/gif,text/plain,application/json,text/markdown"
+                  onChange={uploadPcSheet}
+                  className="hidden"
+                />
+              </div>
+            )}
+
             {mode === 'prep' && subview === 'flow' && (
             <Phase n="3" title="Per-Session Prep" sub="Lazy DM 8-Step Checklist" methods={['shea']} audience="solo" icon={Calendar} expanded={phaseOpen.p3} onToggle={() => togglePhase('p3')}>
               <BookQuote source="Lazy DM (Jeremy Crawford)">Prep as little as you can.</BookQuote>
@@ -4144,6 +4130,7 @@ export default function CampaignEditor({
               </Section>
               <Section id="s2-start" title="2 · Create a Strong Start" methods={['shea']} done={done['s2-start']} onToggle={toggleDone} open={open['s2-start']} onToggleOpen={toggleOpen}>
                 <SoloNote>Solo level-1 cannot reliably survive opening combat. Substitute action that isn't a losable fight.</SoloNote>
+                <TargetBar current={countFilled('strongStart', get('strongStart', ''))} target={tgt('strongStart')} source={TARGETS.strongStart.source} />
                 <Field value={get('strongStart', '')} onChange={(v) => setVal('strongStart', v)} placeholder="One sentence or paragraph" rows={4} />
                 <InspireGroup>
                   <Inspire tableId="introductions" label="Introduction" onPick={(e) => {
@@ -4300,11 +4287,20 @@ export default function CampaignEditor({
                       >
                         <NPCCard
                           data={n}
+                          isPro={isPro}
                           onChange={(v: any) => {
                             const next = [...(get('npcs', []) as any[])];
                             next[originalIndex] = v;
                             setVal('npcs', next);
-                            
+
+                            // When the voice profile changes, invalidate this
+                            // NPC's cached clips so the next speak regenerates.
+                            const prevSig = JSON.stringify(n.voiceProfile ?? null);
+                            const nextSig = JSON.stringify(v.voiceProfile ?? null);
+                            if (prevSig !== nextSig && n.id) {
+                              setVal('voiceCache', invalidateNpcVoiceCache(get('voiceCache', []), n.id));
+                            }
+
                             // Synchronize playerConfig.entityVisibility
                             const curConfig = get('player', {});
                             const ev = { ...(curConfig.entityVisibility ?? {}) };
@@ -4317,7 +4313,10 @@ export default function CampaignEditor({
                             ev.npcs = bucket;
                             setVal('player', { ...curConfig, entityVisibility: ev });
                           }}
-                          onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== originalIndex))}
+                          onRemove={() => {
+                            if (n.id) setVal('voiceCache', invalidateNpcVoiceCache(get('voiceCache', []), n.id));
+                            setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== originalIndex));
+                          }}
                         />
                       </div>
                     );
@@ -4506,7 +4505,7 @@ export default function CampaignEditor({
             </Phase>
             )}
 
-            {mode === 'plan' && subview === 'players' && state.player && (
+            {mode === 'organize' && subview === 'players' && state.player && (
               <PlayerModePanel
                 campaignId={campaign.id}
                 campaignName={name}
@@ -4912,6 +4911,80 @@ export default function CampaignEditor({
           />
         )}
 
+        {mode === 'run' && subview === 'scene' && (isPro ? (
+          <SceneModePanel
+            data={state}
+            scenes={(get(SCENE_SESSIONS_KEY, []) as SceneEntry[])}
+            onScenesChange={(next) => setVal(SCENE_SESSIONS_KEY, next)}
+            onReveal={(npcIds) => {
+              const cfg = get('player', null) as PlayerConfig | null;
+              if (!cfg) return;
+              const npcsArr = get('npcs', []) as Array<{ id?: string; name?: string }>;
+              const mentions = npcIds.map((id) => ({
+                entityType: 'npcs' as const,
+                entityId: id,
+                label: npcsArr.find((n) => n.id === id)?.name ?? '',
+              }));
+              setVal('player', applyNarrationReveal(cfg, mentions, { mode: 'party' }));
+            }}
+            onSceneEnded={(scene) => {
+              const npcsArr = get('npcs', []) as Array<{ id?: string; name?: string }>;
+              const locsArr = get('locations', []) as Array<{ id?: string; name?: string }>;
+              const locName = locsArr.find((l) => l.id === scene.locationId)?.name || 'a location';
+              const md = sceneToMarkdown(scene, {
+                locationName: (id) => locsArr.find((l) => l.id === id)?.name || 'Unknown Location',
+                npcName: (id) => npcsArr.find((n) => n.id === id)?.name || 'Unknown NPC',
+              });
+              const existing = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
+              const entry: SessionLogEntry = {
+                id: makeLogId(),
+                number: nextSessionNumber(existing),
+                date: todayISO(),
+                startedAt: scene.startedAt,
+                endedAt: scene.endedAt ?? Date.now(),
+                title: `Scene at ${locName}`,
+                recap: scene.summary?.trim() || md,
+                events: [],
+                secretsRevealed: [],
+                scenesUsed: [],
+                goalUpdates: [],
+              };
+              setVal('sessionLogV2', [...existing, entry]);
+              trackEvent('scene_used', `Ran a scene at ${locName} (${scene.turns.length} turns)`);
+            }}
+          />
+        ) : (
+          <LockedPanel title="Scene Mode">
+            Run a location turn-by-turn at the table: pick where you are and who&apos;s present, then describe what
+            your PC does. Claude voices the NPCs in character, paints the sensory beat, and suggests what to roll —
+            grounded in your campaign. The only during-play AI feature.
+          </LockedPanel>
+        ))}
+
+        {mode === 'run' && subview === 'maps' && (
+          <MapsTab
+            data={state}
+            isPro={isPro}
+            onMapsChange={(maps) => setVal('maps', maps)}
+            onDataChange={setState}
+          />
+        )}
+
+        {mode === 'run' && subview === 'assistant' && (isPro ? (
+          <CampaignAssistant
+            data={state}
+            campaignName={name}
+            setData={(next) => setState(next)}
+          />
+        ) : (
+          <LockedPanel title="Campaign Assistant">
+            A persistent chat agent with read access to your whole campaign — NPCs, factions, secrets,
+            sessions, world clock — and write access via proposals you approve. It plans your next
+            session, surfaces neglected entities, drafts new content, and answers &quot;what should
+            happen next?&quot;
+          </LockedPanel>
+        ))}
+
         {mode === 'run' && subview === 'lookup' && (() => {
           const playerConfig = (get('player', {}) as any) || {};
           const roster = playerConfig.roster || [];
@@ -4926,7 +4999,7 @@ export default function CampaignEditor({
           />;
         })()}
 
-        {mode === 'run' && subview === 'log' && (() => {
+        {mode === 'organize' && subview === 'log' && (() => {
           const handleSessionLogChange = (updatedEntries: SessionLogEntry[]) => {
             const { partyXP, partyInventory, updatedCharacters } = recalculatePartyState(updatedEntries, characters);
             setState(s => ({
@@ -4950,6 +5023,8 @@ export default function CampaignEditor({
               items={get('items', [])}
               treasure={get('treasure', [])}
               characters={characters}
+              campaignStrongStart={get('strongStart', '') as string}
+              onStrongStartChange={(v) => setVal('strongStart', v)}
             />
           );
         })()}
@@ -4958,6 +5033,9 @@ export default function CampaignEditor({
           <DiceRoller
             macros={get('macros', []) as Macro[]}
             onMacrosChange={(v) => setVal('macros', v)}
+            pcMacroGroups={pcs
+              .map((pc) => ({ pcId: pc.id, pcName: pc.name || 'Unnamed PC', macros: pcMacros[pc.id] ?? [] }))
+              .filter((g) => g.macros.length > 0)}
             logEntries={logEntriesFor('dice')}
             onLogEntriesChange={setLogEntriesFor('dice')}
           />
@@ -5048,6 +5126,26 @@ export default function CampaignEditor({
 
         {mode === 'run' && subview === 'dmref' && <DMRefTab />}
 
+        {mode === 'run' && subview === 'logged' && (
+          <LoggedTab
+            logs={(state.generatorLogs as GeneratorLogs) || {}}
+            onChangeLogs={(next) => setVal('generatorLogs', next)}
+            playerLog={(get('playerLog', []) as PlayerLogEntry[])}
+            onShareToPlayerLog={(text) => {
+              const currentLog = (get('playerLog', []) as PlayerLogEntry[]) || [];
+              const nextLog = [...currentLog, {
+                id: makeLogId(),
+                text: text.trim(),
+                mentions: [],
+                visibility: { mode: 'party' },
+                authorRef: 'gm',
+                postedAtMs: Date.now(),
+              }];
+              setVal('playerLog', nextLog);
+            }}
+          />
+        )}
+
         {mode === 'run' && subview === 'chase' && (
           <ChaseTracker
             chases={(get('chases', []) as Chase[])}
@@ -5083,11 +5181,33 @@ export default function CampaignEditor({
           />
         )}
 
+        {mode === 'library' && subview === 'wiki' && <WikiTab />}
+
+        {mode === 'library' && subview === 'livingworld' && (
+          <LivingWorldTab
+            get={get}
+            setVal={setVal}
+            isPro={isPro}
+            soloMode={soloMode}
+            campaignName={name}
+          />
+        )}
+
         {mode === 'library' && subview === 'factions' && (
           <FactionEngineTab
             campaignId={campaign.id}
             world={(get('factionWorld', emptyWorld()) as FactionWorld)}
             onChange={(w) => setVal('factionWorld', w)}
+          />
+        )}
+
+        {mode === 'oracle' && subview === 'wells' && (
+          <WellsOracle
+            log={get('oracleLog', []) as OracleRoll[]}
+            onLog={(next) => setVal('oracleLog', next)}
+            chaos={get('__oracleChaos', 5) as number}
+            onChaosChange={(c) => setVal('__oracleChaos', c)}
+            inline={true}
           />
         )}
         </div>
@@ -5120,6 +5240,7 @@ export default function CampaignEditor({
           onChange={(next) => setVal('__initiative', next)}
           monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
           pcs={characters}
+          party={pcs}
           onClose={() => setVal('__initiativeOpen', false)}
         />
       )}
@@ -5196,5 +5317,7 @@ export default function CampaignEditor({
         />
       )}
     </main>
+    </WikiProvider>
+    </VoiceProvider>
   );
 }

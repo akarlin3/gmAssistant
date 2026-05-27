@@ -29,7 +29,7 @@ type AnyData = Record<string, any>;
 type Confirm = (o: { title: string; message: string; confirmText?: string; cancelText?: string; isDestructive?: boolean }) => Promise<boolean>;
 
 const TYPE_LABELS: Record<PlayerEntityType, string> = {
-  characters: 'Characters', npcs: 'NPCs', locations: 'Locations', factions: 'Factions', clocks: 'Clocks',
+  characters: 'Characters', pcs: 'Party (PC Sheets)', npcs: 'NPCs', locations: 'Locations', factions: 'Factions', clocks: 'Clocks',
 };
 
 function entityLabel(type: PlayerEntityType, e: AnyData, i: number): string {
@@ -72,8 +72,8 @@ export default function PlayerModePanel({
 
   // Debounced auto-publish whenever the campaign data or config changes.
   const publishSignature = useMemo(
-    () => JSON.stringify({ p: config, n: data.npcs, l: data.locations, f: data.factions, c: data.characters, k: data.clocks, h: data.handouts, s: data.playerLog, i: data.items }),
-    [config, data.npcs, data.locations, data.factions, data.characters, data.clocks, data.handouts, data.playerLog, data.items],
+    () => JSON.stringify({ p: config, n: data.npcs, l: data.locations, f: data.factions, c: data.characters, k: data.clocks, h: data.handouts, s: data.playerLog, i: data.items, g: data.pcGoals }),
+    [config, data.npcs, data.locations, data.factions, data.characters, data.clocks, data.handouts, data.playerLog, data.items, data.pcGoals],
   );
   useEffect(() => {
     if (!config?.shareToken) return;
@@ -573,7 +573,7 @@ function PreviewAsPlayer({
       </select>
       {projection && (
         <div className="space-y-2 rounded border border-rule bg-parchment p-3 text-sm">
-          {Object.entries(projection.entities).every(([, v]) => !v?.length) && !projection.handouts && projection.sessionLog.length === 0 && (!projection.items || projection.items.length === 0) ? (
+          {Object.entries(projection.entities).every(([, v]) => !v?.length) && !projection.handouts && projection.sessionLog.length === 0 && (!projection.items || projection.items.length === 0) && (!projection.pcGoals || projection.pcGoals.length === 0) ? (
             <p className="font-serif italic text-ink-mute">This player sees nothing yet.</p>
           ) : (
             <>
@@ -591,6 +591,16 @@ function PreviewAsPlayer({
               ))}
               {projection.handouts && <div className="font-serif text-ink-soft"><span className="font-display text-xs uppercase tracking-wider text-brass-deep">Handouts</span> shared</div>}
               {projection.sessionLog.length > 0 && <div className="font-serif text-ink-soft">{projection.sessionLog.length} session log entr{projection.sessionLog.length === 1 ? 'y' : 'ies'} shared</div>}
+              {projection.pcGoals && projection.pcGoals.length > 0 && (
+                <div>
+                  <div className="font-display text-xs uppercase tracking-wider text-brass-deep mt-2">goals</div>
+                  <ul className="list-disc pl-5 font-serif text-ink-soft">
+                    {projection.pcGoals.map((g: any, idx: number) => (
+                      <li key={idx}>{g.text}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {projection.items && projection.items.length > 0 && (
                 <div>
                   <div className="font-display text-xs uppercase tracking-wider text-brass-deep font-semibold mt-2">Given Items</div>

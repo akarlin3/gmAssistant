@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState } from 'react';
-import { X, ChevronDown, ChevronRight, Play } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, Play, Eye, EyeOff } from 'lucide-react';
 import { Field, ListField, Inspire, renownRank } from '../CampaignEditor';
 import type { SessionLog, DowntimeEntry, Character } from '@/lib/types';
 import { normalizeCharacter, emptyCharacter } from '@/lib/characters';
@@ -79,7 +79,24 @@ export const GoalCard = ({ data, onChange, onRemove }: any) => (
   <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
     <div className="flex justify-between gap-2">
       <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="Goal Statement" rows={2} />
-      <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
+          aria-label={data.isPublic ? 'Hide from players' : 'Share with players'}
+          aria-pressed={!!data.isPublic}
+          className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+            data.isPublic
+              ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
+              : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+          }`}
+          title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
+        >
+          {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
+          {data.isPublic ? 'Shared' : 'Private'}
+        </button>
+        <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+      </div>
     </div>
     <div className="grid grid-cols-3 gap-1.5">
       {[['short', 'Short-Term'], ['mid', 'Mid-Term'], ['long', 'Long-Term']].map(([t, label]) => (

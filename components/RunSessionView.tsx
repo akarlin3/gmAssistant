@@ -11,6 +11,7 @@ import { TABLES, rollTable } from '@/lib/inspirationTables';
 import InitiativePanel from './InitiativePanel';
 import MonsterStatBlock from './MonsterStatBlock';
 import type { InitiativeState } from '@/lib/initiative';
+import { normalizePcs } from '@/lib/pc/factory';
 import type { HomebrewMonster } from './MonstersTab';
 import type { Character } from '@/lib/character-schema';
 import { makeEvent, type ChangeEvent } from '@/lib/sessionEvents';
@@ -66,7 +67,8 @@ export default function RunSessionView({
     scenes: true, secrets: true, npcs: true, locations: true,
     monsters: true, magicItems: true, goals: true, clocks: true,
   });
-  const [strongStartDone, setStrongStartDone] = useState(false);
+  const party = useMemo(() => normalizePcs(get('pcs', [])), [get]);
+  const strongStartDone = !!get('__sessionStrongStartDelivered', false);
   const [toast, setToast] = useState<string | null>(null);
 
   // --- REAL-TIME PLAYER SHARING & AUTO-PUBLISH SYSTEM ---
@@ -108,6 +110,7 @@ export default function RunSessionView({
             handouts: get('handouts', ''),
             playerLog,
             items: get('items', []),
+            maps: get('maps', []),
           };
           await publishProjections(campaignId, campaignName || 'Campaign', dataToPublish);
           setPublishState('done');
@@ -333,6 +336,7 @@ export default function RunSessionView({
             onChange={(next) => setVal('__initiative', next)}
             monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
             pcs={characters}
+            party={party}
             onClose={() => setInitiativeOpen(false)}
             onEnded={(summary) => {
               pushEvent(makeEvent('other', summary));
@@ -477,8 +481,13 @@ export default function RunSessionView({
                       <button
                         onClick={() => {
                           const next = !strongStartDone;
-                          setStrongStartDone(next);
-                          if (next) pushEvent(makeEvent('other', 'Strong start delivered'));
+                          setVal('__sessionStrongStartDelivered', next);
+                          if (next) {
+                            pushEvent(makeEvent('other', 'Strong start delivered'));
+                          } else {
+                            const currentEvents = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
+                            setVal('__sessionChangeEvents', currentEvents.filter(e => !(e.kind === 'other' && e.summary === 'Strong start delivered')));
+                          }
                         }}
                         className={`flex items-center gap-1 rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
                           strongStartDone

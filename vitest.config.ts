@@ -15,8 +15,10 @@ export default defineConfig({
       '**/.{idea,git,cache,output,temp}/**',
       'lib/generators/__tests__/*.test.ts',
       'lib/__tests__/*.test.ts',
-      'lib/playerMode/__tests__/rules.test.ts'
-    ], // EXCLUDE node native tests and emulator-dependent rules tests from vitest
+      'lib/world/__tests__/*.test.ts',
+      'lib/playerMode/__tests__/rules.test.ts',
+      'e2e/**',
+    ], // EXCLUDE node native tests, emulator-dependent rules tests, and Playwright e2e from vitest
   },
   resolve: {
     alias: {

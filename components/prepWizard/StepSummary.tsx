@@ -33,6 +33,9 @@ type Row = {
 // raw total for context. Every other key counts only items with authored
 // content (blank rows / freshly-added empty cards don't satisfy the target).
 function countFor(key: PrepTargetKey, get: Get, logs: SessionLogEntry[], playerConfig?: any): { current: number; detail?: string } {
+  if (key === 'strongStart') {
+    return { current: countFilled('strongStart', get('strongStart', '')) };
+  }
   if (key === 'secrets') {
     const all = (get('secrets', []) as string[]) || [];
     const allFilled = all.filter(s => isFilled('secrets', s));

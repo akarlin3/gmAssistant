@@ -1,14 +1,23 @@
 import { NextRequest } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { readBearerToken, verifyPro } from '@/lib/verify-pro';
+import { enforceRateLimit } from '@/lib/rate-limit';
+import { TEMPLATES, buildSystemPrompt, type CampaignData } from '@/lib/vivifyContext';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+// The system prompt is built server-side from a known template id. The client
+// never supplies the system prompt directly — otherwise a Pro user could use
+// this endpoint as an unrestricted general-purpose Claude proxy on our bill.
 type VivifyRequest = {
-  systemPrompt: string;
-  userMessage: string;
+  templateId: string;
+  input: string;
+  data?: CampaignData;
 };
+
+const MAX_INPUT_CHARS = 4000;
+const MAX_DATA_BYTES = 100_000;
 
 function jsonError(status: number, message: string) {
   return new Response(JSON.stringify({ error: message }), {
@@ -24,6 +33,9 @@ export async function POST(req: NextRequest) {
   const verified = await verifyPro(idToken);
   if (!verified.ok) return jsonError(verified.status, verified.message);
 
+  const limited = enforceRateLimit(verified.uid);
+  if (limited) return limited;
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return jsonError(500, 'Server missing ANTHROPIC_API_KEY');
 
@@ -34,17 +46,22 @@ export async function POST(req: NextRequest) {
     return jsonError(400, 'Invalid JSON body.');
   }
 
-  if (!body.systemPrompt || !body.userMessage) {
-    return jsonError(400, 'Missing systemPrompt or userMessage.');
+  const template = TEMPLATES.find((t) => t.id === body.templateId);
+  if (!template) return jsonError(400, 'Unknown or missing templateId.');
+
+  const input = typeof body.input === 'string' ? body.input.trim() : '';
+  if (!input) return jsonError(400, 'Missing input.');
+  if (input.length > MAX_INPUT_CHARS) {
+    return jsonError(400, `Input too long (max ${MAX_INPUT_CHARS} characters).`);
   }
 
-  if (body.userMessage.length > 50000) {
-    return jsonError(400, 'userMessage exceeds maximum length of 50000 characters.');
+  const data: CampaignData =
+    body.data && typeof body.data === 'object' && !Array.isArray(body.data) ? body.data : {};
+  if (JSON.stringify(data).length > MAX_DATA_BYTES) {
+    return jsonError(400, 'Campaign context too large.');
   }
 
-  if (body.systemPrompt.length > 50000) {
-    return jsonError(400, 'systemPrompt exceeds maximum length of 50000 characters.');
-  }
+  const systemPrompt = buildSystemPrompt(template, data);
 
   const client = new Anthropic({ apiKey });
   const encoder = new TextEncoder();
@@ -65,8 +82,8 @@ export async function POST(req: NextRequest) {
           {
             model: 'claude-sonnet-4-6',
             max_tokens: 2048,
-            system: body.systemPrompt,
-            messages: [{ role: 'user', content: body.userMessage }],
+            system: systemPrompt,
+            messages: [{ role: 'user', content: input }],
           },
           { signal: abort.signal },
         );

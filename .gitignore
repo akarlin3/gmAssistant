@@ -7,6 +7,12 @@ node_modules
 *.tsbuildinfo
 firebase-config.json
 
+# Playwright e2e artifacts
+/test-results
+/playwright-report
+/blob-report
+/playwright/.cache
+
 # next-pwa generated service worker artifacts — emitted fresh by `next build`
 # (B-05). Committing them ships a stale precache manifest, so let each build
 # regenerate them in public/.

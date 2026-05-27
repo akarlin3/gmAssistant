@@ -12,6 +12,7 @@ import {
 } from '@/lib/initiative';
 import type { HomebrewMonster } from './MonstersTab';
 import type { Character } from '@/lib/character-schema';
+import type { PlayerCharacter } from '@/lib/pc/types';
 import MonsterStatBlock from './MonsterStatBlock';
 
 type Props = {
@@ -19,6 +20,7 @@ type Props = {
   onChange: (next: InitiativeState | null) => void;
   monsters: HomebrewMonster[];
   pcs: Character[];
+  party?: PlayerCharacter[];
   onClose: () => void;
   variant?: 'floating' | 'inline';
   onEnded?: (summary: string) => void;
@@ -57,7 +59,7 @@ function pcInitiativeMod(pc: Character): number {
 }
 
 export default function InitiativePanel({
-  state, onChange, monsters, pcs, onClose, variant = 'floating', onEnded,
+  state, onChange, monsters, pcs, party = [], onClose, variant = 'floating', onEnded,
 }: Props) {
   const [addMode, setAddMode] = useState<'monster' | 'pc' | 'manual' | null>(null);
   const [selectedPcInit, setSelectedPcInit] = useState<{pc: Character, init: number} | null>(null);
@@ -136,6 +138,31 @@ export default function InitiativePanel({
     addCombatant(c);
     setAddMode(null);
     setSelectedPcInit(null);
+  };
+
+  // Bulk-add every first-class PC (data.pcs) as a combatant. Initiative is left
+  // at 0 for the GM to roll/fill; HP, AC, conditions, and exhaustion carry over.
+  const addParty = () => {
+    if (party.length === 0) return;
+    const existingRefs = new Set(
+      init.combatants.map((c) => c.refPcId).filter(Boolean),
+    );
+    const additions: Combatant[] = party
+      .filter((pc) => !existingRefs.has(pc.id))
+      .map((pc) => ({
+        id: makeCombatantId(),
+        name: pc.name || 'PC',
+        initiative: 0,
+        hp: { current: pc.hp.current, max: pc.hp.max, temp: pc.hp.temp || undefined },
+        ac: pc.ac,
+        conditions: [...pc.conditions],
+        side: 'pc' as CombatantSide,
+        refPcId: pc.id,
+        ...(pc.exhaustion ? { exhaustion: pc.exhaustion } : {}),
+      }));
+    if (additions.length === 0) return;
+    onChange({ ...init, combatants: [...init.combatants, ...additions] });
+    setAddMode(null);
   };
 
   const addManual = () => {
@@ -387,6 +414,11 @@ export default function InitiativePanel({
             <button onClick={() => setAddMode('pc')} className="text-xs px-2 py-1 rounded border border-emerald-700/60 bg-emerald-100/40 text-emerald-800 hover:bg-emerald-700 hover:text-parchment flex items-center gap-1 font-display uppercase tracking-wider">
               <Plus size={11} /> PC
             </button>
+            {party.length > 0 && (
+              <button onClick={addParty} className="text-xs px-2 py-1 rounded border border-emerald-700/60 bg-emerald-100/40 text-emerald-800 hover:bg-emerald-700 hover:text-parchment flex items-center gap-1 font-display uppercase tracking-wider" title="Add all party PCs as combatants">
+                <Plus size={11} /> Add Party
+              </button>
+            )}
             <button onClick={() => setAddMode('manual')} className="text-xs px-2 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep flex items-center gap-1 font-display uppercase tracking-wider">
               <Plus size={11} /> Manual
             </button>

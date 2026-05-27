@@ -49,6 +49,7 @@ export function initPlayerMode(input: AnyData | null | undefined): InitResult {
     fieldDefaults: existing?.fieldDefaults ?? cloneDefaultFieldVisibility(),
     entityVisibility: existing?.entityVisibility ?? {},
     handouts: existing?.handouts,
+    planningVisibility: existing?.planningVisibility ?? {},
   };
   if (!existing || !existing.shareToken || typeof existing.tokenVersion !== 'number'
       || !existing.fieldDefaults || !existing.entityVisibility) {

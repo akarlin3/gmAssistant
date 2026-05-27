@@ -140,5 +140,55 @@ describe('buildSlotProjection', () => {
     expect(projB.items![0].name).toBe('Mithral Chainmail');
     expect(projB.items![0]).not.toHaveProperty('description');
   });
+
+  it('projects only public planning stage aspects and filters lists by index', () => {
+    const raw = seedCampaignData();
+    const data = raw as any;
+    
+    // Seed some premise / worldbuilding aspects
+    data.pitch = 'A dark fantasy campaign.';
+    data.genre = 'Grimdark Fantasy';
+    data.gWorld = ['Magic is dying.', 'The gods are silent.'];
+    data.facts = ['The empire fell.', 'Monsters roam the forest.'];
+
+    // Initially nothing is shared (fail-closed)
+    let proj = buildSlotProjection(data, 'C', 'slot-a');
+    expect(proj.planning).toBeDefined();
+    expect(proj.planning?.pitch).toBeNull();
+    expect(proj.planning?.genre).toBeNull();
+    expect(proj.planning?.gWorld).toEqual([]);
+    expect(proj.planning?.facts).toEqual([]);
+
+    // Share pitch and the first world fact, second setting fact
+    data.player.planningVisibility = {
+      pitch: true,
+      genre: false,
+      gWorld: [true, false],
+      facts: [false, true],
+    };
+
+    proj = buildSlotProjection(data, 'C', 'slot-a');
+    expect(proj.planning?.pitch).toBe('A dark fantasy campaign.');
+    expect(proj.planning?.genre).toBeNull();
+    expect(proj.planning?.gWorld).toEqual(['Magic is dying.']);
+    expect(proj.planning?.facts).toEqual(['Monsters roam the forest.']);
+  });
+
+  it('projects only public PC goals and redacts internal settings', () => {
+    const data = seedCampaignData();
+    (data as any).pcGoals = [
+      { text: 'Uncover the cult', timeframe: 'mid', success: 'Cult stopped', isPublic: true, status: 'Active' },
+      { text: 'A secret GM-only goal', timeframe: 'short', success: 'GM secret', isPublic: false, status: 'Active' },
+      { text: 'Another private goal by default', timeframe: 'long' }
+    ];
+
+    const proj = buildSlotProjection(data, 'C', 'slot-a');
+    expect(proj.pcGoals).toBeDefined();
+    expect(proj.pcGoals).toHaveLength(1);
+    expect(proj.pcGoals![0].text).toBe('Uncover the cult');
+    expect(proj.pcGoals![0].timeframe).toBe('mid');
+    expect(proj.pcGoals![0].success).toBe('Cult stopped');
+    expect(proj.pcGoals![0]).not.toHaveProperty('isPublic');
+  });
 });
 

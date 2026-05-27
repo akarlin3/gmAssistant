@@ -7,6 +7,7 @@
 // the audit's "Entity scope" decision.
 export const PLAYER_ENTITY_TYPES = [
   'characters',
+  'pcs',
   'npcs',
   'locations',
   'factions',
@@ -53,6 +54,18 @@ export type PlayerConfig = {
   entityVisibility: Partial<Record<PlayerEntityType, Record<string, EntityVisibility>>>;
   // Whole-string handout visibility (handouts is a single string field).
   handouts?: EntityVisibility;
+  // Premise & Worldbuilding visibility configs
+  planningVisibility?: {
+    pitch?: boolean;
+    genre?: boolean;
+    gWorld?: boolean[];
+    gFNL?: boolean[];
+    tone?: boolean[];
+    lines?: boolean[];
+    facts?: boolean[];
+    secrets?: boolean[];
+    conflicts?: boolean[];
+  };
 };
 
 // The public meta doc at playerShares/{shareToken}. Read by the slot picker.
@@ -75,6 +88,29 @@ export type SlotProjection = {
   sessionLog: Array<Record<string, unknown>>;
   updatedAtMs: number;
   items?: Array<{ id: string; name: string; description?: string }>;
+  // Project redacted planning/worldbuilding data
+  planning?: {
+    pitch?: string | null;
+    genre?: string | null;
+    gWorld?: string[];
+    gFNL?: string[];
+    tone?: string[];
+    lines?: string[];
+    facts?: string[];
+    secrets?: string[];
+    conflicts?: string[];
+  };
+  pcGoals?: Array<{
+    text: string;
+    timeframe?: string;
+    success?: string;
+    failure?: string;
+    linked?: string;
+    status?: string;
+  }>;
+  // Player-visible maps: only layers flagged visibleToPlayers, with GM-only
+  // fields (marker notes, entity links, edge travel times) already stripped.
+  maps?: import('@/lib/maps/playerProjection').PlayerMap[];
 };
 
 export type CampaignItem = {
@@ -108,6 +144,8 @@ export type PlayerModeData = Partial<Record<PlayerEntityType, PlayerEntity[]>> &
   handouts?: unknown;
   playerLog?: readonly PlayerLogEntry[];
   items?: ReadonlyArray<string | CampaignItem>;
+  pcGoals?: readonly any[];
+  maps?: unknown;
 };
 
 export function normalizeItem(it: string | Record<string, any>, index: number): CampaignItem {

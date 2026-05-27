@@ -3,12 +3,13 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  ChevronDown, ChevronRight, Pin, PinOff, Edit3, Trash2, Save, X, Award, BookOpen,
+  ChevronDown, ChevronRight, Pin, PinOff, Edit3, Trash2, Save, X, Award, BookOpen, Zap,
 } from 'lucide-react';
 import type { SessionLogEntry, LinkedPrepItem } from '@/lib/sessionLog';
 import { formatDuration, parseMonsterXP, parseMonsterName } from '@/lib/sessionLog';
 import type { ChangeEvent, ChangeEventKind } from '@/lib/sessionEvents';
 import { CHANGE_EVENT_LABELS } from '@/lib/sessionEvents';
+import { NpcDialogueLines } from '@/components/voice/NpcDialogueLines';
 import type { Character } from '@/lib/character-schema';
 import type { CampaignItem } from '@/lib/playerMode/types';
 import { normalizeItem } from '@/lib/playerMode/types';
@@ -65,11 +66,14 @@ type Props = {
   items?: any[];
   treasure?: string[];
   characters?: Character[];
+  campaignStrongStart?: string;
+  onStrongStartChange?: (v: string) => void;
 };
 
 export default function SessionLogTab({
   entries, onChange, campaignId, campaignSecrets = [], campaignScenes = [],
   npcs = [], locations = [], monsters = [], items = [], treasure = [], characters = [],
+  campaignStrongStart = '', onStrongStartChange,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
@@ -168,6 +172,8 @@ export default function SessionLogTab({
             monsters={monsters}
             items={items}
             treasure={treasure}
+            campaignStrongStart={campaignStrongStart}
+            onStrongStartChange={onStrongStartChange}
             characters={characters}
             onToggleOpen={() => setOpenIds(o => ({ ...o, [entry.id]: !o[entry.id] }))}
             onEdit={() => {
@@ -222,6 +228,8 @@ type SessionCardProps = {
   items: any[];
   treasure: string[];
   characters: Character[];
+  campaignStrongStart?: string;
+  onStrongStartChange?: (v: string) => void;
   onToggleOpen: () => void;
   onEdit: () => void;
   onCancelEdit: () => void;
@@ -234,6 +242,7 @@ type SessionCardProps = {
 function SessionCard({
   entry, open, editing, inCompare, campaignId, campaignSecrets = [], campaignScenes = [],
   npcs = [], locations = [], monsters = [], items = [], treasure = [], characters = [],
+  campaignStrongStart = '', onStrongStartChange,
   onToggleOpen, onEdit, onCancelEdit, onChange, onSaveEdit, onDelete, onToggleCompare,
 }: SessionCardProps) {
   const duration = formatDuration(entry.endedAt - entry.startedAt);
@@ -455,7 +464,55 @@ function SessionCard({
                   className="w-32 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink"
                 />
               </label>
-              
+
+              {/* Strong Start checkable */}
+              {(entry.strongStart || campaignStrongStart.trim()) && (
+                <div className="rounded border border-rule bg-parchment-soft p-3.5 space-y-1.5 shadow-sm mt-3">
+                  <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep block mb-1">Strong Start</span>
+                  {entry.strongStart ? (
+                    <label className="flex items-start gap-2.5 text-xs cursor-pointer font-serif py-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={true}
+                        onChange={(e) => {
+                          if (!e.target.checked) {
+                            if (onStrongStartChange) onStrongStartChange(entry.strongStart || '');
+                            onChange({ strongStart: undefined });
+                          }
+                        }}
+                        className="mt-0.5 accent-crimson"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-ink font-semibold flex items-center gap-1">
+                          <Zap size={12} className="text-crimson" /> Strong Start Delivered:
+                        </span>
+                        <p className="text-ink-soft mt-0.5 whitespace-pre-wrap italic">"{entry.strongStart}"</p>
+                      </div>
+                    </label>
+                  ) : (
+                    <label className="flex items-start gap-2.5 text-xs cursor-pointer font-serif py-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={false}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            onChange({ strongStart: campaignStrongStart });
+                            if (onStrongStartChange) onStrongStartChange('');
+                          }
+                        }}
+                        className="mt-0.5 accent-crimson"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-ink-mute flex items-center gap-1">
+                          <Zap size={12} className="text-ink-mute" /> Deliver prepped Strong Start:
+                        </span>
+                        <p className="text-ink-mute mt-0.5 whitespace-pre-wrap italic">"{campaignStrongStart}"</p>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
                 <div className="rounded border border-rule bg-parchment-soft p-3 space-y-1.5 shadow-sm">
                   <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep block mb-1">Secrets Revealed</span>
@@ -715,6 +772,20 @@ function SessionCard({
                 <p className="whitespace-pre-wrap font-serif text-sm text-ink-soft">{entry.recap}</p>
               ) : (
                 <p className="font-serif text-xs italic text-ink-mute">No recap written.</p>
+              )}
+
+              <NpcDialogueLines text={entry.recap || ''} npcs={npcs} />
+
+              {entry.strongStart && (
+                <div className="mt-3 rounded border border-crimson/30 bg-crimson/5 p-3 flex items-start gap-2.5 shadow-sm max-w-2xl">
+                  <Zap size={14} className="text-crimson mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="font-display text-[10px] uppercase tracking-wider text-crimson block font-semibold">Strong Start Delivered</span>
+                    <p className="mt-0.5 text-sm font-serif text-ink-soft whitespace-pre-wrap italic">
+                      "{entry.strongStart}"
+                    </p>
+                  </div>
+                </div>
               )}
 
               {entry.xpAwarded && (

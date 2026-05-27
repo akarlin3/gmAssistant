@@ -5,14 +5,16 @@
 // No edit affordances; mobile-first.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollText, Users, Map, Flag, Clock, BookOpen, UserCircle, Gift } from 'lucide-react';
+import { ScrollText, Users, Map, Flag, Clock, BookOpen, UserCircle, Gift, Compass, Target } from 'lucide-react';
 import { subscribeSlotProjection } from '@/lib/playerMode/playerClient';
 import type { SlotProjection } from '@/lib/playerMode/types';
+import PlayerMapView from '@/components/maps/PlayerMapView';
 
 type AnyRec = Record<string, unknown>;
 
 const TYPE_META: Record<string, { label: string; icon: React.ReactNode }> = {
   characters: { label: 'Party', icon: <UserCircle size={15} /> },
+  pcs: { label: 'Party Sheets', icon: <UserCircle size={15} /> },
   npcs: { label: 'NPCs', icon: <Users size={15} /> },
   locations: { label: 'Places', icon: <Map size={15} /> },
   factions: { label: 'Factions', icon: <Flag size={15} /> },
@@ -87,10 +89,27 @@ export default function PlayerCampaignView({
       const items = projection.entities[type as keyof SlotProjection['entities']];
       if (items && items.length > 0) out.push({ id: type, label: meta.label, icon: meta.icon });
     }
+    if (projection.maps && projection.maps.length > 0) out.push({ id: 'maps', label: 'Maps', icon: <Map size={15} /> });
     if (projection.sessionLog.length > 0) out.push({ id: 'log', label: 'Log', icon: <ScrollText size={15} /> });
     if (projection.handouts) out.push({ id: 'handouts', label: 'Handouts', icon: <BookOpen size={15} /> });
     if (projection.items && projection.items.length > 0) {
       out.push({ id: 'items', label: 'My Items', icon: <Gift size={15} /> });
+    }
+    if (projection.pcGoals && projection.pcGoals.length > 0) {
+      out.push({ id: 'goals', label: 'Goals', icon: <Target size={15} /> });
+    }
+    if (projection.planning && (
+      projection.planning.pitch ||
+      projection.planning.genre ||
+      (projection.planning.gWorld && projection.planning.gWorld.length > 0) ||
+      (projection.planning.gFNL && projection.planning.gFNL.length > 0) ||
+      (projection.planning.tone && projection.planning.tone.length > 0) ||
+      (projection.planning.lines && projection.planning.lines.length > 0) ||
+      (projection.planning.facts && projection.planning.facts.length > 0) ||
+      (projection.planning.secrets && projection.planning.secrets.length > 0) ||
+      (projection.planning.conflicts && projection.planning.conflicts.length > 0)
+    )) {
+      out.push({ id: 'planning', label: 'Premise', icon: <Compass size={15} /> });
     }
     return out;
   }, [projection]);
@@ -194,7 +213,9 @@ export default function PlayerCampaignView({
             </nav>
 
             <div className="space-y-3">
-              {active === 'log' ? (
+              {active === 'maps' ? (
+                <PlayerMapView maps={projection.maps ?? []} />
+              ) : active === 'log' ? (
                 [...projection.sessionLog]
                   .sort((a, b) => ((b.postedAtMs as number) ?? 0) - ((a.postedAtMs as number) ?? 0))
                   .map((e) => (
@@ -216,6 +237,79 @@ export default function PlayerCampaignView({
                 <div className="whitespace-pre-wrap rounded border border-rule bg-parchment p-4 font-serif text-sm leading-relaxed text-ink-soft shadow-card">
                   {projection.handouts}
                 </div>
+              ) : active === 'planning' ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {projection.planning?.pitch && (
+                    <div className="col-span-full rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Quick Pitch</div>
+                      <p className="text-ink-soft whitespace-pre-wrap leading-relaxed">{projection.planning.pitch}</p>
+                    </div>
+                  )}
+                  {projection.planning?.genre && (
+                    <div className="col-span-full rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Genre Statement</div>
+                      <p className="text-ink-soft whitespace-pre-wrap leading-relaxed">{projection.planning.genre}</p>
+                    </div>
+                  )}
+                  {projection.planning?.gWorld && projection.planning.gWorld.length > 0 && (
+                    <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">World Facts</div>
+                      <ul className="list-disc pl-4 space-y-1 text-ink-soft">
+                        {projection.planning.gWorld.map((w, idx) => <li key={idx}>{w}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {projection.planning?.gFNL && projection.planning.gFNL.length > 0 && (
+                    <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Required Entities</div>
+                      <ul className="list-disc pl-4 space-y-1 text-ink-soft">
+                        {projection.planning.gFNL.map((w, idx) => <li key={idx}>{w}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {projection.planning?.tone && projection.planning.tone.length > 0 && (
+                    <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Tone Keywords</div>
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {projection.planning.tone.map((w, idx) => (
+                          <span key={idx} className="rounded bg-brass/10 px-2 py-0.5 text-xs text-brass-deep font-display uppercase tracking-wider">{w}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {projection.planning?.lines && projection.planning.lines.length > 0 && (
+                    <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Content Lines (Hard Nos)</div>
+                      <ul className="list-disc pl-4 space-y-1 text-ink-soft">
+                        {projection.planning.lines.map((w, idx) => <li key={idx}>{w}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {projection.planning?.facts && projection.planning.facts.length > 0 && (
+                    <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Setting Facts</div>
+                      <ul className="list-disc pl-4 space-y-1 text-ink-soft">
+                        {projection.planning.facts.map((w, idx) => <li key={idx}>{w}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {projection.planning?.secrets && projection.planning.secrets.length > 0 && (
+                    <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Secrets & Clues</div>
+                      <ul className="list-disc pl-4 space-y-1 text-ink-soft">
+                        {projection.planning.secrets.map((w, idx) => <li key={idx}>{w}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {projection.planning?.conflicts && projection.planning.conflicts.length > 0 && (
+                    <div className="col-span-full rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Active Conflicts</div>
+                      <ul className="list-disc pl-4 space-y-1 text-ink-soft">
+                        {projection.planning.conflicts.map((w, idx) => <li key={idx}>{w}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               ) : active === 'items' ? (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {projection.items?.map((it) => (
@@ -228,6 +322,72 @@ export default function PlayerCampaignView({
                       )}
                     </div>
                   ))}
+                </div>
+              ) : active === 'goals' ? (
+                <div className="grid gap-3.5 sm:grid-cols-2">
+                  {projection.pcGoals?.map((g, idx) => {
+                    const timeframeLabels: Record<string, string> = {
+                      short: 'Short-Term',
+                      mid: 'Mid-Term',
+                      long: 'Long-Term',
+                    };
+                    const timeframeBadgeStyles: Record<string, string> = {
+                      short: 'bg-brass/10 border-brass/35 text-brass-deep',
+                      mid: 'bg-wine/10 border-wine/35 text-wine',
+                      long: 'bg-parchment-deep border-rule text-ink-soft',
+                    };
+                    const statusBadgeStyles: Record<string, string> = {
+                      Active: 'bg-brass/10 border-brass/35 text-brass-deep',
+                      Progressed: 'bg-wine/15 border-wine/40 text-wine font-semibold',
+                      Completed: 'bg-moss/10 border-moss/30 text-moss font-semibold',
+                      Failed: 'bg-crimson/10 border-crimson/30 text-crimson font-semibold',
+                    };
+
+                    const timeframe = g.timeframe || 'short';
+                    const timeframeLabel = timeframeLabels[timeframe] || 'Short-Term';
+                    const timeframeStyle = timeframeBadgeStyles[timeframe] || timeframeBadgeStyles.short;
+                    
+                    const status = g.status || 'Active';
+                    const statusStyle = statusBadgeStyles[status] || statusBadgeStyles.Active;
+
+                    return (
+                      <div key={idx} className="rounded border border-rule bg-parchment p-4 shadow-card space-y-3 font-serif text-sm flex flex-col justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className={`text-[10px] px-2 py-0.5 rounded border font-display uppercase tracking-wider ${timeframeStyle}`}>
+                              {timeframeLabel}
+                            </span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded border font-display uppercase tracking-wider ${statusStyle}`}>
+                              {status}
+                            </span>
+                          </div>
+                          <p className="text-ink font-serif text-base leading-snug font-medium tracking-wide">
+                            {g.text}
+                          </p>
+                        </div>
+                        <div className="space-y-2 pt-1">
+                          {g.success && (
+                            <div className="space-y-0.5 pt-1.5 border-t border-rule/50">
+                              <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep">Success State</div>
+                              <p className="text-ink-soft font-serif text-xs leading-relaxed italic">{g.success}</p>
+                            </div>
+                          )}
+                          {g.failure && (
+                            <div className="space-y-0.5 pt-1.5 border-t border-rule/50">
+                              <div className="text-[10px] font-display uppercase tracking-wider text-crimson">Failure Consequence</div>
+                              <p className="text-ink-soft font-serif text-xs leading-relaxed italic">{g.failure}</p>
+                            </div>
+                          )}
+                          {g.linked && (
+                            <div className="space-y-0.5 pt-1.5 border-t border-rule/50">
+                              <div className="text-[10px] font-display uppercase tracking-wider text-ink-mute">Linked Elements</div>
+                              <p className="text-ink-soft font-serif text-xs leading-relaxed">{g.linked}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">

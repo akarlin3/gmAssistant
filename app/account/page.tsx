@@ -20,6 +20,7 @@ import {
   type GoogleDriveBackupFile
 } from '@/lib/google-drive';
 import { getUserCampaignsOnce, importCampaign } from '@/lib/firebase/campaigns';
+import { VoiceUsagePanel } from '@/components/voice/VoiceUsagePanel';
 
 const PRO_PRICE_LABEL = '$2.99 / month';
 
@@ -513,6 +514,8 @@ function AccountPageBody() {
               </div>
             )}
           </section>
+
+          {isPro && user && <VoiceUsagePanel uid={user.uid} />}
         </div>
       </div>
     </main>

@@ -15,6 +15,14 @@ service cloud.firestore {
       return request.resource.data.updatedAt != null;
     }
 
+    // Scene Mode (data.sceneSessions[*]) lives inside the campaign doc, which is
+    // already owner-write-gated by the `update` rule below — only the campaign's
+    // own user can write any of its `data`. Referential integrity of a scene's
+    // `presentNpcIds` against `data.npcs` is enforced at the client (the picker
+    // only offers real NPCs) and at the server (/api/scene/turn rejects dialogue
+    // for NPC ids not present in the scene). Firestore rules can't iterate a
+    // variable-length array of maps to subset-check ids against another array,
+    // so that validation deliberately is not attempted here.
     match /campaigns/{campaignId} {
       allow read: if request.auth != null
         && (resource.data.userId == request.auth.uid ||
@@ -77,6 +85,18 @@ service cloud.firestore {
           get(/databases/$(database)/documents/playerShares/$(shareToken)).data.campaignId
         );
       }
+    }
+
+    // Per-user TTS usage counters (usage/{uid}/voice/{YYYY-MM}). The
+    // /api/voice/speak route reads and increments these via the Firestore REST
+    // API using the caller's own ID token (the deployment has no Admin SDK —
+    // service-account key creation is blocked by org policy), so the owner must
+    // be able to read and write their own usage docs. This is a soft cost
+    // guardrail, not a tamper-proof boundary: a determined user could reset
+    // their own counter, but the feature is still Pro-gated server-side and the
+    // in-memory rate limiter remains the hard backstop.
+    match /usage/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
     // Pro waitlist signups — clients write their own doc directly from the

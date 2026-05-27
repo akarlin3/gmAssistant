@@ -8,11 +8,15 @@ export type Combatant = {
   id: string;
   name: string;
   initiative: number;
-  hp: { current: number; max: number };
+  hp: { current: number; max: number; temp?: number };
   ac?: number;
   conditions: string[];
   side: CombatantSide;
   sourceMonsterId?: string;
+  // When sourced from a first-class PC (data.pcs), refId is that PC's id so
+  // HP/condition edits can be propagated back to the sheet.
+  refPcId?: string;
+  exhaustion?: number;
   notes?: string;
 };
 

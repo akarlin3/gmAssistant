@@ -1,0 +1,11 @@
+.next
+node_modules
+test-results
+playwright-report
+blob-report
+public/sw.js
+public/workbox-*.js
+package-lock.json
+functions
+gmbuilder
+dataconnect

@@ -7,6 +7,7 @@ import {
   persistentMultipleTabManager,
   Firestore,
 } from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 function getEnv(value: string | undefined): string | undefined {
   if (!value || value === 'undefined' || value.trim() === '') return undefined;
@@ -27,6 +28,7 @@ const firebaseConfig = {
 let _app: FirebaseApp | null = null;
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
+let _storage: FirebaseStorage | null = null;
 
 export function getFirebaseApp(): FirebaseApp {
   if (_app) return _app;
@@ -86,6 +88,12 @@ export function getDb(): Firestore {
     }
   }
   return _db;
+}
+
+export function getStorageClient(): FirebaseStorage {
+  if (_storage) return _storage;
+  _storage = getStorage(getFirebaseApp());
+  return _storage;
 }
 
 export const googleProvider = new GoogleAuthProvider();

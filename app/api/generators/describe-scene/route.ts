@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { readBearerToken, verifyPro } from '@/lib/verify-pro';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { callDescribeScene } from '@/lib/generators/describe-scene-prompt';
 import type { CampaignContext } from '@/lib/generators/types';
+import { contextTooLarge } from '@/lib/api/validate';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -13,6 +15,9 @@ export async function POST(req: NextRequest) {
 
   const verified = await verifyPro(idToken);
   if (!verified.ok) return NextResponse.json({ error: verified.message }, { status: verified.status });
+
+  const limited = enforceRateLimit(verified.uid);
+  if (limited) return limited;
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return NextResponse.json({ error: 'Server missing ANTHROPIC_API_KEY' }, { status: 500 });
@@ -28,6 +33,9 @@ export async function POST(req: NextRequest) {
   if (!sceneText) return NextResponse.json({ error: 'Missing or empty sceneText' }, { status: 400 });
   if (sceneText.length > 600) {
     return NextResponse.json({ error: 'sceneText too long (max 600 chars)' }, { status: 400 });
+  }
+  if (contextTooLarge(body.campaignContext)) {
+    return NextResponse.json({ error: 'Campaign context too large' }, { status: 400 });
   }
 
   const campaignContext = body.campaignContext && typeof body.campaignContext === 'object'
