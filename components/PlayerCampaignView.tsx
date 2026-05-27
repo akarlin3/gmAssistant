@@ -55,9 +55,51 @@ function isEmptyValue(v: unknown): boolean {
   return false;
 }
 
-function EntityCard({ entity }: { entity: AnyRec }) {
+const FIELD_ORDER: Record<string, string[]> = {
+  characters: [
+    'player', 'race', 'classLevel', 'classLevel2', 'background', 'alignment',
+    'appearance', 'personality', 'ideals', 'bonds', 'flaws', 'abilities',
+    'saves', 'ac', 'hp', 'hpMax', 'initiative', 'speed', 'profBonus', 'hitDice',
+    'skills', 'passivePerception', 'languages', 'proficiencies', 'attacks',
+    'equipment', 'currency', 'features', 'spellcasting', 'spells', 'experience',
+    'backstory', 'notes'
+  ],
+  pcs: [
+    'level', 'hp', 'ac', 'conditions'
+  ],
+  npcs: [
+    'faction', 'archetype', 'appearance', 'talent', 'mannerism', 'type',
+    'goal', 'method', 'abilities', 'interactions', 'knowledge', 'ideal',
+    'bond', 'flaw'
+  ],
+  locations: [
+    'type', 'aspects', 'factions'
+  ],
+  factions: [
+    'archetype', 'identity', 'area', 'power', 'ideology', 'shortGoals',
+    'midGoals', 'longGoal', 'renown', 'rankLabels'
+  ],
+  clocks: [
+    'faction', 'max', 'filled', 'notes'
+  ],
+};
+
+function EntityCard({ entity, entityType }: { entity: AnyRec; entityType?: string }) {
   const name = (entity.name as string) || (entity.text as string) || 'Unnamed';
   const fields = Object.entries(entity).filter(([k, v]) => k !== 'id' && k !== 'name' && k !== 'text' && !isEmptyValue(v));
+
+  if (entityType && FIELD_ORDER[entityType]) {
+    const order = FIELD_ORDER[entityType];
+    fields.sort((a, b) => {
+      const idxA = order.indexOf(a[0]);
+      const idxB = order.indexOf(b[0]);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a[0].localeCompare(b[0]);
+    });
+  }
+
   return (
     <div className="space-y-1.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="font-display text-lg tracking-wide text-ink">{name}</div>
@@ -444,13 +486,45 @@ export default function PlayerCampaignView({
     return unsub;
   }, [token, slotId]);
 
+  const { myPcs, partyPcs } = useMemo(() => {
+    const pcsList = projection?.entities?.pcs ?? [];
+    const my: any[] = [];
+    const party: any[] = [];
+    pcsList.forEach((pc: any) => {
+      const isOwned = pc.ownership?.ownerType === 'player' && pc.ownership?.playerSlotId === slotId;
+      if (isOwned) {
+        my.push(pc);
+      } else {
+        party.push(pc);
+      }
+    });
+    return { myPcs: my, partyPcs: party };
+  }, [projection?.entities?.pcs, slotId]);
+
   const tabs = useMemo(() => {
     if (!projection) return [];
     const out: { id: string; label: string; icon: React.ReactNode }[] = [];
+    
+    // Add dedicated "My Sheet(s)" tab first if the slot owns any PCs
+    if (myPcs.length > 0) {
+      out.push({
+        id: 'my_pcs',
+        label: myPcs.length === 1 ? 'My Sheet' : 'My Sheets',
+        icon: <UserCircle size={15} />
+      });
+    }
+
     for (const [type, meta] of Object.entries(TYPE_META)) {
-      const items = projection.entities[type as keyof SlotProjection['entities']];
-      if ((items && items.length > 0) || (type === 'characters' && unredactedCharacters && unredactedCharacters.length > 0)) {
-        out.push({ id: type, label: meta.label, icon: meta.icon });
+      if (type === 'pcs') {
+        // Only show Party Sheets if there are other players' PCs
+        if (partyPcs.length > 0) {
+          out.push({ id: 'pcs', label: 'Party Sheets', icon: meta.icon });
+        }
+      } else {
+        const items = projection.entities[type as keyof SlotProjection['entities']];
+        if ((items && items.length > 0) || (type === 'characters' && unredactedCharacters && unredactedCharacters.length > 0)) {
+          out.push({ id: type, label: meta.label, icon: meta.icon });
+        }
       }
     }
     if (projection.maps && projection.maps.length > 0) out.push({ id: 'maps', label: 'Maps', icon: <Map size={15} /> });
@@ -479,7 +553,7 @@ export default function PlayerCampaignView({
       out.push({ id: 'planning', label: 'Premise', icon: <Compass size={15} /> });
     }
     return out;
-  }, [projection]);
+  }, [projection, myPcs, partyPcs, unredactedCharacters, sessionRecaps]);
 
   useEffect(() => {
     if (!projection || tabs.length === 0) return;
@@ -592,9 +666,20 @@ export default function PlayerCampaignView({
             <div className="space-y-3">
               {active === 'maps' ? (
                 <PlayerMapView maps={projection.maps ?? []} />
+                            ) : active === 'my_pcs' ? (
+                <div className="space-y-4">
+                  {myPcs.map((pc: any) => (
+                    <PlayerPcSheetCard
+                      key={pc.id}
+                      pc={pc}
+                      token={token}
+                      slotId={slotId}
+                    />
+                  ))}
+                </div>
               ) : active === 'pcs' ? (
                 <div className="space-y-4">
-                  {(projection.entities.pcs ?? []).map((pc: any) => (
+                  {partyPcs.map((pc: any) => (
                     <PlayerPcSheetCard
                       key={pc.id}
                       pc={pc}
@@ -795,7 +880,7 @@ export default function PlayerCampaignView({
                     ))
                   ) : (
                     (projection.entities.characters ?? []).map((e) => (
-                      <EntityCard key={e.id as string} entity={e} />
+                      <EntityCard key={e.id as string} entity={e} entityType="characters" />
                     ))
                   )}
                 </div>
@@ -816,7 +901,7 @@ export default function PlayerCampaignView({
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {(projection.entities[active as keyof SlotProjection['entities']] ?? []).map((e) => (
-                    <EntityCard key={e.id as string} entity={e} />
+                    <EntityCard key={e.id as string} entity={e} entityType={active} />
                   ))}
                 </div>
               )}
