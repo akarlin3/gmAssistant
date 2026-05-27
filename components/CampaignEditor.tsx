@@ -59,6 +59,7 @@ const RunSessionView = dynamic(() => import('./RunSessionView'));
 const PrepWizardView = dynamic(() => import('./PrepWizardView'));
 const Session0Wizard = dynamic(() => import('./Session0Wizard'));
 const SessionLogTab = dynamic(() => import('./SessionLogTab'));
+const LoggedTab = dynamic(() => import('./LoggedTab'));
 const HazardCalculator = dynamic(() => import('./HazardCalculator'));
 const LogisticsTab = dynamic(() => import('./LogisticsTab'));
 const NPCRelationshipWeb = dynamic(() => import('./NPCRelationshipWeb'));
@@ -76,6 +77,7 @@ import PlayersManager from './PlayersManager';
 import { LockedInline, LockedPanel } from './LockedFeature';
 import { useConfirm } from '@/components/ConfirmDialog';
 import PlayerModePanel from './PlayerModePanel';
+import { publishProjections } from '@/lib/playerMode/publish';
 import { initPlayerMode } from '@/lib/playerMode/migration';
 import type { PlayerConfig } from '@/lib/playerMode/types';
 import type { PlayerLogEntry } from '@/lib/playerMode/sessionLog';
@@ -2104,6 +2106,52 @@ export default function CampaignEditor({
 
   const get = (k: string, fb: any) => state[k] !== undefined ? state[k] : fb;
   const setVal = (k: string, v: any) => setState(s => ({ ...s, [k]: v }));
+
+  // --- AUTO-PUBLISH SYSTEM FOR PLAYER SHARING ---
+  const playerConfig = (get('player', {}) as PlayerConfig) || {};
+  const playerLog = (get('playerLog', []) as PlayerLogEntry[]) || [];
+
+  const publishSignature = useMemo(
+    () => JSON.stringify({
+      p: playerConfig,
+      n: get('npcs', []),
+      l: get('locations', []),
+      f: get('factions', []),
+      c: get('characters', []),
+      k: get('clocks', []),
+      h: get('handouts', ''),
+      s: playerLog,
+      i: get('items', []),
+      g: get('pcGoals', []),
+    }),
+    [playerConfig, get, playerLog],
+  );
+
+  useEffect(() => {
+    if (!playerConfig?.shareToken || !campaign.id) return;
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const dataToPublish = {
+            player: playerConfig,
+            npcs: get('npcs', []),
+            locations: get('locations', []),
+            factions: get('factions', []),
+            characters: get('characters', []),
+            clocks: get('clocks', []),
+            handouts: get('handouts', ''),
+            playerLog,
+            items: get('items', []),
+            pcGoals: get('pcGoals', []),
+          };
+          await publishProjections(campaign.id, name || 'Campaign', dataToPublish);
+        } catch (e) {
+          console.error('[CampaignEditor] auto-publish failed', e);
+        }
+      })();
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [publishSignature, campaign.id, name, playerLog, playerConfig, get]);
   const getUsedPrep = () => {
     const sessionLogsV2 = (get('sessionLogV2', [])) || [];
     const linkedNpcIds = new Set<string>();
@@ -2810,6 +2858,7 @@ export default function CampaignEditor({
     { mode: 'organize', subview: 'log',       label: 'Sessions',    icon: Calendar,        keywords: ['session log', 'recap'] },
     { mode: 'run',     subview: 'session',   label: 'Run Session', icon: Swords,          keywords: ['active', 'table'] },
     { mode: 'run',     subview: 'lookup',    label: 'Lookup',      icon: Search,          keywords: ['quick reference'] },
+    { mode: 'run',     subview: 'logged',    label: 'Logged',      icon: ScrollText,      keywords: ['saved', 'library', 'generators', 'log'] },
     { mode: 'run',     subview: 'dice',      label: 'Dice',        icon: Dice5 },
     { mode: 'run',     subview: 'spells',    label: 'Spells',      icon: Sparkles },
     { mode: 'run',     subview: 'dmref',     label: 'DM Ref',      icon: BookOpen,        keywords: ['rules', 'madness', 'travel'] },
@@ -4728,6 +4777,26 @@ export default function CampaignEditor({
         )}
 
         {mode === 'run' && subview === 'dmref' && <DMRefTab />}
+
+        {mode === 'run' && subview === 'logged' && (
+          <LoggedTab
+            logs={(state.generatorLogs as GeneratorLogs) || {}}
+            onChangeLogs={(next) => setVal('generatorLogs', next)}
+            playerLog={(get('playerLog', []) as PlayerLogEntry[])}
+            onShareToPlayerLog={(text) => {
+              const currentLog = (get('playerLog', []) as PlayerLogEntry[]) || [];
+              const nextLog = [...currentLog, {
+                id: makeLogId(),
+                text: text.trim(),
+                mentions: [],
+                visibility: { mode: 'party' },
+                authorRef: 'gm',
+                postedAtMs: Date.now(),
+              }];
+              setVal('playerLog', nextLog);
+            }}
+          />
+        )}
 
         {mode === 'run' && subview === 'chase' && (
           <ChaseTracker

@@ -71,6 +71,7 @@ export const MODES: Record<Mode, ModeDef> = {
     subviews: [
       { id: 'session', label: 'Session',  description: 'Active session — prep cards, scratchpad, initiative' },
       { id: 'lookup',  label: 'Lookup',   description: 'Quick reference: NPCs, locations, secrets, factions' },
+      { id: 'logged',  label: 'Logged',   description: 'Every logged library item at the time' },
       { id: 'dice',    label: 'Dice',     description: 'Dice roller' },
       { id: 'spells',  label: 'Spells',   description: 'Spell reference' },
       { id: 'dmref',   label: 'DM Ref',   description: 'Rules reference' },
