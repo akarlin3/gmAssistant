@@ -8,7 +8,7 @@
 // LEGACY_TAB_MAP migrates state from older tab-only layouts where a single
 // `__tab` field stored one of ~16 flat tab IDs.
 
-export type Mode = 'plan' | 'prep' | 'organize' | 'run' | 'library';
+export type Mode = 'plan' | 'prep' | 'organize' | 'run' | 'library' | 'oracle';
 
 // Some Plan subviews are done WITH the players at the table (Session −1
 // collaborative worldbuilding, Session 0 character creation); others are
@@ -96,9 +96,17 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'factions',   label: 'Faction Sim', description: 'Grand-strategy faction simulation — territories, influence, and tick-based moves' },
     ],
   },
+  oracle: {
+    label: 'Oracle',
+    description: 'Wells Oracle — ask the world a question and complicate scenes',
+    emphasis: 'muted',
+    subviews: [
+      { id: 'wells', label: 'Wells Oracle', description: 'Ask the oracle questions and complicate scenes' }
+    ],
+  },
 };
 
-export const MODE_ORDER: readonly Mode[] = ['plan', 'prep', 'organize', 'run', 'library'];
+export const MODE_ORDER: readonly Mode[] = ['plan', 'prep', 'organize', 'run', 'library', 'oracle'];
 
 // Old single-tab IDs that may live in stored state (or in legacy code paths)
 // — map them to the new (mode, subview) pair so users land somewhere sensible.

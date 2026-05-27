@@ -1,6 +1,6 @@
 'use client';
 
-import { Compass, ClipboardCheck, Swords, BookOpen, User, Users, Calendar, type LucideIcon } from 'lucide-react';
+import { Compass, ClipboardCheck, Swords, BookOpen, User, Users, Calendar, Sparkles, type LucideIcon } from 'lucide-react';
 import type { Audience, Mode, ModeSubview } from '@/lib/modes';
 import { MODES, MODE_ORDER } from '@/lib/modes';
 
@@ -10,6 +10,7 @@ const MODE_ICONS: Record<Mode, LucideIcon> = {
   organize: Calendar,
   run: Swords,
   library: BookOpen,
+  oracle: Sparkles,
 };
 
 type Props = {

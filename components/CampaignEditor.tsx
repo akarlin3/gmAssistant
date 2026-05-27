@@ -2886,6 +2886,7 @@ export default function CampaignEditor({
     { mode: 'library', subview: 'traps',     label: 'Traps',       icon: Hash },
     { mode: 'library', subview: 'vivify',    label: 'Vivify',      icon: Sparkles,        keywords: ['ai description', 'prose'] },
     { mode: 'library', subview: 'pointbuy',  label: 'Point-Buy',   icon: Wrench,          keywords: ['point buy', 'ability scores', 'calculator', 'stats'] },
+    { mode: 'oracle',  subview: 'wells',     label: 'Oracle',      icon: Sparkles,        keywords: ['yes no', 'chaos', 'complication', 'ask', 'wells'] },
   ];
 
   const PREP_SECTION_META: Array<{ id: string; label: string }> = [
@@ -4942,6 +4943,16 @@ export default function CampaignEditor({
             onChange={(w) => setVal('factionWorld', w)}
           />
         )}
+
+        {mode === 'oracle' && subview === 'wells' && (
+          <WellsOracle
+            log={get('oracleLog', []) as OracleRoll[]}
+            onLog={(next) => setVal('oracleLog', next)}
+            chaos={get('__oracleChaos', 5) as number}
+            onChaosChange={(c) => setVal('__oracleChaos', c)}
+            inline={true}
+          />
+        )}
         </div>
 
         <footer className="pt-3 mt-4 border-t border-rule text-xs text-ink-mute italic font-serif text-center">
@@ -4977,14 +4988,6 @@ export default function CampaignEditor({
       )}
 
       {/* finalizerModal removed */}
-
-      <WellsOracle
-        log={get('oracleLog', []) as OracleRoll[]}
-        onLog={(next) => setVal('oracleLog', next)}
-        chaos={get('__oracleChaos', 5) as number}
-        onChaosChange={(c) => setVal('__oracleChaos', c)}
-        raised={get('__runSessionOpen', false)}
-      />
 
       <CommandPalette
         open={paletteOpen}

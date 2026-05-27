@@ -24,6 +24,7 @@ type Props = {
   // Position offset so the button doesn't collide with other floating UI
   // (e.g. the initiative button while a session is running).
   raised?: boolean;
+  inline?: boolean;
 };
 
 const YES_TONE = 'text-moss border-moss/50 bg-moss/10';
@@ -33,7 +34,7 @@ function resultTone(result: OracleRoll['result']): string {
   return isYesResult(result) ? YES_TONE : NO_TONE;
 }
 
-export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised }: Props) {
+export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, inline }: Props) {
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState('');
   const [odds, setOdds] = useState<OracleOdds>('FiftyFifty');
@@ -50,8 +51,8 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised }
   }, [open]);
 
   useEffect(() => {
-    if (open) questionRef.current?.focus();
-  }, [open]);
+    if (open || inline) questionRef.current?.focus();
+  }, [open, inline]);
 
   // Newest first for display.
   const recent = [...log].sort((a, b) => b.timestamp - a.timestamp).slice(0, 12);
@@ -67,6 +68,175 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised }
   function complicate() {
     const { roll, complication: text } = rollComplication();
     setComplication({ roll, text });
+  }
+
+  if (inline) {
+    return (
+      <div className="space-y-4">
+        {/* Header */}
+        <header className="flex items-center gap-2 rounded border border-rule bg-parchment p-3 shadow-card">
+          <Sparkles size={16} className="text-wine animate-pulse" />
+          <h2 className="font-display text-lg uppercase tracking-wider text-wine font-semibold">The Wells Oracle</h2>
+          <span className="ml-1 text-[10px] italic text-ink-mute">Ask the world a question or complicate a scene</span>
+        </header>
+
+        {/* Dashboard Grid */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+          {/* Left Column: Ask the Oracle */}
+          <div className="space-y-4">
+            <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-4">
+              {/* Question */}
+              <div>
+                <label className="mb-1.5 block font-display text-[11px] uppercase tracking-wider text-ink-mute font-semibold">
+                  Ask the Oracle
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    ref={questionRef}
+                    type="text"
+                    value={question}
+                    data-oracle-question
+                    onChange={(e) => setQuestion(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') ask();
+                    }}
+                    placeholder="Is the door barred from the other side?"
+                    className="flex-1 rounded border border-rule bg-parchment-soft px-2.5 py-2 font-serif text-sm text-ink placeholder:text-ink-faint focus:border-wine focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={ask}
+                    className="flex items-center gap-1.5 rounded bg-wine px-4 py-2 font-display text-xs uppercase tracking-wider text-parchment hover:bg-crimson transition-colors"
+                  >
+                    <Dices size={14} /> Ask
+                  </button>
+                </div>
+              </div>
+
+              {/* Odds + Chaos */}
+              <div className="flex flex-col gap-4 sm:flex-row">
+                <div className="flex-1">
+                  <label className="mb-1 block font-display text-[11px] uppercase tracking-wider text-ink-mute font-semibold">
+                    Odds
+                  </label>
+                  <select
+                    value={odds}
+                    data-oracle-odds
+                    onChange={(e) => setOdds(e.target.value as OracleOdds)}
+                    className="w-full rounded border border-rule bg-parchment-soft px-2.5 py-2 font-serif text-sm text-ink focus:border-wine focus:outline-none"
+                  >
+                    {ODDS_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="mb-1 flex items-center justify-between font-display text-[11px] uppercase tracking-wider text-ink-mute font-semibold">
+                    <span>Chaos Factor</span>
+                    <span className="text-wine font-bold">{chaos}</span>
+                  </label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={9}
+                    step={1}
+                    value={chaos}
+                    data-oracle-chaos
+                    onChange={(e) => onChaosChange(Number(e.target.value))}
+                    className="mt-2 w-full accent-wine cursor-pointer"
+                  />
+                  <div className="flex justify-between font-serif text-[10px] text-ink-faint">
+                    <span>Calm</span>
+                    <span>Chaotic</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Complicate Button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={complicate}
+                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded border border-wine/50 px-3.5 py-2 font-display text-xs uppercase tracking-wider text-wine hover:bg-wine/10 transition-colors"
+                >
+                  <Zap size={14} /> Complicate Scene
+                </button>
+              </div>
+            </div>
+
+            {/* Complication (ephemeral) */}
+            {complication && (
+              <div className="flex items-start gap-2.5 rounded border border-wine/40 bg-wine/5 p-3.5 text-sm shadow-card animate-fadeIn">
+                <Wand2 size={16} className="mt-0.5 flex-shrink-0 text-wine animate-pulse" />
+                <div className="font-serif text-ink-soft">
+                  <span className="font-display text-xs uppercase tracking-wider text-wine font-semibold">
+                    Complication (d100: {complication.roll}) ·{' '}
+                  </span>
+                  {complication.text}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Recent Answers */}
+          <div className="rounded border border-rule bg-parchment p-4 shadow-card flex flex-col h-[calc(100vh-240px)] min-h-[450px] lg:h-[580px]">
+            <div className="font-display text-[11px] uppercase tracking-wider text-ink-mute font-semibold border-b border-rule pb-2 mb-3">
+              Recent Answers
+            </div>
+            <div className="flex-1 overflow-y-auto pr-1 hide-scrollbar">
+              {recent.length === 0 ? (
+                <p className="py-8 text-center font-serif text-sm italic text-ink-faint">
+                  Ask the world a question to begin.
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {recent.map((entry, i) => (
+                    <li
+                      key={entry.id}
+                      data-oracle-result
+                      data-oracle-result-index={i}
+                      className="rounded border border-rule bg-parchment-soft p-3 space-y-2 hover:border-wine/30 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider font-semibold ${resultTone(
+                            entry.result,
+                          )}`}
+                        >
+                          {entry.result}
+                        </span>
+                        <span className="font-serif text-[10px] text-ink-faint">
+                          d100: {entry.roll} / {entry.threshold} · CF {entry.chaosFactor}
+                        </span>
+                      </div>
+                      {entry.question && (
+                        <p className="font-serif text-sm italic text-ink">
+                          &ldquo;{entry.question}&rdquo;
+                        </p>
+                      )}
+                      {entry.randomEvent && (
+                        <div className="flex items-start gap-1.5 rounded border border-wine/30 bg-wine/5 px-2 py-1.5">
+                          <Sparkles size={12} className="mt-0.5 flex-shrink-0 text-wine" />
+                          <p className="font-serif text-xs text-ink-soft">
+                            <span className="font-display text-[10px] uppercase tracking-wider text-wine font-semibold">
+                              Random Event ·{' '}
+                            </span>
+                            {entry.randomEvent.focus}: {entry.randomEvent.action} /{' '}
+                            {entry.randomEvent.subject}
+                          </p>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -195,7 +365,7 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised }
                   <Wand2 size={14} className="mt-0.5 flex-shrink-0 text-wine" />
                   <div className="font-serif text-ink-soft">
                     <span className="font-display text-xs uppercase tracking-wider text-wine">
-                      Complication (d20: {complication.roll}) ·{' '}
+                      Complication (d100: {complication.roll}) ·{' '}
                     </span>
                     {complication.text}
                   </div>
