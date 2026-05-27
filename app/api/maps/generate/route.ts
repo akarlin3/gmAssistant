@@ -19,6 +19,16 @@ const STYLE_PREAMBLE: Record<string, string> = {
   urban: 'A top-down city or village map, ink line work, parchment background, no text or labels.',
 };
 
+// Gemini's image-capable model (a.k.a. "Nano Banana"). Returns the generated
+// image inline as base64 in candidates[].content.parts[].inlineData.
+const GEMINI_IMAGE_MODEL = 'gemini-2.5-flash-image';
+
+type GeminiResponse = {
+  candidates?: Array<{
+    content?: { parts?: Array<{ inlineData?: { mimeType?: string; data?: string } }> };
+  }>;
+};
+
 export async function POST(req: NextRequest) {
   const idToken = readBearerToken(req.headers.get('authorization'));
   if (!idToken) return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
@@ -39,9 +49,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: 'Server missing OPENAI_API_KEY' }, { status: 500 });
+    return NextResponse.json({ error: 'Server missing GEMINI_API_KEY' }, { status: 500 });
   }
 
   let body: { prompt?: unknown; style?: unknown };
@@ -61,11 +71,17 @@ export async function POST(req: NextRequest) {
 
   let r: Response;
   try {
-    r = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'gpt-image-1', prompt: fullPrompt, size: '1024x1024', n: 1 }),
-    });
+    r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGE_MODEL}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: fullPrompt }] }],
+          generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+        }),
+      },
+    );
   } catch (e) {
     console.error('[maps/generate] fetch failed', e);
     return NextResponse.json({ error: 'Generation failed' }, { status: 502 });
@@ -77,8 +93,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Generation failed' }, { status: 502 });
   }
 
-  const json = (await r.json().catch(() => null)) as { data?: Array<{ b64_json?: string }> } | null;
-  const b64 = json?.data?.[0]?.b64_json;
+  const json = (await r.json().catch(() => null)) as GeminiResponse | null;
+  const b64 = json?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData?.data;
   if (!b64) {
     return NextResponse.json({ error: 'Generation returned no image' }, { status: 502 });
   }
