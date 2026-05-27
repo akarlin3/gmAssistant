@@ -1,4 +1,4 @@
-import RealAnthropic from '@anthropic-ai/sdk';
+import RealAnthropic from '../node_modules/@anthropic-ai/sdk/index.mjs';
 
 export class APIError extends Error {
   status: number;
