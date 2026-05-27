@@ -172,7 +172,7 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, 
                 <Wand2 size={16} className="mt-0.5 flex-shrink-0 text-wine animate-pulse" />
                 <div className="font-serif text-ink-soft">
                   <span className="font-display text-xs uppercase tracking-wider text-wine font-semibold">
-                    Complication (d20: {complication.roll}) ·{' '}
+                    Complication (d100: {complication.roll}) ·{' '}
                   </span>
                   {complication.text}
                 </div>
@@ -365,7 +365,7 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, 
                   <Wand2 size={14} className="mt-0.5 flex-shrink-0 text-wine" />
                   <div className="font-serif text-ink-soft">
                     <span className="font-display text-xs uppercase tracking-wider text-wine">
-                      Complication (d20: {complication.roll}) ·{' '}
+                      Complication (d100: {complication.roll}) ·{' '}
                     </span>
                     {complication.text}
                   </div>

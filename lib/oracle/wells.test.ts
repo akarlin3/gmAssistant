@@ -16,11 +16,11 @@ import {
 } from './wells';
 
 describe('table shapes', () => {
-  test('focus is d20, action and subject are d100, complication is d20', () => {
+  test('focus is d20, action and subject are d100, complication is d100', () => {
     expect(FOCUS_TABLE).toHaveLength(20);
     expect(ACTION_TABLE).toHaveLength(100);
     expect(SUBJECT_TABLE).toHaveLength(100);
-    expect(COMPLICATION_TABLE).toHaveLength(20);
+    expect(COMPLICATION_TABLE).toHaveLength(100);
   });
   test('chaos shift is defined for every level 1-9 and symmetric around 5', () => {
     for (let c = 1; c <= 9; c++) expect(typeof CHAOS_SHIFT[c]).toBe('number');
@@ -144,11 +144,11 @@ describe('random events', () => {
 });
 
 describe('rollComplication', () => {
-  test('returns a 1-20 roll mapped to a complication string', () => {
+  test('returns a 1-100 roll mapped to a complication string', () => {
     for (let i = 0; i < 200; i++) {
       const { roll, complication } = rollComplication();
       expect(roll).toBeGreaterThanOrEqual(1);
-      expect(roll).toBeLessThanOrEqual(20);
+      expect(roll).toBeLessThanOrEqual(100);
       expect(COMPLICATION_TABLE[roll - 1]).toBe(complication);
     }
   });

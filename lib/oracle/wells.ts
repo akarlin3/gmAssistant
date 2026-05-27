@@ -167,7 +167,7 @@ export function isYesResult(result: OracleResult): boolean {
   return result.startsWith('Yes') || result === 'Exceptional Yes';
 }
 
-// Roll a single scene complication (d20). Pure helper used by the modal's
+// Roll a single scene complication (d100). Pure helper used by the modal's
 // "Complicate Scene" button.
 export function rollComplication(): { roll: number; complication: string } {
   const idx = Math.floor(Math.random() * COMPLICATION_TABLE.length);
@@ -226,26 +226,106 @@ export const SUBJECT_TABLE: readonly string[] = [
   'Priest', 'Prison', 'Promise', 'Prophecy', 'Protector', 'Quest', 'Rebel', 'Relic', 'Ring', 'River',
 ];
 
-// --- Scene Complication (d20) ----------------------------------------------
+// --- Scene Complication (d100) ---------------------------------------------
 export const COMPLICATION_TABLE: readonly string[] = [
   'Time pressure: something will happen in N rounds if unresolved', // 1
-  'An unexpected witness arrives', // 2
-  'Environmental hazard intensifies (fire, flood, cold, heat)', // 3
-  'Equipment failure: something the PC relies on breaks', // 4
-  'A hidden ally reveals themselves', // 5
-  'A hidden enemy reveals themselves', // 6
-  'An NPC present switches sides', // 7
-  'Magic surges briefly — a small inexplicable effect', // 8
-  'A resource runs low (light, water, ammunition, time)', // 9
-  'False information surfaces: something the PC believed is wrong', // 10
-  'An NPC reveals a hidden agenda', // 11
-  'Backup arrives for the antagonist', // 12
-  'A previous decision returns to bite', // 13
-  'A civilian or innocent becomes endangered', // 14
-  'Architectural failure: floor, ceiling, wall, or bridge gives way', // 15
-  'Two threats merge into one larger threat', // 16
-  'Useful information is misplaced, destroyed, or stolen', // 17
-  'An honor compromise: the PC must choose between two held values', // 18
-  'An old debt is called in at the worst moment', // 19
-  "An echo from the PC's past arrives in physical form", // 20
+  'An unexpected witness arrives who could report the characters', // 2
+  'Environmental hazard intensifies (fire, flood, extreme cold, extreme heat)', // 3
+  'Equipment failure: something vital you rely on breaks or runs out of power', // 4
+  'A hidden ally or neutral party reveals themselves with a complicated demand', // 5
+  'A hidden enemy or rival reveals their presence or has been watching', // 6
+  'An NPC present switches sides, retreats, or betrays a trust', // 7
+  'Magic surges briefly — a small, inexplicable, or chaotic magical effect occurs', // 8
+  'A resource runs dangerously low (light source, water, ammunition, food)', // 9
+  'False information surfaces: something you believed to be true is wrong', // 10
+  'An NPC reveals a hidden agenda, secret identity, or conflicting motive', // 11
+  'Backup or reinforcement arrives for the antagonist or threat', // 12
+  'A previous decision or past mistake returns to complicate the current situation', // 13
+  'A civilian, innocent bystander, or vulnerable creature becomes endangered', // 14
+  'Architectural or structural failure: floor, ceiling, wall, or bridge begins to give way', // 15
+  'Two distinct threats, enemies, or hazards merge into one larger threat', // 16
+  'Useful information, a key map, or a critical item is misplaced or stolen', // 17
+  'An honor compromise: you must choose between two closely held values or vows', // 18
+  'An old debt, promise, or legal obligation is called in at the worst possible moment', // 19
+  'An echo from your past arrives in physical form (a token, a letter, a familiar face)', // 20
+  'Sudden change in weather (fog, thunderstorm, high winds) makes actions difficult', // 21
+  'A key path, doorway, or exit becomes blocked, locked, or guarded', // 22
+  'A minor injury or physical strain begins to hinder movement or actions', // 23
+  'A misunderstanding arises between allies, sowing seeds of doubt', // 24
+  'An item in your possession attracts unwanted attention (monsters, guards, thieves)', // 25
+  'A local authority or law enforcer demands explanation or imposes a restriction', // 26
+  'A nearby creature or entity goes into a frenzy, panics, or reacts aggressively', // 27
+  'A vital tool, key, or device requires a rare or unexpected component to work', // 28
+  'The terrain shifts unexpectedly (landslide, collapsing ledge, opening sinkhole)', // 29
+  'A character experiences a vivid, distracting flashback or premonition', // 30
+  'An active rumor or reputation precedes you, causing locals to react with fear', // 31
+  'A magical ward, alarm, or trap is accidentally triggered', // 32
+  'An NPC falls ill, is poisoned, or suffers a sudden debilitating condition', // 33
+  'A linguistic or cultural barrier makes communication extremely difficult', // 34
+  'An item of value is dropped, scattered, or falls into a dangerous spot', // 35
+  'The scent of blood, magic, or food attracts local scavengers or predators', // 36
+  'A secret door or passage is discovered, but it is trapped or occupied', // 37
+  'A piece of lore or history is misremembered, leading you in the wrong direction', // 38
+  'An NPC demands a heavy bribe, favor, or exchange before offering any assistance', // 39
+  "Your shadow, reflection, or magic behaves strangely, hinting at a presence", // 40
+  'A tool or weapon becomes temporarily cursed or magnetically stuck to something', // 41
+  'A sudden, unexplained loss of gravity or local atmospheric anomaly occurs', // 42
+  'A vital contact is found to be missing, incapacitated, or dead', // 43
+  'The passage of time is distorted: hours have passed when it felt like minutes', // 44
+  'A local custom or taboo is accidentally violated, causing immediate offense', // 45
+  'A strange contagion, curse, or rot is detected on a character or their gear', // 46
+  "A faction's symbol or banner is spotted nearby, indicating they claim this area", // 47
+  'An explosion, collapse, or loud noise elsewhere draws attention to your location', // 48
+  'A key NPC suffers a sudden crisis of faith, confidence, or loyalty', // 49
+  'Your pack animal, mount, or vehicle becomes spooked, injured, or runs away', // 50
+  'A local spirit, ghost, or spectral presence manifests with an urgent demand', // 51
+  'The ambient light source is snuffed out, leaving the area in total darkness', // 52
+  'A piece of clothing, armor, or footwear snags or tears, impeding agility', // 53
+  'A sudden draft or wind blows away a loose paper, map, or light item', // 54
+  'A disguise or cover story is blown by a minor detail you overlooked', // 55
+  'A nearby mechanism (elevator, lever, portcullis) jams halfway through operation', // 56
+  'An NPC demands that you choose between two competing factions or causes', // 57
+  'A wild beast or monster is spotted nearby, nursing young or protecting territory', // 58
+  'A sudden, intense headache, hallucination, or psychic static affects a character', // 59
+  'An object of historical or religious significance is accidentally damaged', // 60
+  'A local shop, tavern, or safe house is closed, boarded up, or has been ransacked', // 61
+  "An NPC's pet or companion animal escapes and causes a massive disruption", // 62
+  'You must perform an action under the scrutiny of an audience or suspicious crowd', // 63
+  'A lock is found to be rusted, melted, or deliberately welded shut', // 64
+  "An ally's weapon or spell misfires, causing collateral damage", // 65
+  'A bounty or warrant is issued for your arrest, or your likenesses are posted', // 66
+  'An NPC attempts to steal from you under the guise of helping', // 67
+  'The air becomes thin, toxic, or filled with thick, choking smoke or spores', // 68
+  'A magical portal or rift opens slightly, leaking planar energy or entities', // 69
+  'A trusted contact is revealed to be working for a rival or enemy', // 70
+  'A sudden earthquake, tremor, or vibrations throw everyone off balance', // 71
+  'A key component of the environment (a water wheel, steam pipe) begins to overload', // 72
+  'An NPC misinterprets your actions as a romantic, hostile, or formal gesture', // 73
+  'An ancient, dormant entity stirs or speaks in a long-dead language', // 74
+  'A structural collapse reveals a new hazard (flooded chamber, gas pocket)', // 75
+  'A spell or ability works too well, causing an excessive, unwanted side effect', // 76
+  'A local festival, parade, or riot blocks the streets and sweeps you along', // 77
+  'An item bought or acquired recently is revealed to be counterfeit or stolen', // 78
+  'A curse or geas is placed upon you, requiring a specific task to lift', // 79
+  'An NPC is mistaken for you, drawing a threat intended for you toward them', // 80
+  'A sudden swarm of insects, bats, or pests disrupts concentration and visibility', // 81
+  'Your footsteps or movements leave highly visible or magical tracks', // 82
+  'A piece of technology or magic suffers from electromagnetic or magical interference', // 83
+  "An NPC who knows a character's deepest secret or embarrassing past arrives", // 84
+  'The water level rises rapidly or a sudden tide comes in, flooding the area', // 85
+  'A valuable lead turns out to be a deliberate decoy or trap set by a rival', // 86
+  'Your shield, barrier, or defensive item is shattered or disabled', // 87
+  'An NPC offers assistance but demands a blood oath or magical contract in return', // 88
+  'A sudden, deep fatigue or unnatural exhaustion overcomes the characters', // 89
+  'The local flora reacts aggressively: vines constrict or plants release toxins', // 90
+  'A key door or chest is protected by a riddle or puzzle that has been altered', // 91
+  "An NPC's ghost or spirit appears, blaming you for their demise", // 92
+  'A nearby fire spreads rapidly, threatening to cut off the only exit', // 93
+  'An item of equipment begins to glow or hum loudly, giving away your location', // 94
+  'A rival party of adventurers or treasure hunters arrives with the same goal', // 95
+  'A local deity or powerful patron expresses displeasure, imposing a minor omen', // 96
+  'A piece of vital information is written in a code or language no one knows', // 97
+  'A sudden, overwhelming sense of dread or horror shakes your resolve', // 98
+  'A magical mirror, portal, or trap swaps the physical positions of two characters', // 99
+  'Ultimate complication: multiple previous complications trigger at once', // 100
 ];
