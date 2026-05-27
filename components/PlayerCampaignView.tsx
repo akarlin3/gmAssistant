@@ -437,6 +437,7 @@ export default function PlayerCampaignView({
   const [openCharIds, setOpenCharIds] = useState<Record<string, boolean>>({});
   const toggleChar = (id: string) => setOpenCharIds((s) => ({ ...s, [id]: !s[id] }));
   const activePlaylistUrl = playlistUrl || projection?.playlistUrl;
+  const activePlaylistPlaying = projection?.playlistPlaying ?? false;
 
   useEffect(() => {
     const unsub = subscribeSlotProjection(token, slotId, setProjection, () => setProjection(null));
@@ -578,7 +579,11 @@ export default function PlayerCampaignView({
             </button>
             {musicOpen && (
               <div className="border-t border-rule/60 pt-3">
-                <MusicPlayer playlistUrl={activePlaylistUrl} readOnly={true} />
+                <MusicPlayer
+                  playlistUrl={activePlaylistUrl}
+                  readOnly={true}
+                  isPlayingProp={activePlaylistPlaying}
+                />
               </div>
             )}
           </div>

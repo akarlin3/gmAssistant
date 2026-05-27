@@ -258,5 +258,6 @@ export function buildSlotProjection(
     pcGoals: projectedGoals,
     maps,
     playlistUrl: (data as any).__sessionPlaylist || '',
+    playlistPlaying: !!(data as any).__sessionPlaylistPlaying,
   };
 }

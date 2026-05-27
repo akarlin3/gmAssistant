@@ -351,6 +351,8 @@ export default function RunSessionView({
         <MusicPlayer
           playlistUrl={(get('__sessionPlaylist', '') as string)}
           onChangePlaylist={(next) => setVal('__sessionPlaylist', next)}
+          isPlayingProp={!!get('__sessionPlaylistPlaying', false)}
+          onChangePlaying={(next) => setVal('__sessionPlaylistPlaying', next)}
         />
       </PanelShell>
 
@@ -1552,10 +1554,14 @@ export function MusicPlayer({
   playlistUrl,
   onChangePlaylist,
   readOnly = false,
+  isPlayingProp,
+  onChangePlaying,
 }: {
   playlistUrl: string;
   onChangePlaylist?: (v: string) => void;
   readOnly?: boolean;
+  isPlayingProp?: boolean;
+  onChangePlaying?: (v: boolean) => void;
 }) {
   const [inputUrl, setInputUrl] = useState(playlistUrl);
   const [error, setError] = useState('');
@@ -1571,6 +1577,30 @@ export function MusicPlayer({
   useEffect(() => {
     setInputUrl(playlistUrl);
   }, [playlistUrl]);
+
+  // Synchronize local isPlaying state with isPlayingProp
+  useEffect(() => {
+    if (isPlayingProp !== undefined) {
+      setIsPlaying(isPlayingProp);
+    }
+  }, [isPlayingProp]);
+
+  // Command underlying YT Player when isPlayingProp changes
+  useEffect(() => {
+    if (!ytPlayer || !isApiReady) return;
+    try {
+      // @ts-ignore
+      const states = window.YT.PlayerState;
+      const currentPlayerState = ytPlayer.getPlayerState();
+      if (isPlayingProp && currentPlayerState !== states.PLAYING) {
+        ytPlayer.playVideo();
+      } else if (!isPlayingProp && currentPlayerState === states.PLAYING) {
+        ytPlayer.pauseVideo();
+      }
+    } catch (e) {
+      console.warn('Failed to sync YT player with prop state', e);
+    }
+  }, [isPlayingProp, ytPlayer, isApiReady]);
 
   const { playlistId, videoId } = parseYoutubeUrl(playlistUrl);
 
@@ -1607,14 +1637,17 @@ export function MusicPlayer({
               if (event.data === states.PLAYING) {
                 setPlayerState('playing');
                 setIsPlaying(true);
+                onChangePlaying?.(true);
               } else if (event.data === states.PAUSED) {
                 setPlayerState('paused');
                 setIsPlaying(false);
+                onChangePlaying?.(false);
               } else if (event.data === states.BUFFERING) {
                 setPlayerState('buffering');
               } else if (event.data === states.ENDED) {
                 setPlayerState('ended');
                 setIsPlaying(false);
+                onChangePlaying?.(false);
               } else if (event.data === states.UNSTARTED) {
                 setPlayerState('unstarted');
               }

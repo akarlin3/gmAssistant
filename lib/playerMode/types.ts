@@ -112,6 +112,7 @@ export type SlotProjection = {
   // fields (marker notes, entity links, edge travel times) already stripped.
   maps?: import('@/lib/maps/playerProjection').PlayerMap[];
   playlistUrl?: string;
+  playlistPlaying?: boolean;
 };
 
 export type CampaignItem = {

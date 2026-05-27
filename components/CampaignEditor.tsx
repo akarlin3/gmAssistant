@@ -1546,6 +1546,8 @@ function RunSessionInlineActive({
             <MusicPlayer
               playlistUrl={(get('__sessionPlaylist', '') as string)}
               onChangePlaylist={(next) => setVal('__sessionPlaylist', next)}
+              isPlayingProp={!!get('__sessionPlaylistPlaying', false)}
+              onChangePlaying={(next) => setVal('__sessionPlaylistPlaying', next)}
             />
           </PanelShell>
 
