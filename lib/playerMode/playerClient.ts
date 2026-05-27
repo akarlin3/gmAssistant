@@ -12,6 +12,12 @@ export function subscribeShareMeta(
   onUpdate: (meta: ShareMeta | null) => void,
   onError?: (e: Error) => void,
 ) {
+  // Gracefully handle short/invalid share tokens to prevent unauthorized Firestore reads
+  // from triggering 'permission-denied' uncaught console errors.
+  if (!token || token.length < 20) {
+    setTimeout(() => onUpdate(null), 0);
+    return () => {};
+  }
   return onSnapshot(
     doc(getDb(), 'playerShares', token),
     (snap) => onUpdate(snap.exists() ? (snap.data() as ShareMeta) : null),
@@ -25,6 +31,12 @@ export function subscribeSlotProjection(
   onUpdate: (proj: SlotProjection | null) => void,
   onError?: (e: Error) => void,
 ) {
+  // Gracefully handle short/invalid share tokens to prevent unauthorized Firestore reads
+  // from triggering 'permission-denied' uncaught console errors.
+  if (!token || token.length < 20) {
+    setTimeout(() => onUpdate(null), 0);
+    return () => {};
+  }
   return onSnapshot(
     doc(getDb(), 'playerShares', token, 'slots', slotId),
     (snap) => onUpdate(snap.exists() ? (snap.data() as SlotProjection) : null),
