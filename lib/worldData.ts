@@ -6,7 +6,7 @@ export const WORLD_KEYS = [
 ] as const;
 
 export const CAMPAIGN_KEYS = [
-  'characters', 'pcGoals', 'clocks', 'chases', 'downtime',
+  'characters', 'pcs', 'pcMacros', 'pcGoals', 'clocks', 'chases', 'downtime',
   'sessionLogs', 'sessionLogV2', 'scenes', 'campaignEventLog',
   'macros', 'spellFavs', 'logistics', 'strongStart',
   'endCatalyst', 'endReadiness', 'endThreads', 'dropped',

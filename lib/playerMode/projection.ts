@@ -5,6 +5,7 @@
 
 import { DEFAULT_FIELD_VISIBILITY } from './fieldDefaults';
 import { resolveVisibility } from './resolveVisibility';
+import { projectPlayerMaps } from '@/lib/maps/playerProjection';
 import {
   PLAYER_ENTITY_TYPES,
   normalizeItem,
@@ -227,6 +228,12 @@ export function buildSlotProjection(
         }))
     : [];
 
+  // Player-visible maps: layer-filtered, GM-only fields stripped. The same for
+  // every slot (visibility is per-layer, not per-slot), so this is cheap to
+  // recompute per slot and avoids threading another precomputed value through.
+  // Pass the whole blob so readMaps normalizes historical/partial map docs.
+  const maps = projectPlayerMaps(data as Record<string, unknown>);
+
   return {
     campaignName,
     tokenVersion: config.tokenVersion,
@@ -238,5 +245,6 @@ export function buildSlotProjection(
     items: projectedItems,
     planning,
     pcGoals: projectedGoals,
+    maps,
   };
 }

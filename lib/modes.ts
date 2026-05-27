@@ -71,6 +71,7 @@ export const MODES: Record<Mode, ModeDef> = {
     subviews: [
       { id: 'session', label: 'Session',  description: 'Active session — prep cards, scratchpad, initiative' },
       { id: 'scene',   label: 'Scene Mode', description: 'Run a location turn-by-turn with AI-voiced NPCs (Pro)' },
+      { id: 'maps',    label: 'Maps',     description: 'Maps with markers, layers, pointcrawls, and AI generation' },
       { id: 'lookup',  label: 'Lookup',   description: 'Quick reference: NPCs, locations, secrets, factions' },
       { id: 'logged',  label: 'Logged',   description: 'Every logged library item at the time' },
       { id: 'dice',    label: 'Dice',     description: 'Dice roller' },
@@ -92,6 +93,7 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'hazards',    label: 'Hazards',    description: 'Physics-grounded environmental damage & structural calculator' },
       { id: 'logistics',  label: 'Logistics',  description: 'Strict encumbrance, containers, and currency tracking' },
       { id: 'web',        label: 'NPC Web',    description: 'Visual relationship graph of NPCs and the party' },
+      { id: 'wiki',       label: 'Wiki',       description: 'Cross-linked entity graph — every NPC, faction, location, secret and how they connect' },
       { id: 'livingworld', label: 'Living World', description: 'Tick the world forward between sessions — faction clocks, downtime, NPC agendas, and a "While You Were Away" briefing' },
       { id: 'factions',   label: 'Faction Sim', description: 'Grand-strategy faction simulation — territories, influence, and tick-based moves' },
     ],

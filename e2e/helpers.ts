@@ -15,11 +15,16 @@ import type { Page } from '@playwright/test';
 // lib/scene/__tests__ instead.
 
 export type SeedCampaignOptions = {
-  locations: Array<{ id: string; name: string; description: string }>;
-  npcs: Array<{ id: string; name: string; traits: string; voice: string }>;
+  locations?: Array<{ id: string; name: string; description: string }>;
+  npcs?: Array<{ id: string; name: string; traits: string; voice?: string }>;
+  sessions?: Array<{ id: string; transcript: Array<{ text: string }> }>;
 };
 
-export async function loginAsPro(_page: Page): Promise<void> {
+export type LoginAsProOptions = {
+  usageOverride?: { assistant?: number };
+};
+
+export async function loginAsPro(_page: Page, _opts?: LoginAsProOptions): Promise<void> {
   throw new Error(
     'loginAsPro is not implemented: Scene Mode authenticated E2E requires the Firebase Auth/Firestore emulators.',
   );

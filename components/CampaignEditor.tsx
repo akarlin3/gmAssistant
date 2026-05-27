@@ -11,7 +11,7 @@ import {
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy, Clock,
   Download, Upload, ScrollText, ArrowLeft, ArrowRight, Cloud, CloudOff,
   FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench, SlidersHorizontal, Copy,
-  Compass, NotebookPen, Zap, Gem, Globe, Music, Eye, EyeOff,
+  Compass, NotebookPen, Zap, Gem, Globe, Music, Eye, EyeOff, Bot,
 } from 'lucide-react';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo, parseLevelFromClassLevel } from '@/lib/encounterMath';
 import dynamic from 'next/dynamic';
@@ -47,6 +47,7 @@ import type { EntityRef } from '@/lib/generators/types';
 import { applySummonAction, type SummonSaveAction } from '@/lib/generators/summon-actions';
 import VivifyPanel, { type VivifyHistoryEntry } from './VivifyPanel';
 import SceneModePanel from './SceneModePanel';
+import CampaignAssistant from './CampaignAssistant';
 import { SCENE_SESSIONS_KEY, type SceneEntry } from '@/lib/scene/types';
 import { sceneToMarkdown } from '@/lib/scene/export';
 import ChaseTracker from './ChaseTracker';
@@ -72,6 +73,7 @@ const LogisticsTab = dynamic(() => import('./LogisticsTab'));
 const NPCRelationshipWeb = dynamic(() => import('./NPCRelationshipWeb'));
 const FactionEngineTab = dynamic(() => import('./FactionEngineTab'));
 const LivingWorldTab = dynamic(() => import('./world/LivingWorldTab'));
+const MapsTab = dynamic(() => import('./maps/MapsTab'));
 import { WhileYouWereAway } from './world/WhileYouWereAway';
 import { emptyLogistics, type LogisticsState } from './LogisticsTab';
 import { emptyGraph, type RelationshipGraphState } from './NPCRelationshipWeb';
@@ -100,6 +102,11 @@ import {
   makeCharacterId,
   normalizeCharacter,
 } from '@/lib/character-schema';
+import PartyTab from './PartyTab';
+import { type PlayerCharacter, PC_CAP } from '@/lib/pc/types';
+import { emptyPc, normalizePcs, capPcs } from '@/lib/pc/factory';
+import { syncAttackMacros, dropPcMacros, type PcMacros } from '@/lib/pc/macros';
+import { mapParsedToPc } from '@/lib/pc/from-parser';
 import { pushSnapshot, popSnapshot, type Snapshot } from '@/lib/undoStack';
 import {
   TARGETS,
@@ -138,6 +145,19 @@ import {
   NPCCard,
   LocationCard,
 } from './campaignEditor/prepPrimitives';
+import { WikiProvider, type WikiContextValue } from './wiki/WikiContext';
+import WikiTab from './wiki/WikiTab';
+import RelationshipsSection from './wiki/RelationshipsSection';
+import { buildEntityIndex, findEntity } from '@/lib/wiki/entities';
+import {
+  createRelationship,
+  addRelationship as addRelToList,
+  removeRelationship as removeRelFromList,
+  acceptSuggestion as acceptSugInList,
+  rejectSuggestion as rejectSugFromList,
+} from '@/lib/wiki/relationships';
+import { scanTextForSuggestions, pruneExpiredSuggestions } from '@/lib/wiki/suggest';
+import type { EntityType as WikiEntityType, Relationship as WikiRelationship } from '@/lib/wiki/types';
 
 const FactionCard = ({ data, onChange, onRemove }: any) => {
   const renown = typeof data.renown === 'number' ? data.renown : 0;
@@ -201,6 +221,7 @@ const FactionCard = ({ data, onChange, onRemove }: any) => {
           </span>
         </div>
       </div>
+      <RelationshipsSection entityType="faction" entityId={data.id} entityName={data.name} />
     </div>
   );
 };
@@ -924,6 +945,7 @@ function RunSessionInlineActive({
 }) {
   const sessionV2 = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
   const sessionNumber = nextSessionNumber(sessionV2);
+  const party = normalizePcs(get('pcs', []));
   const [initiativeOpen, setInitiativeOpen] = useState(false);
   const musicOpen = !!get('__musicOpen', false);
   const setMusicOpen = (v: boolean) => setVal('__musicOpen', v);
@@ -1434,6 +1456,7 @@ function RunSessionInlineActive({
                 onChange={(next) => setVal('__initiative', next)}
                 monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
                 pcs={characters}
+                party={party}
                 onClose={() => setInitiativeOpen(false)}
               />
             ) : (
@@ -1872,6 +1895,10 @@ export default function CampaignEditor({
     initialMigration.initialOpenId ? { [initialMigration.initialOpenId]: true } : {}
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
+  const [openPcs, setOpenPcs] = useState<Record<string, boolean>>({});
+  const [uploadingPc, setUploadingPc] = useState(false);
+  const [pcUploadError, setPcUploadError] = useState<string>('');
+  const pcFileInputRef = useRef<HTMLInputElement>(null);
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
   const initialModeState = useMemo(() => resolveInitialMode(initialMigration.initialState), [initialMigration.initialState]);
   const [mode, setMode] = useState<Mode>(initialModeState.mode);
@@ -2141,6 +2168,7 @@ export default function CampaignEditor({
       s: playerLog,
       i: get('items', []),
       g: get('pcGoals', []),
+      m: get('maps', []),
     }),
     [playerConfig, get, playerLog],
   );
@@ -2161,6 +2189,7 @@ export default function CampaignEditor({
             playerLog,
             items: get('items', []),
             pcGoals: get('pcGoals', []),
+            maps: get('maps', []),
           };
           await publishProjections(campaign.id, name || 'Campaign', dataToPublish);
         } catch (e) {
@@ -2357,6 +2386,20 @@ export default function CampaignEditor({
     delete nextState.__sessionStrongStartDelivered;
     nextState.__runSessionOpen = false;
     nextState = markSessionPlayed(nextState);
+
+    // Phase 4 — auto-suggest relationships from this session's notes. Scans the
+    // recap for co-mentioned entities and appends `suggested: true` links for
+    // the GM to confirm on the Wiki tab.
+    try {
+      const idx = buildEntityIndex(nextState);
+      const existingRels: WikiRelationship[] = Array.isArray(nextState.relationships) ? nextState.relationships : [];
+      const newSuggestions = scanTextForSuggestions(entry.recap || '', idx, existingRels);
+      if (newSuggestions.length > 0) {
+        nextState.relationships = [...existingRels, ...newSuggestions];
+      }
+    } catch {
+      // Suggestion scanning is best-effort; never block ending a session.
+    }
 
     // Cancel the pending auto-save timeout so it doesn't fire after our manual save
     if (saveTimeoutRef.current) {
@@ -2571,6 +2614,69 @@ export default function CampaignEditor({
     }
   };
 
+  // ---- First-class PCs (data.pcs) -------------------------------------
+  const pcs = useMemo(() => normalizePcs(state.pcs), [state.pcs]);
+  const pcMacros = (state.pcMacros as PcMacros) || {};
+
+  const writePcs = (next: PlayerCharacter[], nextMacros?: PcMacros) => {
+    setState((s) => ({
+      ...s,
+      pcs: capPcs(next),
+      ...(nextMacros ? { pcMacros: nextMacros } : {}),
+    }));
+  };
+
+  const addPc = () => {
+    if (pcs.length >= PC_CAP) return;
+    const fresh = emptyPc();
+    writePcs([...pcs, fresh]);
+    setOpenPcs((o) => ({ ...o, [fresh.id]: true }));
+  };
+
+  const updatePc = (pc: PlayerCharacter) => {
+    const next = pcs.map((p) => (p.id === pc.id ? pc : p));
+    // Keep the PC's attack macros in sync on every save.
+    writePcs(next, syncAttackMacros(pc, pcMacros));
+  };
+
+  const removePc = (id: string) => {
+    const target = pcs.find((p) => p.id === id);
+    writePcs(pcs.filter((p) => p.id !== id), dropPcMacros(id, pcMacros));
+    setOpenPcs((o) => { const n = { ...o }; delete n[id]; return n; });
+    showUndoToast(`Deleted "${target?.name || 'PC'}" — Press ⌘Z to undo`, 5000);
+  };
+
+  const uploadPcSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (pcs.length >= PC_CAP) { setPcUploadError(`Party is full (${PC_CAP} max)`); return; }
+    setPcUploadError('');
+    setUploadingPc(true);
+    try {
+      const user = getFirebaseAuth().currentUser;
+      if (!user) throw new Error('Not signed in');
+      const idToken = await user.getIdToken();
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/parse-character-sheet', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${idToken}` },
+        body: form,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `Parse failed (${res.status})`);
+      const parsed = normalizeCharacter(body.character);
+      const pc = mapParsedToPc(parsed);
+      writePcs([...pcs, pc], syncAttackMacros(pc, pcMacros));
+      setOpenPcs((o) => ({ ...o, [pc.id]: true }));
+    } catch (err: any) {
+      setPcUploadError(err?.message || 'Upload failed');
+    } finally {
+      setUploadingPc(false);
+    }
+  };
+
   const exportJSON = () => {
     const safe = (name || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
     const payload = { _format: 'campaign_prep_v1', _exported: new Date().toISOString(), campaignName: name, state, done };
@@ -2781,6 +2887,101 @@ export default function CampaignEditor({
     if (target.anchor) scrollToAnchor(target.anchor);
   };
 
+  // ── Campaign Wiki (cross-entity relationships) ──────────────────────────
+  // The entity index + relationships array, plus mutators, are exposed via
+  // WikiContext so the inline RelationshipsSection on each card and the Wiki
+  // tab share one source of truth without prop-threading.
+  const wikiIndex = useMemo(() => buildEntityIndex(state), [state]);
+  const wikiRelationships = useMemo<WikiRelationship[]>(
+    () => (Array.isArray(state.relationships) ? state.relationships : []),
+    [state.relationships],
+  );
+
+  // One-time prune of suggestions older than 30 days (auto-reject).
+  useEffect(() => {
+    setState((s) => {
+      if (!Array.isArray(s.relationships) || s.relationships.length === 0) return s;
+      const { relationships, changed } = pruneExpiredSuggestions(s.relationships);
+      return changed ? { ...s, relationships } : s;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const navigateToEntity = useCallback((type: WikiEntityType, id: string) => {
+    // Land on the surface that hosts this entity's card and scroll to it.
+    if (type === 'pc') {
+      navigateTo({ mode: 'plan', subview: 'pcs', characterId: id });
+      setTimeout(() => scrollToAnchor(`character:${id}`), 80);
+      return;
+    }
+    navigateTo({ mode: 'plan', subview: 'worldbuild' });
+    setTimeout(() => {
+      const el = document.getElementById(`entity-${id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 80);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const rescanForSuggestions = useCallback((): number => {
+    let added = 0;
+    setState((s) => {
+      const sources: string[] = [];
+      for (const e of (Array.isArray(s.sessionLogV2) ? s.sessionLogV2 : [])) {
+        if (e && typeof e.recap === 'string') sources.push(e.recap);
+      }
+      if (typeof s.__sessionScratchpad === 'string') sources.push(s.__sessionScratchpad);
+      for (const sc of (Array.isArray(s.sceneSessions) ? s.sceneSessions : [])) {
+        if (!sc) continue;
+        if (typeof sc.partyState === 'string') sources.push(sc.partyState);
+        if (typeof sc.summary === 'string') sources.push(sc.summary);
+        for (const t of (Array.isArray(sc.turns) ? sc.turns : [])) {
+          if (t && typeof t.pcAction === 'string') sources.push(t.pcAction);
+          if (t && typeof t.outcome === 'string') sources.push(t.outcome);
+          if (t?.response && typeof t.response.sensory === 'string') sources.push(t.response.sensory);
+        }
+      }
+      const idx = buildEntityIndex(s);
+      const existing: WikiRelationship[] = Array.isArray(s.relationships) ? s.relationships : [];
+      const found = scanTextForSuggestions(sources.join('\n\n'), idx, existing);
+      if (found.length === 0) return s;
+      added = found.length;
+      return { ...s, relationships: [...existing, ...found] };
+    });
+    return added;
+  }, []);
+
+  const wikiValue = useMemo<WikiContextValue>(() => ({
+    index: wikiIndex,
+    relationships: wikiRelationships,
+    addRelationship: (from, to, kind, notes) =>
+      setState((s) => ({
+        ...s,
+        relationships: addRelToList(
+          Array.isArray(s.relationships) ? s.relationships : [],
+          createRelationship(from, to, kind, notes),
+        ),
+      })),
+    removeRelationship: (id) =>
+      setState((s) => ({
+        ...s,
+        relationships: removeRelFromList(Array.isArray(s.relationships) ? s.relationships : [], id),
+      })),
+    acceptSuggestion: (id) =>
+      setState((s) => ({
+        ...s,
+        relationships: acceptSugInList(Array.isArray(s.relationships) ? s.relationships : [], id),
+      })),
+    rejectSuggestion: (id) =>
+      setState((s) => ({
+        ...s,
+        relationships: rejectSugFromList(Array.isArray(s.relationships) ? s.relationships : [], id),
+      })),
+    navigateToEntity,
+    resolve: (type, id) => findEntity(wikiIndex, type, id),
+    rescan: rescanForSuggestions,
+  }), [wikiIndex, wikiRelationships, navigateToEntity, rescanForSuggestions]);
+
   // Resolve a prep section ID to its (mode, subview) — used by command-palette
   // entries that target a specific section.
   const viewForSection = (sectionId: string): { mode: Mode; subview: string } => {
@@ -2867,6 +3068,7 @@ export default function CampaignEditor({
     { mode: 'plan',    subview: 'pitch',     label: 'Premise',     icon: Compass,         keywords: ['hook', 'givens', 'truths'] },
     { mode: 'plan',    subview: 'worldbuild',     label: 'Worldbuild',       icon: BookOpen,        keywords: ['setting', 'factions', 'reference', 'downtime'] },
     { mode: 'plan',    subview: 'pcs',       label: 'Characters',  icon: User,            keywords: ['pc', 'goals', 'sidekick'] },
+    { mode: 'plan',    subview: 'party',     label: 'Party',       icon: Users,           keywords: ['pc sheet', 'character sheet', 'hp', 'abilities', 'attacks', 'spell slots'] },
     { mode: 'prep',    subview: 'clocks',    label: 'Faction Clocks', icon: Clock,          keywords: ['clocks', 'factions', 'tracking'] },
     { mode: 'prep',    subview: 'arc',       label: 'Arc Planning',   icon: Layers,         keywords: ['audits', 'goals', 'secrets'] },
     { mode: 'prep',    subview: 'ending',    label: 'Ending',         icon: Trophy,         keywords: ['ending', 'wrap', 'threads'] },
@@ -2875,6 +3077,7 @@ export default function CampaignEditor({
     { mode: 'organize', subview: 'players',   label: 'Players',     icon: Users,          keywords: ['invite', 'share', 'collaboration'] },
     { mode: 'organize', subview: 'log',       label: 'Sessions',    icon: Calendar,        keywords: ['session log', 'recap'] },
     { mode: 'run',     subview: 'session',   label: 'Run Session', icon: Swords,          keywords: ['active', 'table'] },
+    { mode: 'run',     subview: 'assistant', label: 'Assistant',   icon: Bot,             keywords: ['ai', 'chat', 'prep', 'plan', 'agent'] },
     { mode: 'run',     subview: 'lookup',    label: 'Lookup',      icon: Search,          keywords: ['quick reference'] },
     { mode: 'run',     subview: 'logged',    label: 'Logged',      icon: ScrollText,      keywords: ['saved', 'library', 'generators', 'log'] },
     { mode: 'run',     subview: 'dice',      label: 'Dice',        icon: Dice5 },
@@ -3324,6 +3527,7 @@ export default function CampaignEditor({
       voiceCache={get('voiceCache', [])}
       onVoiceCacheChange={(next) => setVal('voiceCache', next)}
     >
+    <WikiProvider value={wikiValue}>
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
       <div className="max-w-5xl mx-auto">
         <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
@@ -3731,7 +3935,7 @@ export default function CampaignEditor({
                 <Pitfall>Factions whose goals don't overlap with PC goals are just colour.</Pitfall>
                 <TargetBar current={countFilled('factions', get('factions', []))} target={tgt('factions')} source={TARGETS.factions.source} />
                 {(get('factions', []) as any[]).map((f: any, i: number) => (
-                  <div key={i} data-cp-anchor={`faction:${i}`}>
+                  <div key={i} id={f.id ? `entity-${f.id}` : undefined} data-cp-anchor={`faction:${i}`}>
                     <FactionCard data={f} onChange={(v: any) => {
                       const next = [...(get('factions', []) as any[])]; next[i] = v; setVal('factions', next);
                       const fromR = typeof f.renown === 'number' ? f.renown : 0;
@@ -3892,6 +4096,30 @@ export default function CampaignEditor({
                 </button>
               </Section>
             </Phase>
+            )}
+
+            {mode === 'plan' && subview === 'party' && (
+              <div className="space-y-3">
+                <PartyTab
+                  pcs={pcs}
+                  openMap={openPcs}
+                  isPro={isPro}
+                  uploading={uploadingPc}
+                  uploadError={pcUploadError}
+                  onToggleOpen={(id) => setOpenPcs(o => ({ ...o, [id]: !o[id] }))}
+                  onAdd={addPc}
+                  onUpdate={updatePc}
+                  onRemove={removePc}
+                  onUploadClick={() => pcFileInputRef.current?.click()}
+                />
+                <input
+                  ref={pcFileInputRef}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.md,.json,application/pdf,image/png,image/jpeg,image/webp,image/gif,text/plain,application/json,text/markdown"
+                  onChange={uploadPcSheet}
+                  className="hidden"
+                />
+              </div>
             )}
 
             {mode === 'prep' && subview === 'flow' && (
@@ -4733,6 +4961,30 @@ export default function CampaignEditor({
           </LockedPanel>
         ))}
 
+        {mode === 'run' && subview === 'maps' && (
+          <MapsTab
+            data={state}
+            isPro={isPro}
+            onMapsChange={(maps) => setVal('maps', maps)}
+            onDataChange={setState}
+          />
+        )}
+
+        {mode === 'run' && subview === 'assistant' && (isPro ? (
+          <CampaignAssistant
+            data={state}
+            campaignName={name}
+            setData={(next) => setState(next)}
+          />
+        ) : (
+          <LockedPanel title="Campaign Assistant">
+            A persistent chat agent with read access to your whole campaign — NPCs, factions, secrets,
+            sessions, world clock — and write access via proposals you approve. It plans your next
+            session, surfaces neglected entities, drafts new content, and answers &quot;what should
+            happen next?&quot;
+          </LockedPanel>
+        ))}
+
         {mode === 'run' && subview === 'lookup' && (() => {
           const playerConfig = (get('player', {}) as any) || {};
           const roster = playerConfig.roster || [];
@@ -4781,6 +5033,9 @@ export default function CampaignEditor({
           <DiceRoller
             macros={get('macros', []) as Macro[]}
             onMacrosChange={(v) => setVal('macros', v)}
+            pcMacroGroups={pcs
+              .map((pc) => ({ pcId: pc.id, pcName: pc.name || 'Unnamed PC', macros: pcMacros[pc.id] ?? [] }))
+              .filter((g) => g.macros.length > 0)}
             logEntries={logEntriesFor('dice')}
             onLogEntriesChange={setLogEntriesFor('dice')}
           />
@@ -4926,6 +5181,8 @@ export default function CampaignEditor({
           />
         )}
 
+        {mode === 'library' && subview === 'wiki' && <WikiTab />}
+
         {mode === 'library' && subview === 'livingworld' && (
           <LivingWorldTab
             get={get}
@@ -4983,6 +5240,7 @@ export default function CampaignEditor({
           onChange={(next) => setVal('__initiative', next)}
           monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
           pcs={characters}
+          party={pcs}
           onClose={() => setVal('__initiativeOpen', false)}
         />
       )}
@@ -5059,6 +5317,7 @@ export default function CampaignEditor({
         />
       )}
     </main>
+    </WikiProvider>
     </VoiceProvider>
   );
 }

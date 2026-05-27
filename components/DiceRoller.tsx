@@ -175,14 +175,18 @@ const MAX_HISTORY = 50;
 
 // ---- Component ----------------------------------------------------------
 
+export type PcMacroGroup = { pcId: string; pcName: string; macros: Macro[] };
+
 export default function DiceRoller({
   macros,
   onMacrosChange,
+  pcMacroGroups = [],
   logEntries,
   onLogEntriesChange,
 }: {
   macros: Macro[];
   onMacrosChange: (next: Macro[]) => void;
+  pcMacroGroups?: PcMacroGroup[];
   logEntries: LogEntry[];
   onLogEntriesChange: (next: LogEntry[]) => void;
 }) {
@@ -492,6 +496,35 @@ export default function DiceRoller({
           )}
         </div>
       </div>
+
+      {/* PC attack macros (auto-synced from Party sheets, grouped per PC) */}
+      {pcMacroGroups.length > 0 && (
+        <div className={cardCls}>
+          <h3 className="font-display tracking-wide text-ink">Party Macros</h3>
+          {pcMacroGroups.map((g) => (
+            <div key={g.pcId} className="space-y-1.5">
+              <div className="font-display text-xs uppercase tracking-wider text-brass-deep">{g.pcName}</div>
+              <div className="space-y-1.5">
+                {g.macros.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex items-center gap-2 rounded border border-rule bg-parchment-soft px-2.5 py-1.5"
+                  >
+                    <span className="min-w-0 flex-1 truncate font-display text-sm tracking-wide text-ink">{m.name}</span>
+                    <span className="hidden max-w-[40%] truncate font-serif text-xs italic text-ink-mute sm:inline">{m.formula}</span>
+                    <button
+                      onClick={() => doRoll(m.formula, m.name)}
+                      className="flex-shrink-0 rounded-sm border border-crimson bg-crimson px-2.5 py-0.5 font-display text-xs uppercase tracking-wider text-parchment hover:bg-crimson-deep"
+                    >
+                      Roll
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* History */}
       <div className={cardCls}>

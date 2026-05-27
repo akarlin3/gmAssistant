@@ -48,6 +48,16 @@ const CHARACTER_DEFAULTS: FieldPrivacyMap = {
   notes: 'private',
 };
 
+// First-class PCs (data.pcs). Default reveal is intentionally minimal — name +
+// level only — with party-relevant combat fields available to opt into.
+const PC_DEFAULTS: FieldPrivacyMap = {
+  name: 'public',
+  level: 'public',
+  hp: 'private',
+  ac: 'private',
+  conditions: 'private',
+};
+
 const NPC_DEFAULTS: FieldPrivacyMap = {
   name: 'public',
   faction: 'public',
@@ -101,6 +111,7 @@ const CLOCK_DEFAULTS: FieldPrivacyMap = {
 // Frozen so callers can't accidentally mutate the shared constant.
 export const DEFAULT_FIELD_VISIBILITY: Required<FieldVisibilityDefaults> = Object.freeze({
   characters: Object.freeze({ ...CHARACTER_DEFAULTS }),
+  pcs: Object.freeze({ ...PC_DEFAULTS }),
   npcs: Object.freeze({ ...NPC_DEFAULTS }),
   locations: Object.freeze({ ...LOCATION_DEFAULTS }),
   factions: Object.freeze({ ...FACTION_DEFAULTS }),
