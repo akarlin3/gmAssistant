@@ -5,6 +5,26 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
+  /* --- 0. FIREBASE INITIALIZATION & FIRESTORE SETUP --- */
+  const firebaseConfig = {
+    apiKey: "AIzaSyCWKBxIi9DTuA8hiSMCDUCkNiG_fsFlxyg",
+    authDomain: "campaign-prep-fc9ed.firebaseapp.com",
+    projectId: "campaign-prep-fc9ed",
+    storageBucket: "campaign-prep-fc9ed.firebasestorage.app",
+    messagingSenderId: "549573496390",
+    appId: "1:549573496390:web:0e718df86b18bbbbb28447"
+  };
+
+  let db = null;
+  try {
+    if (typeof firebase !== 'undefined') {
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+    }
+  } catch (err) {
+    console.error("Firebase Web SDK initialization failed:", err);
+  }
+
   /* --- 1. STICKY HEADER SCROLL BEHAVIOR --- */
   const header = document.getElementById('main-header');
   window.addEventListener('scroll', () => {
@@ -334,11 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSubmit.style.opacity = '0.7';
     btnSubmit.textContent = "Writing scroll...";
 
-    // Simulate database write
-    setTimeout(() => {
-      // Save locally
-      saveSignupToLocalStorage(emailValue);
-
+    const completeFormSubmission = () => {
       // Transition views
       formContainer.style.display = 'none';
       successContainer.style.display = 'flex';
@@ -346,7 +362,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Trigger beautiful custom confetti fireworks
       triggerConfettiExplosion(successContainer);
-    }, 1200);
+    };
+
+    // Save locally as backup
+    saveSignupToLocalStorage(emailValue);
+
+    // Save to Google Cloud Firestore if available
+    if (db) {
+      db.collection('publicWaitlist').doc(emailValue).set({
+        email: emailValue,
+        createdAtMs: Date.now(),
+        createdAt: new Date().toISOString()
+      })
+      .then(() => {
+        completeFormSubmission();
+      })
+      .catch((err) => {
+        console.error("Firestore write failed:", err);
+        // Fallback to local success even if database write fails (fault-tolerant UX)
+        completeFormSubmission();
+      });
+    } else {
+      // Fallback if Firebase is offline or not loaded
+      setTimeout(completeFormSubmission, 1200);
+    }
   });
 
   function validateEmail(email) {

@@ -128,5 +128,14 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'createdAtMs', 'createdAt']);
       allow update, delete: if false;
     }
+
+    // Public waitlist signups — unauthenticated creates are allowed from the landing page
+    match /publicWaitlist/{email} {
+      allow create: if request.resource.data.email == email
+        && request.resource.data.email is string
+        && request.resource.data.createdAtMs is number
+        && request.resource.data.keys().hasOnly(['email', 'createdAtMs', 'createdAt']);
+      allow read, update, delete: if false;
+    }
   }
 }
