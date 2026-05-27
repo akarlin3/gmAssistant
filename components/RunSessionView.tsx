@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, useId } from 'react';
 import {
   ArrowLeft, Flag, Dice5, Sparkles, ChevronDown, ChevronRight, Check,
   Eye, EyeOff, Plus, Swords, NotebookPen, Target, Map, Users, ScrollText,
@@ -1729,9 +1729,10 @@ export function MusicPlayer({
     }
   }, [playlistIndexProp, ytPlayer, isApiReady, isPlayingProp]);
 
-  const { playlistId, videoId } = parseYoutubeUrl(playlistUrl);
+  const uniqueId = useId();
+  const iframeId = `yt-audio-player-iframe-${uniqueId.replace(/:/g, '')}`;
 
-  const iframeId = `yt-audio-player-iframe`;
+  const { playlistId, videoId } = parseYoutubeUrl(playlistUrl);
 
   // Dynamic YT Iframe Player API Loader & Binder (Stable mount / single init)
   useEffect(() => {
@@ -2098,7 +2099,6 @@ export function MusicPlayer({
           <button
             type="button"
             onClick={toggleMute}
-            disabled={!isApiReady}
             className="text-ink-mute hover:text-crimson transition-colors p-1 flex-shrink-0 focus:outline-none"
             aria-label={isMuted ? 'Unmute' : 'Mute'}
           >
@@ -2110,7 +2110,6 @@ export function MusicPlayer({
             max="100"
             value={isMuted ? 0 : volume}
             onChange={handleVolumeChange}
-            disabled={!isApiReady}
             className="w-full accent-crimson h-1 bg-rule/50 rounded-lg appearance-none cursor-pointer disabled:opacity-50 focus:outline-none"
           />
         </div>
@@ -2333,7 +2332,6 @@ export function MusicPlayer({
                 <button
                   type="button"
                   onClick={toggleMute}
-                  disabled={!isApiReady}
                   className="text-ink-mute hover:text-crimson transition-colors p-1"
                   aria-label={isMuted ? 'Unmute' : 'Mute'}
                 >
@@ -2345,7 +2343,6 @@ export function MusicPlayer({
                   max="100"
                   value={isMuted ? 0 : volume}
                   onChange={handleVolumeChange}
-                  disabled={!isApiReady}
                   className="w-full accent-crimson h-1 bg-rule/50 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
                 />
               </div>
