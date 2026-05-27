@@ -1392,7 +1392,7 @@ function RunSessionInlineActive({
                                   setVal('__sessionChangeEvents', nextEvents);
                                 }
                               }}
-                              className="rounded border border-rule bg-parchment px-1.5 py-0.5 text-ink-soft cursor-pointer focus:outline-none"
+                              className="rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-ink-soft cursor-pointer focus:outline-none"
                             >
                               <option value="">Unassigned</option>
                               {roster.map((r: any) => (
@@ -1427,7 +1427,7 @@ function RunSessionInlineActive({
                                     setVal('items', allItems);
                                   }
                                 }}
-                                className="rounded border border-rule bg-parchment px-1.5 py-0.5 text-ink-soft cursor-pointer focus:outline-none"
+                                className="rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-ink-soft cursor-pointer focus:outline-none"
                               >
                                 <option value="full">Name & Description</option>
                                 <option value="name-only">Name Only</option>

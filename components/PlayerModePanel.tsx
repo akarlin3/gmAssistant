@@ -588,7 +588,7 @@ function PreviewAsPlayer({
   if (roster.length === 0) return <p className="font-serif text-sm italic text-ink-mute">Add a roster slot to preview.</p>;
   return (
     <div className="space-y-3">
-      <select value={slotId} onChange={(e) => setPreviewSlot(e.target.value)} className="rounded border border-rule bg-parchment px-2 py-1 text-sm text-ink">
+      <select value={slotId} onChange={(e) => setPreviewSlot(e.target.value)} className="rounded border border-rule bg-parchment px-2 py-1 text-sm text-ink font-serif">
         {roster.map((s) => <option key={s.slotId} value={s.slotId}>{s.displayName}</option>)}
       </select>
       {projection && (
