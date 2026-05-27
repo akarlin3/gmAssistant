@@ -73,7 +73,7 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'scene',   label: 'Scene Mode', description: 'Run a location turn-by-turn with AI-voiced NPCs (Pro)' },
       { id: 'assistant', label: 'Assistant', description: 'Persistent AI agent that reads your whole campaign and proposes content you approve (Pro)' },
       { id: 'maps',    label: 'Maps',     description: 'Maps with markers, layers, pointcrawls, and AI generation' },
-      { id: 'lookup',  label: 'Lookup',   description: 'Quick reference: NPCs, locations, secrets, factions' },,
+      { id: 'lookup',  label: 'Lookup',   description: 'Quick reference: NPCs, locations, secrets, factions' },
       { id: 'logged',  label: 'Logged',   description: 'Every logged library item at the time' },
       { id: 'dice',    label: 'Dice',     description: 'Dice roller' },
       { id: 'spells',  label: 'Spells',   description: 'Spell reference' },
