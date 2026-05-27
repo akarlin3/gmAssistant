@@ -5,7 +5,7 @@
 // No edit affordances; mobile-first.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollText, Users, Map, Flag, Clock, BookOpen, UserCircle, Gift, Compass, Target, Heart, Plus, X, Music, ChevronDown, ChevronRight } from 'lucide-react';
+import { ScrollText, Calendar, Users, Map, Flag, Clock, BookOpen, UserCircle, Gift, Compass, Target, Heart, Plus, X, Music, ChevronDown, ChevronRight } from 'lucide-react';
 import { subscribeSlotProjection } from '@/lib/playerMode/playerClient';
 import type { SlotProjection } from '@/lib/playerMode/types';
 import PlayerMapView from '@/components/maps/PlayerMapView';
@@ -529,9 +529,7 @@ export default function PlayerCampaignView({
     }
     if (projection.maps && projection.maps.length > 0) out.push({ id: 'maps', label: 'Maps', icon: <Map size={15} /> });
     if (projection.sessionLog.length > 0) out.push({ id: 'log', label: 'Log', icon: <ScrollText size={15} /> });
-    if (sessionRecaps && sessionRecaps.length > 0) {
-      out.push({ id: 'recaps', label: 'Recaps', icon: <ScrollText size={15} /> });
-    }
+    out.push({ id: 'recaps', label: 'Sessions', icon: <Calendar size={15} /> });
     if (projection.handouts) out.push({ id: 'handouts', label: 'Handouts', icon: <BookOpen size={15} /> });
     if (projection.items && projection.items.length > 0) {
       out.push({ id: 'items', label: 'My Items', icon: <Gift size={15} /> });
@@ -553,7 +551,7 @@ export default function PlayerCampaignView({
       out.push({ id: 'planning', label: 'Premise', icon: <Compass size={15} /> });
     }
     return out;
-  }, [projection, myPcs, partyPcs, unredactedCharacters, sessionRecaps]);
+  }, [projection, myPcs, partyPcs, unredactedCharacters]);
 
   useEffect(() => {
     if (!projection || tabs.length === 0) return;
@@ -886,17 +884,23 @@ export default function PlayerCampaignView({
                 </div>
               ) : active === 'recaps' ? (
                 <div className="space-y-6">
-                  {sessionRecaps?.map((log: any, i: number) => (
-                    <div key={log.id || i} className="bg-parchment-soft border border-rule rounded p-4 shadow-card">
-                      <div className="flex justify-between items-baseline mb-3 border-b border-rule pb-2">
-                        <h3 className="font-display text-lg tracking-wide text-ink">{log.title || 'Untitled Session'}</h3>
-                        <span className="font-serif text-sm text-ink-mute italic">{log.date}</span>
+                  {sessionRecaps && sessionRecaps.length > 0 ? (
+                    sessionRecaps.map((log: any, i: number) => (
+                      <div key={log.id || i} className="bg-parchment-soft border border-rule rounded p-4 shadow-card">
+                        <div className="flex justify-between items-baseline mb-3 border-b border-rule pb-2">
+                          <h3 className="font-display text-lg tracking-wide text-ink">{log.title || 'Untitled Session'}</h3>
+                          <span className="font-serif text-sm text-ink-mute italic">{log.date}</span>
+                        </div>
+                        <div className="font-serif text-sm text-ink-soft whitespace-pre-wrap leading-relaxed">
+                          {log.body || 'No notes.'}
+                        </div>
                       </div>
-                      <div className="font-serif text-sm text-ink-soft whitespace-pre-wrap leading-relaxed">
-                        {log.body || 'No notes.'}
-                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-lg border border-rule bg-parchment p-8 text-center shadow-card font-serif italic text-ink-soft bg-parchment-soft">
+                      No sessions have been logged yet.
                     </div>
-                  ))}
+                  )}
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
