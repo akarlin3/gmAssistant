@@ -433,7 +433,6 @@ export default function PlayerCampaignView({
   const [projection, setProjection] = useState<SlotProjection | null | undefined>(undefined);
   const [active, setActive] = useState<string>('');
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
-  const [musicOpen, setMusicOpen] = useState(true);
   const [openCharIds, setOpenCharIds] = useState<Record<string, boolean>>({});
   const toggleChar = (id: string) => setOpenCharIds((s) => ({ ...s, [id]: !s[id] }));
   const activePlaylistUrl = playlistUrl || projection?.playlistUrl;
@@ -549,46 +548,14 @@ export default function PlayerCampaignView({
           </div>
         </header>
 
-        {/* Live Session Music (Pulsing Widget) */}
+        {/* Live Session Music (Small Single Line Widget) */}
         {activePlaylistUrl && (
-          <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-4 space-y-3">
-            <button
-              onClick={() => setMusicOpen(!musicOpen)}
-              className="flex w-full items-center justify-between text-left focus:outline-none"
-            >
-              <div className="flex items-center gap-2">
-                <div className="relative flex items-center justify-center">
-                  <Music className="text-crimson" size={18} />
-                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-crimson opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-crimson"></span>
-                  </span>
-                </div>
-                <div>
-                  <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
-                    Session Ambiance
-                  </div>
-                  <h2 className="font-display text-sm tracking-wide text-ink">Live Music from GM</h2>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] font-serif text-ink-mute italic">
-                  {musicOpen ? 'Hide player' : 'Show player'}
-                </span>
-                {musicOpen ? <ChevronDown size={16} className="text-ink-mute" /> : <ChevronRight size={16} className="text-ink-mute" />}
-              </div>
-            </button>
-            {musicOpen && (
-              <div className="border-t border-rule/60 pt-3">
-                <MusicPlayer
-                  playlistUrl={activePlaylistUrl}
-                  readOnly={true}
-                  isPlayingProp={activePlaylistPlaying}
-                  playlistIndexProp={activePlaylistIndex}
-                />
-              </div>
-            )}
-          </div>
+          <MusicPlayer
+            playlistUrl={activePlaylistUrl}
+            readOnly={true}
+            isPlayingProp={activePlaylistPlaying}
+            playlistIndexProp={activePlaylistIndex}
+          />
         )}
 
         {alertMessage && (

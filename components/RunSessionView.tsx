@@ -1927,6 +1927,87 @@ export function MusicPlayer({
     );
   };
 
+  if (readOnly) {
+    if (!playlistId && !videoId) {
+      return (
+        <div className="flex flex-row items-center justify-between gap-4 bg-parchment-soft border border-rule/70 rounded-lg shadow-sm px-4 py-2.5 text-xs font-serif italic text-ink-mute">
+          No session music is playing.
+        </div>
+      );
+    }
+
+    let embedUrl = '';
+    if (playlistId) {
+      if (videoId) {
+        embedUrl = `https://www.youtube.com/embed/${videoId}?list=${playlistId}&enablejsapi=1`;
+      } else {
+        embedUrl = `https://www.youtube.com/embed/videoseries?list=${playlistId}&enablejsapi=1`;
+      }
+    } else if (videoId) {
+      embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
+    }
+
+    return (
+      <div className="flex flex-row items-center justify-between gap-4 bg-parchment-soft border border-rule/70 rounded-lg shadow-sm px-4 py-2.5 overflow-hidden text-xs">
+        {/* Left Side: Status / Music Icon / Small Label */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="relative flex items-center justify-center flex-shrink-0">
+            <Music className={`${isPlaying ? 'text-crimson animate-pulse' : 'text-ink-mute'}`} size={16} />
+            {isPlaying && (
+              <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-crimson opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-crimson"></span>
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-display font-semibold tracking-wide text-ink text-xs uppercase">
+              Live Music
+            </span>
+            <span className="h-1.5 w-1.5 rounded-full bg-rule/70" />
+            <span className={`font-serif italic text-ink-soft text-xs truncate`}>
+              {playerState === 'buffering' ? 'Buffering...' : isPlaying ? 'Playing' : 'Paused'}
+            </span>
+          </div>
+        </div>
+
+        {/* Right Side: Volume Controls */}
+        <div className="flex items-center gap-2.5 w-32 sm:w-44 flex-shrink-0 justify-end">
+          <button
+            type="button"
+            onClick={toggleMute}
+            disabled={!isApiReady}
+            className="text-ink-mute hover:text-crimson transition-colors p-1 flex-shrink-0 focus:outline-none"
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
+          >
+            {isMuted || volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={isMuted ? 0 : volume}
+            onChange={handleVolumeChange}
+            disabled={!isApiReady}
+            className="w-full accent-crimson h-1 bg-rule/50 rounded-lg appearance-none cursor-pointer disabled:opacity-50 focus:outline-none"
+          />
+        </div>
+
+        {/* Bulletproof hidden off-screen iframe */}
+        <div className="absolute overflow-hidden" style={{ width: '1px', height: '1px', opacity: 0.01, left: '-9999px', top: '-9999px' }}>
+          <iframe
+            id={iframeId}
+            src={embedUrl}
+            title="YouTube Music Player"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="border-0 w-full h-full"
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (playlistId || videoId) {
     let embedUrl = '';
     if (playlistId) {
@@ -2165,14 +2246,6 @@ export function MusicPlayer({
           <strong>Note:</strong> Some official tracks restrict external embedding. If you click Play and hear no sound, click the button above to play the full playlist directly in a new tab.
         </p>
       </div>
-    );
-  }
-
-  if (readOnly) {
-    return (
-      <p className="font-serif text-xs italic text-ink-mute text-center py-2">
-        No music is playing.
-      </p>
     );
   }
 
