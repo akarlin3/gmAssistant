@@ -1617,11 +1617,40 @@ export function MusicPlayer({
 
   // Player state variables for readOnly mode
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(100);
+  const [volume, setVolume] = useState(50); // Safe default background volume
   const [isMuted, setIsMuted] = useState(false);
   const [playerState, setPlayerState] = useState<'unstarted' | 'playing' | 'paused' | 'buffering' | 'ended' | 'unknown'>('unknown');
   const [ytPlayer, setYtPlayer] = useState<any>(null);
   const [isApiReady, setIsApiReady] = useState(false);
+
+  const volumeRef = useRef(volume);
+  const isMutedRef = useRef(isMuted);
+
+  // Keep refs in sync with latest state
+  useEffect(() => {
+    volumeRef.current = volume;
+  }, [volume]);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  // Load persisted volume & mute state from localStorage on client-side mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedVolume = window.localStorage.getItem('gmbuilder_music_player_volume');
+      if (savedVolume !== null) {
+        const parsed = parseInt(savedVolume, 10);
+        if (!isNaN(parsed)) {
+          setVolume(parsed);
+        }
+      }
+      const savedMuted = window.localStorage.getItem('gmbuilder_music_player_muted');
+      if (savedMuted !== null) {
+        setIsMuted(savedMuted === 'true');
+      }
+    }
+  }, []);
 
   // Playlists scenario management
   const activePlaylists = playlists && playlists.length > 0 ? playlists : DEFAULT_SCENARIOS;
@@ -1729,8 +1758,12 @@ export function MusicPlayer({
               setYtPlayer(player);
               setIsApiReady(true);
               try {
-                setVolume(player.getVolume() || 100);
-                setIsMuted(player.isMuted() || false);
+                player.setVolume(volumeRef.current);
+                if (isMutedRef.current) {
+                  player.mute();
+                } else {
+                  player.unMute();
+                }
                 if (playlistId) {
                   if (isPlayingProp) {
                     player.loadPlaylist(playlistId, playlistIndexProp || 0);
@@ -1829,6 +1862,14 @@ export function MusicPlayer({
   useEffect(() => {
     if (!ytPlayer || !isApiReady) return;
     try {
+      // Re-apply latest volume & mute state when song changes to prevent YT resetting it
+      ytPlayer.setVolume(volumeRef.current);
+      if (isMutedRef.current) {
+        ytPlayer.mute();
+      } else {
+        ytPlayer.unMute();
+      }
+
       if (playlistId) {
         if (isPlayingProp) {
           ytPlayer.loadPlaylist(playlistId, playlistIndexProp || 0);
@@ -1846,7 +1887,7 @@ export function MusicPlayer({
     } catch (e) {
       console.warn('Failed to load/cue new video/playlist in-place', e);
     }
-  }, [playlistId, videoId, ytPlayer, isApiReady]);
+  }, [playlistId, videoId, ytPlayer, isApiReady, isPlayingProp, playlistIndexProp]);
 
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1878,24 +1919,34 @@ export function MusicPlayer({
   };
 
   const toggleMute = () => {
-    if (!ytPlayer) return;
-    if (isMuted) {
-      ytPlayer.unMute();
-      setIsMuted(false);
-    } else {
-      ytPlayer.mute();
-      setIsMuted(true);
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('gmbuilder_music_player_muted', String(nextMuted));
+    }
+    if (ytPlayer) {
+      if (nextMuted) {
+        ytPlayer.mute();
+      } else {
+        ytPlayer.unMute();
+      }
     }
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextVolume = parseInt(e.target.value, 10);
     setVolume(nextVolume);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('gmbuilder_music_player_volume', String(nextVolume));
+    }
     if (ytPlayer) {
       ytPlayer.setVolume(nextVolume);
       if (nextVolume > 0 && isMuted) {
         ytPlayer.unMute();
         setIsMuted(false);
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('gmbuilder_music_player_muted', 'false');
+        }
       }
     }
   };
