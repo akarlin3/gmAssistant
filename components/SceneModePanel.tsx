@@ -35,6 +35,8 @@ import { modifierForSuggestion } from '@/lib/scene/roll-with-modifiers';
 import { normalizePcs } from '@/lib/pc/factory';
 import { formatMod } from '@/lib/pc/derived';
 import type { PlayerCharacter } from '@/lib/pc/types';
+import { CampaignPlayModeContext } from './CampaignPlayModeContext';
+import { useContext } from 'react';
 
 type LooseRecord = Record<string, unknown>;
 
@@ -68,6 +70,7 @@ export default function SceneModePanel({
   onReveal,
   onSceneEnded,
 }: Props) {
+  const playMode = useContext(CampaignPlayModeContext);
   const npcs = useMemo(() => asArray(data.npcs), [data.npcs]);
   const locations = useMemo(() => asArray(data.locations), [data.locations]);
   const party = useMemo(() => normalizePcs(data.pcs), [data.pcs]);
@@ -138,10 +141,19 @@ export default function SceneModePanel({
     } catch {
       // Non-fatal: end the scene even if the summary call fails.
     }
-    const ended: SceneEntry = { ...scene, status: 'ended', endedAt: Date.now(), summary };
+    const ended: SceneEntry = {
+      ...scene,
+      status: 'ended',
+      endedAt: Date.now(),
+      summary,
+      savedToLog: playMode === 'solo',
+    };
     patchScene(scene.id, () => ended);
     if (activeId === scene.id) setActiveId(null);
-    onSceneEnded(ended);
+    
+    if (playMode === 'solo') {
+      onSceneEnded(ended);
+    }
   };
 
   // ---- Send a turn ---------------------------------------------------------
@@ -376,9 +388,9 @@ export default function SceneModePanel({
   return (
     <div className="space-y-3 text-sm">
       <p className="font-serif text-xs italic text-ink-soft">
-        Scene Mode runs a location turn-by-turn. Pick where you are and who&apos;s present, then
-        describe what your PC does — Claude voices the NPCs, paints the sensory beat, and suggests
-        what to roll.
+        {playMode === 'solo'
+          ? 'Run the scene live. NPCs respond in voice; you control the PC.'
+          : 'Test how an NPC encounter might unfold before running it at the table.'}
       </p>
 
       {!pickerOpen ? (
@@ -387,7 +399,7 @@ export default function SceneModePanel({
           onClick={() => setPickerOpen(true)}
           className="flex items-center gap-1.5 rounded border border-brass-deep/60 bg-brass/15 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:bg-brass hover:text-parchment"
         >
-          <Play size={12} /> Start Scene
+          <Play size={12} /> {playMode === 'solo' ? 'Begin Scene' : 'Rehearse Scene'}
         </button>
       ) : (
         <div className="space-y-3 rounded border border-rule bg-parchment p-3 shadow-card">
@@ -476,7 +488,7 @@ export default function SceneModePanel({
               disabled={!draftLocationId || draftNpcIds.length === 0}
               className="flex items-center gap-1.5 rounded border border-crimson bg-crimson px-3 py-1.5 font-display text-xs uppercase tracking-wider text-parchment transition-colors hover:bg-crimson-deep disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <Play size={12} /> Begin
+              <Play size={12} /> {playMode === 'solo' ? 'Begin' : 'Rehearse'}
             </button>
             <button
               type="button"
@@ -552,6 +564,23 @@ export default function SceneModePanel({
                 >
                   <Download size={10} /> Export
                 </button>
+                {playMode !== 'solo' && !s.savedToLog && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSceneEnded(s);
+                      patchScene(s.id, (prev) => ({ ...prev, savedToLog: true }));
+                    }}
+                    className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-teal-600 hover:text-teal-700 font-semibold border border-teal-500/20 bg-teal-500/5 px-2 py-0.5 rounded transition-all ml-1.5"
+                  >
+                    Save to Session Log
+                  </button>
+                )}
+                {playMode !== 'solo' && s.savedToLog && (
+                  <span className="text-[9px] uppercase font-display tracking-wider text-ink-mute ml-1.5 italic">
+                    Saved to Log
+                  </span>
+                )}
               </div>
               {s.summary && (
                 <p className="font-serif text-xs leading-relaxed text-ink-soft">{s.summary}</p>

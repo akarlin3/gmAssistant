@@ -5,7 +5,8 @@
 // receive everything via props and hold no campaign state — so they live here
 // to keep CampaignEditor focused on orchestration.
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useContext } from 'react';
+import { CampaignPlayModeContext } from '../CampaignPlayModeContext';
 import { User, X, Sparkles, Plus, Check, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { LockedInline } from '@/components/LockedFeature';
@@ -36,12 +37,36 @@ export const BookQuote = ({ source, children }: { source: string; children: Reac
   </blockquote>
 );
 
-export const SoloNote = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-start gap-2 rounded border border-wine/40 bg-wine/5 p-2.5 text-sm">
-    <User size={13} className="text-wine flex-shrink-0 mt-0.5" />
-    <div className="text-ink-soft font-serif"><span className="font-display uppercase tracking-wider text-xs text-wine">Solo Adaptation · </span>{children}</div>
-  </div>
-);
+export const ModeAdaptationHint = ({ mode, children }: { mode: 'solo' | 'duet'; children: React.ReactNode }) => {
+  const isSolo = mode === 'solo';
+  const colorClass = isSolo
+    ? 'border-pink-500/30 bg-pink-950/5 text-ink'
+    : 'border-teal-500/30 bg-teal-950/5 text-ink';
+  const textClass = isSolo ? 'text-pink-500' : 'text-teal-500';
+  const label = isSolo ? 'Solo Adaptation' : 'Duet Adaptation';
+  const Icon = isSolo ? Sparkles : User;
+
+  return (
+    <div className={`flex items-start gap-2.5 rounded border p-2.5 text-xs leading-relaxed ${colorClass}`}>
+      <Icon size={14} className={`${textClass} flex-shrink-0 mt-0.5`} />
+      <div className="text-ink-soft font-serif">
+        <span className={`font-display font-semibold uppercase tracking-wider text-[10px] ${textClass}`}>
+          {label} ·{' '}
+        </span>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+export const SoloNote = ({ children }: { children: React.ReactNode }) => {
+  const playMode = useContext(CampaignPlayModeContext);
+  if (playMode === 'standard') return null;
+  if (playMode === 'solo' || playMode === 'duet') {
+    return <ModeAdaptationHint mode={playMode}>{children}</ModeAdaptationHint>;
+  }
+  return null;
+};
 
 export const Pitfall = ({ children }: { children: React.ReactNode }) => (
   <div className="flex items-start gap-2 rounded border border-crimson/40 bg-crimson/5 p-2.5 text-sm">
@@ -225,6 +250,7 @@ export const ListField = ({
   isShared?: (i: number) => boolean;
   onToggleShare?: (i: number) => void;
 }) => {
+  const playMode = useContext(CampaignPlayModeContext);
   const getStringValue = (item: any): string => {
     if (typeof item === 'string') return item;
     if (!item) return '';
@@ -275,7 +301,7 @@ export const ListField = ({
           >
             <span className="text-brass-deep font-display text-xs w-5 text-right">{i + 1}.</span>
             <div className="flex-1"><Field value={valStr} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} /></div>
-            {onToggleShare && isShared && hasContent && (
+            {playMode !== 'solo' && onToggleShare && isShared && hasContent && (
               <button
                 type="button"
                 onClick={() => onToggleShare(i)}
@@ -340,42 +366,47 @@ export const CardLabel = ({ children }: { children: React.ReactNode }) => (
   <div className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5">{children}</div>
 );
 
-export const GoalCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
-    <div className="flex justify-between gap-2">
-      <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="Goal Statement" rows={2} />
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <button
-          type="button"
-          onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
-          aria-label={data.isPublic ? 'Hide from players' : 'Share with players'}
-          aria-pressed={!!data.isPublic}
-          className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
-            data.isPublic
-              ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
-              : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
-          }`}
-          title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
-        >
-          {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
-          {data.isPublic ? 'Shared' : 'Private'}
-        </button>
-        <button onClick={onRemove} aria-label="Remove" className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+export const GoalCard = ({ data, onChange, onRemove }: any) => {
+  const playMode = useContext(CampaignPlayModeContext);
+  return (
+    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+      <div className="flex justify-between gap-2">
+        <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="Goal Statement" rows={2} />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {playMode !== 'solo' && (
+            <button
+              type="button"
+              onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
+              aria-label={data.isPublic ? 'Hide from players' : 'Share with players'}
+              aria-pressed={!!data.isPublic}
+              className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+                data.isPublic
+                  ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
+                  : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+              }`}
+              title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
+            >
+              {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
+              {data.isPublic ? 'Shared' : 'Private'}
+            </button>
+          )}
+          <button onClick={onRemove} aria-label="Remove" className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+        </div>
       </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {[['short', 'Short-Term'], ['mid', 'Mid-Term'], ['long', 'Long-Term']].map(([t, label]) => (
+          <button key={t} onClick={() => onChange({ ...data, timeframe: t })} className={`text-xs py-1 rounded border font-display uppercase tracking-wider ${data.timeframe === t ? 'bg-wine/10 border-wine text-wine' : 'border-rule text-ink-mute'}`}>{label}</button>
+        ))}
+      </div>
+      <div><CardLabel>Rule 3 — Success State</CardLabel>
+        <Field value={data.success} onChange={(v) => onChange({ ...data, success: v })} placeholder="What signals completion?" /></div>
+      <div><CardLabel>Rule 4 — Failure Consequence</CardLabel>
+        <Field value={data.failure} onChange={(v) => onChange({ ...data, failure: v })} placeholder="What changes if it fails?" /></div>
+      <div><CardLabel>Linked Factions / Conflicts</CardLabel>
+        <Field value={data.linked} onChange={(v) => onChange({ ...data, linked: v })} placeholder="..." /></div>
     </div>
-    <div className="grid grid-cols-3 gap-1.5">
-      {[['short', 'Short-Term'], ['mid', 'Mid-Term'], ['long', 'Long-Term']].map(([t, label]) => (
-        <button key={t} onClick={() => onChange({ ...data, timeframe: t })} className={`text-xs py-1 rounded border font-display uppercase tracking-wider ${data.timeframe === t ? 'bg-wine/10 border-wine text-wine' : 'border-rule text-ink-mute'}`}>{label}</button>
-      ))}
-    </div>
-    <div><CardLabel>Rule 3 — Success State</CardLabel>
-      <Field value={data.success} onChange={(v) => onChange({ ...data, success: v })} placeholder="What signals completion?" /></div>
-    <div><CardLabel>Rule 4 — Failure Consequence</CardLabel>
-      <Field value={data.failure} onChange={(v) => onChange({ ...data, failure: v })} placeholder="What changes if it fails?" /></div>
-    <div><CardLabel>Linked Factions / Conflicts</CardLabel>
-      <Field value={data.linked} onChange={(v) => onChange({ ...data, linked: v })} placeholder="..." /></div>
-  </div>
-);
+  );
+};
 
 export const NPCFieldRow = ({
   label,
@@ -412,6 +443,7 @@ export const NPCFieldRow = ({
 );
 
 export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false, isPro = false }: any) => {
+  const playMode = useContext(CampaignPlayModeContext);
   const [showDetails, setShowDetails] = useState<boolean>(
     defaultDetailsOpen ||
     !!(data.appearance || data.abilities || data.talent || data.mannerism ||
@@ -426,19 +458,21 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false, 
       <div className="flex justify-between gap-2">
         <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
-            className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
-              data.isPublic
-                ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
-                : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
-            }`}
-            title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
-          >
-            {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
-            {data.isPublic ? 'Shared' : 'Private'}
-          </button>
+          {playMode !== 'solo' && (
+            <button
+              type="button"
+              onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
+              className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+                data.isPublic
+                  ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
+                  : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+              }`}
+              title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
+            >
+              {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
+              {data.isPublic ? 'Shared' : 'Private'}
+            </button>
+          )}
           <button onClick={onRemove} aria-label="Remove" className="text-ink-mute hover:text-crimson"><X size={14} /></button>
         </div>
       </div>
@@ -504,43 +538,48 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false, 
   );
 };
 
-export const LocationCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
-    <div className="flex justify-between gap-2">
-      <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Evocative Name" />
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <button
-          type="button"
-          onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
-          className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
-            data.isPublic
-              ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
-              : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
-          }`}
-          title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
-        >
-          {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
-          {data.isPublic ? 'Shared' : 'Private'}
-        </button>
-        <button onClick={onRemove} aria-label="Remove" className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+export const LocationCard = ({ data, onChange, onRemove }: any) => {
+  const playMode = useContext(CampaignPlayModeContext);
+  return (
+    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+      <div className="flex justify-between gap-2">
+        <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Evocative Name" />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {playMode !== 'solo' && (
+            <button
+              type="button"
+              onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
+              className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+                data.isPublic
+                  ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
+                  : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+              }`}
+              title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
+            >
+              {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
+              {data.isPublic ? 'Shared' : 'Private'}
+            </button>
+          )}
+          <button onClick={onRemove} aria-label="Remove" className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+        </div>
       </div>
+      <div><CardLabel>Type</CardLabel>
+        <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
+          <option value="">— Choose —</option>
+          <option>Player Base</option><option>Faction Stronghold</option><option>Wilderness Landmark</option>
+          <option>Dungeon Room / Area</option><option>Settlement</option><option>Travel Waypoint</option><option>Other</option>
+        </select></div>
+      <div><CardLabel>3 Aspects</CardLabel>
+        <div className="space-y-1">
+          {[0, 1, 2].map(i => (
+            <Field key={i} value={(data.aspects || [])[i] || ''} onChange={(v) => {
+              const aspects = [...(data.aspects || ['', '', ''])]; aspects[i] = v; onChange({ ...data, aspects });
+            }} placeholder={`Aspect ${i + 1}`} />
+          ))}
+        </div></div>
+      <div><CardLabel>Factions Present</CardLabel>
+        <Field value={data.factions} onChange={(v) => onChange({ ...data, factions: v })} placeholder="..." /></div>
+      <RelationshipsSection entityType="location" entityId={data.id} entityName={data.name} />
     </div>
-    <div><CardLabel>Type</CardLabel>
-      <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
-        <option value="">— Choose —</option>
-        <option>Player Base</option><option>Faction Stronghold</option><option>Wilderness Landmark</option>
-        <option>Dungeon Room / Area</option><option>Settlement</option><option>Travel Waypoint</option><option>Other</option>
-      </select></div>
-    <div><CardLabel>3 Aspects</CardLabel>
-      <div className="space-y-1">
-        {[0, 1, 2].map(i => (
-          <Field key={i} value={(data.aspects || [])[i] || ''} onChange={(v) => {
-            const aspects = [...(data.aspects || ['', '', ''])]; aspects[i] = v; onChange({ ...data, aspects });
-          }} placeholder={`Aspect ${i + 1}`} />
-        ))}
-      </div></div>
-    <div><CardLabel>Factions Present</CardLabel>
-      <Field value={data.factions} onChange={(v) => onChange({ ...data, factions: v })} placeholder="..." /></div>
-    <RelationshipsSection entityType="location" entityId={data.id} entityName={data.name} />
-  </div>
-);
+  );
+};

@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useContext } from 'react';
 import { Swords, Users, RotateCcw } from 'lucide-react';
+import { CampaignPlayModeContext } from './CampaignPlayModeContext';
+import { defaultPartySize, showSidekickToggle } from '@/lib/encounter/defaults';
 import {
   partyThresholds,
   suggestEncounters,
@@ -161,11 +163,17 @@ export default function EncounterBuilder({
 }: {
   characters?: Character[];
 }) {
+  const playMode = useContext(CampaignPlayModeContext);
   const derived = useMemo(() => deriveParty(characters), [characters]);
   const hasCharacters = derived.members.length > 0;
 
   const [useManual, setUseManual] = useState(!hasCharacters);
-  const [manual, setManual] = useState<ManualParty>(DEFAULT_MANUAL);
+  const [manual, setManual] = useState<ManualParty>(() => ({
+    size: defaultPartySize(playMode),
+    level: 1,
+    gestalt: false,
+    sidekicks: 0,
+  }));
 
   // If characters appear after mount (rare — usually they're already there), prefer them.
   useEffect(() => {
@@ -239,7 +247,14 @@ export default function EncounterBuilder({
           <ManualPartyControls
             value={manual}
             onChange={setManual}
-            onReset={() => setManual(DEFAULT_MANUAL)}
+            onReset={() =>
+              setManual({
+                size: defaultPartySize(playMode),
+                level: 1,
+                gestalt: false,
+                sidekicks: 0,
+              })
+            }
             note={
               !hasCharacters
                 ? 'No characters added yet — enter party details manually.'
@@ -365,6 +380,9 @@ function ManualPartyControls({
   onReset: () => void;
   note?: string;
 }) {
+  const playMode = useContext(CampaignPlayModeContext);
+  const showSidekick = showSidekickToggle(playMode);
+
   return (
     <div className="space-y-1.5">
       {note && (
@@ -377,12 +395,25 @@ function ManualPartyControls({
           </div>
           <NumberInput value={value.size} min={0} max={8} onChange={(n) => onChange({ ...value, size: n })} />
         </div>
-        <div>
-          <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
-            Sidekicks
+        {playMode === 'standard' && (
+          <div>
+            <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
+              Sidekicks
+            </div>
+            <NumberInput value={value.sidekicks} min={0} max={8} onChange={(n) => onChange({ ...value, sidekicks: n })} />
           </div>
-          <NumberInput value={value.sidekicks} min={0} max={8} onChange={(n) => onChange({ ...value, sidekicks: n })} />
-        </div>
+        )}
+        {showSidekick && (
+          <label className="flex cursor-pointer select-none items-center gap-1.5 font-display uppercase tracking-wider text-ink-soft pb-1">
+            <input
+              type="checkbox"
+              checked={value.sidekicks > 0}
+              onChange={(e) => onChange({ ...value, sidekicks: e.target.checked ? 1 : 0 })}
+              className="accent-crimson"
+            />
+            Include Sidekick (+1)
+          </label>
+        )}
         <div>
           <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
             Avg. Level

@@ -1,5 +1,6 @@
 // @ts-nocheck
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
+import { CampaignPlayModeContext } from '../CampaignPlayModeContext';
 import { X, ChevronDown, ChevronRight, Play, Eye, EyeOff } from 'lucide-react';
 import { Field, ListField, Inspire, renownRank } from '../CampaignEditor';
 import type { SessionLog, DowntimeEntry, Character } from '@/lib/types';
@@ -75,42 +76,47 @@ export const FactionCard = ({ data, onChange, onRemove }: any) => {
   );
 };
 
-export const GoalCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
-    <div className="flex justify-between gap-2">
-      <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="Goal Statement" rows={2} />
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <button
-          type="button"
-          onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
-          aria-label={data.isPublic ? 'Hide from players' : 'Share with players'}
-          aria-pressed={!!data.isPublic}
-          className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
-            data.isPublic
-              ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
-              : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
-          }`}
-          title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
-        >
-          {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
-          {data.isPublic ? 'Shared' : 'Private'}
-        </button>
-        <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+export const GoalCard = ({ data, onChange, onRemove }: any) => {
+  const playMode = useContext(CampaignPlayModeContext);
+  return (
+    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+      <div className="flex justify-between gap-2">
+        <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="Goal Statement" rows={2} />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {playMode !== 'solo' && (
+            <button
+              type="button"
+              onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
+              aria-label={data.isPublic ? 'Hide from players' : 'Share with players'}
+              aria-pressed={!!data.isPublic}
+              className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+                data.isPublic
+                  ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
+                  : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+              }`}
+              title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
+            >
+              {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
+              {data.isPublic ? 'Shared' : 'Private'}
+            </button>
+          )}
+          <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+        </div>
       </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {[['short', 'Short-Term'], ['mid', 'Mid-Term'], ['long', 'Long-Term']].map(([t, label]) => (
+          <button key={t} onClick={() => onChange({ ...data, timeframe: t })} className={`text-xs py-1 rounded border font-display uppercase tracking-wider ${data.timeframe === t ? 'bg-wine/10 border-wine text-wine' : 'border-rule text-ink-mute'}`}>{label}</button>
+        ))}
+      </div>
+      <div><CardLabel>Rule 3 — Success State</CardLabel>
+        <Field value={data.success} onChange={(v) => onChange({ ...data, success: v })} placeholder="What signals completion?" /></div>
+      <div><CardLabel>Rule 4 — Failure Consequence</CardLabel>
+        <Field value={data.failure} onChange={(v) => onChange({ ...data, failure: v })} placeholder="What changes if it fails?" /></div>
+      <div><CardLabel>Linked Factions / Conflicts</CardLabel>
+        <Field value={data.linked} onChange={(v) => onChange({ ...data, linked: v })} placeholder="..." /></div>
     </div>
-    <div className="grid grid-cols-3 gap-1.5">
-      {[['short', 'Short-Term'], ['mid', 'Mid-Term'], ['long', 'Long-Term']].map(([t, label]) => (
-        <button key={t} onClick={() => onChange({ ...data, timeframe: t })} className={`text-xs py-1 rounded border font-display uppercase tracking-wider ${data.timeframe === t ? 'bg-wine/10 border-wine text-wine' : 'border-rule text-ink-mute'}`}>{label}</button>
-      ))}
-    </div>
-    <div><CardLabel>Rule 3 — Success State</CardLabel>
-      <Field value={data.success} onChange={(v) => onChange({ ...data, success: v })} placeholder="What signals completion?" /></div>
-    <div><CardLabel>Rule 4 — Failure Consequence</CardLabel>
-      <Field value={data.failure} onChange={(v) => onChange({ ...data, failure: v })} placeholder="What changes if it fails?" /></div>
-    <div><CardLabel>Linked Factions / Conflicts</CardLabel>
-      <Field value={data.linked} onChange={(v) => onChange({ ...data, linked: v })} placeholder="..." /></div>
-  </div>
-);
+  );
+};
 
 export const NPCFieldRow = ({
   label,
@@ -147,6 +153,7 @@ export const NPCFieldRow = ({
 );
 
 export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) => {
+  const playMode = useContext(CampaignPlayModeContext);
   const [showDetails, setShowDetails] = useState<boolean>(
     defaultDetailsOpen ||
     !!(data.appearance || data.abilities || data.talent || data.mannerism ||
@@ -161,10 +168,12 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
       <div className="flex justify-between gap-2">
         <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
         <div className="flex items-center gap-2 flex-shrink-0">
-          <label className="flex items-center gap-1 text-[10px] text-ink-soft uppercase font-display tracking-wider cursor-pointer select-none">
-            <input type="checkbox" checked={!!data.isPublic} onChange={(e) => onChange({ ...data, isPublic: e.target.checked })} className="accent-wine" />
-            Public
-          </label>
+          {playMode !== 'solo' && (
+            <label className="flex items-center gap-1 text-[10px] text-ink-soft uppercase font-display tracking-wider cursor-pointer select-none">
+              <input type="checkbox" checked={!!data.isPublic} onChange={(e) => onChange({ ...data, isPublic: e.target.checked })} className="accent-wine" />
+              Public
+            </label>
+          )}
           <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
         </div>
       </div>
@@ -216,36 +225,41 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
   );
 };
 
-export const LocationCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
-    <div className="flex justify-between gap-2">
-      <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Evocative Name" />
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <label className="flex items-center gap-1 text-[10px] text-ink-soft uppercase font-display tracking-wider cursor-pointer select-none">
-          <input type="checkbox" checked={!!data.isPublic} onChange={(e) => onChange({ ...data, isPublic: e.target.checked })} className="accent-wine" />
-          Public
-        </label>
-        <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+export const LocationCard = ({ data, onChange, onRemove }: any) => {
+  const playMode = useContext(CampaignPlayModeContext);
+  return (
+    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+      <div className="flex justify-between gap-2">
+        <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Evocative Name" />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {playMode !== 'solo' && (
+            <label className="flex items-center gap-1 text-[10px] text-ink-soft uppercase font-display tracking-wider cursor-pointer select-none">
+              <input type="checkbox" checked={!!data.isPublic} onChange={(e) => onChange({ ...data, isPublic: e.target.checked })} className="accent-wine" />
+              Public
+            </label>
+          )}
+          <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+        </div>
       </div>
+      <div><CardLabel>Type</CardLabel>
+        <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
+          <option value="">— Choose —</option>
+          <option>Player Base</option><option>Faction Stronghold</option><option>Wilderness Landmark</option>
+          <option>Dungeon Room / Area</option><option>Settlement</option><option>Travel Waypoint</option><option>Other</option>
+        </select></div>
+      <div><CardLabel>3 Aspects</CardLabel>
+        <div className="space-y-1">
+          {[0, 1, 2].map(i => (
+            <Field key={i} value={(data.aspects || [])[i] || ''} onChange={(v) => {
+              const aspects = [...(data.aspects || ['', '', ''])]; aspects[i] = v; onChange({ ...data, aspects });
+            }} placeholder={`Aspect ${i + 1}`} />
+          ))}
+        </div></div>
+      <div><CardLabel>Factions Present</CardLabel>
+        <Field value={data.factions} onChange={(v) => onChange({ ...data, factions: v })} placeholder="..." /></div>
     </div>
-    <div><CardLabel>Type</CardLabel>
-      <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
-        <option value="">— Choose —</option>
-        <option>Player Base</option><option>Faction Stronghold</option><option>Wilderness Landmark</option>
-        <option>Dungeon Room / Area</option><option>Settlement</option><option>Travel Waypoint</option><option>Other</option>
-      </select></div>
-    <div><CardLabel>3 Aspects</CardLabel>
-      <div className="space-y-1">
-        {[0, 1, 2].map(i => (
-          <Field key={i} value={(data.aspects || [])[i] || ''} onChange={(v) => {
-            const aspects = [...(data.aspects || ['', '', ''])]; aspects[i] = v; onChange({ ...data, aspects });
-          }} placeholder={`Aspect ${i + 1}`} />
-        ))}
-      </div></div>
-    <div><CardLabel>Factions Present</CardLabel>
-      <Field value={data.factions} onChange={(v) => onChange({ ...data, factions: v })} placeholder="..." /></div>
-  </div>
-);
+  );
+};
 
 type SessionLog = { id: string; title: string; date: string; body: string };
 

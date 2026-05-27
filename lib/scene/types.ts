@@ -64,6 +64,7 @@ export type SceneEntry = {
   turns: SceneTurn[];
   status: SceneStatus;
   summary?: string;
+  savedToLog?: boolean;
 };
 
 export function makeSceneId(): string {

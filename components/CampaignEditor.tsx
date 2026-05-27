@@ -120,6 +120,9 @@ import {
 } from '@/lib/prepTargets';
 import PrepTargetsModal from './PrepTargetsModal';
 import ModeSwitcherModal from './ModeSwitcherModal';
+import { CampaignPlayModeContext } from './CampaignPlayModeContext';
+import Tour from './Tour';
+import { TOURS, hasSeenTour, markTourAsSeen } from '@/lib/tutorials/mode-tours';
 import ModeNav from './ModeNav';
 import {
   type Mode,
@@ -1921,6 +1924,8 @@ export default function CampaignEditor({
   });
   const soloMode = playMode === 'solo' || playMode === 'duet';
   const [modeSwitcherOpen, setModeSwitcherOpen] = useState(false);
+  const [oracleOpen, setOracleOpen] = useState(false);
+  const [activeTourMode, setActiveTourMode] = useState<'solo' | 'duet' | null>(null);
 
   useEffect(() => {
     if (campaign.data && !campaign.data.modeMigratedAt) {
@@ -2182,6 +2187,19 @@ export default function CampaignEditor({
     () => getFirebaseAuth().currentUser?.uid ?? campaign.userId ?? null,
     [campaign.userId],
   );
+
+  useEffect(() => {
+    if (playMode === 'solo' || playMode === 'duet') {
+      const uid = voiceUid || 'default';
+      if (!hasSeenTour(uid, playMode)) {
+        setActiveTourMode(playMode);
+      } else {
+        setActiveTourMode(null);
+      }
+    } else {
+      setActiveTourMode(null);
+    }
+  }, [playMode, voiceUid]);
 
   // --- AUTO-PUBLISH SYSTEM FOR PLAYER SHARING ---
   const playerConfig = (get('player', {}) as PlayerConfig) || {};
@@ -3560,6 +3578,7 @@ export default function CampaignEditor({
       onVoiceCacheChange={(next) => setVal('voiceCache', next)}
     >
     <WikiProvider value={wikiValue}>
+    <CampaignPlayModeContext.Provider value={playMode}>
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
       <div className="max-w-5xl mx-auto">
         <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
@@ -3735,6 +3754,7 @@ export default function CampaignEditor({
             onModeChange={handleModeChange}
             onSubviewChange={handleSubviewChange}
             worldOnlyMode={worldOnlyMode}
+            playMode={playMode}
           />
 
         <div key={`${mode}:${subview}`} className="gm-tab-enter space-y-4">
@@ -5223,7 +5243,7 @@ export default function CampaignEditor({
           />
         )}
 
-        {mode === 'oracle' && subview === 'wells' && (
+        {playMode !== 'solo' && mode === 'oracle' && subview === 'wells' && (
           <WellsOracle
             log={get('oracleLog', []) as OracleRoll[]}
             onLog={(next) => setVal('oracleLog', next)}
@@ -5296,6 +5316,51 @@ export default function CampaignEditor({
         }}
       />
 
+      {playMode === 'solo' && (
+        <button
+          type="button"
+          data-oracle-button
+          onClick={() => setOracleOpen((o) => !o)}
+          title="Open Wells Oracle"
+          className={`fixed right-4 z-40 w-10 h-10 rounded-full border border-pink-500/30 bg-pink-950/20 text-pink-400 hover:bg-pink-900/35 hover:text-pink-300 flex items-center justify-center shadow-page transition-all ${
+            get('__runSessionOpen', false) ? 'bottom-[88px]' : 'bottom-4'
+          }`}
+        >
+          <Sparkles size={18} />
+        </button>
+      )}
+
+      {playMode === 'solo' && oracleOpen && (
+        <div
+          data-oracle-floating
+          className={`fixed right-4 z-40 w-[380px] max-w-[calc(100vw-2rem)] max-h-[500px] overflow-y-auto rounded-lg border border-rule bg-parchment shadow-page flex flex-col ${
+            get('__runSessionOpen', false) ? 'bottom-[148px]' : 'bottom-16'
+          }`}
+        >
+          <div className="flex items-center justify-between border-b border-rule px-3 py-2 bg-parchment-deep">
+            <span className="font-display text-xs uppercase tracking-wider text-pink-500 font-bold flex items-center gap-1.5">
+              <Sparkles size={12} /> Wells Oracle
+            </span>
+            <button
+              type="button"
+              onClick={() => setOracleOpen(false)}
+              className="text-ink-mute hover:text-crimson transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <div className="flex-1 p-3">
+            <WellsOracle
+              log={get('oracleLog', []) as OracleRoll[]}
+              onLog={(next) => setVal('oracleLog', next)}
+              chaos={get('__oracleChaos', 5) as number}
+              onChaosChange={(c) => setVal('__oracleChaos', c)}
+              inline={true}
+            />
+          </div>
+        </div>
+      )}
+
       <button
         type="button"
         onClick={() => setShortcutsOpen(true)}
@@ -5351,7 +5416,18 @@ export default function CampaignEditor({
           setLogEntries={setLogEntriesFor}
         />
       )}
+      {activeTourMode && (
+        <Tour
+          mode={activeTourMode}
+          steps={TOURS[activeTourMode]}
+          onComplete={() => {
+            markTourAsSeen(voiceUid || 'default', activeTourMode);
+            setActiveTourMode(null);
+          }}
+        />
+      )}
     </main>
+    </CampaignPlayModeContext.Provider>
     </WikiProvider>
     </VoiceProvider>
   );

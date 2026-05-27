@@ -19,14 +19,23 @@ type Props = {
   onModeChange: (mode: Mode) => void;
   onSubviewChange: (subview: string) => void;
   worldOnlyMode?: boolean;
+  playMode?: 'solo' | 'duet' | 'standard';
 };
 
-export default function ModeNav({ mode, subview, onModeChange, onSubviewChange, worldOnlyMode }: Props) {
+export default function ModeNav({ mode, subview, onModeChange, onSubviewChange, worldOnlyMode, playMode }: Props) {
   const primaryModes = worldOnlyMode ? ['plan'] as Mode[] : MODE_ORDER.filter(m => MODES[m].emphasis === 'primary');
-  const mutedModes = worldOnlyMode ? [] : MODE_ORDER.filter(m => MODES[m].emphasis === 'muted');
+  let mutedModes = worldOnlyMode ? [] : MODE_ORDER.filter(m => MODES[m].emphasis === 'muted');
+
+  if (playMode === 'solo') {
+    mutedModes = mutedModes.filter(m => m !== 'oracle');
+  }
+
   let activeSubviews = MODES[mode].subviews;
   if (worldOnlyMode && mode === 'plan') {
     activeSubviews = activeSubviews.filter(s => s.id === 'pitch' || s.id === 'worldbuild');
+  }
+  if (playMode === 'solo' && mode === 'organize') {
+    activeSubviews = activeSubviews.filter(s => s.id !== 'players');
   }
 
   return (
@@ -123,6 +132,7 @@ function SubviewPill({
       aria-selected={active}
       onClick={onClick}
       title={tooltip}
+      data-subview-tab={sv.id}
       className={`flex items-center gap-1.5 rounded border px-2.5 py-1 font-display text-xs uppercase tracking-wider transition-colors ${
         active
           ? 'border-crimson/60 bg-crimson/15 text-crimson'
