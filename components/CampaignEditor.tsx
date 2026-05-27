@@ -5402,7 +5402,7 @@ export default function CampaignEditor({
           mode={activeTourMode}
           steps={TOURS[activeTourMode]}
           onComplete={() => {
-            markTourAsSeen(voiceUid || 'default', activeTourMode);
+            markTourAsSeen(tourUid || 'default', activeTourMode);
             setActiveTourMode(null);
           }}
         />
