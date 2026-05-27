@@ -1,4 +1,6 @@
 import { emptyCharacter, makeCharacterId, type Character } from './character-schema';
+import { makePc } from './pc/factory';
+import type { PlayerCharacter } from './pc/types';
 
 export type WizardPatch = {
   name?: string;
@@ -20,6 +22,14 @@ export function makeWizardPC(name: string, concept: string): Character {
     name,
     notes: concept || '',
   };
+}
+
+// Materialize a first-class PlayerCharacter object from the wizard's lightweight PC fields.
+export function makeWizardFirstClassPC(name: string, concept: string): PlayerCharacter {
+  return makePc({
+    name,
+    notes: concept || '',
+  });
 }
 
 // Fold a completed Session 0 wizard patch into a campaign `data` object. Pure:
@@ -48,29 +58,28 @@ export function applySession0Patch(
   const isSoloOrDuet = finalMode === 'solo' || finalMode === 'duet';
   if (isSoloOrDuet) {
     if (patch.pc) {
-      const existingChars = Array.isArray(base.characters) ? (base.characters as Character[]) : [];
-      const newPc = makeWizardPC(patch.pc.name, patch.pc.concept);
+      const existingPcs = Array.isArray(base.pcs) ? (base.pcs as PlayerCharacter[]) : [];
+      const newPc = makeWizardFirstClassPC(patch.pc.name, patch.pc.concept);
       // In duet mode, mark the protagonist as player-owned. In solo, marked as dm-owned.
       newPc.ownership = {
         ownerType: finalMode === 'duet' ? 'player' : 'dm',
       };
-      next.characters = [...existingChars, newPc];
+      next.pcs = [...existingPcs, newPc];
       if (patch.pc.goal) {
         const existingGoals = Array.isArray(base.pcGoals) ? (base.pcGoals as any[]) : [];
         next.pcGoals = [...existingGoals, { text: patch.pc.goal, timeframe: 'short', success: '', failure: '', linked: '' }];
       }
     }
   } else if (patch.pcs && patch.pcs.length > 0) {
-    const existingChars = Array.isArray(base.characters) ? (base.characters as Character[]) : [];
-    const newChars = patch.pcs.map((p) => {
-      const char = makeWizardPC(p.name, p.concept || '');
-      char.player = p.player || '';
-      char.ownership = {
+    const existingPcs = Array.isArray(base.pcs) ? (base.pcs as PlayerCharacter[]) : [];
+    const newPcs = patch.pcs.map((p) => {
+      const pc = makeWizardFirstClassPC(p.name, p.concept || '');
+      pc.ownership = {
         ownerType: 'player',
       };
-      return char;
+      return pc;
     });
-    next.characters = [...existingChars, ...newChars];
+    next.pcs = [...existingPcs, ...newPcs];
 
     const goalsToAdd = patch.pcs
       .filter((p) => p.goal && p.goal.trim())

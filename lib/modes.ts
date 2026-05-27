@@ -40,8 +40,7 @@ export const MODES: Record<Mode, ModeDef> = {
     subviews: [
       { id: 'pitch',  label: 'Premise',    description: 'Hook, givens, and six truths',                         audience: 'solo' },
       { id: 'worldbuild',  label: 'Worldbuild',      description: 'Session −1 collaborative worldbuilding with players',  audience: 'together' },
-      { id: 'pcs',    label: 'Characters', description: 'Session 0 character creation with players',            audience: 'together' },
-      { id: 'party',  label: 'Party',      description: 'First-class PC sheets — HP, abilities, skills, attacks, spells', audience: 'together' },
+      { id: 'party',  label: 'Party',      description: 'First-class PC sheets, Session 0 character creation, and goals', audience: 'together' },
     ],
   },
   prep: {
@@ -170,7 +169,12 @@ export function resolveInitialMode(data: Record<string, unknown> | null | undefi
       const remapKey = `${m}:${typeof sv === 'string' ? sv : ''}`;
       const remapped = LEGACY_SUBVIEW_REMAP[remapKey];
       if (remapped) return remapped;
-      if (isValidSubview(m, sv)) return { mode: m, subview: sv };
+      if (isValidSubview(m, sv)) {
+        if (m === 'plan' && sv === 'pcs') {
+          return { mode: m, subview: 'party' };
+        }
+        return { mode: m, subview: sv };
+      }
       return { mode: m, subview: defaultSubview(m) };
     }
     const legacy = data.__tab;

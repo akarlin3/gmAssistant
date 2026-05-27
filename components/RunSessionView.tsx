@@ -336,8 +336,7 @@ export default function RunSessionView({
             state={(get('__initiative', null) as InitiativeState | null)}
             onChange={(next) => setVal('__initiative', next)}
             monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
-            pcs={characters}
-            party={party}
+            pcs={party}
             onClose={() => setInitiativeOpen(false)}
             onEnded={(summary) => {
               pushEvent(makeEvent('other', summary));

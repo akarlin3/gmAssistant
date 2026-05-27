@@ -11,7 +11,6 @@ import {
   emptyInitiative, abilityMod,
 } from '@/lib/initiative';
 import type { HomebrewMonster } from './MonstersTab';
-import type { Character } from '@/lib/character-schema';
 import type { PlayerCharacter } from '@/lib/pc/types';
 import MonsterStatBlock from './MonsterStatBlock';
 
@@ -19,8 +18,7 @@ type Props = {
   state: InitiativeState | null;
   onChange: (next: InitiativeState | null) => void;
   monsters: HomebrewMonster[];
-  pcs: Character[];
-  party?: PlayerCharacter[];
+  pcs: PlayerCharacter[];
   onClose: () => void;
   variant?: 'floating' | 'inline';
   onEnded?: (summary: string) => void;
@@ -50,19 +48,11 @@ function hpExtractMax(hpString: string | undefined): number {
   return m ? parseInt(m[0], 10) : 0;
 }
 
-function pcInitiativeMod(pc: Character): number {
-  if (pc.initiative && !isNaN(parseInt(pc.initiative, 10))) {
-    return parseInt(pc.initiative, 10);
-  }
-  const dex = parseInt(pc.abilities?.dex || '10', 10);
-  return abilityMod(isNaN(dex) ? 10 : dex);
-}
-
 export default function InitiativePanel({
-  state, onChange, monsters, pcs, party = [], onClose, variant = 'floating', onEnded,
+  state, onChange, monsters, pcs, onClose, variant = 'floating', onEnded,
 }: Props) {
   const [addMode, setAddMode] = useState<'monster' | 'pc' | 'manual' | null>(null);
-  const [selectedPcInit, setSelectedPcInit] = useState<{pc: Character, init: number} | null>(null);
+  const [selectedPcInit, setSelectedPcInit] = useState<{pc: PlayerCharacter, init: number} | null>(null);
   const [search, setSearch] = useState('');
   const [manualForm, setManualForm] = useState({
     name: '', initiative: 10, hpMax: 10, side: 'enemy' as CombatantSide,
@@ -122,18 +112,19 @@ export default function InitiativePanel({
     setSearch('');
   };
 
-  const addFromPC = (pc: Character, overrideInit?: number) => {
-    const hpMax = hpExtractMax(pc.hpMax) || hpExtractMax(pc.hp) || 10;
-    const acN = parseInt(pc.ac || '', 10);
-    const initiative = overrideInit ?? rollInitiative(pcInitiativeMod(pc));
+  const addFromPC = (pc: PlayerCharacter, overrideInit?: number) => {
+    const hpMax = pc.hp.max || 10;
+    const initiative = overrideInit ?? rollInitiative(pc.initiativeMod);
     const c: Combatant = {
       id: makeCombatantId(),
       name: pc.name || 'PC',
       initiative,
-      hp: { current: hpExtractMax(pc.hp) || hpMax, max: hpMax },
-      ac: isNaN(acN) ? undefined : acN,
-      conditions: [],
+      hp: { current: pc.hp.current || hpMax, max: hpMax },
+      ac: pc.ac,
+      conditions: [...pc.conditions],
       side: 'pc',
+      refPcId: pc.id,
+      ...(pc.exhaustion ? { exhaustion: pc.exhaustion } : {}),
     };
     addCombatant(c);
     setAddMode(null);
@@ -143,11 +134,11 @@ export default function InitiativePanel({
   // Bulk-add every first-class PC (data.pcs) as a combatant. Initiative is left
   // at 0 for the GM to roll/fill; HP, AC, conditions, and exhaustion carry over.
   const addParty = () => {
-    if (party.length === 0) return;
+    if (pcs.length === 0) return;
     const existingRefs = new Set(
       init.combatants.map((c) => c.refPcId).filter(Boolean),
     );
-    const additions: Combatant[] = party
+    const additions: Combatant[] = pcs
       .filter((pc) => !existingRefs.has(pc.id))
       .map((pc) => ({
         id: makeCombatantId(),
@@ -188,8 +179,8 @@ export default function InitiativePanel({
         return { ...c, initiative: rollInitiative(mod) };
       }
       if (c.side === 'pc') {
-        const pc = pcs.find(p => p.name === c.name);
-        const mod = pc ? pcInitiativeMod(pc) : 0;
+        const pc = pcs.find(p => p.name === c.name || p.id === c.refPcId);
+        const mod = pc ? pc.initiativeMod : 0;
         return { ...c, initiative: rollInitiative(mod) };
       }
       return { ...c, initiative: rollInitiative(0) };
@@ -414,7 +405,7 @@ export default function InitiativePanel({
             <button onClick={() => setAddMode('pc')} className="text-xs px-2 py-1 rounded border border-emerald-700/60 bg-emerald-100/40 text-emerald-800 hover:bg-emerald-700 hover:text-parchment flex items-center gap-1 font-display uppercase tracking-wider">
               <Plus size={11} /> PC
             </button>
-            {party.length > 0 && (
+            {pcs.length > 0 && (
               <button onClick={addParty} className="text-xs px-2 py-1 rounded border border-emerald-700/60 bg-emerald-100/40 text-emerald-800 hover:bg-emerald-700 hover:text-parchment flex items-center gap-1 font-display uppercase tracking-wider" title="Add all party PCs as combatants">
                 <Plus size={11} /> Add Party
               </button>
@@ -473,16 +464,18 @@ export default function InitiativePanel({
             </div>
             <div className="max-h-40 overflow-y-auto space-y-0.5">
               {pcs.length === 0 && (
-                <p className="text-[11px] text-ink-mute italic font-serif px-1">No characters yet. Add some on the Prep tab.</p>
+                <p className="text-[11px] text-ink-mute italic font-serif px-1">No characters yet. Add some on the Party tab.</p>
               )}
               {pcs.map(pc => (
                 <div key={pc.id}>
                   <button
-                    onClick={() => setSelectedPcInit({ pc, init: rollInitiative(pcInitiativeMod(pc)) })}
+                    onClick={() => setSelectedPcInit({ pc, init: rollInitiative(pc.initiativeMod) })}
                     className="w-full text-left text-xs px-2 py-1 rounded text-ink-soft hover:bg-parchment-deep hover:text-ink font-serif flex items-center gap-2"
                   >
                     <span className="flex-1 truncate">{pc.name || 'Unnamed'}</span>
-                    <span className="text-[10px] text-ink-mute">{pc.classLevel || '—'}</span>
+                    <span className="text-[10px] text-ink-mute">
+                      {pc.classes.map(cl => `${cl.name} ${cl.level}`).join(' / ') || '—'}
+                    </span>
                   </button>
                   {selectedPcInit?.pc.id === pc.id && (
                     <div className="px-2 py-1.5 mt-1 bg-brass/10 border border-brass/30 rounded flex items-center gap-2">

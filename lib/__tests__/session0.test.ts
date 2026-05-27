@@ -29,8 +29,8 @@ describe('applySession0Patch (B-03 / B-04)', () => {
       },
     );
     assert.deepEqual(out.gWorld, ['Magic is dying.', 'The gods are silent.']);
-    assert.equal(out.characters.length, 1);
-    assert.equal(out.characters[0].name, 'Wren');
+    assert.equal(out.pcs.length, 1);
+    assert.equal(out.pcs[0].name, 'Wren');
     assert.equal(out.pcGoals[0].text, 'Find the betrayer');
     assert.equal(out.clocks.length, 1);
     assert.equal(out.clocks[0].faction, 'Volixus');
@@ -48,8 +48,8 @@ describe('applySession0Patch (B-03 / B-04)', () => {
         ],
       },
     );
-    assert.equal(out.characters.length, 2);
-    assert.equal(out.characters[0].player, 'Alex');
+    assert.equal(out.pcs.length, 2);
+    assert.equal(out.pcs[0].ownership?.ownerType, 'player');
     assert.equal(out.pcGoals.length, 1);
     assert.equal(out.pcGoals[0].text, 'Rebuild temple');
   });

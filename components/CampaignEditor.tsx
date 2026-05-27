@@ -244,6 +244,81 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function mapPcToLegacyCharacter(pc: PlayerCharacter): Character {
+  const base = emptyCharacter();
+  const classStr = pc.classes.map(c => `${c.name} ${c.level}${c.subclass ? ` (${c.subclass})` : ''}`).join(' / ');
+  const abilities = {
+    str: String(pc.abilities.STR),
+    dex: String(pc.abilities.DEX),
+    con: String(pc.abilities.CON),
+    int: String(pc.abilities.INT),
+    wis: String(pc.abilities.WIS),
+    cha: String(pc.abilities.CHA),
+  };
+  return {
+    ...base,
+    id: pc.id,
+    name: pc.name,
+    race: pc.race,
+    classLevel: classStr,
+    background: pc.background,
+    alignment: pc.alignment || '',
+    abilities,
+    ac: String(pc.ac),
+    hp: String(pc.hp.current),
+    hpMax: String(pc.hp.max),
+    initiative: String(pc.initiativeMod >= 0 ? `+${pc.initiativeMod}` : pc.initiativeMod),
+    speed: String(pc.speed),
+    languages: pc.proficiencies.languages.join(', '),
+    proficiencies: [
+      ...pc.proficiencies.armor.map(x => `Armor: ${x}`),
+      ...pc.proficiencies.weapons.map(x => `Weapon: ${x}`),
+      ...pc.proficiencies.tools.map(x => `Tool: ${x}`),
+    ].join(', '),
+    saves: pc.proficiencies.savingThrows.join(', '),
+    skills: pc.proficiencies.skills.join(', '),
+    attacks: pc.attacks.map(a => ({
+      name: a.name,
+      bonus: String(a.attackBonus >= 0 ? `+${a.attackBonus}` : a.attackBonus),
+      damage: a.damageExpr,
+      notes: a.notes || '',
+    })),
+    equipment: pc.inventory.map(i => `${i.name}${i.qty > 1 ? ` x${i.qty}` : ''}`).join('\n'),
+    features: pc.features.map(f => f.name).join('\n'),
+    notes: pc.notes,
+    ownership: pc.ownership ? {
+      ownerType: pc.ownership.ownerType,
+      playerSlotId: pc.ownership.playerSlotId,
+    } : undefined,
+  };
+}
+
+function migrateCharactersAndPcs(data: Record<string, any>): Record<string, any> {
+  const migrated = migrateCharacters(data);
+  if (Array.isArray(migrated.characters) && migrated.characters.length > 0) {
+    const existingPcs = Array.isArray(migrated.pcs) ? migrated.pcs : [];
+    const mapped = migrated.characters.map((c: any) => {
+      const pc = mapParsedToPc(c);
+      if (c.ownership) {
+        pc.ownership = {
+          ownerType: c.ownership.ownerType,
+          playerSlotId: c.ownership.playerSlotId,
+        };
+      }
+      return pc;
+    });
+    const nextPcs = [...existingPcs];
+    for (const newPc of mapped) {
+      if (!nextPcs.some(p => p.id === newPc.id || (p.name && p.name.trim() && p.name === newPc.name))) {
+        nextPcs.push(newPc);
+      }
+    }
+    migrated.pcs = nextPcs;
+    migrated.characters = [];
+  }
+  return migrated;
+}
+
 // One-way migration: pcName/pcClass/pcBg/pcWant/pcFear/pcLove/pcFactions → characters[0].
 // Legacy keys are dropped after migration; data is preserved inside the new character.
 function migrateCharacters(data: Record<string, any>): Record<string, any> {
@@ -1459,8 +1534,7 @@ function RunSessionInlineActive({
                 state={(get('__initiative', null) as InitiativeState | null)}
                 onChange={(next) => setVal('__initiative', next)}
                 monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
-                pcs={characters}
-                party={party}
+                pcs={party}
                 onClose={() => setInitiativeOpen(false)}
               />
             ) : (
@@ -1892,8 +1966,9 @@ export default function CampaignEditor({
   const confirmModal = useConfirm();
   const [name, setName] = useState(campaign.name);
   const [initialMigration] = useState(() => migrateSessionLogs(campaign.data || {}));
-  const [state, setState] = useState<Record<string, any>>(() => initPlayerMode(migrateCharacters(initialMigration.initialState)).data);
-  const characters = (state.characters as Character[]) || [];
+  const [state, setState] = useState<Record<string, any>>(() => initPlayerMode(migrateCharactersAndPcs(initialMigration.initialState)).data);
+  const pcs = useMemo(() => normalizePcs(state.pcs), [state.pcs]);
+  const characters = useMemo(() => pcs.map(mapPcToLegacyCharacter), [pcs]);
   const [done, setDone] = useState<Record<string, boolean>>(campaign.done || {});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [openLogs, setOpenLogs] = useState<Record<string, boolean>>(
@@ -2516,9 +2591,9 @@ export default function CampaignEditor({
     [state.__activeSessionId],
   );
 
-  const parsedLevels = ((state.characters as Character[]) || [])
-    .map(c => c.isSidekick ? c.sidekickLevel : parseLevelFromClassLevel(c.classLevel))
-    .filter((lvl): lvl is number => lvl !== null && lvl > 0);
+  const parsedLevels = pcs
+    .map(p => p.level)
+    .filter((lvl): lvl is number => typeof lvl === 'number' && lvl > 0);
   const partyLevel = parsedLevels.length > 0
     ? Math.round(parsedLevels.reduce((a, b) => a + b, 0) / parsedLevels.length)
     : undefined;
@@ -2584,7 +2659,7 @@ export default function CampaignEditor({
     let targetSubview = 'flow';
     if (nextUp.phaseId === 'p0') { targetMode = 'plan'; targetSubview = 'pitch'; }
     else if (nextUp.phaseId === 'p1') { targetMode = 'plan'; targetSubview = 'worldbuild'; }
-    else if (nextUp.phaseId === 'p2') { targetMode = 'plan'; targetSubview = 'pcs'; }
+    else if (nextUp.phaseId === 'p2') { targetMode = 'plan'; targetSubview = 'party'; }
     else if (nextUp.phaseId === 'p4') { targetMode = 'prep'; targetSubview = 'clocks'; }
     else if (nextUp.phaseId === 'p5') { targetMode = 'prep'; targetSubview = 'arc'; }
     else if (nextUp.phaseId === 'p6') { targetMode = 'prep'; targetSubview = 'ending'; }
@@ -2620,19 +2695,22 @@ export default function CampaignEditor({
   };
 
   const addCharacter = () => {
-    const fresh = { ...emptyCharacter(), id: makeCharacterId() };
-    setVal('characters', [...characters, fresh]);
-    setOpenChars(o => ({ ...o, [fresh.id]: true }));
+    addPc();
   };
   const updateCharacter = (id: string, patch: Character) => {
-    setVal('characters', characters.map(c => (c.id === id ? patch : c)));
+    const updatedPc = mapParsedToPc(patch);
+    const originalPc = pcs.find(p => p.id === id);
+    if (originalPc) {
+      updatedPc.ownership = originalPc.ownership;
+      updatedPc.goals = originalPc.goals;
+      updatedPc.bonds = originalPc.bonds;
+      updatedPc.ideals = originalPc.ideals;
+      updatedPc.flaws = originalPc.flaws;
+    }
+    updatePc(updatedPc);
   };
   const removeCharacter = (id: string) => {
-    const c = characters.find(x => x.id === id);
-    const label = c?.name || 'character';
-    setVal('characters', characters.filter(x => x.id !== id));
-    setOpenChars(o => { const next = { ...o }; delete next[id]; return next; });
-    showUndoToast(`Deleted "${label}" — Press ⌘Z to undo`, 5000);
+    removePc(id);
   };
 
   const uploadCharacterSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2666,7 +2744,6 @@ export default function CampaignEditor({
   };
 
   // ---- First-class PCs (data.pcs) -------------------------------------
-  const pcs = useMemo(() => normalizePcs(state.pcs), [state.pcs]);
   const pcMacros = (state.pcMacros as PcMacros) || {};
 
   const writePcs = (next: PlayerCharacter[], nextMacros?: PcMacros) => {
@@ -2925,7 +3002,7 @@ export default function CampaignEditor({
   const PHASE_TO_VIEW: Record<string, { mode: Mode; subview: string }> = {
     p0: { mode: 'plan', subview: 'pitch' },
     p1: { mode: 'plan', subview: 'worldbuild' },
-    p2: { mode: 'plan', subview: 'pcs' },
+    p2: { mode: 'plan', subview: 'party' },
     p3: { mode: 'prep', subview: 'flow' },
     p4: { mode: 'prep', subview: 'clocks' },
     p5: { mode: 'prep', subview: 'arc' },
@@ -2982,8 +3059,8 @@ export default function CampaignEditor({
   const navigateToEntity = useCallback((type: WikiEntityType, id: string) => {
     // Land on the surface that hosts this entity's card and scroll to it.
     if (type === 'pc') {
-      navigateTo({ mode: 'plan', subview: 'pcs', characterId: id });
-      setTimeout(() => scrollToAnchor(`character:${id}`), 80);
+      navigateTo({ mode: 'plan', subview: 'party', characterId: id });
+      setTimeout(() => scrollToAnchor(`pc:${id}`), 80);
       return;
     }
     navigateTo({ mode: 'plan', subview: 'worldbuild' });
@@ -3139,8 +3216,7 @@ export default function CampaignEditor({
   const VIEW_META: Array<{ mode: Mode; subview: string; label: string; icon: any; keywords?: string[] }> = [
     { mode: 'plan',    subview: 'pitch',     label: 'Premise',     icon: Compass,         keywords: ['hook', 'givens', 'truths'] },
     { mode: 'plan',    subview: 'worldbuild',     label: 'Worldbuild',       icon: BookOpen,        keywords: ['setting', 'factions', 'reference', 'downtime'] },
-    { mode: 'plan',    subview: 'pcs',       label: 'Characters',  icon: User,            keywords: ['pc', 'goals', 'sidekick'] },
-    { mode: 'plan',    subview: 'party',     label: 'Party',       icon: Users,           keywords: ['pc sheet', 'character sheet', 'hp', 'abilities', 'attacks', 'spell slots'] },
+    { mode: 'plan',    subview: 'party',     label: 'Party',       icon: Users,           keywords: ['pc sheet', 'character sheet', 'hp', 'abilities', 'attacks', 'spell slots', 'goals', 'sidekick'] },
     { mode: 'prep',    subview: 'clocks',    label: 'Faction Clocks', icon: Clock,          keywords: ['clocks', 'factions', 'tracking'] },
     { mode: 'prep',    subview: 'arc',       label: 'Arc Planning',   icon: Layers,         keywords: ['audits', 'goals', 'secrets'] },
     { mode: 'prep',    subview: 'ending',    label: 'Ending',         icon: Trophy,         keywords: ['ending', 'wrap', 'threads'] },
@@ -3211,7 +3287,7 @@ export default function CampaignEditor({
       { id: 'act:new-session', label: 'New session log', group: 'Actions', icon: Plus, run: () => { addSessionLog(); navigateTo({ mode: 'organize', subview: 'log' }); } },
       { id: 'act:export', label: 'Export campaign JSON', group: 'Actions', icon: Download, run: () => exportJSON() },
       { id: 'act:import', label: 'Import campaign JSON', group: 'Actions', icon: Upload, run: () => fileInputRef.current?.click() },
-      { id: 'act:add-character', label: 'Add character', group: 'Actions', icon: User, run: () => { addCharacter(); const v = viewForSection('pc'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 'pc' }); } },
+      { id: 'act:add-character', label: 'Add PC', group: 'Actions', icon: User, run: () => { addPc(); navigateTo({ mode: 'plan', subview: 'party', sectionId: 'pc' }); } },
       { id: 'act:solo-toggle', label: 'Change play mode (Solo / Duet / Standard)…', group: 'Actions', icon: Users, run: () => setModeSwitcherOpen(true) },
       { id: 'act:prep-targets', label: 'Customize prep target counts…', group: 'Actions', icon: SlidersHorizontal, run: () => setPrepTargetsOpen(true) },
     );
@@ -3298,31 +3374,18 @@ export default function CampaignEditor({
       });
     });
 
-    characters.forEach((c) => {
-      if (c.isSidekick) return;
-      const label = (c.name || '').trim() || (c.player ? `${c.player}'s character` : 'Unnamed character');
-      const tag = [c.classLevel, c.race].filter(Boolean).join(' · ');
+    pcs.forEach((pc) => {
+      const label = (pc.name || '').trim() || 'Unnamed PC';
+      const classesStr = pc.classes.map(c => `${c.name} ${c.level}`).join(' / ');
+      const tag = [classesStr, pc.race].filter(Boolean).join(' · ');
       items.push({
-        id: `char:${c.id}`,
+        id: `char:${pc.id}`,
         label,
         sublabel: tag || undefined,
         group: 'Characters',
-        keywords: [c.player || '', c.background || ''],
+        keywords: [pc.race || '', pc.background || ''],
         icon: User,
-        run: () => { const v = viewForSection('pc'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 'pc', characterId: c.id, anchor: `character:${c.id}` }); },
-      });
-    });
-
-    characters.forEach((c) => {
-      if (!c.isSidekick) return;
-      const label = (c.name || '').trim() || 'Unnamed sidekick';
-      items.push({
-        id: `side:${c.id}`,
-        label,
-        sublabel: c.sidekickClass || undefined,
-        group: 'Sidekicks',
-        icon: Users,
-        run: () => { const v = viewForSection('pc'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 'pc', characterId: c.id, anchor: `character:${c.id}` }); },
+        run: () => { navigateTo({ mode: 'plan', subview: 'party', characterId: pc.id, anchor: `pc:${pc.id}` }); },
       });
     });
 
@@ -4061,77 +4124,33 @@ export default function CampaignEditor({
             </Phase>
             )}
 
-            {mode === 'plan' && subview === 'pcs' && (
-            <Phase n="2" title="Session 0 — Characters & Goals" sub="PCs Created After the World Exists" methods={['pr', 'shea']} audience="together" icon={User} expanded={phaseOpen.p2} onToggle={() => togglePhase('p2')}>
+            {mode === 'plan' && subview === 'party' && (
+            <Phase n="2" title="Session 0 — Party & Goals" sub="PCs Created After the World Exists" methods={['pr', 'shea']} audience="together" icon={Users} expanded={phaseOpen.p2} onToggle={() => togglePhase('p2')}>
               <SoloNote>Solo Session 0 is fast. Spend the saved time on goal craft.</SoloNote>
               <Section id="pc" title="Player Characters" methods={['shea']} done={done.pc} onToggle={toggleDone} open={open.pc} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM (Chris Perkins)">Nothing's more important to a campaign than the stories of the player characters.</BookQuote>
-                <div className="space-y-2">
-                  {characters.map((c) => (
-                    <div key={c.id} data-cp-anchor={`character:${c.id}`}>
-                      <CharacterCard
-                        data={c}
-                        open={!!openChars[c.id]}
-                        soloMode={soloMode}
-                        onToggleOpen={() => setOpenChars(o => ({ ...o, [c.id]: !o[c.id] }))}
-                        onChange={(v) => updateCharacter(c.id, v)}
-                        onRemove={() => removeCharacter(c.id)}
-                      />
-                    </div>
-                  ))}
-                  {characters.length === 0 && (
-                    <p className="text-sm text-ink-mute italic font-serif">
-                      No characters yet. Click &quot;Add Character&quot; to start.
-                    </p>
-                  )}
+                <div className="space-y-3">
+                  <PartyTab
+                    pcs={pcs}
+                    openMap={openPcs}
+                    isPro={isPro}
+                    uploading={uploadingPc}
+                    uploadError={pcUploadError}
+                    onToggleOpen={(id) => setOpenPcs(o => ({ ...o, [id]: !o[id] }))}
+                    onAdd={addPc}
+                    onUpdate={updatePc}
+                    onRemove={removePc}
+                    onUploadClick={() => pcFileInputRef.current?.click()}
+                    roster={roster}
+                  />
+                  <input
+                    ref={pcFileInputRef}
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.md,.json,application/pdf,image/png,image/jpeg,image/webp,image/gif,text/plain,application/json,text/markdown"
+                    onChange={uploadPcSheet}
+                    className="hidden"
+                  />
                 </div>
-                <div className="flex flex-wrap gap-3 items-center pt-1">
-                  <button onClick={addCharacter} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
-                    <Plus size={12} /> Add Character
-                  </button>
-                  {isPro ? (
-                    <>
-                      <button
-                        onClick={() => characterFileInputRef.current?.click()}
-                        disabled={uploadingChar}
-                        className="text-xs text-crimson hover:text-wine flex items-center gap-1 font-display uppercase tracking-wider disabled:opacity-50 disabled:cursor-wait"
-                        title="Upload a PDF, image, or text character sheet — parsed by Claude (pro only)"
-                      >
-                        <FileUp size={12} /> {uploadingChar ? 'Parsing…' : 'Upload Sheet'}
-                      </button>
-                      <input
-                        ref={characterFileInputRef}
-                        type="file"
-                        accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.md,.json,application/pdf,image/png,image/jpeg,image/webp,image/gif,text/plain,application/json,text/markdown"
-                        onChange={uploadCharacterSheet}
-                        className="hidden"
-                      />
-                    </>
-                  ) : (
-                    <LockedInline label="Upload Sheet" />
-                  )}
-                  {charUploadError && (
-                    <span className="text-xs text-crimson italic" title={charUploadError}>
-                      {charUploadError}
-                    </span>
-                  )}
-                </div>
-
-                {soloMode && (
-                  <div className="pt-2">
-                    <SoloNote>
-                      Running solo? Add a <strong>sidekick</strong> from Tasha's Cauldron — an
-                      Expert, Spellcaster, or Warrior companion that levels with you.
-                    </SoloNote>
-                    <SidekickAddPanel
-                      isPro={isPro}
-                      onAdd={(c) => {
-                        setVal('characters', [...characters, c]);
-                        setOpenChars(o => ({ ...o, [c.id]: true }));
-                      }}
-                    />
-                  </div>
-                )}
               </Section>
               <Section id="goals" title="PC Goals (5 Rules of Proactive Fun)" methods={['pr']} done={done.goals} onToggle={toggleDone} open={open.goals} onToggleOpen={toggleOpen} icon={Target}>
                 <div className="rounded border border-wine/40 bg-wine/5 p-3 text-sm space-y-1.5 text-ink-soft font-serif">
@@ -4154,31 +4173,6 @@ export default function CampaignEditor({
                 </button>
               </Section>
             </Phase>
-            )}
-
-            {mode === 'plan' && subview === 'party' && (
-              <div className="space-y-3">
-                <PartyTab
-                  pcs={pcs}
-                  openMap={openPcs}
-                  isPro={isPro}
-                  uploading={uploadingPc}
-                  uploadError={pcUploadError}
-                  onToggleOpen={(id) => setOpenPcs(o => ({ ...o, [id]: !o[id] }))}
-                  onAdd={addPc}
-                  onUpdate={updatePc}
-                  onRemove={removePc}
-                  onUploadClick={() => pcFileInputRef.current?.click()}
-                  roster={roster}
-                />
-                <input
-                  ref={pcFileInputRef}
-                  type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.md,.json,application/pdf,image/png,image/jpeg,image/webp,image/gif,text/plain,application/json,text/markdown"
-                  onChange={uploadPcSheet}
-                  className="hidden"
-                />
-              </div>
             )}
 
             {mode === 'prep' && subview === 'flow' && (
@@ -5287,8 +5281,7 @@ export default function CampaignEditor({
           state={(get('__initiative', null) as InitiativeState | null)}
           onChange={(next) => setVal('__initiative', next)}
           monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
-          pcs={characters}
-          party={pcs}
+          pcs={pcs}
           onClose={() => setVal('__initiativeOpen', false)}
         />
       )}
