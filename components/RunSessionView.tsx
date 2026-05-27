@@ -110,6 +110,7 @@ export default function RunSessionView({
             handouts: get('handouts', ''),
             playerLog,
             items: get('items', []),
+            maps: get('maps', []),
           };
           await publishProjections(campaignId, campaignName || 'Campaign', dataToPublish);
           setPublishState('done');

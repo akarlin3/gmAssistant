@@ -108,6 +108,9 @@ export type SlotProjection = {
     linked?: string;
     status?: string;
   }>;
+  // Player-visible maps: only layers flagged visibleToPlayers, with GM-only
+  // fields (marker notes, entity links, edge travel times) already stripped.
+  maps?: import('@/lib/maps/playerProjection').PlayerMap[];
 };
 
 export type CampaignItem = {
@@ -142,6 +145,7 @@ export type PlayerModeData = Partial<Record<PlayerEntityType, PlayerEntity[]>> &
   playerLog?: readonly PlayerLogEntry[];
   items?: ReadonlyArray<string | CampaignItem>;
   pcGoals?: readonly any[];
+  maps?: unknown;
 };
 
 export function normalizeItem(it: string | Record<string, any>, index: number): CampaignItem {

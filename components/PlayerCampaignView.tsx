@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollText, Users, Map, Flag, Clock, BookOpen, UserCircle, Gift, Compass, Target } from 'lucide-react';
 import { subscribeSlotProjection } from '@/lib/playerMode/playerClient';
 import type { SlotProjection } from '@/lib/playerMode/types';
+import PlayerMapView from '@/components/maps/PlayerMapView';
 
 type AnyRec = Record<string, unknown>;
 
@@ -88,6 +89,7 @@ export default function PlayerCampaignView({
       const items = projection.entities[type as keyof SlotProjection['entities']];
       if (items && items.length > 0) out.push({ id: type, label: meta.label, icon: meta.icon });
     }
+    if (projection.maps && projection.maps.length > 0) out.push({ id: 'maps', label: 'Maps', icon: <Map size={15} /> });
     if (projection.sessionLog.length > 0) out.push({ id: 'log', label: 'Log', icon: <ScrollText size={15} /> });
     if (projection.handouts) out.push({ id: 'handouts', label: 'Handouts', icon: <BookOpen size={15} /> });
     if (projection.items && projection.items.length > 0) {
@@ -211,7 +213,9 @@ export default function PlayerCampaignView({
             </nav>
 
             <div className="space-y-3">
-              {active === 'log' ? (
+              {active === 'maps' ? (
+                <PlayerMapView maps={projection.maps ?? []} />
+              ) : active === 'log' ? (
                 [...projection.sessionLog]
                   .sort((a, b) => ((b.postedAtMs as number) ?? 0) - ((a.postedAtMs as number) ?? 0))
                   .map((e) => (
