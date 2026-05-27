@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gamemaster Assistant | Sleek TTRPG Campaign Prep Dashboard</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Spend less time planning and more time playing. Gamemaster Assistant integrates Lazy Dungeon Master, Collaborative Campaign, and Proactive Roleplaying into a stunning, cross-device synced prep dashboard.">
+  <meta name="keywords" content="TTRPG, campaign prep, Dungeon Master, Game Master, D&D, tabletop, Lazy DM, Worldbuilding, Proactive Roleplaying">
+  
+  <!-- Favicon Reference -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><polygon points=%2250,5 95,25 95,75 50,95 5,75 5,25%22 fill=%22%230f121d%22 stroke=%22%23d4af37%22 stroke-width=%224%22/><polygon points=%2250,5 50,95%22 stroke=%22%23d4af37%22 stroke-width=%222%22/><polygon points=%225,25 95,25%22 stroke=%22%23d4af37%22 stroke-width=%222%22/><polygon points=%225,75 95,75%22 stroke=%22%23d4af37%22 stroke-width=%222%22/><polygon points=%2250,35 5,25 50,5 95,25 50,35 50,95 5,75 50,35 95,75 50,95%22 fill=%22none%22 stroke=%22%23d4af37%22 stroke-width=%222%22/></svg>">
+  
+  <!-- Local Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Background Decorative Ambient Glows -->
+  <div class="ambient-glow-1"></div>
+  <div class="ambient-glow-2"></div>
+
+  <!-- STICKY HEADER / NAVIGATION -->
+  <header id="main-header">
+    <div class="container nav-wrapper">
+      <a href="#" class="brand" id="brand-link">
+        <!-- SVG d20 Logo -->
+        <svg class="brand-icon" viewBox="0 0 100 100">
+          <polygon points="50,5 95,25 95,75 50,95 5,75 5,25" fill="none" />
+          <polygon points="50,5 50,95" />
+          <polygon points="5,25 95,25" />
+          <polygon points="5,75 95,75" />
+          <polygon points="50,35 5,25 50,5 95,25 50,35 50,95 5,75 50,35 95,75 50,95" fill="none" />
+        </svg>
+        <span class="brand-text">Gamemaster</span>
+      </a>
+      
+      <nav>
+        <ul class="nav-menu">
+          <li><a href="#features" class="nav-link">Features</a></li>
+          <li><a href="#methodologies" class="nav-link">Methodology</a></li>
+          <li><a href="#player-mode" class="nav-link">Player Mode</a></li>
+          <li><a href="#pro-features" class="nav-link">Pro Features</a></li>
+          <li><a href="#pricing" class="nav-link">Pricing</a></li>
+          <li><a href="#waitlist" class="btn btn-primary btn-sm">Join Waitlist</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-content">
+        <div class="badge-pillar">
+          <div class="badge-dot"></div>
+          <span class="badge-text">The Ultimate DM Prep Symphony</span>
+        </div>
+        <h1 class="hero-title gradient-text-gold">Master Your TTRPG Prep.<br>Less Time Planning. More Time Playing.</h1>
+        <p class="hero-subtitle">
+          The first campaign manager designed to synthesize three industry-standard prep methodologies into a single, cohesive workflow. Synced across all your devices, built for Game Masters who demand zero friction.
+        </p>
+        <div class="hero-ctas">
+          <a href="#waitlist" class="btn btn-primary">Try Free &bull; Join Waitlist</a>
+          <a href="#simulator" class="btn btn-secondary">Explore Interactive Demo</a>
+        </div>
+      </div>
+
+      <!-- INTERACTIVE PREP DASHBOARD MOCKUP -->
+      <div class="mockup-container" id="simulator">
+        
+        <!-- Mockup Window Bar -->
+        <div class="mockup-header">
+          <div class="mockup-dots">
+            <span class="mockup-dot red"></span>
+            <span class="mockup-dot yellow"></span>
+            <span class="mockup-dot green"></span>
+          </div>
+          
+          <div class="mockup-title-bar">
+            <svg class="mockup-d20-mini" viewBox="0 0 100 100">
+              <polygon points="50,5 95,25 95,75 50,95 5,75 5,25" />
+              <polygon points="50,5 50,95" />
+              <polygon points="5,25 95,25" />
+            </svg>
+            <span>Gamemaster Assistant &mdash; Campaign Prep</span>
+          </div>
+          
+          <!-- SOLO/STANDARD TOGGLE -->
+          <div class="mode-switch-wrapper">
+            <span class="mode-label active" id="label-standard">Standard</span>
+            <label class="switch">
+              <input type="checkbox" id="mode-toggle">
+              <span class="slider"></span>
+            </label>
+            <span class="mode-label" id="label-solo">Solo Mode</span>
+          </div>
+        </div>
+
+        <!-- Mockup Workspace -->
+        <div class="mockup-body">
+          
+          <!-- Mockup Sidebar Tabs -->
+          <div class="mockup-sidebar">
+            <span class="sidebar-heading">Campaign Prep</span>
+            
+            <button class="mockup-tab active" data-tab="secrets">
+              <svg class="mockup-tab-icon" viewBox="0 0 24 24">
+                <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+                <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7Z"/>
+              </svg>
+              Secrets & Clues
+            </button>
+            
+            <button class="mockup-tab" data-tab="factions">
+              <svg class="mockup-tab-icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              Factions & Clocks
+            </button>
+            
+            <span class="sidebar-heading" style="margin-top: 15px;">AI Features</span>
+            
+            <button class="mockup-tab" data-tab="vivify">
+              <svg class="mockup-tab-icon" viewBox="0 0 24 24">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              Vivify Prose AI
+            </button>
+            
+            <span class="sidebar-heading" style="margin-top: 15px;">Players</span>
+            
+            <button class="mockup-tab" data-tab="player-mode">
+              <svg class="mockup-tab-icon" viewBox="0 0 24 24">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              Real-time Player View
+            </button>
+          </div>
+
+          <!-- Mockup Display Panel -->
+          <div class="mockup-content">
+            
+            <!-- PANEL 1: SECRETS & CLUES (Lazy DM Step) -->
+            <div class="mockup-pane active" id="pane-secrets">
+              <div class="mockup-section-header">
+                <h3>Secrets & Clues</h3>
+                <span class="mono-ui" style="color: var(--color-text-muted);">Step 3 of 8</span>
+              </div>
+              
+              <!-- Dynamic target progress bar based on Solo/Standard mode -->
+              <div class="prep-progress-card">
+                <div class="progress-header">
+                  <span class="progress-label" id="progress-label-secrets">Shoot for 10 Secrets</span>
+                  <span class="progress-counter" id="progress-counter-secrets">3 / 10</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" id="progress-fill-secrets" style="width: 30%;"></div>
+                </div>
+              </div>
+              
+              <p style="font-size: 0.88rem; margin-bottom: 16px; color: var(--color-text-muted);">
+                <em>Secrets are units of lore disconnected from specific paths. Click a secret to "reveal" it to players.</em>
+              </p>
+              
+              <div class="secrets-list">
+                <div class="secret-item" data-secret-idx="1">
+                  <svg class="secret-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>The cult of the Bleeding Star has replaced the High Priest with a doppelganger.</span>
+                </div>
+                <div class="secret-item" data-secret-idx="2">
+                  <svg class="secret-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>The ancient drakespire ruins contain an inactive portal keyed to the Plane of Fire.</span>
+                </div>
+                <div class="secret-item" data-secret-idx="3">
+                  <svg class="secret-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>Lord Vaelen paid the goblin warband to stage the caravan raid to frame his brother.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL 2: FACTIONS & CLOCKS (Campaign Design Step) -->
+            <div class="mockup-pane" id="pane-factions">
+              <div class="mockup-section-header">
+                <h3>Factions & Fronts</h3>
+                <span class="mono-ui" style="color: var(--color-text-muted);">Faction Progress Tracker</span>
+              </div>
+              
+              <div class="prep-progress-card">
+                <div class="progress-header">
+                  <span class="progress-label" id="progress-label-factions">Active Factions</span>
+                  <span class="progress-counter" id="progress-counter-factions">2 / 4</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" id="progress-fill-factions" style="width: 50%;"></div>
+                </div>
+              </div>
+              
+              <p style="font-size: 0.88rem; margin-bottom: 16px; color: var(--color-text-muted);">
+                <em>Clocks represent the impending schemes of campaign fronts. Click a clock to tick it forward.</em>
+              </p>
+              
+              <div class="faction-grid">
+                <div class="faction-card">
+                  <div class="faction-info">
+                    <h4>The Obsidian Hand</h4>
+                    <p>Scheme: Resurrecting the Lich King</p>
+                  </div>
+                  <!-- Interactive Clock Dial (4 segments represented in SVG) -->
+                  <svg class="clock-dial" viewBox="0 0 100 100" data-ticks="2" data-max="4">
+                    <circle cx="50" cy="50" r="45" class="clock-bg"/>
+                    <path d="M50,5 A45,45 0 0,1 95,50 L50,50 Z" class="clock-segments" fill="rgba(212, 175, 55, 0.4)"/>
+                    <path d="M95,50 A45,45 0 0,1 50,95 L50,50 Z" class="clock-segments" fill="rgba(212, 175, 55, 0.4)"/>
+                    <line x1="50" y1="5" x2="50" y2="95" class="clock-ticks"/>
+                    <line x1="5" y1="50" x2="95" y2="50" class="clock-ticks"/>
+                  </svg>
+                </div>
+                
+                <div class="faction-card">
+                  <div class="faction-info">
+                    <h4>Iron Crow Guild</h4>
+                    <p>Scheme: Subverting the Port Taxes</p>
+                  </div>
+                  <!-- Interactive Clock Dial (6 segments represented in SVG) -->
+                  <svg class="clock-dial" viewBox="0 0 100 100" data-ticks="4" data-max="6">
+                    <circle cx="50" cy="50" r="45" class="clock-bg"/>
+                    <!-- Ticked paths drawn dynamically in JS, basic mockup starts with arcs -->
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="var(--color-gold-parchment)" stroke-width="6" stroke-dasharray="282" stroke-dashoffset="94"/>
+                    <line x1="50" y1="5" x2="50" y2="95" class="clock-ticks"/>
+                    <line x1="11" y1="27.5" x2="89" y2="72.5" class="clock-ticks"/>
+                    <line x1="11" y1="72.5" x2="89" y2="27.5" class="clock-ticks"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL 3: VIVIFY AI (Gated Pro Features) -->
+            <div class="mockup-pane" id="pane-vivify">
+              <div class="mockup-section-header">
+                <h3>Vivify Prose generator</h3>
+                <span class="mono-ui" style="color: var(--color-magic-purple-glow);">PRO Feature</span>
+              </div>
+              
+              <div class="vivify-setup">
+                <p style="font-size: 0.9rem; color: var(--color-text-secondary);">
+                  Need an evocative, campaign-grounded description of a room, NPC, or magic item on the fly? Let Vivify generate it.
+                </p>
+                <div class="vivify-prompt-box">
+                  <span style="font-size: 0.8rem; color: var(--color-gold-parchment); font-weight: 600;">CONTEXT-AWARE PROMPT</span>
+                  <p style="font-size: 0.88rem; color: #ffffff; margin-top: 4px;">
+                    Generate a scene description for the <strong style="color: var(--color-gold-glow);">Bleeding Star Temple</strong>. Mention the <strong style="color: var(--color-gold-glow);">High Priest</strong> behaving strangely.
+                  </p>
+                </div>
+                
+                <div class="vivify-btn-row">
+                  <button class="btn btn-primary btn-sm" id="btn-vivify-trigger" style="background: linear-gradient(135deg, var(--color-magic-purple) 0%, var(--color-magic-purple-dim) 100%); border-color: var(--color-magic-purple); color: white; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="white" stroke-width="2.5" fill="none" style="margin-right: 4px;"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    Vivify Scene
+                  </button>
+                </div>
+                
+                <div class="vivify-output-box" id="vivify-text-container">
+                  <span id="vivify-placeholder" style="color: var(--color-text-muted); font-style: italic;">Click "Vivify Scene" above to stream an AI description based on your campaign's active facts, secrets, and NPCs...</span>
+                  <span id="vivify-target-text"></span><span class="vivify-cursor" id="vivify-cursor-elem" style="display: none;"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL 4: PLAYER MODE (Real-time Sync) -->
+            <div class="mockup-pane" id="pane-player-mode">
+              <div class="mockup-section-header">
+                <h3>Real-time Player Projections</h3>
+                <span class="mono-ui" style="color: var(--color-text-muted);">Real-time Sync</span>
+              </div>
+              
+              <div class="player-mode-split">
+                <!-- GM Screen -->
+                <div class="split-side">
+                  <h4>Game Master Dashboard</h4>
+                  <div class="mock-window">
+                    <div class="mock-window-header">
+                      <span class="mock-window-title">Roster & Disclosures</span>
+                      <span class="mono-ui" style="font-size: 0.65rem; color: var(--color-success);">Sync Online</span>
+                    </div>
+                    
+                    <div class="entity-reveal-panel">
+                      <div class="entity-row">
+                        <span class="entity-name">Fallen Drakespire</span>
+                        <div class="reveal-controls">
+                          <button class="reveal-btn active" data-entity="drakespire" data-reveal="private">Secret</button>
+                          <button class="reveal-btn" data-entity="drakespire" data-reveal="party">Party</button>
+                        </div>
+                      </div>
+                      <div class="entity-row">
+                        <span class="entity-name">The Doppelganger</span>
+                        <div class="reveal-controls">
+                          <button class="reveal-btn active" data-entity="doppel" data-reveal="private">Secret</button>
+                          <button class="reveal-btn" data-entity="doppel" data-reveal="party">Party</button>
+                        </div>
+                      </div>
+                      <div class="entity-row" style="opacity: 0.8;">
+                        <span class="entity-name">The Goblin Raid Plan</span>
+                        <div class="reveal-controls">
+                          <button class="reveal-btn active" style="pointer-events: none;">Secret</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Player Screen -->
+                <div class="split-side">
+                  <h4>Player Mode Viewport</h4>
+                  <div class="mock-window" style="background: rgba(11, 13, 22, 0.9); border-color: rgba(212,175,55,0.15);">
+                    <div class="mock-window-header">
+                      <span class="mock-window-title" style="color: var(--color-text-secondary);">Player Journal</span>
+                      <span class="mono-ui" style="font-size: 0.65rem; color: var(--color-text-muted);">Read Only</span>
+                    </div>
+                    
+                    <div class="player-view-content">
+                      <div class="player-bubble" id="player-bubble-drakespire">
+                        <strong>Fantastic Location:</strong> <span class="player-content-redacted">[Redacted by GM]</span>
+                      </div>
+                      <div class="player-bubble" id="player-bubble-doppel">
+                        <strong>NPC:</strong> <span class="player-content-redacted">[Redacted by GM]</span>
+                      </div>
+                      <p style="font-size: 0.72rem; color: var(--color-text-muted); font-style: italic; text-align: center; margin-top: 10px;">
+                        Toggling the GM buttons to "Party" instantly reveals details here in real-time.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- METHODOLOGIES SYNERGY SECTION -->
+  <section class="methodologies" id="features">
+    <div class="container">
+      <div class="section-intro">
+        <h2 class="gradient-text-gold">Symphony of the Three Books</h2>
+        <p>
+          We didn't invent these workflows; we just unified them. Gamemaster Assistant binds three award-winning methodologies together so they reinforce one another perfectly during play.
+        </p>
+      </div>
+
+      <div class="grid-3">
+        <!-- Card 1: Lazy DM -->
+        <div class="card">
+          <span class="card-num">01</span>
+          <div class="card-icon-wrapper">
+            <svg class="card-icon" viewBox="0 0 24 24">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <h3>Lazy Dungeon Master</h3>
+          <p>
+            Build your prep around Mike Shea's legendary 8-step framework. Focus strictly on secrets, monster stats, fantastic locations, and key NPCs. Stay out of over-planning traps.
+          </p>
+        </div>
+        
+        <!-- Card 2: Collaborative Campaign -->
+        <div class="card">
+          <span class="card-num">02</span>
+          <div class="card-icon-wrapper">
+            <svg class="card-icon" viewBox="0 0 24 24">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <h3>Collaborative Campaign</h3>
+          <p>
+            Establish safety guidelines (lines/veils), compile shared world facts, structure conflicts, and track faction clock progressions generated together during Session Zero.
+          </p>
+        </div>
+        
+        <!-- Card 3: Proactive Roleplaying -->
+        <div class="card">
+          <span class="card-num">03</span>
+          <div class="card-icon-wrapper">
+            <svg class="card-icon" viewBox="0 0 24 24">
+              <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5" />
+            </svg>
+          </div>
+          <h3>Proactive Roleplaying</h3>
+          <p>
+            Focus on PC-driven goals. Map character ambitions directly into the prep panel, allowing you to tie upcoming secrets and locations back to player motivation.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAYER MODE DETAIL SHOWCASE (Real-time redact & reveal) -->
+  <section class="player-showcase" id="player-mode">
+    <div class="container">
+      <div class="split-layout">
+        <div class="showcase-text">
+          <div class="badge-pillar" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16,185,129,0.2);">
+            <div class="badge-dot" style="background-color: var(--color-success); box-shadow: 0 0 8px var(--color-success);"></div>
+            <span class="badge-text" style="color: var(--color-success);">Real-time Sync</span>
+          </div>
+          <h2>Redacted Projections. Zero Player Friction.</h2>
+          <p>
+            Share an unguessable read-only link with your players. No accounts required for them. Your GM dashboard allows you to keep campaign entities hidden, reveal them to the party, or customise per-player reveals on the fly.
+          </p>
+          
+          <div class="features-list">
+            <div class="feature-bullet">
+              <svg class="bullet-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              <div class="bullet-text">
+                <h4>Sticky Reveals</h4>
+                <p>Once you reveal a secret, location, or faction to a player, it locks onto their live projection document permanently.</p>
+              </div>
+            </div>
+            
+            <div class="feature-bullet">
+              <svg class="bullet-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              <div class="bullet-text">
+                <h4>Narration Mentions</h4>
+                <p>Type a session narrative feed entry. Mentions like <code>@Lord Vaelen</code> automatically unlock the corresponding NPC in the players' journals.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Arrow divider in center -->
+        <div class="flow-arrow-down">
+          <svg class="down-arrow-svg" viewBox="0 0 24 24">
+            <polyline points="7 13 12 18 17 13"/>
+            <line x1="12" y1="6" x2="12" y2="18"/>
+          </svg>
+        </div>
+        
+        <!-- Flow Animation Graphic -->
+        <div class="showcase-animation-wrapper">
+          <div class="flow-step-box">
+            <span class="flow-tag">GM Secret Note</span>
+            <div class="flow-content">
+              <strong>NPC Lore:</strong> Priest Vaelen is secretly dead, replaced by a shape-changing doppelganger.
+            </div>
+          </div>
+          <div class="flow-step-box" style="border-color: rgba(139, 92, 246, 0.3); background: rgba(139,92,246,0.03);">
+            <span class="flow-tag" style="background: rgba(212,175,55,0.15); color: var(--color-gold-glow);">Capability Redactor</span>
+            <div class="flow-content">
+              Removes structural secrets and replaces with cryptographic hashes on player-accessible docs.
+            </div>
+          </div>
+          <div class="flow-step-box" style="opacity: 0.8;">
+            <span class="flow-tag" style="background: rgba(16,185,129,0.15); color: var(--color-success);">Player Live Journal</span>
+            <div class="flow-content">
+              <strong>NPC Lore:</strong> Priest Vaelen is <span class="redacted-bar"></span> <span class="redacted-bar" style="width: 50px;"></span>.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI PRO FEATURES SHOWCASE (Gated) -->
+  <section class="pro-features" id="pro-features">
+    <div class="container">
+      <div class="section-intro">
+        <h2 class="gradient-text-purple">Unleash the Pro Multiverse<span class="pro-badge">PRO</span></h2>
+        <p>
+          Upgrade your prep with custom, campaign-grounded LLM inference APIs. Gated behind a simple Pro waitlist, built to breathe immediate life into empty spaces at your table.
+        </p>
+      </div>
+
+      <div class="grid-3">
+        <!-- Pro 1: Vivify Prose -->
+        <div class="card card-gated">
+          <span class="card-num" style="color: rgba(139, 92, 246, 0.2);">01</span>
+          <div class="card-icon-wrapper">
+            <svg class="card-icon" viewBox="0 0 24 24">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </div>
+          <h3>Vivify Narrative</h3>
+          <p>
+            Stream campaign-aware prose for places, characters, rumors, scene aftermaths, and magic-item flavor text instantly grounded in your campaign prep rules.
+          </p>
+        </div>
+
+        <!-- Pro 2: Character Sheet Parser -->
+        <div class="card card-gated">
+          <span class="card-num" style="color: rgba(139, 92, 246, 0.2);">02</span>
+          <div class="card-icon-wrapper">
+            <svg class="card-icon" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <line x1="9" y1="9" x2="15" y2="9"/>
+              <line x1="9" y1="13" x2="15" y2="13"/>
+              <line x1="9" y1="17" x2="13" y2="17"/>
+            </svg>
+          </div>
+          <h3>Sheet Parser</h3>
+          <p>
+            Drag and drop a PDF character sheet or character screenshot, and watch the system instantly parse and create structural database entries for stats and gear.
+          </p>
+        </div>
+
+        <!-- Pro 3: NPC inspires -->
+        <div class="card card-gated">
+          <span class="card-num" style="color: rgba(139, 92, 246, 0.2);">03</span>
+          <div class="card-icon-wrapper">
+            <svg class="card-icon" viewBox="0 0 24 24">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+          </div>
+          <h3>Trait Inspires</h3>
+          <p>
+            Stuck on personality traits, hooks, or secrets? Instantly generate themed NPC trait lists that align with faction priorities and local environments.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING & EMAIL WAITLIST SECTION -->
+  <section class="pricing-waitlist" id="pricing">
+    <div class="container">
+      <div class="section-intro">
+        <h2 class="gradient-text-gold">Simple, Transparent Access</h2>
+        <p>No paywalls for essential prep tools. Upgrade only when you need deep generative assistance.</p>
+      </div>
+
+      <!-- Pricing Plans -->
+      <div class="pricing-cards">
+        
+        <!-- Plan 1: Standard -->
+        <div class="pricing-card">
+          <h3 class="price-title">Standard Prep</h3>
+          <div class="price-val">$0<span>/forever</span></div>
+          <ul class="price-bullets">
+            <li><svg class="price-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> 8-Step Lazy DM Prep</li>
+            <li><svg class="price-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Collaborative worldbuilder</li>
+            <li><svg class="price-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Proactive Goal Tracker</li>
+            <li><svg class="price-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Real-time synced database</li>
+            <li><svg class="price-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Free Player Projections</li>
+          </ul>
+          <a href="#waitlist" class="btn btn-secondary">Get Started Free</a>
+        </div>
+        
+        <!-- Plan 2: Pro -->
+        <div class="pricing-card premium">
+          <h3 class="price-title">Master Pro</h3>
+          <div class="price-val">$2.99<span>/month</span></div>
+          <ul class="price-bullets">
+            <li><svg class="price-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Everything in Standard</li>
+            <li><svg class="price-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Unlimited Vivify prose generations</li>
+            <li><svg class="price-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> AI Character Sheet PDF Parser</li>
+            <li><svg class="price-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Context-grounded trait generators</li>
+            <li><svg class="price-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Priority access to new AI models</li>
+          </ul>
+          <a href="#waitlist" class="btn btn-primary" style="background: linear-gradient(135deg, var(--color-magic-purple) 0%, var(--color-magic-purple-dim) 100%); border-color: var(--color-magic-purple); color: white;">Join Waitlist</a>
+        </div>
+      </div>
+
+      <!-- Interactive Waitlist Form Container -->
+      <div class="waitlist-wrapper" id="waitlist">
+        
+        <!-- Primary Form View -->
+        <div id="waitlist-form-container">
+          <h3 class="waitlist-title">Join the Gamemaster Waitlist</h3>
+          <p class="waitlist-description font-body">
+            Pro membership is currently invite-only. Enter your email below to reserve your spot. We will email you the moment slots open up in your region.
+          </p>
+          <form class="waitlist-form" id="email-signup-form">
+            <div class="form-group">
+              <input type="email" class="waitlist-input" placeholder="Enter your email to enter the tavern..." required id="waitlist-email">
+            </div>
+            <button type="submit" class="btn btn-primary waitlist-btn" id="btn-submit-form">
+              Secure Invite
+            </button>
+          </form>
+          <div id="form-error-msg" style="color: var(--color-danger); font-size: 0.85rem; margin-top: 10px; display: none; text-align: left;">
+            Please enter a valid email address.
+          </div>
+        </div>
+
+        <!-- Success Animation View (Controlled in JS) -->
+        <div class="success-container" id="waitlist-success-container">
+          <!-- Animated checkmark SVG -->
+          <svg class="success-circle-svg" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45"></circle>
+            <path class="success-check-path" d="M30 50 L45 65 L70 35" fill="none" stroke="var(--color-success)" stroke-width="6" stroke-linecap="round"></path>
+          </svg>
+          <h3 class="gradient-text-gold" style="font-size: 1.8rem; margin-bottom: 12px;">Welcome to the Table, Adventurer!</h3>
+          <p class="font-body" style="color: var(--color-text-secondary); max-width: 480px; margin: 0 auto 10px auto;">
+            Your invite has been secured and saved locally. Your spot in line is locked. Keep an eye on your scrolls for your official summons!
+          </p>
+          <span class="mono-ui" style="color: var(--color-gold-glow); font-size: 0.78rem;" id="success-email-display"></span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand-side">
+          <a href="#" class="brand">
+            <svg class="brand-icon" viewBox="0 0 100 100">
+              <polygon points="50,5 95,25 95,75 50,95 5,75 5,25" fill="none" />
+              <polygon points="50,5 50,95" />
+              <polygon points="5,25 95,25" />
+              <polygon points="50,35 5,25 50,5 95,25 50,35 50,95 5,75 50,35 95,75 50,95" fill="none" />
+            </svg>
+            <span class="brand-text">Gamemaster</span>
+          </a>
+          <p class="footer-brand-desc">
+            An elegant campaign prep ecosystem designed to help you prepare less and run better games. Formed by science, crafted for fantasy.
+          </p>
+        </div>
+        
+        <div class="footer-links-grid">
+          <div class="footer-column">
+            <h4>Application</h4>
+            <ul class="footer-links">
+              <li><a href="#simulator">Interactive Demo</a></li>
+              <li><a href="#features">Methodologies</a></li>
+              <li><a href="#player-mode">Player Live Projections</a></li>
+              <li><a href="#pro-features">Vivify AI</a></li>
+            </ul>
+          </div>
+          
+          <div class="footer-column">
+            <h4>References</h4>
+            <ul class="footer-links">
+              <li><a href="https://slyflourish.com/returnofthelazydm/" target="_blank" rel="noopener">Lazy DM Book</a></li>
+              <li><a href="https://www.nobleknight.com/P/2147953258/Proactive-Roleplaying" target="_blank" rel="noopener">Proactive Roleplaying</a></li>
+              <li><a href="#pricing">Pricing Structure</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        <p>&copy; 2026 Gamemaster Assistant. All rights reserved. Built for solo and collaborative gaming.</p>
+        <p class="mono-ui" style="font-size: 0.65rem; color: var(--color-text-muted);">Version 1.0.0 &bull; Secure Encrypted Data Sync</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Local Script -->
+  <script src="script.js"></script>
+</body>
+</html>
