@@ -2094,6 +2094,7 @@ export function MusicPlayer({
         externalUrl = `https://music.youtube.com/watch?v=${videoId}`;
       }
     }
+    const ytNormalUrl = externalUrl.replace('music.youtube.com', 'www.youtube.com');
 
     // --- Unified Audio-Only Premium Player ---
     return (
@@ -2242,16 +2243,26 @@ export function MusicPlayer({
                   </button>
                 )}
 
-                {/* Play on YouTube Music External Link (GM Only) */}
+                {/* Play on YouTube External Links (GM Only) */}
                 {!readOnly && (
-                  <a
-                    href={externalUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 px-2 py-1 rounded border border-rule bg-parchment hover:bg-parchment-deep font-display text-[10px] uppercase tracking-wider text-brass-deep transition-colors"
-                  >
-                    <ExternalLink size={10} /> YouTube Music
-                  </a>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <a
+                      href={externalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 px-2 py-1 rounded border border-rule bg-parchment hover:bg-parchment-deep font-display text-[10px] uppercase tracking-wider text-brass-deep transition-colors"
+                    >
+                      <ExternalLink size={10} /> YouTube Music
+                    </a>
+                    <a
+                      href={ytNormalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 px-2 py-1 rounded border border-rule bg-parchment hover:bg-parchment-deep font-display text-[10px] uppercase tracking-wider text-brass-deep transition-colors"
+                    >
+                      <ExternalLink size={10} /> standard YouTube
+                    </a>
+                  </div>
                 )}
 
                 {/* Disconnect Playlist (GM Only) */}
