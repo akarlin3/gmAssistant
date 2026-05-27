@@ -399,6 +399,53 @@ class SafeStreamWrapper {
   }
 }
 
+class FallbackStreamWrapper {
+  private realClient: any;
+  private options: any;
+  private requestOptions: any;
+  private geminiKey: string;
+  private finalMsgPromise: Promise<any>;
+  private resolveFinalMsg!: (val: any) => void;
+
+  constructor(realClient: any, options: any, requestOptions: any, geminiKey: string) {
+    this.realClient = realClient;
+    this.options = options;
+    this.requestOptions = requestOptions;
+    this.geminiKey = geminiKey;
+    this.finalMsgPromise = new Promise((resolve) => {
+      this.resolveFinalMsg = resolve;
+    });
+  }
+
+  async *[Symbol.asyncIterator]() {
+    let stream: any;
+    try {
+      stream = this.realClient.messages.stream(this.options, this.requestOptions);
+      for await (const chunk of stream) {
+        yield chunk;
+      }
+      this.resolveFinalMsg(await stream.finalMessage());
+      return;
+    } catch (err: any) {
+      const isAuthError = err?.status === 401 || String(err).includes('401') || String(err).includes('x-api-key');
+      if (isAuthError) {
+        console.warn('[AI client] Anthropic API key invalid in stream iterator, trying Gemini fallback...');
+        const fallback = new SafeStreamWrapper(this.options, this.geminiKey);
+        for await (const chunk of fallback) {
+          yield chunk;
+        }
+        this.resolveFinalMsg(await fallback.finalMessage());
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  async finalMessage() {
+    return this.finalMsgPromise;
+  }
+}
+
 export default class Anthropic {
   static APIError = APIError;
   apiKey: string;
@@ -446,15 +493,7 @@ export default class Anthropic {
         if (isMockKey) {
           return new SafeStreamWrapper(opts, getGeminiKey());
         }
-        try {
-          return realClient.messages.stream(opts, reqOpts);
-        } catch (err: any) {
-          if (err?.status === 401 || String(err).includes('401') || String(err).includes('x-api-key')) {
-            console.warn('[AI client] Anthropic API key invalid in stream, trying Gemini fallback...');
-            return new SafeStreamWrapper(opts, getGeminiKey());
-          }
-          throw err;
-        }
+        return new FallbackStreamWrapper(realClient, opts, reqOpts, getGeminiKey());
       }
     };
   }
