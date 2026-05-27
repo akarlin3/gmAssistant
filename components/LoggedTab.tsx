@@ -618,7 +618,7 @@ function renderPayload(entry: LogEntry) {
                 <ul className="list-disc pl-4 space-y-1 text-xs text-ink-soft font-serif">
                   {items.map((it: any, idx: number) => (
                     <li key={idx}>
-                      <span className="font-semibold text-ink">{it.name}</span> <span className="italic">({it.rarity})</span>
+                      <span className="text-ink">{it.name}</span> <span className="italic">({it.rarity})</span>
                       {it.note && <p className="text-[10px] text-ink-soft/90 ml-1">{it.note}</p>}
                     </li>
                   ))}
@@ -1043,7 +1043,7 @@ function formatMarkdownText(entry: LogEntry): string {
       if (items.length > 0) {
         md += `**Items Found:**\n`;
         items.forEach((it: any) => {
-          md += `* 🛡️ **${it.name}** — *${it.rarity}* ${it.note ? `(*${it.note}*)` : ''}\n`;
+          md += `* 🛡️ ${it.name} — *${it.rarity}* ${it.note ? `(*${it.note}*)` : ''}\n`;
         });
       }
       break;

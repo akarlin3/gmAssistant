@@ -744,7 +744,7 @@ export default function RunSessionView({
                         </button>
                         <div className="flex-1 space-y-1">
                           <div className="flex justify-between items-start gap-2">
-                            <div className={`font-semibold text-ink ${isGiven ? 'text-ink-mute' : ''}`}>
+                            <div className={`text-ink ${isGiven ? 'text-ink-mute' : ''}`}>
                               {item.name || 'Unnamed Item'}
                             </div>
                             <div className="flex items-center gap-1">

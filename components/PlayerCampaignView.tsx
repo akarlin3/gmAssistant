@@ -702,7 +702,7 @@ export default function PlayerCampaignView({
                 <div className="grid gap-3 sm:grid-cols-2">
                   {projection.items?.map((it) => (
                     <div key={it.id} className="rounded border border-rule bg-parchment p-3 shadow-card space-y-1.5 font-serif text-sm">
-                      <div className="font-semibold text-ink text-base">{it.name}</div>
+                      <div className="text-ink text-base">{it.name}</div>
                       {it.description && (
                         <p className="text-ink-soft whitespace-pre-wrap leading-relaxed">
                           {it.description}

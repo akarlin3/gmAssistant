@@ -1338,7 +1338,7 @@ function RunSessionInlineActive({
                       </button>
                       <div className="flex-1 space-y-1">
                         <div className="flex justify-between items-start gap-2">
-                          <div className={`font-semibold text-ink ${isGiven ? 'text-ink-mute' : ''}`}>
+                          <div className={`text-ink ${isGiven ? 'text-ink-mute' : ''}`}>
                             {item.name || 'Unnamed Item'}
                           </div>
                         </div>
@@ -1438,7 +1438,7 @@ function RunSessionInlineActive({
                       </button>
                       <div className="flex-1 space-y-1">
                         <div className="flex justify-between items-start gap-2">
-                          <div className={`font-semibold text-ink ${isGiven ? 'text-ink-mute' : ''}`}>
+                          <div className={`text-ink ${isGiven ? 'text-ink-mute' : ''}`}>
                             {treasure}
                           </div>
                           <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep bg-brass/10 border border-brass/25 rounded px-1.5 py-0.5">
@@ -1856,7 +1856,7 @@ function LookupView({
             const player = roster?.find(r => r.slotId === m.assignedPlayerId);
             return (
               <div key={`item-${i}`} className="px-3 py-2 rounded border border-rule bg-parchment text-sm font-serif text-ink-soft space-y-1 shadow-sm">
-                <div className="font-semibold text-ink">{m.name}</div>
+                <div className="text-ink">{m.name}</div>
                 {m.description && <div className="text-xs text-ink-soft/80 italic">{m.description}</div>}
                 {player && <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep mt-0.5">Carried by: {player.displayName}</div>}
               </div>
