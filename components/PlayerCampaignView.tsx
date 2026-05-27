@@ -13,6 +13,7 @@ type AnyRec = Record<string, unknown>;
 
 const TYPE_META: Record<string, { label: string; icon: React.ReactNode }> = {
   characters: { label: 'Party', icon: <UserCircle size={15} /> },
+  pcs: { label: 'Party Sheets', icon: <UserCircle size={15} /> },
   npcs: { label: 'NPCs', icon: <Users size={15} /> },
   locations: { label: 'Places', icon: <Map size={15} /> },
   factions: { label: 'Factions', icon: <Flag size={15} /> },

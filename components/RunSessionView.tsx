@@ -11,6 +11,7 @@ import { TABLES, rollTable } from '@/lib/inspirationTables';
 import InitiativePanel from './InitiativePanel';
 import MonsterStatBlock from './MonsterStatBlock';
 import type { InitiativeState } from '@/lib/initiative';
+import { normalizePcs } from '@/lib/pc/factory';
 import type { HomebrewMonster } from './MonstersTab';
 import type { Character } from '@/lib/character-schema';
 import { makeEvent, type ChangeEvent } from '@/lib/sessionEvents';
@@ -66,6 +67,7 @@ export default function RunSessionView({
     scenes: true, secrets: true, npcs: true, locations: true,
     monsters: true, magicItems: true, goals: true, clocks: true,
   });
+  const party = useMemo(() => normalizePcs(get('pcs', [])), [get]);
   const strongStartDone = !!get('__sessionStrongStartDelivered', false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -333,6 +335,7 @@ export default function RunSessionView({
             onChange={(next) => setVal('__initiative', next)}
             monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
             pcs={characters}
+            party={party}
             onClose={() => setInitiativeOpen(false)}
             onEnded={(summary) => {
               pushEvent(makeEvent('other', summary));

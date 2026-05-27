@@ -99,6 +99,11 @@ import {
   makeCharacterId,
   normalizeCharacter,
 } from '@/lib/character-schema';
+import PartyTab from './PartyTab';
+import { type PlayerCharacter, PC_CAP } from '@/lib/pc/types';
+import { emptyPc, normalizePcs, capPcs } from '@/lib/pc/factory';
+import { syncAttackMacros, dropPcMacros, type PcMacros } from '@/lib/pc/macros';
+import { mapParsedToPc } from '@/lib/pc/from-parser';
 import { pushSnapshot, popSnapshot, type Snapshot } from '@/lib/undoStack';
 import {
   TARGETS,
@@ -923,6 +928,7 @@ function RunSessionInlineActive({
 }) {
   const sessionV2 = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
   const sessionNumber = nextSessionNumber(sessionV2);
+  const party = normalizePcs(get('pcs', []));
   const [initiativeOpen, setInitiativeOpen] = useState(false);
   const musicOpen = !!get('__musicOpen', false);
   const setMusicOpen = (v: boolean) => setVal('__musicOpen', v);
@@ -1433,6 +1439,7 @@ function RunSessionInlineActive({
                 onChange={(next) => setVal('__initiative', next)}
                 monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
                 pcs={characters}
+                party={party}
                 onClose={() => setInitiativeOpen(false)}
               />
             ) : (
@@ -1871,6 +1878,10 @@ export default function CampaignEditor({
     initialMigration.initialOpenId ? { [initialMigration.initialOpenId]: true } : {}
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
+  const [openPcs, setOpenPcs] = useState<Record<string, boolean>>({});
+  const [uploadingPc, setUploadingPc] = useState(false);
+  const [pcUploadError, setPcUploadError] = useState<string>('');
+  const pcFileInputRef = useRef<HTMLInputElement>(null);
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
   const initialModeState = useMemo(() => resolveInitialMode(initialMigration.initialState), [initialMigration.initialState]);
   const [mode, setMode] = useState<Mode>(initialModeState.mode);
@@ -2563,6 +2574,69 @@ export default function CampaignEditor({
     }
   };
 
+  // ---- First-class PCs (data.pcs) -------------------------------------
+  const pcs = useMemo(() => normalizePcs(state.pcs), [state.pcs]);
+  const pcMacros = (state.pcMacros as PcMacros) || {};
+
+  const writePcs = (next: PlayerCharacter[], nextMacros?: PcMacros) => {
+    setState((s) => ({
+      ...s,
+      pcs: capPcs(next),
+      ...(nextMacros ? { pcMacros: nextMacros } : {}),
+    }));
+  };
+
+  const addPc = () => {
+    if (pcs.length >= PC_CAP) return;
+    const fresh = emptyPc();
+    writePcs([...pcs, fresh]);
+    setOpenPcs((o) => ({ ...o, [fresh.id]: true }));
+  };
+
+  const updatePc = (pc: PlayerCharacter) => {
+    const next = pcs.map((p) => (p.id === pc.id ? pc : p));
+    // Keep the PC's attack macros in sync on every save.
+    writePcs(next, syncAttackMacros(pc, pcMacros));
+  };
+
+  const removePc = (id: string) => {
+    const target = pcs.find((p) => p.id === id);
+    writePcs(pcs.filter((p) => p.id !== id), dropPcMacros(id, pcMacros));
+    setOpenPcs((o) => { const n = { ...o }; delete n[id]; return n; });
+    showUndoToast(`Deleted "${target?.name || 'PC'}" — Press ⌘Z to undo`, 5000);
+  };
+
+  const uploadPcSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (pcs.length >= PC_CAP) { setPcUploadError(`Party is full (${PC_CAP} max)`); return; }
+    setPcUploadError('');
+    setUploadingPc(true);
+    try {
+      const user = getFirebaseAuth().currentUser;
+      if (!user) throw new Error('Not signed in');
+      const idToken = await user.getIdToken();
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/parse-character-sheet', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${idToken}` },
+        body: form,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `Parse failed (${res.status})`);
+      const parsed = normalizeCharacter(body.character);
+      const pc = mapParsedToPc(parsed);
+      writePcs([...pcs, pc], syncAttackMacros(pc, pcMacros));
+      setOpenPcs((o) => ({ ...o, [pc.id]: true }));
+    } catch (err: any) {
+      setPcUploadError(err?.message || 'Upload failed');
+    } finally {
+      setUploadingPc(false);
+    }
+  };
+
   const exportJSON = () => {
     const safe = (name || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
     const payload = { _format: 'campaign_prep_v1', _exported: new Date().toISOString(), campaignName: name, state, done };
@@ -2859,6 +2933,7 @@ export default function CampaignEditor({
     { mode: 'plan',    subview: 'pitch',     label: 'Premise',     icon: Compass,         keywords: ['hook', 'givens', 'truths'] },
     { mode: 'plan',    subview: 'worldbuild',     label: 'Worldbuild',       icon: BookOpen,        keywords: ['setting', 'factions', 'reference', 'downtime'] },
     { mode: 'plan',    subview: 'pcs',       label: 'Characters',  icon: User,            keywords: ['pc', 'goals', 'sidekick'] },
+    { mode: 'plan',    subview: 'party',     label: 'Party',       icon: Users,           keywords: ['pc sheet', 'character sheet', 'hp', 'abilities', 'attacks', 'spell slots'] },
     { mode: 'prep',    subview: 'clocks',    label: 'Faction Clocks', icon: Clock,          keywords: ['clocks', 'factions', 'tracking'] },
     { mode: 'prep',    subview: 'arc',       label: 'Arc Planning',   icon: Layers,         keywords: ['audits', 'goals', 'secrets'] },
     { mode: 'prep',    subview: 'ending',    label: 'Ending',         icon: Trophy,         keywords: ['ending', 'wrap', 'threads'] },
@@ -3879,6 +3954,30 @@ export default function CampaignEditor({
             </Phase>
             )}
 
+            {mode === 'plan' && subview === 'party' && (
+              <div className="space-y-3">
+                <PartyTab
+                  pcs={pcs}
+                  openMap={openPcs}
+                  isPro={isPro}
+                  uploading={uploadingPc}
+                  uploadError={pcUploadError}
+                  onToggleOpen={(id) => setOpenPcs(o => ({ ...o, [id]: !o[id] }))}
+                  onAdd={addPc}
+                  onUpdate={updatePc}
+                  onRemove={removePc}
+                  onUploadClick={() => pcFileInputRef.current?.click()}
+                />
+                <input
+                  ref={pcFileInputRef}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.md,.json,application/pdf,image/png,image/jpeg,image/webp,image/gif,text/plain,application/json,text/markdown"
+                  onChange={uploadPcSheet}
+                  className="hidden"
+                />
+              </div>
+            )}
+
             {mode === 'prep' && subview === 'flow' && (
             <Phase n="3" title="Per-Session Prep" sub="Lazy DM 8-Step Checklist" methods={['shea']} audience="solo" icon={Calendar} expanded={phaseOpen.p3} onToggle={() => togglePhase('p3')}>
               <BookQuote source="Lazy DM (Jeremy Crawford)">Prep as little as you can.</BookQuote>
@@ -4769,6 +4868,9 @@ export default function CampaignEditor({
           <DiceRoller
             macros={get('macros', []) as Macro[]}
             onMacrosChange={(v) => setVal('macros', v)}
+            pcMacroGroups={pcs
+              .map((pc) => ({ pcId: pc.id, pcName: pc.name || 'Unnamed PC', macros: pcMacros[pc.id] ?? [] }))
+              .filter((g) => g.macros.length > 0)}
             logEntries={logEntriesFor('dice')}
             onLogEntriesChange={setLogEntriesFor('dice')}
           />
@@ -4971,6 +5073,7 @@ export default function CampaignEditor({
           onChange={(next) => setVal('__initiative', next)}
           monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
           pcs={characters}
+          party={pcs}
           onClose={() => setVal('__initiativeOpen', false)}
         />
       )}

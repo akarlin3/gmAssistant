@@ -7,6 +7,7 @@
 // the audit's "Entity scope" decision.
 export const PLAYER_ENTITY_TYPES = [
   'characters',
+  'pcs',
   'npcs',
   'locations',
   'factions',

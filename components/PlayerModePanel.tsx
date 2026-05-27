@@ -29,7 +29,7 @@ type AnyData = Record<string, any>;
 type Confirm = (o: { title: string; message: string; confirmText?: string; cancelText?: string; isDestructive?: boolean }) => Promise<boolean>;
 
 const TYPE_LABELS: Record<PlayerEntityType, string> = {
-  characters: 'Characters', npcs: 'NPCs', locations: 'Locations', factions: 'Factions', clocks: 'Clocks',
+  characters: 'Characters', pcs: 'Party (PC Sheets)', npcs: 'NPCs', locations: 'Locations', factions: 'Factions', clocks: 'Clocks',
 };
 
 function entityLabel(type: PlayerEntityType, e: AnyData, i: number): string {
