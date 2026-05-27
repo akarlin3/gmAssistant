@@ -1,39 +1,49 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background -->
-  <rect width="512" height="512" fill="#b1201e"/>
-  
-  <g stroke="#f5ecd7" stroke-width="14" stroke-linejoin="round" stroke-linecap="round">
-    <!-- Top-Left Face -->
-    <polygon points="100,166 256,76 195,221" fill="#ebdbb8" />
+  <defs>
+    <!-- Metallic Silver Gradient -->
+    <linearGradient id="silverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="20%" stop-color="#dddddd" />
+      <stop offset="40%" stop-color="#b8b8b8" />
+      <stop offset="60%" stop-color="#f2f2f2" />
+      <stop offset="80%" stop-color="#9e9e9e" />
+      <stop offset="100%" stop-color="#ffffff" />
+    </linearGradient>
     
-    <!-- Top Face -->
-    <polygon points="256,76 317,221 195,221" fill="#e7d5b2" />
+    <!-- Rich Charcoal/Black Gradient -->
+    <linearGradient id="blackRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#333333" />
+      <stop offset="30%" stop-color="#1a1a1a" />
+      <stop offset="70%" stop-color="#0a0a0a" />
+      <stop offset="100%" stop-color="#151515" />
+    </linearGradient>
     
-    <!-- Top-Right Face -->
-    <polygon points="256,76 412,166 317,221" fill="#ebdaba" />
+    <!-- Light Gleam Overlay -->
+    <linearGradient id="gleamGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4" />
+      <stop offset="30%" stop-color="#ffffff" stop-opacity="0" />
+      <stop offset="70%" stop-color="#ffffff" stop-opacity="0" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.3" />
+    </linearGradient>
     
-    <!-- Left Face -->
-    <polygon points="100,346 100,166 195,221" fill="#e3d1ac" />
+    <!-- Drop Shadow for depth -->
+    <filter id="dropShadow" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Hollow Ring Group with drop shadow -->
+  <g filter="url(#dropShadow)">
+    <!-- Outer/Inner Silver base ring -->
+    <path fill="url(#silverGrad)" fill-rule="evenodd" clip-rule="evenodd" 
+          d="M 256,72 A 184,184 0 1,0 256,440 A 184,184 0 1,0 256,72 Z M 256,160 A 96,96 0 1,1 256,352 A 96,96 0 1,1 256,160 Z" />
     
-    <!-- Right Face -->
-    <polygon points="412,166 412,346 317,221" fill="#dfccaa" />
-    
-    <!-- Bottom-Left Face -->
-    <polygon points="195,221 100,346 256,326" fill="#dbc7a2" />
-    
-    <!-- Bottom-Right Face -->
-    <polygon points="317,221 256,326 412,346" fill="#d3bd95" />
-    
-    <!-- Bottom-Left-Outer Face -->
-    <polygon points="100,346 256,436 256,326" fill="#ceb68e" />
-    
-    <!-- Bottom-Right-Outer Face -->
-    <polygon points="412,346 256,326 256,436" fill="#c8b087" />
-    
-    <!-- Center Face (d20 text face) -->
-    <polygon points="195,221 317,221 256,326" fill="#ebdcb9" />
+    <!-- Inner Black ring body -->
+    <path fill="url(#blackRingGrad)" fill-rule="evenodd" clip-rule="evenodd" 
+          d="M 256,80 A 176,176 0 1,0 256,432 A 176,176 0 1,0 256,80 Z M 256,152 A 104,104 0 1,1 256,360 A 104,104 0 1,1 256,152 Z" />
+          
+    <!-- Gleam overlay for premium metallic reflection -->
+    <path fill="url(#gleamGrad)" fill-rule="evenodd" clip-rule="evenodd" 
+          d="M 256,72 A 184,184 0 1,0 256,440 A 184,184 0 1,0 256,72 Z M 256,160 A 96,96 0 1,1 256,352 A 96,96 0 1,1 256,160 Z" />
   </g>
-  
-  <!-- "20" Text -->
-  <text x="256" y="260" font-family="Cinzel, Georgia, serif" font-size="54" font-weight="700" fill="#1a1410" text-anchor="middle" dominant-baseline="central">20</text>
 </svg>
