@@ -2929,7 +2929,16 @@ export default function CampaignEditor({
             writePcs(nextPcs);
           },
           (err) => {
-            console.warn(`Failed to reconcile player writebacks (attempt ${retryCount + 1}):`, err.message);
+            if (err.message.includes('permission') || err.message.includes('Permission')) {
+              console.warn(
+                `[Writeback Reconciler] Warning: Firestore returned 'Missing or insufficient permissions' (attempt ${retryCount + 1}).\n` +
+                `If you are running in local development, please make sure:\n` +
+                ` 1. Your local 'firestore.rules' have been deployed to your Firebase console (run 'npx firebase deploy --only firestore').\n` +
+                ` 2. The logged-in user in your browser (${getFirebaseAuth().currentUser?.email}) matches the campaign owner's ID (${campaign.userId}).`
+              );
+            } else {
+              console.warn(`Failed to reconcile player writebacks (attempt ${retryCount + 1}):`, err.message);
+            }
             if (retryCount < 3) {
               retryCount++;
               timeoutId = setTimeout(() => {
@@ -2937,7 +2946,11 @@ export default function CampaignEditor({
                 start();
               }, 1000 * retryCount); // Exponential backoff (1s, 2s, 3s)
             } else {
-              console.error('Failed to reconcile player writebacks after maximum retries:', err);
+              if (err.message.includes('permission') || err.message.includes('Permission')) {
+                console.warn('[Writeback Reconciler] Reconciler paused due to persistent permission errors. Player writebacks will not sync in this session.');
+              } else {
+                console.error('Failed to reconcile player writebacks after maximum retries:', err);
+              }
             }
           }
         );
