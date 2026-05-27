@@ -13,12 +13,7 @@ import {
   AlertTriangle,
   MapPin,
   Users,
-  Volume2,
-  VolumeX,
-  SkipForward,
 } from 'lucide-react';
-import { useVoiceOptional } from '@/components/voice/VoiceProvider';
-import { SpeakButton } from '@/components/voice/SpeakButton';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
   capScenes,
@@ -630,31 +625,6 @@ function SceneRunner({
   onExport: () => void;
   onBack: () => void;
 }) {
-  const voice = useVoiceOptional();
-  const [autoFired, setAutoFired] = useState(false);
-  // Track the newest turn we've already auto-played so reopening a scene never
-  // re-speaks its history — only turns that arrive after mount auto-fire.
-  const lastSpokenTurnId = useRef<string | null | undefined>(undefined);
-  const turnCount = scene.turns.length;
-
-  useEffect(() => {
-    const newest = scene.turns[scene.turns.length - 1];
-    if (lastSpokenTurnId.current === undefined) {
-      lastSpokenTurnId.current = newest?.id ?? null;
-      return;
-    }
-    if (!newest || lastSpokenTurnId.current === newest.id) return;
-    lastSpokenTurnId.current = newest.id;
-    if (!voice?.enabled || voice.muted) return;
-    const lines = newest.response.dialogue
-      .filter((d) => d.line.trim())
-      .map((d) => ({ npcId: d.npcId, line: d.line }));
-    if (lines.length === 0) return;
-    setAutoFired(true);
-    void voice.speakSequence(lines);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turnCount]);
-
   return (
     <div className="space-y-3 text-sm" data-scene-status={scene.status}>
       <div className="flex items-center gap-2">
@@ -668,35 +638,6 @@ function SceneRunner({
         <span className="min-w-0 flex-1 truncate font-display text-sm text-ink">
           {locationName(scene.locationId)}
         </span>
-        {voice?.enabled && (
-          <>
-            {voice.playing && (
-              <button
-                type="button"
-                onClick={voice.skip}
-                className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-ink-mute hover:text-crimson"
-                title="Skip This Line"
-              >
-                <SkipForward size={10} /> Skip
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => voice.setMuted(!voice.muted)}
-              aria-pressed={voice.muted}
-              className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
-                voice.muted
-                  ? 'border-crimson/50 text-crimson'
-                  : 'border-rule text-ink-mute hover:text-brass-deep'
-              }`}
-              title={voice.muted ? 'Voices Muted' : 'Mute Voices'}
-            >
-              {voice.muted ? <VolumeX size={10} /> : <Volume2 size={10} />}
-              {voice.muted ? 'Muted' : 'Voices'}
-            </button>
-          </>
-        )}
-        {autoFired && <span data-voice-autoplay-fired hidden />}
         <button
           type="button"
           onClick={onExport}
@@ -835,8 +776,7 @@ function TurnCard({
             <span className="font-display text-xs uppercase tracking-wider text-crimson">
               {npcName(d.npcId)}:
             </span>{' '}
-            <span className="italic">&ldquo;{d.line}&rdquo;</span>{' '}
-            <SpeakButton npcId={d.npcId} line={d.line} size={12} />
+            <span className="italic">&ldquo;{d.line}&rdquo;</span>
           </div>
         ))}
         <p className="font-serif text-sm leading-relaxed text-ink-soft">{turn.response.sensory}</p>
