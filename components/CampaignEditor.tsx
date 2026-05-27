@@ -18,6 +18,8 @@ import dynamic from 'next/dynamic';
 import DiceRoller, { type Macro } from './DiceRoller';
 import type { Spell } from './SpellsTab';
 import StrongStartPicker from './StrongStartPicker';
+import { VoiceProvider } from '@/components/voice/VoiceProvider';
+import { invalidateNpcVoiceCache } from '@/lib/voice/invalidate';
 import CharacterCard from './CharacterCard';
 import SidekickAddPanel from './SidekickAddPanel';
 import type { HomebrewMonster } from './MonstersTab';
@@ -2116,6 +2118,13 @@ export default function CampaignEditor({
   const get = (k: string, fb: any) => state[k] !== undefined ? state[k] : fb;
   const setVal = (k: string, v: any) => setState(s => ({ ...s, [k]: v }));
 
+  // uid for the per-user voice Storage path (voice/{uid}/…). For the campaign
+  // owner this is their own auth uid; falls back to the owner id on it.
+  const voiceUid = useMemo(
+    () => getFirebaseAuth().currentUser?.uid ?? campaign.userId ?? null,
+    [campaign.userId],
+  );
+
   // --- AUTO-PUBLISH SYSTEM FOR PLAYER SHARING ---
   const playerConfig = (get('player', {}) as PlayerConfig) || {};
   const playerLog = (get('playerLog', []) as PlayerLogEntry[]) || [];
@@ -3306,6 +3315,14 @@ export default function CampaignEditor({
   }
 
   return (
+    <VoiceProvider
+      campaignId={campaign.id}
+      uid={voiceUid}
+      isPro={isPro}
+      npcs={get('npcs', [])}
+      voiceCache={get('voiceCache', [])}
+      onVoiceCacheChange={(next) => setVal('voiceCache', next)}
+    >
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
       <div className="max-w-5xl mx-auto">
         <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
@@ -4041,11 +4058,20 @@ export default function CampaignEditor({
                       >
                         <NPCCard
                           data={n}
+                          isPro={isPro}
                           onChange={(v: any) => {
                             const next = [...(get('npcs', []) as any[])];
                             next[originalIndex] = v;
                             setVal('npcs', next);
-                            
+
+                            // When the voice profile changes, invalidate this
+                            // NPC's cached clips so the next speak regenerates.
+                            const prevSig = JSON.stringify(n.voiceProfile ?? null);
+                            const nextSig = JSON.stringify(v.voiceProfile ?? null);
+                            if (prevSig !== nextSig && n.id) {
+                              setVal('voiceCache', invalidateNpcVoiceCache(get('voiceCache', []), n.id));
+                            }
+
                             // Synchronize playerConfig.entityVisibility
                             const curConfig = get('player', {});
                             const ev = { ...(curConfig.entityVisibility ?? {}) };
@@ -4058,7 +4084,10 @@ export default function CampaignEditor({
                             ev.npcs = bucket;
                             setVal('player', { ...curConfig, entityVisibility: ev });
                           }}
-                          onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== originalIndex))}
+                          onRemove={() => {
+                            if (n.id) setVal('voiceCache', invalidateNpcVoiceCache(get('voiceCache', []), n.id));
+                            setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== originalIndex));
+                          }}
                         />
                       </div>
                     );
@@ -5027,5 +5056,6 @@ export default function CampaignEditor({
         />
       )}
     </main>
+    </VoiceProvider>
   );
 }
