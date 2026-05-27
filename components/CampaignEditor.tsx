@@ -136,6 +136,19 @@ import {
   NPCCard,
   LocationCard,
 } from './campaignEditor/prepPrimitives';
+import { WikiProvider, type WikiContextValue } from './wiki/WikiContext';
+import WikiTab from './wiki/WikiTab';
+import RelationshipsSection from './wiki/RelationshipsSection';
+import { buildEntityIndex, findEntity } from '@/lib/wiki/entities';
+import {
+  createRelationship,
+  addRelationship as addRelToList,
+  removeRelationship as removeRelFromList,
+  acceptSuggestion as acceptSugInList,
+  rejectSuggestion as rejectSugFromList,
+} from '@/lib/wiki/relationships';
+import { scanTextForSuggestions, pruneExpiredSuggestions } from '@/lib/wiki/suggest';
+import type { EntityType as WikiEntityType, Relationship as WikiRelationship } from '@/lib/wiki/types';
 
 const FactionCard = ({ data, onChange, onRemove }: any) => {
   const renown = typeof data.renown === 'number' ? data.renown : 0;
@@ -199,6 +212,7 @@ const FactionCard = ({ data, onChange, onRemove }: any) => {
           </span>
         </div>
       </div>
+      <RelationshipsSection entityType="faction" entityId={data.id} entityName={data.name} />
     </div>
   );
 };
@@ -2349,6 +2363,20 @@ export default function CampaignEditor({
     nextState.__runSessionOpen = false;
     nextState = markSessionPlayed(nextState);
 
+    // Phase 4 — auto-suggest relationships from this session's notes. Scans the
+    // recap for co-mentioned entities and appends `suggested: true` links for
+    // the GM to confirm on the Wiki tab.
+    try {
+      const idx = buildEntityIndex(nextState);
+      const existingRels: WikiRelationship[] = Array.isArray(nextState.relationships) ? nextState.relationships : [];
+      const newSuggestions = scanTextForSuggestions(entry.recap || '', idx, existingRels);
+      if (newSuggestions.length > 0) {
+        nextState.relationships = [...existingRels, ...newSuggestions];
+      }
+    } catch {
+      // Suggestion scanning is best-effort; never block ending a session.
+    }
+
     // Cancel the pending auto-save timeout so it doesn't fire after our manual save
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -2771,6 +2799,101 @@ export default function CampaignEditor({
     }
     if (target.anchor) scrollToAnchor(target.anchor);
   };
+
+  // ── Campaign Wiki (cross-entity relationships) ──────────────────────────
+  // The entity index + relationships array, plus mutators, are exposed via
+  // WikiContext so the inline RelationshipsSection on each card and the Wiki
+  // tab share one source of truth without prop-threading.
+  const wikiIndex = useMemo(() => buildEntityIndex(state), [state]);
+  const wikiRelationships = useMemo<WikiRelationship[]>(
+    () => (Array.isArray(state.relationships) ? state.relationships : []),
+    [state.relationships],
+  );
+
+  // One-time prune of suggestions older than 30 days (auto-reject).
+  useEffect(() => {
+    setState((s) => {
+      if (!Array.isArray(s.relationships) || s.relationships.length === 0) return s;
+      const { relationships, changed } = pruneExpiredSuggestions(s.relationships);
+      return changed ? { ...s, relationships } : s;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const navigateToEntity = useCallback((type: WikiEntityType, id: string) => {
+    // Land on the surface that hosts this entity's card and scroll to it.
+    if (type === 'pc') {
+      navigateTo({ mode: 'plan', subview: 'pcs', characterId: id });
+      setTimeout(() => scrollToAnchor(`character:${id}`), 80);
+      return;
+    }
+    navigateTo({ mode: 'plan', subview: 'worldbuild' });
+    setTimeout(() => {
+      const el = document.getElementById(`entity-${id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 80);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const rescanForSuggestions = useCallback((): number => {
+    let added = 0;
+    setState((s) => {
+      const sources: string[] = [];
+      for (const e of (Array.isArray(s.sessionLogV2) ? s.sessionLogV2 : [])) {
+        if (e && typeof e.recap === 'string') sources.push(e.recap);
+      }
+      if (typeof s.__sessionScratchpad === 'string') sources.push(s.__sessionScratchpad);
+      for (const sc of (Array.isArray(s.sceneSessions) ? s.sceneSessions : [])) {
+        if (!sc) continue;
+        if (typeof sc.partyState === 'string') sources.push(sc.partyState);
+        if (typeof sc.summary === 'string') sources.push(sc.summary);
+        for (const t of (Array.isArray(sc.turns) ? sc.turns : [])) {
+          if (t && typeof t.pcAction === 'string') sources.push(t.pcAction);
+          if (t && typeof t.outcome === 'string') sources.push(t.outcome);
+          if (t?.response && typeof t.response.sensory === 'string') sources.push(t.response.sensory);
+        }
+      }
+      const idx = buildEntityIndex(s);
+      const existing: WikiRelationship[] = Array.isArray(s.relationships) ? s.relationships : [];
+      const found = scanTextForSuggestions(sources.join('\n\n'), idx, existing);
+      if (found.length === 0) return s;
+      added = found.length;
+      return { ...s, relationships: [...existing, ...found] };
+    });
+    return added;
+  }, []);
+
+  const wikiValue = useMemo<WikiContextValue>(() => ({
+    index: wikiIndex,
+    relationships: wikiRelationships,
+    addRelationship: (from, to, kind, notes) =>
+      setState((s) => ({
+        ...s,
+        relationships: addRelToList(
+          Array.isArray(s.relationships) ? s.relationships : [],
+          createRelationship(from, to, kind, notes),
+        ),
+      })),
+    removeRelationship: (id) =>
+      setState((s) => ({
+        ...s,
+        relationships: removeRelFromList(Array.isArray(s.relationships) ? s.relationships : [], id),
+      })),
+    acceptSuggestion: (id) =>
+      setState((s) => ({
+        ...s,
+        relationships: acceptSugInList(Array.isArray(s.relationships) ? s.relationships : [], id),
+      })),
+    rejectSuggestion: (id) =>
+      setState((s) => ({
+        ...s,
+        relationships: rejectSugFromList(Array.isArray(s.relationships) ? s.relationships : [], id),
+      })),
+    navigateToEntity,
+    resolve: (type, id) => findEntity(wikiIndex, type, id),
+    rescan: rescanForSuggestions,
+  }), [wikiIndex, wikiRelationships, navigateToEntity, rescanForSuggestions]);
 
   // Resolve a prep section ID to its (mode, subview) — used by command-palette
   // entries that target a specific section.
@@ -3306,6 +3429,7 @@ export default function CampaignEditor({
   }
 
   return (
+    <WikiProvider value={wikiValue}>
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
       <div className="max-w-5xl mx-auto">
         <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
@@ -3713,7 +3837,7 @@ export default function CampaignEditor({
                 <Pitfall>Factions whose goals don't overlap with PC goals are just colour.</Pitfall>
                 <TargetBar current={countFilled('factions', get('factions', []))} target={tgt('factions')} source={TARGETS.factions.source} />
                 {(get('factions', []) as any[]).map((f: any, i: number) => (
-                  <div key={i} data-cp-anchor={`faction:${i}`}>
+                  <div key={i} id={f.id ? `entity-${f.id}` : undefined} data-cp-anchor={`faction:${i}`}>
                     <FactionCard data={f} onChange={(v: any) => {
                       const next = [...(get('factions', []) as any[])]; next[i] = v; setVal('factions', next);
                       const fromR = typeof f.renown === 'number' ? f.renown : 0;
@@ -4896,6 +5020,8 @@ export default function CampaignEditor({
           />
         )}
 
+        {mode === 'library' && subview === 'wiki' && <WikiTab />}
+
         {mode === 'library' && subview === 'livingworld' && (
           <LivingWorldTab
             get={get}
@@ -5027,5 +5153,6 @@ export default function CampaignEditor({
         />
       )}
     </main>
+    </WikiProvider>
   );
 }

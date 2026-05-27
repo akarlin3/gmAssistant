@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { User, X, Sparkles, Plus, Check, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
+import RelationshipsSection from '@/components/wiki/RelationshipsSection';
 
 export const M = {
   shea: { label: 'Lazy DM', color: 'border-moss/40 bg-moss/5 text-moss' },
@@ -483,6 +484,7 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
           <NPCFieldRow label="Flaw / Secret" value={data.flaw || ''} onChange={(v) => onChange({ ...data, flaw: v })} placeholder="Flaw or secret that could undermine them" tableId="npcFlawsSecrets" />
         </div>
       )}
+      <RelationshipsSection entityType="npc" entityId={data.id} entityName={data.name} />
     </div>
   );
 };
@@ -524,5 +526,6 @@ export const LocationCard = ({ data, onChange, onRemove }: any) => (
       </div></div>
     <div><CardLabel>Factions Present</CardLabel>
       <Field value={data.factions} onChange={(v) => onChange({ ...data, factions: v })} placeholder="..." /></div>
+    <RelationshipsSection entityType="location" entityId={data.id} entityName={data.name} />
   </div>
 );
