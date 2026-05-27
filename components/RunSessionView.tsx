@@ -2065,15 +2065,17 @@ export function MusicPlayer({
                   </button>
                 )}
 
-                {/* Play on YouTube Music External Link */}
-                <a
-                  href={externalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 px-2 py-1 rounded border border-rule bg-parchment hover:bg-parchment-deep font-display text-[10px] uppercase tracking-wider text-brass-deep transition-colors"
-                >
-                  <ExternalLink size={10} /> YouTube Music
-                </a>
+                {/* Play on YouTube Music External Link (GM Only) */}
+                {!readOnly && (
+                  <a
+                    href={externalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-2 py-1 rounded border border-rule bg-parchment hover:bg-parchment-deep font-display text-[10px] uppercase tracking-wider text-brass-deep transition-colors"
+                  >
+                    <ExternalLink size={10} /> YouTube Music
+                  </a>
+                )}
 
                 {/* Disconnect Playlist (GM Only) */}
                 {!readOnly && (
