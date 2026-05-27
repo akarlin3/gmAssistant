@@ -64,6 +64,8 @@ const HazardCalculator = dynamic(() => import('./HazardCalculator'));
 const LogisticsTab = dynamic(() => import('./LogisticsTab'));
 const NPCRelationshipWeb = dynamic(() => import('./NPCRelationshipWeb'));
 const FactionEngineTab = dynamic(() => import('./FactionEngineTab'));
+const LivingWorldTab = dynamic(() => import('./world/LivingWorldTab'));
+import { WhileYouWereAway } from './world/WhileYouWereAway';
 import { emptyLogistics, type LogisticsState } from './LogisticsTab';
 import { emptyGraph, type RelationshipGraphState } from './NPCRelationshipWeb';
 import { emptyWorld, type FactionWorld } from '@/lib/factionEngine';
@@ -783,6 +785,7 @@ function RunSessionInlineIdle({
       __sessionChangeEvents: [],
       __sessionUsedScenes: [],
       __runSessionOpen: openOverlay,
+      __livingWorldPromptDismissed: false,
     }));
   };
 
@@ -3201,6 +3204,9 @@ export default function CampaignEditor({
   if (get('__runSessionOpen', false)) {
     return (
       <>
+        <div className="mx-auto max-w-3xl px-4 pt-4">
+          <WhileYouWereAway get={get} setVal={setVal} isPro={isPro} campaignName={name} />
+        </div>
         <RunSessionView
           get={get}
           setVal={setVal}
@@ -3248,6 +3254,7 @@ export default function CampaignEditor({
       next.__sessionChangeEvents = [];
       next.__sessionUsedScenes = [];
       next.__runSessionOpen = true;
+      next.__livingWorldPromptDismissed = false;
       return markSessionPlayed(next);
     });
   };
@@ -4830,6 +4837,16 @@ export default function CampaignEditor({
             characters={characters}
             graph={(get('relationshipGraph', emptyGraph()) as RelationshipGraphState)}
             onChange={(g) => setVal('relationshipGraph', g)}
+          />
+        )}
+
+        {mode === 'library' && subview === 'livingworld' && (
+          <LivingWorldTab
+            get={get}
+            setVal={setVal}
+            isPro={isPro}
+            soloMode={soloMode}
+            campaignName={name}
           />
         )}
 

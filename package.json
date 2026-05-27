@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "npm run test:node && npm run test:vitest",
-    "test:node": "node --import tsx --test lib/generators/__tests__/*.test.ts lib/__tests__/*.test.ts",
+    "test:node": "node --import tsx --test lib/generators/__tests__/*.test.ts lib/__tests__/*.test.ts lib/world/__tests__/*.test.ts",
     "test:vitest": "vitest run",
     "test:e2e": "playwright test",
     "test:rules": "firebase emulators:exec --only firestore --project player-mode-rules-test \"vitest run lib/playerMode/__tests__/rules.test.ts\""

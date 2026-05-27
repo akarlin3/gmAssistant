@@ -15,5 +15,6 @@ export const CAMPAIGN_KEYS = [
   '__sessionScratchpad', '__sessionUsedScenes', '__sessionItemsGiven',
   '__sessionChangeEvents', '__runSessionOpen', '__initiative', '__initiativeOpen',
   '__encounterCalc', '__prepWizardOpen', '__prepWizardStep', 'prepWizardRuns',
-  '__archivedDowntimeOpen', 'revSec'
+  '__archivedDowntimeOpen', 'revSec',
+  'worldClock', '__livingWorldBriefingPendingId', '__livingWorldPromptDismissed'
 ] as const;

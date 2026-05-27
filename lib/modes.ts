@@ -91,7 +91,8 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'hazards',    label: 'Hazards',    description: 'Physics-grounded environmental damage & structural calculator' },
       { id: 'logistics',  label: 'Logistics',  description: 'Strict encumbrance, containers, and currency tracking' },
       { id: 'web',        label: 'NPC Web',    description: 'Visual relationship graph of NPCs and the party' },
-      { id: 'factions',   label: 'Living World', description: 'Tick-based faction simulation between sessions' },
+      { id: 'livingworld', label: 'Living World', description: 'Tick the world forward between sessions — faction clocks, downtime, NPC agendas, and a "While You Were Away" briefing' },
+      { id: 'factions',   label: 'Faction Sim', description: 'Grand-strategy faction simulation — territories, influence, and tick-based moves' },
     ],
   },
 };
