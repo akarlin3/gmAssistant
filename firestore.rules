@@ -87,18 +87,6 @@ service cloud.firestore {
       }
     }
 
-    // Per-user TTS usage counters (usage/{uid}/voice/{YYYY-MM}). The
-    // /api/voice/speak route reads and increments these via the Firestore REST
-    // API using the caller's own ID token (the deployment has no Admin SDK —
-    // service-account key creation is blocked by org policy), so the owner must
-    // be able to read and write their own usage docs. This is a soft cost
-    // guardrail, not a tamper-proof boundary: a determined user could reset
-    // their own counter, but the feature is still Pro-gated server-side and the
-    // in-memory rate limiter remains the hard backstop.
-    match /usage/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-    }
-
     // Pro waitlist signups — clients write their own doc directly from the
     // Firebase Web SDK (the deployment can't use the Admin SDK because
     // service-account key creation is blocked by org policy). The schema is

@@ -9,14 +9,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { getFirebaseAuth, getStorageClient } from '@/lib/firebase/client';
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { voiceHash } from '@/lib/voice/hash';
-import {
-  VOICE_CACHE_CAP,
-  type VoiceCacheEntry,
-  type VoiceProfile,
-} from '@/lib/voice/types';
+import type { VoiceProfile } from '@/lib/voice/types';
 
 const MUTE_KEY = 'voiceMuted';
 const SEQUENCE_GAP_MS = 200;
@@ -29,26 +22,20 @@ type LooseNpc = Record<string, unknown> & {
 
 export type VoiceContextValue = {
   isPro: boolean;
-  /** Voice generation is available (Pro + a signed-in user). */
+  /** Voice playback is available (Pro + the browser supports speechSynthesis). */
   enabled: boolean;
   muted: boolean;
   setMuted: (m: boolean) => void;
-  /** True while any clip is playing. */
+  /** True while a line is being spoken. */
   playing: boolean;
-  /** Most recent quota snapshot from the speak endpoint, if any. */
-  usage: { used: number; limit: number } | null;
   /** Resolve an NPC's voice profile, or null when it has none. */
   npcVoiceProfile: (npcId: string) => VoiceProfile | null;
   npcName: (npcId: string) => string;
-  /** How many of this NPC's lines are currently cached. */
-  cachedCount: (npcId: string) => number;
-  /** Whether a line is already cached (no network call needed to speak it). */
-  isCached: (npcId: string, line: string) => Promise<boolean>;
-  /** Generate-or-fetch then play a single line. Resolves when playback ends. */
+  /** Speak a single line in the NPC's voice. Resolves when speech ends. */
   speak: (npcId: string, line: string) => Promise<void>;
-  /** Play several lines in order with a short gap; respects skip/stop. */
+  /** Speak several lines in order with a short gap; respects skip/stop. */
   speakSequence: (lines: { npcId: string; line: string }[]) => Promise<void>;
-  /** Skip the currently-playing clip (sequence advances to the next line). */
+  /** Skip the line currently being spoken (a sequence advances to the next). */
   skip: () => void;
   /** Stop everything, including any running sequence. */
   stopAll: () => void;
@@ -67,39 +54,44 @@ export function useVoiceOptional(): VoiceContextValue | null {
   return useContext(VoiceContext);
 }
 
+function clamp(n: number, min: number, max: number): number {
+  if (!Number.isFinite(n)) return (min + max) / 2;
+  return Math.min(max, Math.max(min, n));
+}
+
 type Props = {
-  campaignId: string;
-  uid: string | null;
   isPro: boolean;
   npcs: LooseNpc[];
-  voiceCache: VoiceCacheEntry[];
-  onVoiceCacheChange: (next: VoiceCacheEntry[]) => void;
   children: React.ReactNode;
 };
 
-export function VoiceProvider({
-  uid,
-  isPro,
-  npcs,
-  voiceCache,
-  onVoiceCacheChange,
-  children,
-}: Props) {
+export function VoiceProvider({ isPro, npcs, children }: Props) {
+  const [supported] = useState(
+    () => typeof window !== 'undefined' && 'speechSynthesis' in window,
+  );
   const [muted, setMutedState] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const [usage, setUsage] = useState<{ used: number; limit: number } | null>(null);
 
   // Refs to dodge stale closures during async/sequential playback.
-  const cacheRef = useRef(voiceCache);
-  cacheRef.current = voiceCache;
   const npcsRef = useRef(npcs);
   npcsRef.current = npcs;
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const resolveCurrentRef = useRef<(() => void) | null>(null);
   const sequenceTokenRef = useRef(0);
+
+  // The available system voices populate asynchronously in some browsers.
+  useEffect(() => {
+    if (!supported) return;
+    const synth = window.speechSynthesis;
+    const load = () => {
+      voicesRef.current = synth.getVoices();
+    };
+    load();
+    synth.addEventListener?.('voiceschanged', load);
+    return () => synth.removeEventListener?.('voiceschanged', load);
+  }, [supported]);
 
   useEffect(() => {
     try {
@@ -109,21 +101,27 @@ export function VoiceProvider({
     }
   }, []);
 
-  const setMuted = useCallback((m: boolean) => {
-    setMutedState(m);
-    try {
-      localStorage.setItem(MUTE_KEY, m ? '1' : '0');
-    } catch {
-      /* ignore */
-    }
-    if (m) {
-      // Silence session-wide immediately.
-      sequenceTokenRef.current += 1;
-      const a = audioRef.current;
-      if (a) a.pause();
-      resolveCurrentRef.current?.();
-    }
-  }, []);
+  const cancelSpeech = useCallback(() => {
+    if (supported) window.speechSynthesis.cancel();
+    resolveCurrentRef.current?.();
+  }, [supported]);
+
+  const setMuted = useCallback(
+    (m: boolean) => {
+      setMutedState(m);
+      try {
+        localStorage.setItem(MUTE_KEY, m ? '1' : '0');
+      } catch {
+        /* ignore */
+      }
+      if (m) {
+        // Silence session-wide immediately.
+        sequenceTokenRef.current += 1;
+        cancelSpeech();
+      }
+    },
+    [cancelSpeech],
+  );
 
   const npcName = useCallback(
     (npcId: string) =>
@@ -133,142 +131,82 @@ export function VoiceProvider({
 
   const npcVoiceProfile = useCallback((npcId: string): VoiceProfile | null => {
     const p = npcsRef.current.find((n) => n.id === npcId)?.voiceProfile;
-    return p && p.provider && p.voiceId ? p : null;
+    return p && p.voiceURI ? p : null;
   }, []);
 
-  const cachedCount = useCallback(
-    (npcId: string) => voiceCache.filter((e) => e.npcId === npcId).length,
-    [voiceCache],
-  );
-
-  const isCached = useCallback(async (npcId: string, line: string) => {
-    const profile = npcsRef.current.find((n) => n.id === npcId)?.voiceProfile;
-    if (!profile) return false;
-    const hash = await voiceHash(npcId, profile, line);
-    return cacheRef.current.some((e) => e.hash === hash);
-  }, []);
-
-  // Play a URL; resolves when the clip ends, errors, or is skipped/stopped.
-  const playClip = useCallback((url: string): Promise<void> => {
-    return new Promise<void>((resolve) => {
-      const prev = audioRef.current;
-      if (prev) prev.pause();
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      let settled = false;
-      const done = () => {
-        if (settled) return;
-        settled = true;
-        audio.removeEventListener('ended', done);
-        audio.removeEventListener('error', done);
-        if (resolveCurrentRef.current === done) resolveCurrentRef.current = null;
-        resolve();
-      };
-      resolveCurrentRef.current = done;
-      audio.addEventListener('ended', done);
-      audio.addEventListener('error', done);
-      audio.play().catch(() => done());
-    });
-  }, []);
-
-  // Core generate-or-fetch for one line. Returns the playable URL or throws.
-  const resolveUrl = useCallback(
-    async (npcId: string, line: string): Promise<string> => {
-      const profile = npcsRef.current.find((n) => n.id === npcId)?.voiceProfile;
-      if (!profile || !profile.provider || !profile.voiceId) {
-        throw new Error('No voice profile set for this NPC.');
-      }
-      const hash = await voiceHash(npcId, profile, line);
-      const hit = cacheRef.current.find((e) => e.hash === hash);
-      if (hit) return hit.url;
-
-      if (!uid) throw new Error('Not signed in.');
-      const idToken = await getFirebaseAuth().currentUser?.getIdToken();
-      if (!idToken) throw new Error('Not signed in.');
-
-      const res = await fetch('/api/voice/speak', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ voiceProfile: profile, line }),
-      });
-      if (!res.ok) {
-        const { error } = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        throw new Error(error || `HTTP ${res.status}`);
-      }
-      const used = Number(res.headers.get('X-Voice-Chars-Used'));
-      const limit = Number(res.headers.get('X-Voice-Chars-Limit'));
-      if (Number.isFinite(used) && Number.isFinite(limit) && limit > 0) {
-        setUsage({ used, limit });
-      }
-      const blob = await res.blob();
-
-      // Persist: upload to Storage, then record the metadata on the campaign.
-      const path = `voice/${uid}/${hash}.mp3`;
-      const fileRef = storageRef(getStorageClient(), path);
-      await uploadBytes(fileRef, blob, { contentType: 'audio/mpeg' });
-      const url = await getDownloadURL(fileRef);
-
-      const entry: VoiceCacheEntry = { hash, storagePath: path, url, createdAt: Date.now(), npcId };
-      const next = [...cacheRef.current.filter((e) => e.hash !== hash), entry];
-      while (next.length > VOICE_CACHE_CAP) {
-        const evicted = next.shift();
-        if (evicted) {
-          deleteObject(storageRef(getStorageClient(), evicted.storagePath)).catch(() => {});
+  // Speak one profile/line; resolves when speech ends, errors, or is skipped.
+  const playUtterance = useCallback(
+    (profile: VoiceProfile, line: string): Promise<void> => {
+      return new Promise<void>((resolve) => {
+        if (!supported) {
+          resolve();
+          return;
         }
-      }
-      cacheRef.current = next;
-      onVoiceCacheChange(next);
-      return url;
+        const synth = window.speechSynthesis;
+        synth.cancel(); // clear anything still queued/speaking
+        const utter = new SpeechSynthesisUtterance(line);
+        const match = voicesRef.current.find((v) => v.voiceURI === profile.voiceURI);
+        if (match) utter.voice = match;
+        if (profile.lang) utter.lang = profile.lang;
+        utter.rate = clamp(profile.rate ?? 1, 0.5, 2);
+        utter.pitch = clamp(profile.pitch ?? 1, 0, 2);
+
+        let settled = false;
+        const done = () => {
+          if (settled) return;
+          settled = true;
+          if (resolveCurrentRef.current === done) resolveCurrentRef.current = null;
+          resolve();
+        };
+        resolveCurrentRef.current = done;
+        utter.onend = done;
+        utter.onerror = done;
+        synth.speak(utter);
+      });
     },
-    [uid, onVoiceCacheChange],
+    [supported],
   );
 
   const speak = useCallback(
     async (npcId: string, line: string) => {
-      if (!line.trim()) return;
+      if (!line.trim() || !supported) return;
+      const profile = npcsRef.current.find((n) => n.id === npcId)?.voiceProfile;
+      if (!profile || !profile.voiceURI) throw new Error('No voice profile set for this NPC.');
+      sequenceTokenRef.current += 1; // a manual speak supersedes any sequence
       setPlaying(true);
       try {
-        const url = await resolveUrl(npcId, line);
-        await playClip(url);
+        await playUtterance(profile, line);
       } finally {
         setPlaying(false);
       }
     },
-    [resolveUrl, playClip],
+    [supported, playUtterance],
   );
 
   const skip = useCallback(() => {
-    const a = audioRef.current;
-    if (a) a.pause();
-    resolveCurrentRef.current?.();
-  }, []);
+    cancelSpeech();
+  }, [cancelSpeech]);
 
   const stopAll = useCallback(() => {
     sequenceTokenRef.current += 1;
-    const a = audioRef.current;
-    if (a) a.pause();
-    resolveCurrentRef.current?.();
+    cancelSpeech();
     setPlaying(false);
-  }, []);
+  }, [cancelSpeech]);
 
   const speakSequence = useCallback(
     async (lines: { npcId: string; line: string }[]) => {
-      if (mutedRef.current) return;
+      if (mutedRef.current || !supported) return;
       const token = ++sequenceTokenRef.current;
       setPlaying(true);
       try {
         for (let i = 0; i < lines.length; i++) {
           if (token !== sequenceTokenRef.current || mutedRef.current) break;
           const { npcId, line } = lines[i];
-          if (!line.trim() || !npcsRef.current.find((n) => n.id === npcId)?.voiceProfile) continue;
-          try {
-            const url = await resolveUrl(npcId, line);
-            if (token !== sequenceTokenRef.current || mutedRef.current) break;
-            await playClip(url);
-          } catch {
-            // Skip a line that fails to generate; keep the sequence going.
-          }
-          if (i < lines.length - 1 && token === sequenceTokenRef.current && !mutedRef.current) {
+          const profile = npcsRef.current.find((n) => n.id === npcId)?.voiceProfile;
+          if (!line.trim() || !profile?.voiceURI) continue;
+          await playUtterance(profile, line);
+          if (token !== sequenceTokenRef.current || mutedRef.current) break;
+          if (i < lines.length - 1) {
             await new Promise((r) => setTimeout(r, SEQUENCE_GAP_MS));
           }
         }
@@ -276,7 +214,7 @@ export function VoiceProvider({
         if (token === sequenceTokenRef.current) setPlaying(false);
       }
     },
-    [resolveUrl, playClip],
+    [supported, playUtterance],
   );
 
   useEffect(() => () => stopAll(), [stopAll]);
@@ -284,15 +222,12 @@ export function VoiceProvider({
   const value = useMemo<VoiceContextValue>(
     () => ({
       isPro,
-      enabled: isPro && !!uid,
+      enabled: isPro && supported,
       muted,
       setMuted,
       playing,
-      usage,
       npcVoiceProfile,
       npcName,
-      cachedCount,
-      isCached,
       speak,
       speakSequence,
       skip,
@@ -300,15 +235,12 @@ export function VoiceProvider({
     }),
     [
       isPro,
-      uid,
+      supported,
       muted,
       setMuted,
       playing,
-      usage,
       npcVoiceProfile,
       npcName,
-      cachedCount,
-      isCached,
       speak,
       speakSequence,
       skip,
