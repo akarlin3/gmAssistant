@@ -2309,10 +2309,6 @@ export function MusicPlayer({
         <div className="absolute overflow-hidden" style={{ width: '1px', height: '1px', opacity: 0.01, left: '-9999px', top: '-9999px' }}>
           <div id={iframeId} />
         </div>
-
-        <p className="px-1 font-serif text-[10px] italic leading-normal text-ink-mute">
-          <strong>Note:</strong> Some official tracks restrict external embedding. If you click Play and hear no sound, click the button above to play the full playlist directly in a new tab.
-        </p>
       </div>
     );
   }
