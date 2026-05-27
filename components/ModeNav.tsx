@@ -98,6 +98,41 @@ export default function ModeNav({ mode, subview, onModeChange, onSubviewChange, 
             </div>
           </nav>
         </div>
+      ) : mode === 'library' ? (
+        <div className="border-b border-rule pb-1.5 space-y-1.5">
+          <nav
+            role="tablist"
+            aria-label="Library sub-view row 1"
+            className="flex items-center gap-1 overflow-x-auto hide-scrollbar"
+          >
+            <div className="flex flex-shrink-0 items-center gap-1">
+              {activeSubviews.slice(0, Math.ceil(activeSubviews.length / 2)).map(sv => (
+                <SubviewPill
+                  key={sv.id}
+                  sv={sv}
+                  active={sv.id === subview}
+                  onClick={() => onSubviewChange(sv.id)}
+                />
+              ))}
+            </div>
+          </nav>
+          <nav
+            role="tablist"
+            aria-label="Library sub-view row 2"
+            className="flex items-center gap-1 overflow-x-auto hide-scrollbar"
+          >
+            <div className="flex flex-shrink-0 items-center gap-1">
+              {activeSubviews.slice(Math.ceil(activeSubviews.length / 2)).map(sv => (
+                <SubviewPill
+                  key={sv.id}
+                  sv={sv}
+                  active={sv.id === subview}
+                  onClick={() => onSubviewChange(sv.id)}
+                />
+              ))}
+            </div>
+          </nav>
+        </div>
       ) : (
         <div className="relative border-b border-rule pb-1.5">
           <nav
