@@ -70,7 +70,7 @@ export const MODES: Record<Mode, ModeDef> = {
     emphasis: 'primary',
     subviews: [
       { id: 'session', label: 'Session',  description: 'Active session — prep cards, scratchpad, initiative' },
-      { id: 'scene',   label: 'Scene Mode', description: 'Run a location turn-by-turn with AI-voiced NPCs (Pro)' },
+      { id: 'scene',   label: 'Scene Mode', description: 'Run a location turn-by-turn with AI-driven NPCs (Pro)' },
       { id: 'assistant', label: 'Assistant', description: 'Persistent AI agent that reads your whole campaign and proposes content you approve (Pro)' },
       { id: 'maps',    label: 'Maps',     description: 'Maps with markers, layers, pointcrawls, and AI generation' },
       { id: 'lookup',  label: 'Lookup',   description: 'Quick reference: NPCs, locations, secrets, factions' },

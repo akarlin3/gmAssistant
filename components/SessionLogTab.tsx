@@ -9,7 +9,6 @@ import type { SessionLogEntry, LinkedPrepItem } from '@/lib/sessionLog';
 import { formatDuration, parseMonsterXP, parseMonsterName } from '@/lib/sessionLog';
 import type { ChangeEvent, ChangeEventKind } from '@/lib/sessionEvents';
 import { CHANGE_EVENT_LABELS } from '@/lib/sessionEvents';
-import { NpcDialogueLines } from '@/components/voice/NpcDialogueLines';
 import type { Character } from '@/lib/character-schema';
 import type { CampaignItem } from '@/lib/playerMode/types';
 import { normalizeItem } from '@/lib/playerMode/types';
@@ -773,8 +772,6 @@ function SessionCard({
               ) : (
                 <p className="font-serif text-xs italic text-ink-mute">No recap written.</p>
               )}
-
-              <NpcDialogueLines text={entry.recap || ''} npcs={npcs} />
 
               {entry.strongStart && (
                 <div className="mt-3 rounded border border-crimson/30 bg-crimson/5 p-3 flex items-start gap-2.5 shadow-sm max-w-2xl">

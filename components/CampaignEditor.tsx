@@ -19,7 +19,6 @@ import dynamic from 'next/dynamic';
 import DiceRoller, { type Macro } from './DiceRoller';
 import type { Spell } from './SpellsTab';
 import StrongStartPicker from './StrongStartPicker';
-import { VoiceProvider } from '@/components/voice/VoiceProvider';
 import CharacterCard from './CharacterCard';
 import SidekickAddPanel from './SidekickAddPanel';
 import type { HomebrewMonster } from './MonstersTab';
@@ -3655,7 +3654,6 @@ export default function CampaignEditor({
   }
 
   return (
-    <VoiceProvider isPro={isPro} npcs={get('npcs', [])}>
     <WikiProvider value={wikiValue}>
     <CampaignPlayModeContext.Provider value={playMode}>
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
@@ -4340,7 +4338,6 @@ export default function CampaignEditor({
                       >
                         <NPCCard
                           data={n}
-                          isPro={isPro}
                           onChange={(v: any) => {
                             const next = [...(get('npcs', []) as any[])];
                             next[originalIndex] = v;
@@ -5428,6 +5425,5 @@ export default function CampaignEditor({
     </main>
     </CampaignPlayModeContext.Provider>
     </WikiProvider>
-    </VoiceProvider>
   );
 }

@@ -10,7 +10,7 @@ export const TOURS: Record<'solo' | 'duet', TourStep[]> = {
     {
       selector: '[data-subview-tab="scene"]',
       title: 'Scene Mode',
-      body: "Run scenes turn-by-turn with AI-voiced NPCs. Tagline and CTA adapt to your Solo role.",
+      body: "Run scenes turn-by-turn with AI-driven NPCs. Tagline and CTA adapt to your Solo role.",
     },
     {
       selector: '[data-subview-tab="livingworld"]',
