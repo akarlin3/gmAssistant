@@ -7,6 +7,9 @@ import {
 } from 'firebase/firestore';
 import { getDb, stripUndefined } from './client';
 import { initPlayerMode } from '@/lib/playerMode/migration';
+import { withRetry } from './retry';
+
+const MAX_CAMPAIGN_DATA_SIZE = 900_000; // bytes
 
 export type Campaign = {
   id: string;
@@ -70,7 +73,7 @@ export async function createCampaign(userId: string, name = 'Untitled Campaign',
     updatedAt: serverTimestamp(),
   };
   if (worldId) payload.worldId = worldId;
-  const ref = await addDoc(campaignsCol(), payload);
+  const ref = await withRetry(() => addDoc(campaignsCol(), payload));
   return ref.id;
 }
 
@@ -92,30 +95,46 @@ export async function createCampaignFromWizard(
     updatedAt: serverTimestamp(),
   };
   if (opts.worldId) payload.worldId = opts.worldId;
-  const ref = await addDoc(campaignsCol(), payload);
+  const ref = await withRetry(() => addDoc(campaignsCol(), payload));
   return ref.id;
 }
 
 export async function updateCampaign(
   campaignId: string,
-  patch: { name?: string; data?: Record<string, any>; done?: Record<string, boolean>; worldId?: string; }
+  patch: {
+    name?: string;
+    data?: Record<string, any>;
+    done?: Record<string, boolean>;
+    worldId?: string;
+    archivedAt?: Timestamp | null;
+    pendingPlayers?: Array<{ uid: string; email: string }>;
+  }
 ) {
+  if (patch.data !== undefined) {
+    const serialized = JSON.stringify(patch.data || {});
+    if (serialized.length > MAX_CAMPAIGN_DATA_SIZE) {
+      throw new Error(
+        `Campaign data too large: ${serialized.length} bytes exceeds the ${MAX_CAMPAIGN_DATA_SIZE}-byte limit. ` +
+        `Please reduce the amount of data stored in this campaign.`
+      );
+    }
+  }
   const ref = doc(getDb(), 'campaigns', campaignId);
-  await updateDoc(ref, stripUndefined({ ...patch, updatedAt: serverTimestamp() }));
+  await withRetry(() => updateDoc(ref, stripUndefined({ ...patch, updatedAt: serverTimestamp() })));
 }
 
 export async function deleteCampaign(campaignId: string) {
-  await deleteDoc(doc(getDb(), 'campaigns', campaignId));
+  await withRetry(() => deleteDoc(doc(getDb(), 'campaigns', campaignId)));
 }
 
 export async function archiveCampaign(campaignId: string) {
   const ref = doc(getDb(), 'campaigns', campaignId);
-  await updateDoc(ref, { archivedAt: serverTimestamp() });
+  await withRetry(() => updateDoc(ref, { archivedAt: serverTimestamp() }));
 }
 
 export async function unarchiveCampaign(campaignId: string) {
   const ref = doc(getDb(), 'campaigns', campaignId);
-  await updateDoc(ref, { archivedAt: null });
+  await withRetry(() => updateDoc(ref, { archivedAt: null }));
 }
 
 // Idempotently initialize player-mode config + backfill entity ids on a
@@ -153,7 +172,7 @@ export async function importCampaign(
   data: Record<string, any>,
   done: Record<string, boolean>
 ) {
-  const ref = await addDoc(campaignsCol(), {
+  const ref = await withRetry(() => addDoc(campaignsCol(), {
     userId,
     name,
     data,
@@ -162,7 +181,7 @@ export async function importCampaign(
     pendingPlayers: [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  }));
   return ref.id;
 }
 
@@ -171,7 +190,7 @@ export async function copyCampaign(campaignId: string, newName?: string) {
   if (!original) throw new Error('Campaign not found');
 
   const name = newName || `${original.name} (Copy)`;
-  const ref = await addDoc(campaignsCol(), {
+  const ref = await withRetry(() => addDoc(campaignsCol(), {
     userId: original.userId,
     name,
     data: original.data || {},
@@ -180,7 +199,7 @@ export async function copyCampaign(campaignId: string, newName?: string) {
     pendingPlayers: original.pendingPlayers || [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  }));
   return ref.id;
 }
 
@@ -188,22 +207,22 @@ import { arrayRemove } from 'firebase/firestore';
 
 export async function requestJoinCampaign(campaignId: string, user: { uid: string; email: string }) {
   const ref = doc(getDb(), 'campaigns', campaignId);
-  await updateDoc(ref, { pendingPlayers: arrayUnion(user), updatedAt: serverTimestamp() });
+  await withRetry(() => updateDoc(ref, { pendingPlayers: arrayUnion(user), updatedAt: serverTimestamp() }));
 }
 
 export async function approvePlayer(campaignId: string, user: { uid: string; email: string }) {
   const ref = doc(getDb(), 'campaigns', campaignId);
-  await updateDoc(ref, {
+  await withRetry(() => updateDoc(ref, {
     pendingPlayers: arrayRemove(user),
     playerIds: arrayUnion(user.uid),
     updatedAt: serverTimestamp()
-  });
+  }));
 }
 
 export async function rejectPlayer(campaignId: string, user: { uid: string; email: string }) {
   const ref = doc(getDb(), 'campaigns', campaignId);
-  await updateDoc(ref, {
+  await withRetry(() => updateDoc(ref, {
     pendingPlayers: arrayRemove(user),
     updatedAt: serverTimestamp()
-  });
+  }));
 }

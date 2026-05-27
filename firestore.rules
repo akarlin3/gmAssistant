@@ -11,6 +11,10 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
+    function isValidCampaignUpdate() {
+      return request.resource.data.updatedAt != null;
+    }
+
     // Scene Mode (data.sceneSessions[*]) lives inside the campaign doc, which is
     // already owner-write-gated by the `update` rule below — only the campaign's
     // own user can write any of its `data`. Referential integrity of a scene's
@@ -21,13 +25,14 @@ service cloud.firestore {
     // so that validation deliberately is not attempted here.
     match /campaigns/{campaignId} {
       allow read: if request.auth != null
-        && (resource.data.userId == request.auth.uid || 
+        && (resource.data.userId == request.auth.uid ||
             (request.auth.uid in resource.data.get('playerIds', [])));
 
       allow create: if request.auth != null
         && request.resource.data.userId == request.auth.uid;
 
       allow update: if request.auth != null
+        && isValidCampaignUpdate()
         && (
           (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid && (request.resource.data.get('worldId', null) == resource.data.get('worldId', null) || resource.data.get('worldId', null) == null))
           ||
@@ -64,8 +69,8 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/campaigns/$(campaignId)).data.data.player.shareToken == shareToken;
     }
     match /playerShares/{shareToken} {
-      // Public read: anyone with the link can fetch roster/meta to pick a slot.
-      allow read: if true;
+      // Require share token to be at least 20 characters (unguessable capability token).
+      allow read: if shareToken.size() >= 20;
       // Only the owning GM may publish.
       allow create, update: if request.resource.data.campaignId is string
         && ownsCampaign(request.resource.data.campaignId);

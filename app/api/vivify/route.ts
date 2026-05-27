@@ -74,13 +74,19 @@ export async function POST(req: NextRequest) {
         );
       };
 
+      const abort = new AbortController();
+      const timeout = setTimeout(() => abort.abort(), 45_000);
+
       try {
-        const response = client.messages.stream({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 2048,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: input }],
-        });
+        const response = client.messages.stream(
+          {
+            model: 'claude-sonnet-4-6',
+            max_tokens: 2048,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: input }],
+          },
+          { signal: abort.signal },
+        );
 
         for await (const event of response) {
           if (
@@ -95,14 +101,20 @@ export async function POST(req: NextRequest) {
 
         controller.close();
       } catch (err) {
-        const message =
-          err instanceof Anthropic.APIError
-            ? `Claude API error (${err.status}): ${err.message}`
-            : err instanceof Error
-              ? err.message
-              : String(err);
-        sseSend('error', { error: message });
+        if (err instanceof Error && err.name === 'AbortError') {
+          sseSend('error', { error: 'Request timed out after 45 seconds.' });
+        } else {
+          const message =
+            err instanceof Anthropic.APIError
+              ? `Claude API error (${err.status}): ${err.message}`
+              : err instanceof Error
+                ? err.message
+                : String(err);
+          sseSend('error', { error: message });
+        }
         controller.close();
+      } finally {
+        clearTimeout(timeout);
       }
     },
   });

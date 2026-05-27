@@ -175,35 +175,47 @@ export async function POST(req: NextRequest) {
 
   const client = new Anthropic({ apiKey });
 
+  const abort = new AbortController();
+  const timeout = setTimeout(() => abort.abort(), 55_000);
+
   let response: Anthropic.Messages.Message;
   try {
-    response = await client.messages.create({
-      model,
-      max_tokens: 8192,
-      system: [
-        {
-          type: 'text',
-          text: SYSTEM_PROMPT,
-          cache_control: { type: 'ephemeral' },
+    response = await client.messages.create(
+      {
+        model,
+        max_tokens: 8192,
+        system: [
+          {
+            type: 'text',
+            text: SYSTEM_PROMPT,
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
+        output_config: {
+          format: {
+            type: 'json_schema',
+            schema: CHARACTER_JSON_SCHEMA,
+          },
         },
-      ],
-      output_config: {
-        format: {
-          type: 'json_schema',
-          schema: CHARACTER_JSON_SCHEMA,
-        },
+        messages: [
+          {
+            role: 'user',
+            content: [
+              fileBlock,
+              { type: 'text', text: 'Extract this character sheet into the structured schema.' },
+            ],
+          },
+        ],
       },
-      messages: [
-        {
-          role: 'user',
-          content: [
-            fileBlock,
-            { type: 'text', text: 'Extract this character sheet into the structured schema.' },
-          ],
-        },
-      ],
-    });
+      { signal: abort.signal },
+    );
   } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      return NextResponse.json(
+        { error: 'Request timed out after 55 seconds.' },
+        { status: 504 },
+      );
+    }
     if (err instanceof Anthropic.APIError) {
       return NextResponse.json(
         { error: `Claude API error (${err.status}): ${err.message}` },
@@ -212,6 +224,8 @@ export async function POST(req: NextRequest) {
     }
     const msg = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: msg }, { status: 500 });
+  } finally {
+    clearTimeout(timeout);
   }
 
   const text = response.content
