@@ -13,7 +13,9 @@ import {
   AlertTriangle,
   MapPin,
   Users,
+  Trash2,
 } from 'lucide-react';
+import { useConfirm } from './ConfirmDialog';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
   capScenes,
@@ -66,6 +68,7 @@ export default function SceneModePanel({
   onSceneEnded,
 }: Props) {
   const playMode = useContext(CampaignPlayModeContext);
+  const confirm = useConfirm();
   const npcs = useMemo(() => asArray(data.npcs), [data.npcs]);
   const locations = useMemo(() => asArray(data.locations), [data.locations]);
   const party = useMemo(() => normalizePcs(data.pcs), [data.pcs]);
@@ -352,6 +355,19 @@ export default function SceneModePanel({
     URL.revokeObjectURL(url);
   };
 
+  const deleteScene = async (id: string) => {
+    const ok = await confirm({
+      title: 'Delete Scene?',
+      message: 'This will permanently delete this past scene from the history. This action cannot be undone.',
+      confirmText: 'Delete',
+      isDestructive: true,
+    });
+    if (ok) {
+      onScenesChange(scenes.filter((s) => s.id !== id));
+      if (activeId === id) setActiveId(null);
+    }
+  };
+
   // ---- Render --------------------------------------------------------------
 
   if (activeScene) {
@@ -558,6 +574,13 @@ export default function SceneModePanel({
                   className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-ink-mute hover:text-brass-deep"
                 >
                   <Download size={10} /> Export
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteScene(s.id)}
+                  className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-ink-mute hover:text-crimson ml-1.5 transition-colors"
+                >
+                  <Trash2 size={10} /> Delete
                 </button>
                 {playMode !== 'solo' && !s.savedToLog && (
                   <button
