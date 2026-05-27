@@ -39,10 +39,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 
-  /* --- 3. INTERACTIVE MOCKUP: SOLO / STANDARD TARGET TOGGLE --- */
-  const modeToggle = document.getElementById('mode-toggle');
-  const labelStandard = document.getElementById('label-standard');
-  const labelSolo = document.getElementById('label-solo');
+  /* --- 3. INTERACTIVE MOCKUP: PLAY MODE SWITCHER (Standard / Duet / Solo) --- */
+  const modeSwitcherContainer = document.getElementById('mode-switcher-container');
+  const modeLabels = modeSwitcherContainer.querySelectorAll('.mode-label');
 
   // Secrets selectors
   const labelSecrets = document.getElementById('progress-label-secrets');
@@ -55,39 +54,49 @@ document.addEventListener('DOMContentLoaded', () => {
   const fillFactions = document.getElementById('progress-fill-factions');
 
   // Mock State Tracking
-  let isSoloMode = false;
+  let currentPlayMode = 'standard'; // 'standard' | 'duet' | 'solo'
   let activeSecretsCount = 3; // Starting state: 3 secrets resolved/toggled
   let activeFactionsCount = 2; // Starting state: 2 active factions
 
   function updateMockupTargets() {
-    if (isSoloMode) {
-      // SOLO TARGETS: 5 Secrets, 2 Factions
-      labelStandard.classList.remove('active');
-      labelSolo.classList.add('active');
+    // Sync active style classes across labels
+    modeLabels.forEach(label => {
+      if (label.dataset.mode === currentPlayMode) {
+        label.classList.add('active');
+      } else {
+        label.classList.remove('active');
+      }
+    });
 
-      // Secrets update
+    if (currentPlayMode === 'solo') {
+      // SOLO TARGETS: 5 Secrets, 2 Factions
       labelSecrets.textContent = "Shoot for 5 Secrets (Solo Target)";
       counterSecrets.textContent = `${activeSecretsCount} / 5`;
       const secretPercent = Math.min((activeSecretsCount / 5) * 100, 100);
       fillSecrets.style.width = `${secretPercent}%`;
 
-      // Factions update
       labelFactions.textContent = "Active Factions (Solo Target)";
       counterFactions.textContent = `${activeFactionsCount} / 2`;
       const factionPercent = Math.min((activeFactionsCount / 2) * 100, 100);
       fillFactions.style.width = `${factionPercent}%`;
+    } else if (currentPlayMode === 'duet') {
+      // DUET TARGETS: 7 Secrets, 3 Factions
+      labelSecrets.textContent = "Shoot for 7 Secrets (Duet Target)";
+      counterSecrets.textContent = `${activeSecretsCount} / 7`;
+      const secretPercent = Math.min((activeSecretsCount / 7) * 100, 100);
+      fillSecrets.style.width = `${secretPercent}%`;
+
+      labelFactions.textContent = "Active Factions (Duet Target)";
+      counterFactions.textContent = `${activeFactionsCount} / 3`;
+      const factionPercent = Math.min((activeFactionsCount / 3) * 100, 100);
+      fillFactions.style.width = `${factionPercent}%`;
     } else {
       // STANDARD TARGETS: 10 Secrets, 4 Factions
-      labelSolo.classList.remove('active');
-      labelStandard.classList.add('active');
-
-      // Secrets update
       labelSecrets.textContent = "Shoot for 10 Secrets";
       counterSecrets.textContent = `${activeSecretsCount} / 10`;
       const secretPercent = Math.min((activeSecretsCount / 10) * 100, 100);
       fillSecrets.style.width = `${secretPercent}%`;
 
-      // Factions update
       labelFactions.textContent = "Active Factions";
       counterFactions.textContent = `${activeFactionsCount} / 4`;
       const factionPercent = Math.min((activeFactionsCount / 4) * 100, 100);
@@ -95,9 +104,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  modeToggle.addEventListener('change', () => {
-    isSoloMode = modeToggle.checked;
-    updateMockupTargets();
+  modeLabels.forEach(label => {
+    label.addEventListener('click', () => {
+      currentPlayMode = label.dataset.mode;
+      updateMockupTargets();
+    });
   });
 
 
