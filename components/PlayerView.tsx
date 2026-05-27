@@ -26,13 +26,14 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
   const sessionLogsV2 = useMemo(() => Array.isArray(campaign.data?.sessionLogV2) ? campaign.data.sessionLogV2 : [], [campaign.data?.sessionLogV2]);
 
   const allRecaps = useMemo(() => {
-    const list: Array<{ id: string; title: string; date: string; body: string }> = [];
+    const list: any[] = [];
     sessionLogs.forEach(l => {
       list.push({
         id: l.id,
         title: l.title || 'Untitled Session',
         date: l.date || '',
         body: l.body || 'No notes.',
+        events: [],
       });
     });
     sessionLogsV2.forEach((l: any) => {
@@ -42,6 +43,13 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
         title: l.title || `Session ${l.number || ''}`,
         date: l.date || '',
         body: l.recap || 'No notes.',
+        events: l.events || [],
+        xpAwarded: l.xpAwarded,
+        strongStart: l.strongStart,
+        secretsRevealed: l.secretsRevealed || [],
+        scenesUsed: l.scenesUsed || [],
+        goalUpdates: l.goalUpdates || [],
+        linkedPrepItems: l.linkedPrepItems || [],
       });
     });
     return list.sort((a, b) => b.date.localeCompare(a.date));
