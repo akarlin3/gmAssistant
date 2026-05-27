@@ -44,6 +44,9 @@ import {
 import type { EntityRef } from '@/lib/generators/types';
 import { applySummonAction, type SummonSaveAction } from '@/lib/generators/summon-actions';
 import VivifyPanel, { type VivifyHistoryEntry } from './VivifyPanel';
+import SceneModePanel from './SceneModePanel';
+import { SCENE_SESSIONS_KEY, type SceneEntry } from '@/lib/scene/types';
+import { sceneToMarkdown } from '@/lib/scene/export';
 import ChaseTracker from './ChaseTracker';
 import type { Chase } from '@/lib/chaseTables';
 import TrapBuilder from './TrapBuilder';
@@ -71,6 +74,7 @@ import { emptyGraph, type RelationshipGraphState } from './NPCRelationshipWeb';
 import { emptyWorld, type FactionWorld } from '@/lib/factionEngine';
 import type { SessionLogEntry } from '@/lib/sessionLog';
 import { nextSessionNumber, recalculatePartyState, cleanPrepLists, parseMonsterName } from '@/lib/sessionLog';
+import { applyNarrationReveal } from '@/lib/playerMode/sessionLog';
 import type { PrepWizardRun } from '@/lib/prepWizard';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { buildPatch as buildCampaignPatch, type CampaignDestKey, type SelectableItem } from '@/lib/generators/addToCampaign';
@@ -4641,6 +4645,56 @@ export default function CampaignEditor({
             usedPrep={usedPrep}
           />
         )}
+
+        {mode === 'run' && subview === 'scene' && (isPro ? (
+          <SceneModePanel
+            data={state}
+            scenes={(get(SCENE_SESSIONS_KEY, []) as SceneEntry[])}
+            onScenesChange={(next) => setVal(SCENE_SESSIONS_KEY, next)}
+            onReveal={(npcIds) => {
+              const cfg = get('player', null) as PlayerConfig | null;
+              if (!cfg) return;
+              const npcsArr = get('npcs', []) as Array<{ id?: string; name?: string }>;
+              const mentions = npcIds.map((id) => ({
+                entityType: 'npcs' as const,
+                entityId: id,
+                label: npcsArr.find((n) => n.id === id)?.name ?? '',
+              }));
+              setVal('player', applyNarrationReveal(cfg, mentions, { mode: 'party' }));
+            }}
+            onSceneEnded={(scene) => {
+              const npcsArr = get('npcs', []) as Array<{ id?: string; name?: string }>;
+              const locsArr = get('locations', []) as Array<{ id?: string; name?: string }>;
+              const locName = locsArr.find((l) => l.id === scene.locationId)?.name || 'a location';
+              const md = sceneToMarkdown(scene, {
+                locationName: (id) => locsArr.find((l) => l.id === id)?.name || 'Unknown Location',
+                npcName: (id) => npcsArr.find((n) => n.id === id)?.name || 'Unknown NPC',
+              });
+              const existing = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
+              const entry: SessionLogEntry = {
+                id: makeLogId(),
+                number: nextSessionNumber(existing),
+                date: todayISO(),
+                startedAt: scene.startedAt,
+                endedAt: scene.endedAt ?? Date.now(),
+                title: `Scene at ${locName}`,
+                recap: scene.summary?.trim() || md,
+                events: [],
+                secretsRevealed: [],
+                scenesUsed: [],
+                goalUpdates: [],
+              };
+              setVal('sessionLogV2', [...existing, entry]);
+              trackEvent('scene_used', `Ran a scene at ${locName} (${scene.turns.length} turns)`);
+            }}
+          />
+        ) : (
+          <LockedPanel title="Scene Mode">
+            Run a location turn-by-turn at the table: pick where you are and who&apos;s present, then describe what
+            your PC does. Claude voices the NPCs in character, paints the sensory beat, and suggests what to roll —
+            grounded in your campaign. The only during-play AI feature.
+          </LockedPanel>
+        ))}
 
         {mode === 'run' && subview === 'lookup' && (() => {
           const playerConfig = (get('player', {}) as any) || {};

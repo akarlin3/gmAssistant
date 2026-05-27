@@ -11,6 +11,14 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
+    // Scene Mode (data.sceneSessions[*]) lives inside the campaign doc, which is
+    // already owner-write-gated by the `update` rule below — only the campaign's
+    // own user can write any of its `data`. Referential integrity of a scene's
+    // `presentNpcIds` against `data.npcs` is enforced at the client (the picker
+    // only offers real NPCs) and at the server (/api/scene/turn rejects dialogue
+    // for NPC ids not present in the scene). Firestore rules can't iterate a
+    // variable-length array of maps to subset-check ids against another array,
+    // so that validation deliberately is not attempted here.
     match /campaigns/{campaignId} {
       allow read: if request.auth != null
         && (resource.data.userId == request.auth.uid || 
