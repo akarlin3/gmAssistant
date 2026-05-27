@@ -1,4 +1,4 @@
-import { collection, doc, onSnapshot, writeBatch } from 'firebase/firestore';
+import { collection, doc, onSnapshot, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { getDb } from '@/lib/firebase/client';
 import { type PlayerCharacter } from '@/lib/pc/types';
 
@@ -65,6 +65,7 @@ export function startWritebackReconciler(
           const campaignRef = doc(db, 'campaigns', campaignId);
           batch.update(campaignRef, {
             'data.pcs': updatedPcs,
+            updatedAt: serverTimestamp(),
           });
 
           // Commit batch (updates campaign and deletes reconciled writebacks in one transaction)
