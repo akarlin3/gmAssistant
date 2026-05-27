@@ -148,6 +148,8 @@ export type PlayerModeData = Partial<Record<PlayerEntityType, PlayerEntity[]>> &
   items?: ReadonlyArray<string | CampaignItem>;
   pcGoals?: readonly any[];
   maps?: unknown;
+  __sessionPlaylist?: string;
+  __sessionPlaylistPlaying?: boolean;
 };
 
 export function normalizeItem(it: string | Record<string, any>, index: number): CampaignItem {

@@ -89,6 +89,8 @@ export default function RunSessionView({
       h: get('handouts', ''),
       s: playerLog,
       i: get('items', []),
+      playlist: get('__sessionPlaylist', ''),
+      playing: !!get('__sessionPlaylistPlaying', false),
     }),
     [playerConfig, get, playerLog],
   );
@@ -111,6 +113,8 @@ export default function RunSessionView({
             playerLog,
             items: get('items', []),
             maps: get('maps', []),
+            __sessionPlaylist: get('__sessionPlaylist', '') as string,
+            __sessionPlaylistPlaying: !!get('__sessionPlaylistPlaying', false),
           };
           await publishProjections(campaignId, campaignName || 'Campaign', dataToPublish);
           setPublishState('done');

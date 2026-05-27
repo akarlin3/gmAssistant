@@ -2298,6 +2298,8 @@ export default function CampaignEditor({
       i: get('items', []),
       g: get('pcGoals', []),
       m: get('maps', []),
+      playlist: get('__sessionPlaylist', ''),
+      playing: !!get('__sessionPlaylistPlaying', false),
     }),
     [playerConfig, get, playerLog],
   );
@@ -2319,6 +2321,8 @@ export default function CampaignEditor({
             items: get('items', []),
             pcGoals: get('pcGoals', []),
             maps: get('maps', []),
+            __sessionPlaylist: get('__sessionPlaylist', '') as string,
+            __sessionPlaylistPlaying: !!get('__sessionPlaylistPlaying', false),
           };
           await publishProjections(campaign.id, name || 'Campaign', dataToPublish);
         } catch (e) {

@@ -72,8 +72,21 @@ export default function PlayerModePanel({
 
   // Debounced auto-publish whenever the campaign data or config changes.
   const publishSignature = useMemo(
-    () => JSON.stringify({ p: config, n: data.npcs, l: data.locations, f: data.factions, c: data.characters, k: data.clocks, h: data.handouts, s: data.playerLog, i: data.items, g: data.pcGoals }),
-    [config, data.npcs, data.locations, data.factions, data.characters, data.clocks, data.handouts, data.playerLog, data.items, data.pcGoals],
+    () => JSON.stringify({
+      p: config,
+      n: data.npcs,
+      l: data.locations,
+      f: data.factions,
+      c: data.characters,
+      k: data.clocks,
+      h: data.handouts,
+      s: data.playerLog,
+      i: data.items,
+      g: data.pcGoals,
+      playlist: data.__sessionPlaylist || '',
+      playing: !!data.__sessionPlaylistPlaying,
+    }),
+    [config, data.npcs, data.locations, data.factions, data.characters, data.clocks, data.handouts, data.playerLog, data.items, data.pcGoals, data.__sessionPlaylist, data.__sessionPlaylistPlaying],
   );
   useEffect(() => {
     if (!config?.shareToken) return;
@@ -86,7 +99,12 @@ export default function PlayerModePanel({
   async function doPublish() {
     setPublishState('publishing');
     try {
-      await publishProjections(campaignId, campaignName, { ...data, player: config });
+      await publishProjections(campaignId, campaignName, {
+        ...data,
+        player: config,
+        __sessionPlaylist: data.__sessionPlaylist || '',
+        __sessionPlaylistPlaying: !!data.__sessionPlaylistPlaying,
+      });
       setPublishState('done');
       setTimeout(() => setPublishState('idle'), 2000);
     } catch (e) {

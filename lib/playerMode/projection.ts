@@ -257,7 +257,7 @@ export function buildSlotProjection(
     planning,
     pcGoals: projectedGoals,
     maps,
-    playlistUrl: (data as any).__sessionPlaylist || '',
-    playlistPlaying: !!(data as any).__sessionPlaylistPlaying,
+    playlistUrl: data.__sessionPlaylist || '',
+    playlistPlaying: !!data.__sessionPlaylistPlaying,
   };
 }
