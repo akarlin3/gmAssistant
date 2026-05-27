@@ -145,7 +145,7 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
                     <select
                       value={item.assignedPlayerId || ''}
                       onChange={(e) => updateItem(item.id, { assignedPlayerId: e.target.value || undefined })}
-                      className="rounded border border-rule bg-parchment px-2 py-0.5 font-serif text-ink-soft focus:border-crimson focus:outline-none cursor-pointer"
+                      className="rounded border border-rule bg-parchment px-2 py-0.5 font-serif text-[10px] text-ink-soft focus:border-crimson focus:outline-none cursor-pointer"
                     >
                       <option value="">Unassigned</option>
                       {roster.map(r => (
@@ -161,7 +161,7 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
                       <select
                         value={item.playerVisibility || 'full'}
                         onChange={(e) => updateItem(item.id, { playerVisibility: e.target.value as 'name-only' | 'full' })}
-                        className="rounded border border-rule bg-parchment px-2 py-0.5 font-serif text-ink-soft focus:border-crimson focus:outline-none cursor-pointer"
+                        className="rounded border border-rule bg-parchment px-2 py-0.5 font-serif text-[10px] text-ink-soft focus:border-crimson focus:outline-none cursor-pointer"
                       >
                         <option value="full">Name & Description</option>
                         <option value="name-only">Name Only</option>

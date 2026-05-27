@@ -799,7 +799,7 @@ export default function RunSessionView({
                                     setVal('__sessionChangeEvents', nextEvents);
                                   }
                                 }}
-                                className="rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-ink-soft cursor-pointer focus:outline-none"
+                                className="rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-[10px] text-ink-soft cursor-pointer focus:outline-none"
                               >
                                 <option value="">Unassigned</option>
                                 {roster.map((r: any) => (
@@ -821,7 +821,7 @@ export default function RunSessionView({
                                     nextItems[i] = { ...item, playerVisibility: vis };
                                     setVal('items', nextItems);
                                   }}
-                                  className="rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-ink-soft cursor-pointer focus:outline-none"
+                                  className="rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-[10px] text-ink-soft cursor-pointer focus:outline-none"
                                 >
                                   <option value="full">Name & Description</option>
                                   <option value="name-only">Name Only</option>
