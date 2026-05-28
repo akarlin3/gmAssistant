@@ -2137,17 +2137,36 @@ export function MusicPlayer({
       embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
     }
 
+    // Browser autoplay policy blocks audio playback without a user gesture.
+    // When the GM is playing but the local YT iframe couldn't auto-start, we
+    // surface a tap-to-play button so the click counts as the required gesture.
+    const autoplayBlocked = isApiReady && !!isPlayingProp && !isPlaying && playerState !== 'buffering';
+
     return (
       <div className="flex flex-row items-center justify-between gap-4 bg-parchment-soft border border-rule/70 rounded-lg shadow-sm px-4 py-2.5 overflow-hidden text-xs">
         {/* Left Side: Status / Music Icon / Small Label */}
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="relative flex items-center justify-center flex-shrink-0">
-            <Music className={`${isPlaying ? 'text-crimson animate-pulse' : 'text-ink-mute'}`} size={16} />
-            {isPlaying && (
-              <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-crimson opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-crimson"></span>
-              </span>
+            {autoplayBlocked ? (
+              <button
+                type="button"
+                onClick={togglePlay}
+                className="flex items-center justify-center w-6 h-6 rounded-full bg-crimson text-parchment hover:bg-wine active:scale-95 transition-all shadow-sm"
+                title="Your browser blocked autoplay — tap to start music"
+                aria-label="Start music"
+              >
+                <Play size={11} fill="currentColor" className="ml-0.5" />
+              </button>
+            ) : (
+              <>
+                <Music className={`${isPlaying ? 'text-crimson animate-pulse' : 'text-ink-mute'}`} size={16} />
+                {isPlaying && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-crimson opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-crimson"></span>
+                  </span>
+                )}
+              </>
             )}
           </div>
           <div className="flex items-center gap-2 min-w-0">
@@ -2156,7 +2175,13 @@ export function MusicPlayer({
             </span>
             <span className="h-1.5 w-1.5 rounded-full bg-rule/70" />
             <span className={`font-serif italic text-ink-soft text-xs truncate`}>
-              {playerState === 'buffering' ? 'Buffering...' : isPlaying ? 'Playing' : 'Paused'}
+              {playerState === 'buffering'
+                ? 'Buffering...'
+                : isPlaying
+                  ? 'Playing'
+                  : autoplayBlocked
+                    ? 'Tap ▶ to play'
+                    : 'Paused'}
             </span>
           </div>
         </div>
