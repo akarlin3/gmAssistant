@@ -326,7 +326,13 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
             ))}
           </div>
           <p className="font-serif text-[10px] text-ink-faint leading-normal text-center italic pt-0.5">
-            {localExhaustion >= 6 ? '☠ Dead at level 6' : `Level ${localExhaustion} effects active`}
+            {localExhaustion === 0 && 'Normal state (no active effects)'}
+            {localExhaustion === 1 && 'Level 1: Disadvantage on ability checks'}
+            {localExhaustion === 2 && 'Level 2: Speed halved (+ Level 1)'}
+            {localExhaustion === 3 && 'Level 3: Disadvantage on attack rolls & saves (+ Levels 1-2)'}
+            {localExhaustion === 4 && 'Level 4: Hit point maximum halved (+ Levels 1-3)'}
+            {localExhaustion === 5 && 'Level 5: Speed reduced to 0 (+ Levels 1-4)'}
+            {localExhaustion >= 6 && '☠ Level 6: Death'}
           </p>
         </div>
 
