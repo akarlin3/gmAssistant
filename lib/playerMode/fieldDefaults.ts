@@ -56,6 +56,7 @@ const PC_DEFAULTS: FieldPrivacyMap = {
   hp: 'private',
   ac: 'private',
   conditions: 'private',
+  exhaustion: 'private',
 };
 
 const NPC_DEFAULTS: FieldPrivacyMap = {
