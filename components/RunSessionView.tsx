@@ -1847,10 +1847,30 @@ export function MusicPlayer({
                       const curr = targetPlayer.getPlayerState();
                       // @ts-ignore
                       const currStates = window.YT.PlayerState;
-                      if (curr !== currStates.PLAYING && curr !== currStates.BUFFERING) {
-                        setIsPlaying(false);
-                        onChangePlayingRef.current?.(false);
+                      // The player auto-advanced to the next track — nothing to do.
+                      if (curr === currStates.PLAYING || curr === currStates.BUFFERING) return;
+
+                      // The player is idle after a track ended. Before tearing
+                      // down the whole session's playback (which also stops every
+                      // connected player), try to continue the playlist. A single
+                      // unplayable / embedding-restricted track — common with
+                      // music.youtube.com playlists in the IFrame player — would
+                      // otherwise end the session a few seconds after it starts.
+                      let idx = -1;
+                      let len = 0;
+                      try { idx = targetPlayer.getPlaylistIndex?.() ?? -1; } catch {}
+                      try { len = targetPlayer.getPlaylist?.()?.length ?? 0; } catch {}
+                      const atEnd = typeof idx === 'number' && len > 0 && idx >= len - 1;
+                      if (!atEnd && isPlayingPropRef.current) {
+                        console.warn('[MusicPlayer] track ended early; advancing playlist', { idx, len });
+                        targetPlayer.nextVideo();
+                        return; // keep the session playing
                       }
+
+                      // Genuine end of the playlist (or we couldn't recover).
+                      console.warn('[MusicPlayer] playlist ended; stopping session playback', { idx, len });
+                      setIsPlaying(false);
+                      onChangePlayingRef.current?.(false);
                     } catch (err) {
                       setIsPlaying(false);
                       onChangePlayingRef.current?.(false);
@@ -1862,6 +1882,22 @@ export function MusicPlayer({
                 }
               } else if (event.data === states.UNSTARTED) {
                 setPlayerState('unstarted');
+              }
+            },
+            onError: (event: any) => {
+              // The IFrame API surfaces playback errors here (2 = bad param,
+              // 5 = HTML5 error, 100 = removed, 101/150 = embedding disabled).
+              // Previously there was no handler, so an unplayable track failed
+              // silently and the player went idle — stopping the session for
+              // everyone a few seconds after it started. For a playlist, skip
+              // the offending track and keep going instead of dying.
+              console.warn('[MusicPlayer] YT player error', event?.data);
+              try {
+                if (playlistIdRef.current && isPlayingPropRef.current) {
+                  event.target.nextVideo();
+                }
+              } catch (err) {
+                console.warn('[MusicPlayer] failed to skip errored track', err);
               }
             },
           },
