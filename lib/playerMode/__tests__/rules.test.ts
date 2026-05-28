@@ -141,4 +141,69 @@ d('Player Mode Firestore rules', () => {
     const db = env.unauthenticatedContext().firestore();
     await assertFails(getDocs(collection(db, 'campaigns', CAMPAIGN_ID, 'pcWritebacks')));
   });
+
+  it('unauthenticated player with valid share token can stage a writeback', async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertSucceeds(setDoc(doc(db, 'campaigns', CAMPAIGN_ID, 'pcWritebacks', 'slot-a'), {
+      shareToken: SHARE_TOKEN,
+      pcId: 'pc-1',
+      slotId: 'slot-a',
+      updates: { 'hp.current': 12 },
+      updatedAt: 12345,
+    }));
+  });
+
+  it('unauthenticated player cannot stage a writeback without a share token', async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertFails(setDoc(doc(db, 'campaigns', CAMPAIGN_ID, 'pcWritebacks', 'slot-a'), {
+      pcId: 'pc-1',
+      slotId: 'slot-a',
+      updates: { 'hp.current': 12 },
+      updatedAt: 12345,
+    }));
+  });
+
+  it('unauthenticated player cannot stage a writeback for an unregistered slot', async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertFails(setDoc(doc(db, 'campaigns', CAMPAIGN_ID, 'pcWritebacks', 'slot-ghost'), {
+      shareToken: SHARE_TOKEN,
+      pcId: 'pc-1',
+      slotId: 'slot-ghost',
+      updates: { 'hp.current': 12 },
+      updatedAt: 12345,
+    }));
+  });
+
+  it('unauthenticated player cannot stage a writeback with a non-allowlisted field', async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertFails(setDoc(doc(db, 'campaigns', CAMPAIGN_ID, 'pcWritebacks', 'slot-a'), {
+      shareToken: SHARE_TOKEN,
+      pcId: 'pc-1',
+      slotId: 'slot-a',
+      updates: { 'abilities.STR': 18 },
+      updatedAt: 12345,
+    }));
+  });
+
+  it('unauthenticated player cannot stage a writeback where path slotId differs from body slotId', async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertFails(setDoc(doc(db, 'campaigns', CAMPAIGN_ID, 'pcWritebacks', 'slot-a'), {
+      shareToken: SHARE_TOKEN,
+      pcId: 'pc-1',
+      slotId: 'slot-other',
+      updates: { 'hp.current': 12 },
+      updatedAt: 12345,
+    }));
+  });
+
+  it('unauthenticated player cannot delete a writeback', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'campaigns', CAMPAIGN_ID, 'pcWritebacks', 'slot-a'), {
+        shareToken: SHARE_TOKEN, pcId: 'pc-1', slotId: 'slot-a', updates: {}, updatedAt: 1,
+      });
+    });
+    const db = env.unauthenticatedContext().firestore();
+    const { deleteDoc } = await import('firebase/firestore');
+    await assertFails(deleteDoc(doc(db, 'campaigns', CAMPAIGN_ID, 'pcWritebacks', 'slot-a')));
+  });
 });

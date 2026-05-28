@@ -65,6 +65,7 @@ export default function PlayPage({ params }: { params: Promise<{ shareToken: str
       <PlayerCampaignView
         token={shareToken}
         slotId={slotId}
+        campaignId={meta.campaignId}
         displayName={slot?.displayName ?? 'Player'}
         campaignName={meta.campaignName}
         onSwitch={switchPlayer}

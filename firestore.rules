@@ -64,8 +64,17 @@ service cloud.firestore {
       allow delete: if request.auth != null
         && resource.data.userId == request.auth.uid;
 
+      // pcWritebacks: staging area for player-initiated PC sheet edits.
+      // The GM (campaign owner) reads, applies, and deletes these from their
+      // browser via the writeback reconciler. Unauthenticated player clients
+      // may set/merge their own slot's writeback when their share token grants
+      // access to this campaign and the slot is registered (proven by the
+      // existence of the per-slot projection doc).
       match /pcWritebacks/{playerSlotId} {
-        allow read, write: if ownsCampaign(campaignId);
+        allow read, delete: if ownsCampaign(campaignId);
+
+        allow create, update: if ownsCampaign(campaignId)
+          || isValidPlayerWriteback(campaignId, playerSlotId);
       }
 
       // CRDT update log: opaque binary Yjs updates appended by the campaign
@@ -127,6 +136,29 @@ service cloud.firestore {
     }
     function tokenMatchesCampaign(campaignId, shareToken) {
       return get(/databases/$(database)/documents/campaigns/$(campaignId)).data.data.player.shareToken == shareToken;
+    }
+
+    // Player writeback validator. Unauthenticated player clients hold only a
+    // high-entropy shareToken — they prove their right to stage a writeback by
+    // (a) embedding that token in the doc, (b) the token's playerShares doc
+    // pointing at this campaign, and (c) a per-slot projection doc existing
+    // (which only the GM can publish), which proves the slot is in the roster.
+    // The doc structure is locked and `updates` may only contain keys from the
+    // player-editable allowlist (mirrors lib/player/allowlist.ts).
+    function isValidPlayerWriteback(campaignId, playerSlotId) {
+      return request.resource.data.shareToken is string
+        && request.resource.data.shareToken.size() >= 20
+        && request.resource.data.pcId is string
+        && request.resource.data.slotId == playerSlotId
+        && request.resource.data.updatedAt is number
+        && request.resource.data.updates is map
+        && request.resource.data.updates.keys().hasOnly([
+          'hp.current', 'hp.temp', 'conditions', 'exhaustion',
+          'deathSaves.successes', 'deathSaves.failures', 'notes',
+          'goals', 'bonds', 'ideals', 'flaws'
+        ])
+        && get(/databases/$(database)/documents/playerShares/$(request.resource.data.shareToken)).data.campaignId == campaignId
+        && exists(/databases/$(database)/documents/playerShares/$(request.resource.data.shareToken)/slots/$(playerSlotId));
     }
     match /playerShares/{shareToken} {
       // Require share token to be at least 20 characters (unguessable capability token).

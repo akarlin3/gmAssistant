@@ -1,12 +1,14 @@
 'use client';
 
-// Read-only, real-time player view. Driven entirely by the redacted
-// SlotProjection published by the GM (playerShares/{token}/slots/{slotId}).
-// No edit affordances; mobile-first.
+// Real-time player view. Driven entirely by the redacted SlotProjection
+// published by the GM (playerShares/{token}/slots/{slotId}). Players can edit
+// the small allowlisted set of PC-sheet fields (HP, conditions, notes, etc.);
+// edits stage in campaigns/{campaignId}/pcWritebacks via the Web SDK and the
+// GM's writeback reconciler merges them into the CRDT. Mobile-first.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollText, Calendar, Users, Map, Flag, Clock, BookOpen, UserCircle, Gift, Compass, Target, Heart, Plus, X, Music, ChevronDown, ChevronRight, Award, Zap } from 'lucide-react';
-import { subscribeSlotProjection } from '@/lib/playerMode/playerClient';
+import { subscribeSlotProjection, submitPlayerUpdate } from '@/lib/playerMode/playerClient';
 import type { SlotProjection } from '@/lib/playerMode/types';
 import PlayerMapView from '@/components/maps/PlayerMapView';
 import CharacterCard from './CharacterCard';
@@ -114,7 +116,7 @@ function EntityCard({ entity, entityType }: { entity: AnyRec; entityType?: strin
   );
 }
 
-function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slotId: string }) {
+function PlayerPcSheetCard({ pc, token, slotId, campaignId }: { pc: any; token: string; slotId: string; campaignId: string }) {
   const [localHp, setLocalHp] = useState<number>(pc.hp?.current ?? 0);
   const [localTempHp, setLocalTempHp] = useState<number>(pc.hp?.temp ?? 0);
   const [localNotes, setLocalNotes] = useState<string>(pc.notes ?? '');
@@ -154,21 +156,14 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
 
   const sendUpdate = async (field: string, value: any) => {
     try {
-      const res = await fetch('/api/player/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shareToken: token,
-          slotId,
-          pcId: pc.id,
-          field,
-          value,
-        }),
+      await submitPlayerUpdate({
+        campaignId,
+        shareToken: token,
+        slotId,
+        pcId: pc.id,
+        field,
+        value,
       });
-      if (!res.ok) {
-        const err = await res.json();
-        console.error('Update rejected:', err.error);
-      }
     } catch (e) {
       console.error('Failed to send player update:', e);
     }
@@ -492,11 +487,12 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
 }
 
 export default function PlayerCampaignView({
-  token, slotId, displayName, campaignName, onSwitch,
+  token, slotId, campaignId, displayName, campaignName, onSwitch,
   playlistUrl, sessionRecaps, unredactedCharacters,
 }: {
   token: string;
   slotId: string;
+  campaignId: string;
   displayName: string;
   campaignName: string;
   onSwitch: () => void;
@@ -713,6 +709,7 @@ export default function PlayerCampaignView({
                       pc={pc}
                       token={token}
                       slotId={slotId}
+                      campaignId={campaignId}
                     />
                   ))}
                 </div>
@@ -724,6 +721,7 @@ export default function PlayerCampaignView({
                       pc={pc}
                       token={token}
                       slotId={slotId}
+                      campaignId={campaignId}
                     />
                   ))}
                 </div>

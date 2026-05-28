@@ -1,19 +1,21 @@
 /**
  * @file reconciler.ts
  * @description Real-time reconciliation engine that merges player-initiated PC state modifications
- * back into the master campaign document.
- * 
- * Since unauthenticated player clients cannot write directly to the master campaign document (which
- * is protected by strict ownership rules), they instead stage their changes in the `pcWritebacks` subcollection.
- * 
- * This module runs within the authenticated GM's browser workspace. It listens to additions in the
- * `pcWritebacks` subcollection, performs an immutable merge of the new values into the campaign's `pcs` array,
- * and commits the merged result back to Firestore while atomically pruning the staged writebacks in a single
- * transactional write batch.
+ * into the campaign's PC list.
+ *
+ * Players write to `campaigns/{id}/pcWritebacks/{slotId}` via the Web SDK
+ * (firestore.rules validates the shareToken capability). This module runs in
+ * the GM's browser. On each change, it merges the staged updates into the
+ * local React PC array via the `onPcsUpdate` callback — that triggers the
+ * existing CRDT-aware autosave path in `CampaignEditor`, which routes the
+ * write through the Y.Doc rather than writing `data.pcs` directly. Once the
+ * change is in local state, the writeback doc is deleted as cleanup. We
+ * re-validate each field with `validatePlayerField` as defense in depth.
  */
 
-import { collection, doc, onSnapshot, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, writeBatch } from 'firebase/firestore';
 import { getDb } from '@/lib/firebase/client';
+import { validatePlayerField } from '@/lib/player/allowlist';
 import { type PlayerCharacter } from '@/lib/pc/types';
 
 /**
@@ -73,9 +75,8 @@ export function startWritebackReconciler(
       const currentPcs = getCurrentPcs();
       let updatedPcs = [...currentPcs];
       let changed = false;
-      
-      // Initialize an atomic write batch to ensure consistency.
-      // All reconciliations and deletions MUST succeed or fail as a single unit.
+
+      // Batch the writeback deletions so cleanup of multiple slots commits atomically.
       const batch = writeBatch(db);
 
       // Loop through all pending writeback snapshots
@@ -88,39 +89,39 @@ export function startWritebackReconciler(
         const pcIndex = updatedPcs.findIndex((p) => p.id === pcId);
         if (pcIndex !== -1) {
           let pc = updatedPcs[pcIndex];
-          
-          // Apply each field update staged by the player
+
+          // Apply each field update staged by the player. Re-validate against
+          // the allowlist as defense in depth — firestore.rules already locks
+          // the keys, but value-type ranges aren't expressible there.
           for (const [field, value] of Object.entries(updates)) {
+            if (!validatePlayerField(field, value)) {
+              console.warn('Rejecting player writeback with invalid field/value', { field });
+              continue;
+            }
             pc = setNestedField(pc, field, value);
             changed = true;
           }
           updatedPcs[pcIndex] = pc;
         }
 
-        // Critically, we delete the staged writeback doc within the same batch.
-        // This acts as our lock: once successfully written to the campaign doc,
-        // the writeback is removed so it won't be processed again on subsequent snapshots.
+        // Delete the staged writeback once we've copied its contents into
+        // local state. The CRDT-aware autosave path in CampaignEditor (driven
+        // by the setState below) is responsible for persisting the change —
+        // we deliberately do NOT write `data.pcs` to Firestore here, since
+        // campaign content is owned by the Y.Doc per CLAUDE.md.
         batch.delete(changeDoc.ref);
       }
 
-      // If state changes occurred, write them back to Firestore
       if (changed) {
-        try {
-          // 1. Trigger optimistic local React state update first for ultra-fast table rendering
-          onPcsUpdate(updatedPcs);
+        // Local React state update — feeds the existing debounced autosave
+        // which routes through the Y.Doc / CRDT update log.
+        onPcsUpdate(updatedPcs);
+      }
 
-          // 2. Queue the update on the main campaign document
-          const campaignRef = doc(db, 'campaigns', campaignId);
-          batch.update(campaignRef, {
-            'data.pcs': updatedPcs,
-            updatedAt: serverTimestamp(),
-          });
-
-          // 3. Commit the transaction atomically
-          await batch.commit();
-        } catch (err) {
-          console.error('Failed to reconcile player writebacks:', err);
-        }
+      try {
+        await batch.commit();
+      } catch (err) {
+        console.error('Failed to clean up player writebacks:', err);
       }
     },
     onError

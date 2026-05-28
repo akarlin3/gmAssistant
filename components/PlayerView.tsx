@@ -131,6 +131,7 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
         <PlayerCampaignView
           token={shareToken}
           slotId={slotId}
+          campaignId={meta.campaignId}
           displayName={slot?.displayName ?? 'Player'}
           campaignName={meta.campaignName}
           onSwitch={switchPlayer}
