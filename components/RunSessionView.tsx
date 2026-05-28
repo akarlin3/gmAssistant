@@ -1755,8 +1755,9 @@ export function MusicPlayer({
               setYtPlayer(player);
               setIsApiReady(true);
               try {
-                player.setVolume(volumeRef.current);
-                if (isMutedRef.current) {
+                // See sync effect: never push setVolume(0).
+                player.setVolume(volumeRef.current === 0 ? 1 : volumeRef.current);
+                if (isMutedRef.current || volumeRef.current === 0) {
                   player.mute();
                 } else {
                   player.unMute();
@@ -1883,9 +1884,14 @@ export function MusicPlayer({
     if (!iframe || !document.body.contains(iframe)) return;
 
     try {
-      // 1. Ensure volume and mute are set
-      ytPlayer.setVolume(volumeRef.current);
-      if (isMutedRef.current) {
+      // 1. Ensure volume and mute are set. Never push a literal 0 into
+      //    YT.setVolume — some browser/YT combos treat that as a request
+      //    to suspend audio and auto-pause the iframe, which then fires
+      //    PAUSED and stops the broadcast for every player. Clamp to a
+      //    floor of 1 and mute instead to achieve silence.
+      const targetVolume = volumeRef.current === 0 ? 1 : volumeRef.current;
+      ytPlayer.setVolume(targetVolume);
+      if (isMutedRef.current || volumeRef.current === 0) {
         ytPlayer.mute();
       } else {
         ytPlayer.unMute();
@@ -2008,12 +2014,20 @@ export function MusicPlayer({
       window.localStorage.setItem(volumeKey, String(nextVolume));
     }
     if (ytPlayer) {
-      ytPlayer.setVolume(nextVolume);
-      if (nextVolume > 0 && isMuted) {
-        ytPlayer.unMute();
-        setIsMuted(false);
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(mutedKey, 'false');
+      if (nextVolume === 0) {
+        // Avoid YT.setVolume(0) — it can trigger an auto-pause that
+        // propagates to every player. Mute the iframe instead while
+        // keeping the underlying YT volume positive.
+        ytPlayer.setVolume(1);
+        ytPlayer.mute();
+      } else {
+        ytPlayer.setVolume(nextVolume);
+        if (isMuted) {
+          ytPlayer.unMute();
+          setIsMuted(false);
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem(mutedKey, 'false');
+          }
         }
       }
     }
