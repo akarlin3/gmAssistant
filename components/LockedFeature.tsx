@@ -28,7 +28,7 @@ export function LockedPanel({ title, children }: { title: string; children: Reac
         href="/account"
         className="gm-shimmer inline-flex items-center gap-1.5 rounded bg-crimson px-3 py-1.5 font-display text-xs uppercase tracking-wider text-parchment hover:bg-wine"
       >
-        <Sparkles size={12} /> Join the Pro waitlist — $2.99 / month at launch
+        <Sparkles size={12} /> Join the Pro waitlist — $3.99 / month at launch
       </Link>
     </div>
   );

@@ -40,7 +40,7 @@ token is the capability. It's a **free** feature. See
 
 ## Pro features (LLM-powered)
 
-A few features call paid inference APIs and will be gated behind a $2.99/month Pro subscription at launch. Pro is currently waitlist-only — signed-in users can join from the account page and get emailed when it opens:
+A few features call paid inference APIs and will be gated behind a $3.99/month Pro subscription at launch. Pro is currently waitlist-only — signed-in users can join from the account page and get emailed when it opens:
 
 - **Character sheet parser** — drop a PDF or screenshot, get a structured character entry
 - **Name generator** — themed NPC name lists

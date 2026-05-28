@@ -94,14 +94,14 @@ You now have a live webapp at `https://gamemaster-builder-production.up.railway.
 
 If you want `prep.yourname.com`: in Railway → Settings → Networking → **Custom Domain**, follow the DNS instructions. Then add the custom domain to Firebase's Authorized domains list too.
 
-### Part 9 — Stripe ($2.99/month Pro subscription — currently waitlist-only)
+### Part 9 — Stripe ($3.99/month Pro subscription — currently waitlist-only)
 
-The pro AI features (character-sheet parser, name generator, NPC inspires) will be paywalled at $2.99/month. Anyone in `PRO_EMAILS` (`lib/pro-status.ts`) stays free.
+The pro AI features (character-sheet parser, name generator, NPC inspires) will be paywalled at $3.99/month. Anyone in `PRO_EMAILS` (`lib/pro-status.ts`) stays free.
 
 **Pro is currently waitlist-only.** The non-pro UI shows "Join the Pro waitlist" instead of "Upgrade to Pro" — joining writes a doc to the `proWaitlist` Firestore collection via `POST /api/waitlist/join`. The Stripe steps below remain so existing subscribers can still manage their subscription and so you can flip the upgrade flow back on when you launch. Skip this section entirely if you don't have any existing subscribers.
 
 26. **Stripe account.** Sign up at https://stripe.com if you don't already have one. Stay in **Test mode** until you're ready to take real payments.
-27. **Create the product.** Stripe Dashboard → **Products** → **Add product**. Name "Gamemaster Assistant Pro", recurring price **$2.99 USD / month**. Save. Copy the price ID (looks like `price_1ABCxyz…`) — you'll paste it as `STRIPE_PRICE_ID`.
+27. **Create the product.** Stripe Dashboard → **Products** → **Add product**. Name "Gamemaster Assistant Pro", recurring price **$3.99 USD / month**. Save. Copy the price ID (looks like `price_1ABCxyz…`) — you'll paste it as `STRIPE_PRICE_ID`.
 28. **Get the API secret key.** Dashboard → **Developers** → **API keys** → copy the **Secret key** (`sk_test_…` in test mode). Paste it as `STRIPE_SECRET_KEY`.
 29. **Webhook.** Dashboard → **Developers** → **Webhooks** → **Add endpoint**. URL is `https://<your-railway-domain>/api/stripe/webhook`. Subscribe to:
     - `checkout.session.completed`

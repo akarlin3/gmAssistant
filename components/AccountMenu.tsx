@@ -12,7 +12,7 @@ import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { getDb, getFirebaseAuth } from '@/lib/firebase/client';
 
-const PRO_PRICE_LABEL = '$2.99 / month';
+const PRO_PRICE_LABEL = '$3.99 / month';
 const GITHUB_URL = 'https://github.com/akarlin3/campaign-prep';
 
 export type AccountMenuProps = {

@@ -38,7 +38,7 @@ both import from there, so there is one source of truth.
 Pro is currently **waitlist-only**, not on sale. The "Upgrade to Pro" button
 has been replaced with "Join the Pro waitlist" everywhere user-facing
 (`/account`, `AccountMenu`, `LockedPanel`). Public price at launch is
-$2.99/month.
+$3.99/month.
 
 - Signed-in users join by writing `proWaitlist/{uid}` directly from the
   Firebase Web SDK (`setDoc(doc(db, 'proWaitlist', uid), { uid, email,

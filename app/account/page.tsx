@@ -21,7 +21,7 @@ import {
 } from '@/lib/google-drive';
 import { getUserCampaignsOnce, importCampaign } from '@/lib/firebase/campaigns';
 
-const PRO_PRICE_LABEL = '$2.99 / month';
+const PRO_PRICE_LABEL = '$3.99 / month';
 
 const PRO_FEATURES = [
   'AI character-sheet parser (PDF / image / text → editable card)',
