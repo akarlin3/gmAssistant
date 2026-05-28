@@ -107,6 +107,50 @@ Reveals are **sticky**: `party` upgrades a private entity to party; `custom`
 seeds/unions the entry's slots; nothing is ever narrowed, and editing entry text
 never un-reveals.
 
+## Player Write-Back Pipeline (Live Updates)
+
+To support interactive play without requiring full player accounts, players can edit allowed fields on their owned Player Character (PC) sheet. These updates are securely propagated to the GM's main database via a real-time write-back reconciliation pipeline.
+
+### Writable Fields & Security Boundary
+
+Rather than opening the entire PC sheet to client writes, we establish a strict **field and type allowlist** defined in `lib/player/allowlist.ts`. Writable fields are restricted to high-frequency play-state fields:
+- **Numerical Stats**: `hp.current` (current hit points), `hp.temp` (temporary hit points), `exhaustion` (0-6), and death saves (`deathSaves.successes` / `deathSaves.failures` [0-3]).
+- **Arrays & Collections**: `conditions` (active status conditions matching SRD values), and custom text arrays: `goals`, `bonds`, `ideals`, `flaws`.
+- **Freeform Notes**: `notes` for session observations and reminders.
+
+Arbitrary fields (like ability scores, levels, or name) are rejected by server-side Zod validators, keeping the structural authority locked to the GM.
+
+### Data Flow
+
+```mermaid
+sequenceDiagram
+    participant Player as Player Browser
+    participant API as Next.js API (/api/player/update)
+    participant Firestore as Firestore (pcWritebacks)
+    participant GM as GM Browser (Reconciler)
+    participant Main as Firestore (campaigns/{id})
+
+    Player->>API: POST { shareToken, slotId, pcId, field, value }
+    Note over API: 1. Validate shareToken & slotId<br/>2. Rate limit check (60/min)<br/>3. Verify field is in Zod allowlist
+    API->>Firestore: write merge-update to pcWritebacks/{slotId}
+    Firestore-->>GM: Real-time update (onSnapshot trigger)
+    Note over GM: Deep-merges updates into local PC array
+    GM->>Main: Atomic transaction:<br/>1. Update data.pcs<br/>2. Delete pcWritebacks/{slotId}
+    Note over GM: Triggers automatic save &<br/>re-publishes redacted slot projections
+```
+
+1. **Submission**: The player client issues a `POST` request to `/api/player/update` with the payload `{ shareToken, slotId, pcId, field, value }`.
+2. **Server Verification**: The API route verifies the `shareToken` exists, validates the slot ID is in the roster, performs rate-limiting checks (60 writes per minute per token), and parses the value using `validatePlayerField` from `lib/player/allowlist.ts`.
+3. **Staging Subcollection**: If valid, the API writes a merge-update to `campaigns/{campaignId}/pcWritebacks/{slotId}`.
+4. **GM Reconciliation**: The GM's browser maintains an active `onSnapshot` listener on the `pcWritebacks` subcollection. Upon catching a document:
+   - It runs the reconciler (`lib/player/reconciler.ts`), applying `setNestedField` to deep-merge updates into the local campaign's `pcs` array.
+   - It performs an atomic `writeBatch` containing a `delete` on the writeback document and an `update` on the parent campaign document.
+   - The campaign document write triggers the standard debounce save pipeline, which automatically generates and publishes the updated public redacted slot projections.
+
+### Rate Limiting
+
+The API implements sliding-window rate limiting (`lib/player/rate-limit.ts`) checking `player:${shareToken}`. If a player exceeds 60 updates per minute, the server responds with a standard `HTTP 429 Too Many Requests` containing a `Retry-After` header.
+
 ## Adding visibility support to a new entity type
 
 1. Add the type to `PLAYER_ENTITY_TYPES` in `lib/playerMode/types.ts`.

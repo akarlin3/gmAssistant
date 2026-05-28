@@ -3,11 +3,13 @@
 Out of scope for the initial Player Mode build. Captured here so they don't get
 lost. None of these block the shipped feature.
 
+## Completed / Implemented
+
+- **Character sheets owned/edited by players & Per-player notes writeback**: Implemented in Phase 5 of the campaign modes expansion. Under Duet/Standard modes, players are granted partial sheet ownership over their designated PC slot. Using a secure REST validation pipeline, they can update dynamic gameplay variables (HP, conditions, exhaustion, death saves) and maintain writeable goals, bonds, ideals, flaws, and freeform session notes from the player view. These writebacks bypass Admin SDK restrictions by staging inside a subcollection document, which is reconciled in real-time by the GM client's browser.
+
 ## Explicitly deferred by the spec
-- Per-player notes the player can write back.
-- Player-side dice rolling.
-- Character sheets owned/edited by players.
-- Voice/video.
+- Player-side dice rolling (rolling directly from player sheet and pushing to GM feed).
+- Voice/video integration.
 - Mobile native app.
 
 ## Surfaced during implementation

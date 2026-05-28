@@ -2915,7 +2915,13 @@ export default function CampaignEditor({
     pcsRef.current = pcs;
   }, [pcs]);
 
+  // Real-time Player Write-back Reconciler Subscription Hook.
+  // 
+  // Registers an active subscription to the player writebacks collection in Duet or Standard modes.
+  // When a player modifies their sheet, this hook catches the staged change, reconciles it using the
+  // transaction logic in `lib/player/reconciler.ts`, and commits it to the master campaign document.
   useEffect(() => {
+    // Reconciler is inactive in world-only modes, stub campaigns, or Solo campaigns (where there are no players)
     if (worldOnlyMode || campaign.id === 'world-stub' || playMode === 'solo') return;
 
     let unsubscribe: (() => void) | null = null;
@@ -2926,12 +2932,16 @@ export default function CampaignEditor({
       try {
         unsubscribe = startWritebackReconciler(
           campaign.id,
+          // Getter references the latest PC array via mutable ref to avoid sub-re-evaluation cycles
           () => pcsRef.current,
+          // Callback triggers local state update, initiating instant optimistic UI re-render
           (nextPcs) => {
             writePcs(nextPcs);
           },
+          // Error handler with automatic backoff retry to handle network disruptions
           (err) => {
             if (err.message.includes('permission') || err.message.includes('Permission')) {
+              // Informative warning targeting developers in local workspace setting up Firebase configurations
               console.warn(
                 `[Writeback Reconciler] Warning: Firestore returned 'Missing or insufficient permissions' (attempt ${retryCount + 1}).\n` +
                 `If you are running in local development, please make sure:\n` +
@@ -2941,12 +2951,14 @@ export default function CampaignEditor({
             } else {
               console.warn(`Failed to reconcile player writebacks (attempt ${retryCount + 1}):`, err.message);
             }
+            
+            // Retry automatically up to 3 times using exponential backoff (1s, 2s, 3s)
             if (retryCount < 3) {
               retryCount++;
               timeoutId = setTimeout(() => {
                 if (unsubscribe) unsubscribe();
                 start();
-              }, 1000 * retryCount); // Exponential backoff (1s, 2s, 3s)
+              }, 1000 * retryCount);
             } else {
               if (err.message.includes('permission') || err.message.includes('Permission')) {
                 console.warn('[Writeback Reconciler] Reconciler paused due to persistent permission errors. Player writebacks will not sync in this session.');
@@ -2963,6 +2975,7 @@ export default function CampaignEditor({
 
     start();
 
+    // Clean up and detach listener on component unmount
     return () => {
       if (unsubscribe) unsubscribe();
       if (timeoutId) clearTimeout(timeoutId);
