@@ -1,449 +1,34 @@
+/**
+ * Anthropic-compatible client shim.
+ *
+ * This module is aliased to `@anthropic-ai/sdk` (see `next.config.js`), so it is
+ * the SDK every consumer actually imports. It wraps the real Anthropic SDK and
+ * layers a fallback chain on top:
+ *
+ *   real Anthropic  ->  (on auth error)  ->  Gemini  ->  (on any error)  ->  mock
+ *
+ * The public surface is intentionally identical to the upstream SDK pieces this
+ * codebase uses: a default-exported `Anthropic` class exposing
+ * `messages.create` / `messages.stream` and a `static APIError`, plus a named
+ * `APIError` export. Implementation details live in `lib/anthropic/`.
+ */
+
 import RealAnthropic from '../node_modules/@anthropic-ai/sdk/index.mjs';
 
-export class APIError extends Error {
-  status: number;
-  constructor(status: number, message: string) {
-    super(message);
-    this.name = 'APIError';
-    this.status = status;
-  }
-}
+import { APIError, isAuthError } from './anthropic/errors';
+import { callGemini } from './anthropic/gemini';
+import { getMockResponse } from './anthropic/mock';
+import {
+  FallbackStreamWrapper,
+  SafeStreamWrapper,
+  type RealStreamSource,
+} from './anthropic/stream-wrappers';
 
-function toGeminiSchema(schema: any): any {
-  if (!schema) return schema;
-  const copy = { ...schema };
-  if (typeof copy.type === 'string') {
-    copy.type = copy.type.toUpperCase();
-  }
-  if (copy.properties) {
-    const props: any = {};
-    for (const [k, v] of Object.entries(copy.properties)) {
-      props[k] = toGeminiSchema(v);
-    }
-    copy.properties = props;
-  }
-  if (copy.items) {
-    copy.items = toGeminiSchema(copy.items);
-  }
-  return copy;
-}
+export { APIError };
 
-function mapAnthropicToGemini(options: any) {
-  let systemInstruction: any = undefined;
-  if (options.system) {
-    const sysText = typeof options.system === 'string'
-      ? options.system
-      : Array.isArray(options.system)
-        ? options.system.map((s: any) => s.text || s.content || '').join('\n')
-        : '';
-    if (sysText) {
-      systemInstruction = {
-        parts: [{ text: sysText }]
-      };
-    }
-  }
-
-  const contents = options.messages.map((msg: any) => {
-    const role = msg.role === 'assistant' ? 'model' : 'user';
-    let parts: any[] = [];
-    if (typeof msg.content === 'string') {
-      parts = [{ text: msg.content }];
-    } else if (Array.isArray(msg.content)) {
-      parts = msg.content.map((block: any) => {
-        if (block.type === 'text') {
-          return { text: block.text };
-        } else if (block.type === 'tool_use') {
-          return { text: `[Tool call proposed: name=${block.name}, input=${JSON.stringify(block.input)}]` };
-        } else if (block.type === 'tool_result') {
-          return { text: `[Tool result]: ${block.content}` };
-        }
-        return { text: JSON.stringify(block) };
-      });
-    }
-    return { role, parts };
-  });
-
-  let geminiTools: any = undefined;
-  if (options.tools && Array.isArray(options.tools)) {
-    const functionDeclarations = options.tools.map((t: any) => {
-      return {
-        name: t.name,
-        description: t.description,
-        parameters: toGeminiSchema(t.input_schema)
-      };
-    });
-    geminiTools = [{ functionDeclarations }];
-  }
-
-  const generationConfig: any = {};
-  if (options.max_tokens) {
-    generationConfig.maxOutputTokens = options.max_tokens;
-  }
-  if (options.temperature !== undefined) {
-    generationConfig.temperature = options.temperature;
-  }
-
-  return {
-    contents,
-    systemInstruction,
-    tools: geminiTools,
-    generationConfig
-  };
-}
-
-async function callGemini(options: any, geminiKey: string) {
-  if (!geminiKey) {
-    throw new APIError(403, 'Missing Gemini API Key');
-  }
-
-  const payload = mapAnthropicToGemini(options);
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }
-  );
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    throw new APIError(response.status, `Gemini generateContent failed: ${response.status} ${errText}`);
-  }
-
-  const json = await response.json();
-  const parts = json.candidates?.[0]?.content?.parts || [];
-  
-  const content: any[] = [];
-  let accumulatedText = '';
-  for (const p of parts) {
-    if (p.text) {
-      accumulatedText += p.text;
-    }
-    if (p.functionCall) {
-      content.push({
-        type: 'tool_use',
-        id: 'toolu_' + Math.random().toString(36).slice(2, 11),
-        name: p.functionCall.name,
-        input: p.functionCall.args || {}
-      });
-    }
-  }
-
-  if (accumulatedText) {
-    content.unshift({ type: 'text', text: accumulatedText });
-  }
-
-  return {
-    id: 'msg_' + Math.random().toString(36).slice(2, 11),
-    type: 'message',
-    role: 'assistant',
-    model: 'gemini-2.5-flash',
-    content,
-    stop_reason: content.some(c => c.type === 'tool_use') ? 'tool_use' : 'end_turn',
-    stop_sequence: null,
-    usage: { input_tokens: 0, output_tokens: 0 }
-  };
-}
-
-function getMockResponse(options: any) {
-  const content: any[] = [];
-  const lastUserMsg = [...options.messages].reverse().find((m: any) => m.role === 'user');
-  const userText = typeof lastUserMsg?.content === 'string'
-    ? lastUserMsg.content
-    : Array.isArray(lastUserMsg?.content)
-      ? lastUserMsg.content.map((c: any) => c.text || '').join(' ')
-      : 'hello';
-
-  let responseText = `[Simulated Assistant in Development Mode]\n`;
-  responseText += `Hello! Your API keys are either missing or restricted, so I am running in simulated development mode. You asked: "${userText.slice(0, 100)}..."\n\n`;
-
-  if (userText.toLowerCase().includes('npc') || userText.toLowerCase().includes('character')) {
-    responseText += `Here is a simulated NPC proposal for your campaign:`;
-    content.push({
-      type: 'tool_use',
-      id: 'toolu_' + Math.random().toString(36).slice(2, 11),
-      name: 'createNpc',
-      input: {
-        name: 'Gromph Baenre',
-        title: 'Archmage of Menzoberranzan',
-        traits: 'Ambitious, cold, calculating, intensely intelligent',
-        voice: 'Raspy, slow, menacingly formal',
-        goals: 'Maintain political power and unlock ancient shadow magic'
-      }
-    });
-  } else if (userText.toLowerCase().includes('secret') || userText.toLowerCase().includes('clue')) {
-    responseText += `Here is a simulated secret proposal for your session prep:`;
-    content.push({
-      type: 'tool_use',
-      id: 'toolu_' + Math.random().toString(36).slice(2, 11),
-      name: 'createSecret',
-      input: {
-        rawText: 'The Archmage is secretly smuggling shadow daggers into the city.'
-      }
-    });
-  } else {
-    responseText += `I can help you build NPCs, write secrets, outline scenes, or prep your sessions! Try asking me to "create an NPC" or "generate a secret" to see how tool proposals work.`;
-  }
-
-  content.unshift({ type: 'text', text: responseText });
-
-  return {
-    id: 'msg_' + Math.random().toString(36).slice(2, 11),
-    type: 'message',
-    role: 'assistant',
-    model: 'mock-assistant',
-    content,
-    stop_reason: content.some(c => c.type === 'tool_use') ? 'tool_use' : 'end_turn',
-    stop_sequence: null,
-    usage: { input_tokens: 0, output_tokens: 0 }
-  };
-}
-
-class MockStreamWrapper {
-  private options: any;
-  private finalMsgPromise: Promise<any>;
-  private resolveFinalMsg!: (val: any) => void;
-
-  constructor(options: any) {
-    this.options = options;
-    this.finalMsgPromise = new Promise((resolve) => {
-      this.resolveFinalMsg = resolve;
-    });
-  }
-
-  async *[Symbol.asyncIterator]() {
-    const mock = getMockResponse(this.options);
-    const textBlock = mock.content.find(c => c.type === 'text');
-    const text = textBlock ? textBlock.text : '';
-
-    const chunks = text.split(/(\s+)/);
-    for (const chunk of chunks) {
-      if (!chunk) continue;
-      yield {
-        type: 'content_block_delta',
-        index: 0,
-        delta: { type: 'text_delta', text: chunk }
-      };
-      await new Promise(resolve => setTimeout(resolve, 30));
-    }
-
-    yield {
-      type: 'message_stop'
-    };
-
-    this.resolveFinalMsg(mock);
-  }
-
-  async finalMessage() {
-    return this.finalMsgPromise;
-  }
-}
-
-class GeminiStreamWrapper {
-  private options: any;
-  private geminiKey: string;
-  private finalMsgPromise: Promise<any>;
-  private resolveFinalMsg!: (val: any) => void;
-
-  constructor(options: any, geminiKey: string) {
-    this.options = options;
-    this.geminiKey = geminiKey;
-    this.finalMsgPromise = new Promise((resolve) => {
-      this.resolveFinalMsg = resolve;
-    });
-  }
-
-  async *[Symbol.asyncIterator]() {
-    const payload = mapAnthropicToGemini(this.options);
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${this.geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }
-    );
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      throw new APIError(response.status, `Gemini stream failed: ${response.status} ${errText}`);
-    }
-
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('Gemini response has no body reader');
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let accumulatedText = '';
-    const functionCalls: any[] = [];
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6).trim();
-            if (!dataStr) continue;
-            try {
-              const chunk = JSON.parse(dataStr);
-              const part = chunk.candidates?.[0]?.content?.parts?.[0];
-              if (part) {
-                if (part.text) {
-                  accumulatedText += part.text;
-                  yield {
-                    type: 'content_block_delta',
-                    index: 0,
-                    delta: { type: 'text_delta', text: part.text }
-                  };
-                }
-                if (part.functionCall) {
-                  functionCalls.push(part.functionCall);
-                }
-              }
-            } catch (e) {
-              // Ignore partial JSON chunks
-            }
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
-
-    const content: any[] = [];
-    if (accumulatedText) {
-      content.push({ type: 'text', text: accumulatedText });
-    }
-    for (const fc of functionCalls) {
-      content.push({
-        type: 'tool_use',
-        id: 'toolu_' + Math.random().toString(36).slice(2, 11),
-        name: fc.name,
-        input: fc.args || {}
-      });
-    }
-
-    const finalMsg = {
-      id: 'msg_' + Math.random().toString(36).slice(2, 11),
-      type: 'message',
-      role: 'assistant',
-      model: 'gemini-2.5-flash',
-      content,
-      stop_reason: functionCalls.length > 0 ? 'tool_use' : 'end_turn',
-      stop_sequence: null,
-      usage: { input_tokens: 0, output_tokens: 0 }
-    };
-
-    yield {
-      type: 'message_stop'
-    };
-
-    this.resolveFinalMsg(finalMsg);
-  }
-
-  async finalMessage() {
-    return this.finalMsgPromise;
-  }
-}
-
-class SafeStreamWrapper {
-  private options: any;
-  private geminiKey: string;
-  private finalMsgPromise: Promise<any>;
-  private resolveFinalMsg!: (val: any) => void;
-
-  constructor(options: any, geminiKey: string) {
-    this.options = options;
-    this.geminiKey = geminiKey;
-    this.finalMsgPromise = new Promise((resolve) => {
-      this.resolveFinalMsg = resolve;
-    });
-  }
-
-  async *[Symbol.asyncIterator]() {
-    if (!this.geminiKey) {
-      console.warn('[Writeback Reconciler / AI] Missing Gemini key, using simulated mock stream.');
-      const mockStream = new MockStreamWrapper(this.options);
-      for await (const chunk of mockStream) {
-        yield chunk;
-      }
-      this.resolveFinalMsg(await mockStream.finalMessage());
-      return;
-    }
-
-    try {
-      const geminiStream = new GeminiStreamWrapper(this.options, this.geminiKey);
-      for await (const chunk of geminiStream) {
-        yield chunk;
-      }
-      this.resolveFinalMsg(await geminiStream.finalMessage());
-    } catch (err) {
-      console.warn('[Writeback Reconciler / AI] Gemini stream failed, using simulated mock stream fallback:', err);
-      const mockStream = new MockStreamWrapper(this.options);
-      for await (const chunk of mockStream) {
-        yield chunk;
-      }
-      this.resolveFinalMsg(await mockStream.finalMessage());
-    }
-  }
-
-  async finalMessage() {
-    return this.finalMsgPromise;
-  }
-}
-
-class FallbackStreamWrapper {
-  private realClient: any;
-  private options: any;
-  private requestOptions: any;
-  private geminiKey: string;
-  private finalMsgPromise: Promise<any>;
-  private resolveFinalMsg!: (val: any) => void;
-
-  constructor(realClient: any, options: any, requestOptions: any, geminiKey: string) {
-    this.realClient = realClient;
-    this.options = options;
-    this.requestOptions = requestOptions;
-    this.geminiKey = geminiKey;
-    this.finalMsgPromise = new Promise((resolve) => {
-      this.resolveFinalMsg = resolve;
-    });
-  }
-
-  async *[Symbol.asyncIterator]() {
-    let stream: any;
-    try {
-      stream = this.realClient.messages.stream(this.options, this.requestOptions);
-      for await (const chunk of stream) {
-        yield chunk;
-      }
-      this.resolveFinalMsg(await stream.finalMessage());
-      return;
-    } catch (err: any) {
-      const isAuthError = err?.status === 401 || String(err).includes('401') || String(err).includes('x-api-key');
-      if (isAuthError) {
-        console.warn('[AI client] Anthropic API key invalid in stream iterator, trying Gemini fallback...');
-        const fallback = new SafeStreamWrapper(this.options, this.geminiKey);
-        for await (const chunk of fallback) {
-          yield chunk;
-        }
-        this.resolveFinalMsg(await fallback.finalMessage());
-      } else {
-        throw err;
-      }
-    }
-  }
-
-  async finalMessage() {
-    return this.finalMsgPromise;
-  }
+/** Reads the Gemini fallback key from the environment. */
+function getGeminiKey(): string {
+  return process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '';
 }
 
 export default class Anthropic {
@@ -458,14 +43,15 @@ export default class Anthropic {
     this.apiKey = options.apiKey || '';
     const realClient = new RealAnthropic({ apiKey: this.apiKey || 'mock-key' });
 
-    const getGeminiKey = () => {
-      return process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '';
-    };
+    // The leading `sk-ant-api03-PJiXFbaQ` prefix marks the placeholder/demo key
+    // that should always route to the simulated providers rather than the real
+    // Anthropic API.
+    const isMockKey = () =>
+      !this.apiKey || this.apiKey.startsWith('sk-ant-api03-PJiXFbaQ');
 
     this.messages = {
       create: async (opts: any, reqOpts?: any) => {
-        const isMockKey = !this.apiKey || this.apiKey.startsWith('sk-ant-api03-PJiXFbaQ');
-        if (isMockKey) {
+        if (isMockKey()) {
           try {
             return await callGemini(opts, getGeminiKey());
           } catch (geminiErr) {
@@ -476,7 +62,7 @@ export default class Anthropic {
         try {
           return await realClient.messages.create(opts, reqOpts);
         } catch (err: any) {
-          if (err?.status === 401 || String(err).includes('401') || String(err).includes('x-api-key')) {
+          if (isAuthError(err)) {
             console.warn('[AI client] Anthropic API key invalid, trying Gemini fallback...');
             try {
               return await callGemini(opts, getGeminiKey());
@@ -489,12 +75,16 @@ export default class Anthropic {
         }
       },
       stream: (opts: any, reqOpts?: any) => {
-        const isMockKey = !this.apiKey || this.apiKey.startsWith('sk-ant-api03-PJiXFbaQ');
-        if (isMockKey) {
+        if (isMockKey()) {
           return new SafeStreamWrapper(opts, getGeminiKey());
         }
-        return new FallbackStreamWrapper(realClient, opts, reqOpts, getGeminiKey());
-      }
+        return new FallbackStreamWrapper(
+          realClient as unknown as RealStreamSource,
+          opts,
+          reqOpts,
+          getGeminiKey()
+        );
+      },
     };
   }
 }
