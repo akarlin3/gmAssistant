@@ -114,6 +114,14 @@ export type SlotProjection = {
   playlistUrl?: string;
   playlistPlaying?: boolean;
   playlistIndex?: number;
+  // Sync anchor: the GM's playback position at a wall-clock instant. Players
+  // compute expected position = positionSec + (now - anchorWallTimeMs)/1000
+  // and seek when local playback drifts beyond a small tolerance.
+  playlistAnchor?: {
+    positionSec: number;
+    anchorWallTimeMs: number;
+    playlistIndex: number;
+  };
 };
 
 export type CampaignItem = {
@@ -152,6 +160,11 @@ export type PlayerModeData = Partial<Record<PlayerEntityType, PlayerEntity[]>> &
   __sessionPlaylist?: string;
   __sessionPlaylistPlaying?: boolean;
   __sessionPlaylistIndex?: number;
+  __sessionPlaylistAnchor?: {
+    positionSec: number;
+    anchorWallTimeMs: number;
+    playlistIndex: number;
+  };
 };
 
 export function normalizeItem(it: string | Record<string, any>, index: number): CampaignItem {

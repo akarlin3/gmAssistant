@@ -1573,6 +1573,7 @@ function RunSessionInlineActive({
               onChangePlaylist={(next) => {
                 setVal('__sessionPlaylist', next);
                 setVal('__sessionPlaylistIndex', 0);
+                setVal('__sessionPlaylistAnchor', null);
               }}
               isPlayingProp={!!get('__sessionPlaylistPlaying', false)}
               onChangePlaying={(next) => setVal('__sessionPlaylistPlaying', next)}
@@ -1580,6 +1581,7 @@ function RunSessionInlineActive({
               onChangePlaylists={(next) => setVal('__sessionPlaylists', next)}
               playlistIndexProp={(get('__sessionPlaylistIndex', 0) as number)}
               onChangePlaylistIndex={(next) => setVal('__sessionPlaylistIndex', next)}
+              onPublishSyncAnchor={(anchor) => setVal('__sessionPlaylistAnchor', anchor)}
             />
           </PanelShell>
 
@@ -2476,6 +2478,7 @@ export default function CampaignEditor({
       playlist: get('__sessionPlaylist', ''),
       playing: !!get('__sessionPlaylistPlaying', false),
       index: get('__sessionPlaylistIndex', 0),
+      anchor: (get('__sessionPlaylistAnchor', null) as { anchorWallTimeMs?: number } | null)?.anchorWallTimeMs ?? 0,
     }),
     [get],
   );
@@ -2512,6 +2515,9 @@ export default function CampaignEditor({
             __sessionPlaylist: get('__sessionPlaylist', '') as string,
             __sessionPlaylistPlaying: !!get('__sessionPlaylistPlaying', false),
             __sessionPlaylistIndex: get('__sessionPlaylistIndex', 0) as number,
+            __sessionPlaylistAnchor: (get('__sessionPlaylistAnchor', null) as
+              | { positionSec: number; anchorWallTimeMs: number; playlistIndex: number }
+              | null) ?? undefined,
           };
           await publishProjections(campaign.id, name || 'Campaign', dataToPublish);
         } catch (e) {

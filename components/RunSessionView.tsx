@@ -101,6 +101,10 @@ export default function RunSessionView({
       playlist: get('__sessionPlaylist', ''),
       playing: !!get('__sessionPlaylistPlaying', false),
       index: get('__sessionPlaylistIndex', 0),
+      // anchorWallTimeMs is the only field that changes when the GM republishes
+      // a fresh sync point — including it ensures the debounced publisher fires
+      // on every new anchor.
+      anchor: (get('__sessionPlaylistAnchor', null) as { anchorWallTimeMs?: number } | null)?.anchorWallTimeMs ?? 0,
     }),
     [get],
   );
@@ -137,6 +141,9 @@ export default function RunSessionView({
             __sessionPlaylist: get('__sessionPlaylist', '') as string,
             __sessionPlaylistPlaying: !!get('__sessionPlaylistPlaying', false),
             __sessionPlaylistIndex: get('__sessionPlaylistIndex', 0) as number,
+            __sessionPlaylistAnchor: (get('__sessionPlaylistAnchor', null) as
+              | { positionSec: number; anchorWallTimeMs: number; playlistIndex: number }
+              | null) ?? undefined,
           };
           await publishProjections(campaignId, campaignName || 'Campaign', dataToPublish);
           setPublishState('done');
@@ -380,6 +387,7 @@ export default function RunSessionView({
           onChangePlaylist={(next) => {
             setVal('__sessionPlaylist', next);
             setVal('__sessionPlaylistIndex', 0);
+            setVal('__sessionPlaylistAnchor', null);
           }}
           isPlayingProp={!!get('__sessionPlaylistPlaying', false)}
           onChangePlaying={(next) => setVal('__sessionPlaylistPlaying', next)}
@@ -387,6 +395,7 @@ export default function RunSessionView({
           onChangePlaylists={(next) => setVal('__sessionPlaylists', next)}
           playlistIndexProp={(get('__sessionPlaylistIndex', 0) as number)}
           onChangePlaylistIndex={(next) => setVal('__sessionPlaylistIndex', next)}
+          onPublishSyncAnchor={(anchor) => setVal('__sessionPlaylistAnchor', anchor)}
         />
       </PanelShell>
 
@@ -1591,6 +1600,8 @@ const DEFAULT_SCENARIOS = [
   { id: 'creepy', name: '💀 Eerie Suspense', url: 'https://music.youtube.com/playlist?list=PLMISnIZ64usLdXApbAah04QGU7COj7_eX' },
 ];
 
+type SyncAnchor = { positionSec: number; anchorWallTimeMs: number; playlistIndex: number };
+
 export function MusicPlayer({
   playlistUrl,
   onChangePlaylist,
@@ -1601,6 +1612,8 @@ export function MusicPlayer({
   onChangePlaylists,
   playlistIndexProp,
   onChangePlaylistIndex,
+  onPublishSyncAnchor,
+  syncAnchor,
 }: {
   playlistUrl: string;
   onChangePlaylist?: (v: string) => void;
@@ -1611,6 +1624,8 @@ export function MusicPlayer({
   onChangePlaylists?: (v: Array<{ id: string; name: string; url: string }>) => void;
   playlistIndexProp?: number;
   onChangePlaylistIndex?: (index: number) => void;
+  onPublishSyncAnchor?: (anchor: SyncAnchor) => void;
+  syncAnchor?: SyncAnchor | null;
 }) {
   const { playlistId, videoId } = parseYoutubeUrl(playlistUrl);
   const hasContent = !!playlistId || !!videoId;
@@ -1960,6 +1975,67 @@ export function MusicPlayer({
       console.warn('Failed to sync YT player with prop state in-place', e);
     }
   }, [playlistId, videoId, playlistIndexProp, isPlayingProp, ytPlayer, isApiReady]);
+
+  // --- GM DJ: publish playback sync anchors so players can match the GM's
+  // position. We publish on play start, on track change, and every 15s during
+  // playback. Players auto-seek when drift exceeds tolerance.
+  const onPublishSyncAnchorRef = useRef(onPublishSyncAnchor);
+  useEffect(() => { onPublishSyncAnchorRef.current = onPublishSyncAnchor; });
+
+  const publishAnchor = (player: any) => {
+    if (!onPublishSyncAnchorRef.current || !player) return;
+    try {
+      const positionSec = typeof player.getCurrentTime === 'function' ? Number(player.getCurrentTime()) || 0 : 0;
+      const rawIdx = typeof player.getPlaylistIndex === 'function' ? player.getPlaylistIndex() : -1;
+      const playlistIndex = typeof rawIdx === 'number' && rawIdx >= 0 ? rawIdx : (playlistIndexPropRef.current ?? 0);
+      onPublishSyncAnchorRef.current({
+        positionSec,
+        anchorWallTimeMs: Date.now(),
+        playlistIndex,
+      });
+    } catch (e) {
+      console.warn('Failed to publish sync anchor', e);
+    }
+  };
+
+  useEffect(() => {
+    if (readOnly || !ytPlayer || !isApiReady || !isPlayingProp) return;
+    publishAnchor(ytPlayer);
+    const id = setInterval(() => publishAnchor(ytPlayer), 15000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readOnly, ytPlayer, isApiReady, isPlayingProp, playlistId, videoId, playlistIndexProp]);
+
+  // --- Player: receive sync anchor, seek when local playback drifts > tolerance.
+  // We also re-check drift on a short interval to absorb buffering/jitter.
+  useEffect(() => {
+    if (!readOnly || !ytPlayer || !isApiReady || !syncAnchor || !isPlayingProp) return;
+
+    const TOLERANCE_SEC = 2;
+
+    const correctDrift = () => {
+      try {
+        if (typeof ytPlayer.getCurrentTime !== 'function') return;
+        const ytIdx = typeof ytPlayer.getPlaylistIndex === 'function' ? ytPlayer.getPlaylistIndex() : -1;
+        // If we're on a different track than the anchor refers to, leave it —
+        // playlistIndexProp handles track-level alignment separately.
+        if (typeof ytIdx === 'number' && ytIdx >= 0 && ytIdx !== syncAnchor.playlistIndex) return;
+
+        const expected = syncAnchor.positionSec + (Date.now() - syncAnchor.anchorWallTimeMs) / 1000;
+        if (expected < 0) return;
+        const current = Number(ytPlayer.getCurrentTime()) || 0;
+        if (Math.abs(current - expected) > TOLERANCE_SEC) {
+          ytPlayer.seekTo(expected, true);
+        }
+      } catch (e) {
+        console.warn('Failed to correct music drift', e);
+      }
+    };
+
+    correctDrift();
+    const id = setInterval(correctDrift, 5000);
+    return () => clearInterval(id);
+  }, [readOnly, ytPlayer, isApiReady, isPlayingProp, syncAnchor]);
 
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();

@@ -261,5 +261,23 @@ export function buildSlotProjection(
     playlistUrl: data.__sessionPlaylist || '',
     playlistPlaying: !!data.__sessionPlaylistPlaying,
     playlistIndex: typeof data.__sessionPlaylistIndex === 'number' ? data.__sessionPlaylistIndex : 0,
+    playlistAnchor: (() => {
+      const a = data.__sessionPlaylistAnchor as
+        | { positionSec?: number; anchorWallTimeMs?: number; playlistIndex?: number }
+        | undefined;
+      if (
+        a &&
+        typeof a.positionSec === 'number' &&
+        typeof a.anchorWallTimeMs === 'number' &&
+        typeof a.playlistIndex === 'number'
+      ) {
+        return {
+          positionSec: a.positionSec,
+          anchorWallTimeMs: a.anchorWallTimeMs,
+          playlistIndex: a.playlistIndex,
+        };
+      }
+      return undefined;
+    })(),
   };
 }

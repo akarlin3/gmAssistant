@@ -514,6 +514,7 @@ export default function PlayerCampaignView({
   const activePlaylistUrl = playlistUrl || projection?.playlistUrl;
   const activePlaylistPlaying = projection?.playlistPlaying ?? false;
   const activePlaylistIndex = projection?.playlistIndex ?? 0;
+  const activeSyncAnchor = projection?.playlistAnchor ?? null;
 
   useEffect(() => {
     const unsub = subscribeSlotProjection(token, slotId, setProjection, () => setProjection(null));
@@ -666,6 +667,7 @@ export default function PlayerCampaignView({
             readOnly={true}
             isPlayingProp={activePlaylistPlaying}
             playlistIndexProp={activePlaylistIndex}
+            syncAnchor={activeSyncAnchor}
           />
         )}
 
