@@ -1813,7 +1813,11 @@ export function MusicPlayer({
               } else if (event.data === states.PAUSED) {
                 setPlayerState('paused');
                 setIsPlaying(false);
-                onChangePlayingRef.current?.(false);
+                // Don't propagate auto-pauses to players. Only an explicit
+                // GM click on the pause button publishes paused=false (handled
+                // in togglePlay), so YT auto-pausing for any other reason
+                // (volume going to 0 on some browsers, transient network
+                // hiccups, etc.) keeps players' music flowing.
               } else if (event.data === states.BUFFERING) {
                 setPlayerState('buffering');
               } else if (event.data === states.ENDED) {
@@ -1981,6 +1985,10 @@ export function MusicPlayer({
     if (!ytPlayer) return;
     if (isPlaying) {
       ytPlayer.pauseVideo();
+      // Explicit user pause — publish paused=false to players. (The PAUSED
+      // onStateChange branch intentionally no longer publishes, so this is
+      // the only path that pauses player music.)
+      onChangePlayingRef.current?.(false);
     } else {
       ytPlayer.playVideo();
     }
