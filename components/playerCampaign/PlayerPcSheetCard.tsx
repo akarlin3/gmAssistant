@@ -7,7 +7,7 @@
 // PlayerCampaignView — behavior (including the optimistic pending-writeback
 // guard) is preserved exactly.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { X, Plus, Heart } from 'lucide-react';
 import { submitPlayerUpdate } from '@/lib/playerMode/playerClient';
 import {
@@ -18,6 +18,62 @@ import {
 } from './constants';
 import { prettify } from './fieldRendering';
 import type { PcListField, PlayerPc } from './types';
+
+// Staged edits helpers for robust offline-first persistence in localStorage
+const getStorageKey = (campaignId: string, pcId: string) => `playerEdits:${campaignId}:${pcId}`;
+
+type StagedEdit = {
+  value: any;
+  timestamp: number;
+};
+
+type StagedEditsMap = Record<string, StagedEdit>;
+
+function loadStagedEdits(campaignId: string, pcId: string): StagedEditsMap {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(campaignId, pcId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as StagedEditsMap;
+    const clean: StagedEditsMap = {};
+    const oneHour = 60 * 60 * 1000;
+    const now = Date.now();
+    for (const [k, v] of Object.entries(parsed)) {
+      if (v && typeof v.timestamp === 'number' && now - v.timestamp < oneHour) {
+        clean[k] = v;
+      }
+    }
+    return clean;
+  } catch {
+    return {};
+  }
+}
+
+function saveStagedEdit(campaignId: string, pcId: string, field: string, value: any) {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = loadStagedEdits(campaignId, pcId);
+    current[field] = { value, timestamp: Date.now() };
+    window.localStorage.setItem(getStorageKey(campaignId, pcId), JSON.stringify(current));
+  } catch {
+    /* localStorage disabled or full */
+  }
+}
+
+function clearStagedEdit(campaignId: string, pcId: string, field: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = loadStagedEdits(campaignId, pcId);
+    delete current[field];
+    if (Object.keys(current).length === 0) {
+      window.localStorage.removeItem(getStorageKey(campaignId, pcId));
+    } else {
+      window.localStorage.setItem(getStorageKey(campaignId, pcId), JSON.stringify(current));
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 export default function PlayerPcSheetCard({
   pc,
@@ -30,15 +86,31 @@ export default function PlayerPcSheetCard({
   slotId: string;
   campaignId: string;
 }) {
-  const [localHp, setLocalHp] = useState<number>(pc.hp?.current ?? 0);
-  const [localTempHp, setLocalTempHp] = useState<number>(pc.hp?.temp ?? 0);
-  const [localNotes, setLocalNotes] = useState<string>(pc.notes ?? '');
-  const [localExhaustion, setLocalExhaustion] = useState<number>(pc.exhaustion ?? 0);
-  const [localDeathSaves, setLocalDeathSaves] = useState<{ successes: number; failures: number }>({
-    successes: pc.deathSaves?.successes ?? 0,
-    failures: pc.deathSaves?.failures ?? 0,
+  // Load staged edits to overlay on the loaded projection
+  const stagedEdits = useMemo(() => loadStagedEdits(campaignId, pc.id), [campaignId, pc.id]);
+
+  const getInitialValue = <T,>(field: string, pcValue: T): T => {
+    const staged = stagedEdits[field];
+    if (staged !== undefined) {
+      if (JSON.stringify(staged.value) === JSON.stringify(pcValue)) {
+        clearStagedEdit(campaignId, pc.id, field);
+        return pcValue;
+      }
+      return staged.value as T;
+    }
+    return pcValue;
+  };
+
+  const [localHp, setLocalHp] = useState<number>(() => getInitialValue('hp.current', pc.hp?.current ?? 0));
+  const [localTempHp, setLocalTempHp] = useState<number>(() => getInitialValue('hp.temp', pc.hp?.temp ?? 0));
+  const [localNotes, setLocalNotes] = useState<string>(() => getInitialValue('notes', pc.notes ?? ''));
+  const [localExhaustion, setLocalExhaustion] = useState<number>(() => getInitialValue('exhaustion', pc.exhaustion ?? 0));
+  const [localDeathSaves, setLocalDeathSaves] = useState<{ successes: number; failures: number }>(() => {
+    const successes = getInitialValue('deathSaves.successes', pc.deathSaves?.successes ?? 0);
+    const failures = getInitialValue('deathSaves.failures', pc.deathSaves?.failures ?? 0);
+    return { successes, failures };
   });
-  const [localConditions, setLocalConditions] = useState<string[]>(pc.conditions ?? []);
+  const [localConditions, setLocalConditions] = useState<string[]>(() => getInitialValue('conditions', pc.conditions ?? []));
 
   // Track writebacks we've sent but haven't seen reflected in the projection
   // yet. Without this, an unrelated projection republish (e.g. music sync
@@ -65,40 +137,62 @@ export default function PlayerPcSheetCard({
 
   useEffect(() => {
     const incoming = pc.hp?.current ?? 0;
-    if (!isPending('hp.current', incoming)) setLocalHp(incoming);
-  }, [pc.hp?.current]);
+    if (!isPending('hp.current', incoming)) {
+      setLocalHp(incoming);
+      clearStagedEdit(campaignId, pc.id, 'hp.current');
+    }
+  }, [pc.hp?.current, campaignId, pc.id]);
 
   useEffect(() => {
     const incoming = pc.hp?.temp ?? 0;
-    if (!isPending('hp.temp', incoming)) setLocalTempHp(incoming);
-  }, [pc.hp?.temp]);
+    if (!isPending('hp.temp', incoming)) {
+      setLocalTempHp(incoming);
+      clearStagedEdit(campaignId, pc.id, 'hp.temp');
+    }
+  }, [pc.hp?.temp, campaignId, pc.id]);
 
   useEffect(() => {
     const incoming = pc.notes ?? '';
-    if (!isPending('notes', incoming)) setLocalNotes(incoming);
-  }, [pc.notes]);
+    if (!isPending('notes', incoming)) {
+      setLocalNotes(incoming);
+      clearStagedEdit(campaignId, pc.id, 'notes');
+    }
+  }, [pc.notes, campaignId, pc.id]);
 
   useEffect(() => {
     const incoming = pc.exhaustion ?? 0;
-    if (!isPending('exhaustion', incoming)) setLocalExhaustion(incoming);
-  }, [pc.exhaustion]);
+    if (!isPending('exhaustion', incoming)) {
+      setLocalExhaustion(incoming);
+      clearStagedEdit(campaignId, pc.id, 'exhaustion');
+    }
+  }, [pc.exhaustion, campaignId, pc.id]);
 
   useEffect(() => {
     const incomingSuccesses = pc.deathSaves?.successes ?? 0;
     const incomingFailures = pc.deathSaves?.failures ?? 0;
+    const pendingSuccesses = isPending('deathSaves.successes', incomingSuccesses);
+    const pendingFailures = isPending('deathSaves.failures', incomingFailures);
+
     setLocalDeathSaves((prev) => ({
-      successes: isPending('deathSaves.successes', incomingSuccesses) ? prev.successes : incomingSuccesses,
-      failures: isPending('deathSaves.failures', incomingFailures) ? prev.failures : incomingFailures,
+      successes: pendingSuccesses ? prev.successes : incomingSuccesses,
+      failures: pendingFailures ? prev.failures : incomingFailures,
     }));
-  }, [pc.deathSaves?.successes, pc.deathSaves?.failures]);
+
+    if (!pendingSuccesses) clearStagedEdit(campaignId, pc.id, 'deathSaves.successes');
+    if (!pendingFailures) clearStagedEdit(campaignId, pc.id, 'deathSaves.failures');
+  }, [pc.deathSaves?.successes, pc.deathSaves?.failures, campaignId, pc.id]);
 
   useEffect(() => {
     const incoming = pc.conditions ?? [];
-    if (!isPending('conditions', incoming)) setLocalConditions(incoming);
-  }, [pc.conditions]);
+    if (!isPending('conditions', incoming)) {
+      setLocalConditions(incoming);
+      clearStagedEdit(campaignId, pc.id, 'conditions');
+    }
+  }, [pc.conditions, campaignId, pc.id]);
 
   const sendUpdate = async (field: string, value: unknown) => {
     pendingRef.current[field] = { value, sentAt: Date.now() };
+    saveStagedEdit(campaignId, pc.id, field, value);
     try {
       await submitPlayerUpdate({
         campaignId,
@@ -110,6 +204,7 @@ export default function PlayerPcSheetCard({
       });
     } catch (e) {
       delete pendingRef.current[field];
+      clearStagedEdit(campaignId, pc.id, field);
       console.error('Failed to send player update:', e);
     }
   };
@@ -159,19 +254,36 @@ export default function PlayerPcSheetCard({
     sendUpdate(`deathSaves.${type}`, nextClamped);
   };
 
+  const getRenderedList = (field: PcListField): string[] => {
+    const staged = loadStagedEdits(campaignId, pc.id)[field];
+    if (staged !== undefined) {
+      if (JSON.stringify(staged.value) === JSON.stringify(pc[field] ?? [])) {
+        clearStagedEdit(campaignId, pc.id, field);
+        return pc[field] ?? [];
+      }
+      return staged.value as string[];
+    }
+    return pc[field] ?? [];
+  };
+
   const handleAddListItem = (field: PcListField, text: string) => {
-    const current = pc[field] ?? [];
-    sendUpdate(field, [...current, text]);
+    const current = getRenderedList(field);
+    const next = [...current, text];
+    saveStagedEdit(campaignId, pc.id, field, next);
+    sendUpdate(field, next);
   };
 
   const handleRemoveListItem = (field: PcListField, index: number) => {
-    const current = pc[field] ?? [];
-    sendUpdate(field, current.filter((_, i) => i !== index));
+    const current = getRenderedList(field);
+    const next = current.filter((_, i) => i !== index);
+    saveStagedEdit(campaignId, pc.id, field, next);
+    sendUpdate(field, next);
   };
 
   const handleEditListItem = (field: PcListField, index: number, text: string) => {
-    const current = [...(pc[field] ?? [])];
+    const current = [...getRenderedList(field)];
     current[index] = text;
+    saveStagedEdit(campaignId, pc.id, field, current);
     sendUpdate(field, current);
   };
 
@@ -347,7 +459,7 @@ export default function PlayerPcSheetCard({
               {prettify(field)}
             </div>
             <div className="space-y-1 bg-parchment-soft/50 p-2 rounded border border-rule/50">
-              {(pc[field] ?? []).map((val: string, idx: number) => (
+              {getRenderedList(field).map((val: string, idx: number) => (
                 <div key={idx} className="flex items-center gap-1.5 group">
                   <input
                     value={val}
