@@ -12,7 +12,7 @@ A TTRPG campaign prep webapp that stitches three published prep methodologies in
 [![Firebase](https://img.shields.io/badge/Firebase-Auth_%2B_Firestore-ffca28?logo=firebase&logoColor=black)](https://firebase.google.com/)
 [![Yjs CRDT](https://img.shields.io/badge/Yjs-offline--first_CRDT-6b46c1)](https://yjs.dev/)
 [![Railway](https://img.shields.io/badge/hosted_on-Railway-0b0d0e?logo=railway&logoColor=white)](https://railway.app/)
-[![License](https://img.shields.io/badge/source-private_preview-7a1f1f)]()
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
 
 </div>
 
@@ -68,3 +68,7 @@ Next.js 15 (App Router) · TypeScript · Tailwind · Firebase (Auth + Firestore)
 ## Running it yourself
 
 Setup, deployment, costs, file structure, and troubleshooting live in [BUILD.md](./BUILD.md).
+
+## License
+
+This project is licensed under the GNU Affero General Public License, Version 3 (AGPL-3.0). See the [LICENSE](./LICENSE) file for the full text.
