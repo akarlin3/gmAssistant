@@ -1867,7 +1867,12 @@ export function MusicPlayer({
       setIsApiReady(false);
       setPlayerState('unknown');
     };
-  }, [hasContent, ytPlayer]);
+    // Intentionally only depends on hasContent: including ytPlayer would cause
+    // the cleanup (which resets ytPlayer to null) to re-trigger this effect,
+    // destroying and recreating the player in a loop and leaving the UI stuck
+    // on the loading spinner.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasContent]);
 
   // Synchronize underlying YT Player with prop updates in-place
   useEffect(() => {
