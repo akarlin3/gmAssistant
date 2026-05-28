@@ -6,7 +6,7 @@
 // edits stage in campaigns/{campaignId}/pcWritebacks via the Web SDK and the
 // GM's writeback reconciler merges them into the CRDT. Mobile-first.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollText, Calendar, Users, Map, Flag, Clock, BookOpen, UserCircle, Gift, Compass, Target, Heart, Plus, X, Music, ChevronDown, ChevronRight, Award, Zap } from 'lucide-react';
 import { subscribeSlotProjection, submitPlayerUpdate } from '@/lib/playerMode/playerClient';
 import type { SlotProjection } from '@/lib/playerMode/types';
@@ -127,34 +127,65 @@ function PlayerPcSheetCard({ pc, token, slotId, campaignId }: { pc: any; token: 
   });
   const [localConditions, setLocalConditions] = useState<string[]>(pc.conditions ?? []);
 
-  useEffect(() => {
-    setLocalHp(pc.hp?.current ?? 0);
-  }, [pc.hp]);
+  // Track writebacks we've sent but haven't seen reflected in the projection
+  // yet. Without this, an unrelated projection republish (e.g. music sync
+  // anchor, GM editing an NPC) that fires before the writeback → reconciler →
+  // CRDT autosave → republish round-trip completes carries the pre-edit value
+  // and silently reverts the player's optimistic UI. Each entry is cleared
+  // once the projection catches up; the 10s fallback covers the case where
+  // the GM is offline or the value was rejected.
+  const pendingRef = useRef<Record<string, { value: unknown; sentAt: number }>>({});
+
+  const isPending = (field: string, incoming: unknown): boolean => {
+    const p = pendingRef.current[field];
+    if (!p) return false;
+    if (Date.now() - p.sentAt > 10000) {
+      delete pendingRef.current[field];
+      return false;
+    }
+    if (JSON.stringify(p.value) === JSON.stringify(incoming)) {
+      delete pendingRef.current[field];
+      return false;
+    }
+    return true;
+  };
 
   useEffect(() => {
-    setLocalTempHp(pc.hp?.temp ?? 0);
+    const incoming = pc.hp?.current ?? 0;
+    if (!isPending('hp.current', incoming)) setLocalHp(incoming);
+  }, [pc.hp?.current]);
+
+  useEffect(() => {
+    const incoming = pc.hp?.temp ?? 0;
+    if (!isPending('hp.temp', incoming)) setLocalTempHp(incoming);
   }, [pc.hp?.temp]);
 
   useEffect(() => {
-    setLocalNotes(pc.notes ?? '');
+    const incoming = pc.notes ?? '';
+    if (!isPending('notes', incoming)) setLocalNotes(incoming);
   }, [pc.notes]);
 
   useEffect(() => {
-    setLocalExhaustion(pc.exhaustion ?? 0);
+    const incoming = pc.exhaustion ?? 0;
+    if (!isPending('exhaustion', incoming)) setLocalExhaustion(incoming);
   }, [pc.exhaustion]);
 
   useEffect(() => {
-    setLocalDeathSaves({
-      successes: pc.deathSaves?.successes ?? 0,
-      failures: pc.deathSaves?.failures ?? 0,
-    });
-  }, [pc.deathSaves]);
+    const incomingSuccesses = pc.deathSaves?.successes ?? 0;
+    const incomingFailures = pc.deathSaves?.failures ?? 0;
+    setLocalDeathSaves((prev) => ({
+      successes: isPending('deathSaves.successes', incomingSuccesses) ? prev.successes : incomingSuccesses,
+      failures: isPending('deathSaves.failures', incomingFailures) ? prev.failures : incomingFailures,
+    }));
+  }, [pc.deathSaves?.successes, pc.deathSaves?.failures]);
 
   useEffect(() => {
-    setLocalConditions(pc.conditions ?? []);
+    const incoming = pc.conditions ?? [];
+    if (!isPending('conditions', incoming)) setLocalConditions(incoming);
   }, [pc.conditions]);
 
   const sendUpdate = async (field: string, value: any) => {
+    pendingRef.current[field] = { value, sentAt: Date.now() };
     try {
       await submitPlayerUpdate({
         campaignId,
@@ -165,6 +196,7 @@ function PlayerPcSheetCard({ pc, token, slotId, campaignId }: { pc: any; token: 
         value,
       });
     } catch (e) {
+      delete pendingRef.current[field];
       console.error('Failed to send player update:', e);
     }
   };
