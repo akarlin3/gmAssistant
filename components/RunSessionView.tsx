@@ -1,67 +1,39 @@
 'use client';
 
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
-  ArrowLeft, Flag, Dice5, Sparkles, ChevronDown, Check,
-  Eye, EyeOff, Swords, NotebookPen, Target, Map, Users, ScrollText,
-  Skull, Gem, Zap, BookOpen, Wrench, ChevronUp, Clock,
-  Music,
+  Eye, EyeOff, Check, Swords, NotebookPen, Users, Wrench,
+  ChevronDown, ChevronUp,
 } from 'lucide-react';
-import InitiativePanel from './InitiativePanel';
-import MonsterStatBlock from './MonsterStatBlock';
-import type { InitiativeState } from '@/lib/initiative';
 import { normalizePcs } from '@/lib/pc/factory';
 import type { HomebrewMonster } from './MonstersTab';
-import type { Character } from '@/lib/character-schema';
 import { makeEvent, type ChangeEvent } from '@/lib/sessionEvents';
 import type { CampaignContext } from '@/lib/generators/types';
-import { normalizeItem, type PlayerConfig, type PlayerEntityType } from '@/lib/playerMode/types';
-import { publishProjections } from '@/lib/playerMode/publish';
-import { makeLogEntryId, applyNarrationReveal, type PlayerLogEntry, type Mention } from '@/lib/playerMode/sessionLog';
+import { normalizeItem } from '@/lib/playerMode/types';
+import type { PlayerConfig } from '@/lib/playerMode/types';
+import type { PlayerLogEntry } from '@/lib/playerMode/sessionLog';
 import {
   type Get, type SetVal, type PinKind, type PinRef, type SectionKey, SECTION_KEYS,
 } from './runSession/types';
 import { SectionShell, PanelShell, Empty, PinToggle, NPCRow } from './runSession/sections';
 import { SceneRow } from './runSession/SceneRow';
 import { StageBar } from './runSession/StageBar';
-import { QuickDice, QuickInspire, NoteSeed } from './runSession/widgets';
-import { MusicPlayer } from './runSession/MusicPlayer';
+import { NoteSeed } from './runSession/widgets';
+import { SessionHeader } from './runSession/view/SessionHeader';
+import { SectionNav } from './runSession/view/SectionNav';
+import { StrongStart } from './runSession/view/StrongStart';
+import { MagicItemsSection } from './runSession/view/MagicItemsSection';
+import { ToolsPanel } from './runSession/view/ToolsPanel';
+import { Overlays } from './runSession/view/Overlays';
+import { useAutoPublish, useShareActions } from './runSession/view/useAutoPublish';
+import { SECTION_META } from './runSession/view/constants';
+import type { Props } from './runSession/view/types';
 
 // Re-exported to preserve the existing import contract used by
 // CampaignEditor.tsx and PlayerCampaignView.tsx.
 export { SectionShell, PanelShell } from './runSession/sections';
 export { QuickDice, QuickInspire } from './runSession/widgets';
 export { MusicPlayer } from './runSession/MusicPlayer';
-
-type SessionSyncAnchor = { positionSec: number; anchorWallTimeMs: number; playlistIndex: number };
-
-type Props = {
-  get: Get;
-  setVal: SetVal;
-  characters: Character[];
-  onEndSession: () => void;
-  onExitWithoutEnding: () => void;
-  onOpenLibrary: () => void;
-  campaignContext?: CampaignContext;
-  campaignId?: string;
-  campaignName?: string;
-  // Music sync anchor: ephemeral, kept in CampaignEditor React state so the
-  // ~15s update cadence doesn't append to the CRDT log every cycle. Players
-  // still receive it through publishProjections.
-  sessionPlaylistAnchor?: SessionSyncAnchor | null;
-  setSessionPlaylistAnchor?: (next: SessionSyncAnchor | null) => void;
-};
-
-const SECTION_META: Record<SectionKey, { label: string; icon: any }> = {
-  scenes:     { label: 'Potential Scenes',  icon: NotebookPen },
-  secrets:    { label: 'Secrets & Clues',   icon: Eye },
-  npcs:       { label: 'NPCs',              icon: Users },
-  locations:  { label: 'Locations',         icon: Map },
-  monsters:   { label: 'Relevant Monsters', icon: Skull },
-  magicItems: { label: 'Magic Items',       icon: Gem },
-  goals:      { label: 'PC Goals',          icon: Target },
-  clocks:     { label: 'Faction Clocks',    icon: ScrollText },
-};
 
 export default function RunSessionView({
   get, setVal, characters, onEndSession, onExitWithoutEnding, onOpenLibrary, campaignContext, campaignId, campaignName,
@@ -75,126 +47,16 @@ export default function RunSessionView({
   const strongStartDone = !!get('__sessionStrongStartDelivered', false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // --- REAL-TIME PLAYER SHARING & AUTO-PUBLISH SYSTEM ---
   const playerConfig = useMemo(() => (get('player', {}) as PlayerConfig) || {}, [get]);
   const playerLog = useMemo(() => (get('playerLog', []) as PlayerLogEntry[]) || [], [get]);
 
-  const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'done' | 'error'>('idle');
-  const publishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { publishState } = useAutoPublish({
+    get, setVal, playerConfig, playerLog, campaignId, campaignName, sessionPlaylistAnchor,
+  });
 
-  const prevContentSignatureRef = useRef('');
-  const prevMusicSignatureRef = useRef('');
-
-  const contentSignature = useMemo(
-    () => JSON.stringify({
-      p: playerConfig,
-      n: get('npcs', []),
-      l: get('locations', []),
-      f: get('factions', []),
-      c: get('characters', []),
-      k: get('clocks', []),
-      h: get('handouts', ''),
-      s: playerLog,
-      i: get('items', []),
-    }),
-    [playerConfig, get, playerLog],
-  );
-
-  const musicSignature = useMemo(
-    () => JSON.stringify({
-      playlist: get('__sessionPlaylist', ''),
-      playing: !!get('__sessionPlaylistPlaying', false),
-      index: get('__sessionPlaylistIndex', 0),
-      // anchorWallTimeMs is the only field that changes when the GM republishes
-      // a fresh sync point — including it ensures the debounced publisher fires
-      // on every new anchor.
-      anchor: sessionPlaylistAnchor?.anchorWallTimeMs ?? 0,
-    }),
-    [get, sessionPlaylistAnchor],
-  );
-
-  useEffect(() => {
-    if (!playerConfig?.shareToken || !campaignId) return;
-
-    const contentChanged = prevContentSignatureRef.current !== contentSignature;
-    const musicChanged = prevMusicSignatureRef.current !== musicSignature;
-
-    prevContentSignatureRef.current = contentSignature;
-    prevMusicSignatureRef.current = musicSignature;
-
-    if (!contentChanged && !musicChanged) return;
-
-    const delay = (!contentChanged && musicChanged) ? 100 : 1500;
-
-    if (publishTimer.current) clearTimeout(publishTimer.current);
-    publishTimer.current = setTimeout(() => {
-      void (async () => {
-        setPublishState('publishing');
-        try {
-          const dataToPublish = {
-            player: playerConfig,
-            npcs: get('npcs', []),
-            locations: get('locations', []),
-            factions: get('factions', []),
-            characters: get('characters', []),
-            clocks: get('clocks', []),
-            handouts: get('handouts', ''),
-            playerLog,
-            items: get('items', []),
-            maps: get('maps', []),
-            __sessionPlaylist: get('__sessionPlaylist', '') as string,
-            __sessionPlaylistPlaying: !!get('__sessionPlaylistPlaying', false),
-            __sessionPlaylistIndex: get('__sessionPlaylistIndex', 0) as number,
-            __sessionPlaylistAnchor: sessionPlaylistAnchor ?? undefined,
-          };
-          await publishProjections(campaignId, campaignName || 'Campaign', dataToPublish);
-          setPublishState('done');
-          setTimeout(() => setPublishState('idle'), 2000);
-        } catch (e) {
-          console.error('[RunSessionView] publish failed', e);
-          setPublishState('error');
-        }
-      })();
-    }, delay);
-
-    return () => { if (publishTimer.current) clearTimeout(publishTimer.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contentSignature, musicSignature, campaignId, campaignName]);
-
-  // Generic helper to post narrative clues/events to the player feed
-  const shareToPlayerLog = (text: string, mentions: Mention[] = []) => {
-    const nextLog = [...playerLog, {
-      id: makeLogEntryId(),
-      text: text.trim(),
-      mentions,
-      visibility: { mode: 'party' },
-      authorRef: 'gm',
-      postedAtMs: Date.now(),
-    }];
-    setVal('playerLog', nextLog);
-
-    if (mentions.length > 0) {
-      const nextConfig = applyNarrationReveal(playerConfig, mentions, { mode: 'party' });
-      setVal('player', nextConfig);
-    }
-    setToast('Shared with players!');
-  };
-
-  // Helper to toggle formal public/private visibility of campaign entities (NPCs, Locations, Clocks)
-  const toggleEntityShare = (type: PlayerEntityType, id: string) => {
-    const ev = { ...(playerConfig.entityVisibility ?? {}) };
-    const bucket = { ...(ev[type] ?? {}) };
-    const curVis = bucket[id];
-    
-    if (curVis && curVis.mode === 'party') {
-      delete bucket[id];
-    } else {
-      bucket[id] = { mode: 'party' };
-    }
-    ev[type] = bucket;
-    setVal('player', { ...playerConfig, entityVisibility: ev });
-    setToast(bucket[id] ? 'Shared with players!' : 'Removed from player view');
-  };
+  const { shareToPlayerLog, toggleEntityShare } = useShareActions({
+    playerLog, playerConfig, setVal, setToast,
+  });
 
   const toggleSection = (k: SectionKey) => setSection(s => ({ ...s, [k]: !s[k] }));
 
@@ -233,8 +95,8 @@ export default function RunSessionView({
     setVal('__sessionItemsGiven', [...givenItems, text]);
     let summary = `Magic item given: ${text}`;
     if (assignedPlayerId) {
-      const playerConfig = (get('player', {}) as any) || {};
-      const roster = playerConfig.roster || [];
+      const pc = (get('player', {}) as any) || {};
+      const roster = pc.roster || [];
       const player = roster.find((r: any) => r.slotId === assignedPlayerId);
       const name = player ? player.displayName : 'Player';
       summary = `Magic item "${text}" given to ${name}`;
@@ -356,205 +218,58 @@ export default function RunSessionView({
     const startedAt = get('__sessionStartedAt', Date.now()) as number;
     const hours = (Date.now() - startedAt) / (1000 * 60 * 60);
     setSessionDurationHours(hours);
-    if (hours > 4) {
-      setLongSessionPrompt(true);
-    }
+    if (hours > 4) setLongSessionPrompt(true);
   }, [get]);
 
   const [mobileToolsExpanded, setMobileToolsExpanded] = useState(true);
 
-  const toolsContent = (
-    <>
-      <PanelShell title="Initiative" icon={Swords} open={initiativeOpen} onToggle={() => setInitiativeOpen(!initiativeOpen)}>
-        {initiativeOpen ? (
-          <InitiativePanel
-            variant="inline"
-            state={(get('__initiative', null) as InitiativeState | null)}
-            onChange={(next) => setVal('__initiative', next)}
-            monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
-            pcs={party}
-            onClose={() => setInitiativeOpen(false)}
-            onEnded={(summary) => {
-              pushEvent(makeEvent('other', summary));
-            }}
-          />
-        ) : (
-          <p className="px-1 font-serif text-xs italic text-ink-mute">Tap to expand and track turns, HP, conditions.</p>
-        )}
-      </PanelShell>
-
-      <PanelShell title="Session Music" icon={Music} open={musicOpen} onToggle={() => setMusicOpen(!musicOpen)}>
-        <MusicPlayer
-          playlistUrl={(get('__sessionPlaylist', '') as string)}
-          onChangePlaylist={(next) => {
-            setVal('__sessionPlaylist', next);
-            setVal('__sessionPlaylistIndex', 0);
-            setSessionPlaylistAnchor?.(null);
-          }}
-          isPlayingProp={!!get('__sessionPlaylistPlaying', false)}
-          onChangePlaying={(next) => setVal('__sessionPlaylistPlaying', next)}
-          playlists={(get('__sessionPlaylists', []) as Array<{ id: string; name: string; url: string }>)}
-          onChangePlaylists={(next) => setVal('__sessionPlaylists', next)}
-          playlistIndexProp={(get('__sessionPlaylistIndex', 0) as number)}
-          onChangePlaylistIndex={(next) => setVal('__sessionPlaylistIndex', next)}
-          onPublishSyncAnchor={setSessionPlaylistAnchor}
-        />
-      </PanelShell>
-
-      <PanelShell title="Quick Dice" icon={Dice5} open={true} onToggle={() => {}}>
-        <QuickDice />
-      </PanelShell>
-
-      <PanelShell title="Quick Inspire" icon={Sparkles} open={true} onToggle={() => {}}>
-        <QuickInspire campaignContext={campaignContext} />
-      </PanelShell>
-    </>
+  const toolsPanel = (
+    <ToolsPanel
+      get={get}
+      setVal={setVal}
+      party={party}
+      campaignContext={campaignContext}
+      initiativeOpen={initiativeOpen}
+      setInitiativeOpen={setInitiativeOpen}
+      musicOpen={musicOpen}
+      setMusicOpen={setMusicOpen}
+      homebrewMonsters={homebrewMonsters}
+      sessionPlaylistAnchor={sessionPlaylistAnchor}
+      setSessionPlaylistAnchor={setSessionPlaylistAnchor}
+      pushEvent={pushEvent}
+    />
   );
 
   return (
     <main className="min-h-screen p-3 pb-32 sm:p-5 md:p-6">
       <div className="mx-auto max-w-7xl space-y-3">
-        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-3">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onExitWithoutEnding}
-              className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
-              title="Hide run mode without ending the session"
-            >
-              <ArrowLeft size={12} /> Hide
-            </button>
-            <button
-              onClick={onOpenLibrary}
-              className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
-              title="Open Library without ending the session"
-            >
-              <BookOpen size={12} /> Library
-            </button>
-            <h1 className="flex items-center gap-2 font-display text-lg tracking-wide text-ink sm:text-xl">
-              <Swords size={18} className="text-crimson" /> Run Session
-            </h1>
-            <span className="font-serif text-xs italic text-ink-mute">
-              Started {new Date(get('__sessionStartedAt', Date.now()) as number).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-            {playerConfig?.shareToken && (
-              <div className="flex select-none items-center gap-1.5 rounded-full border border-rule/50 bg-parchment px-2.5 py-0.5 font-display text-[10px] uppercase tracking-wider shadow-sm">
-                {publishState === 'publishing' ? (
-                  <>
-                    <span className="relative flex size-2">
-                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-brass opacity-75"></span>
-                      <span className="relative inline-flex size-2 rounded-full bg-brass-deep"></span>
-                    </span>
-                    <span className="font-semibold text-brass-deep">Syncing...</span>
-                  </>
-                ) : publishState === 'error' ? (
-                  <>
-                    <span className="size-2 rounded-full bg-crimson"></span>
-                    <span className="font-semibold text-crimson">Sync Error</span>
-                  </>
-                ) : publishState === 'done' ? (
-                  <>
-                    <span className="size-2 rounded-full bg-moss"></span>
-                    <span className="font-semibold text-moss">Synced</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="relative flex size-2">
-                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-moss opacity-75"></span>
-                      <span className="relative inline-flex size-2 rounded-full bg-moss"></span>
-                    </span>
-                    <span className="font-semibold text-moss">Live Sharing</span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-          <button
-            onClick={onEndSession}
-            className="flex items-center gap-1.5 rounded border border-crimson/60 bg-crimson/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment"
-          >
-            <Flag size={12} /> End Session
-          </button>
-        </header>
+        <SessionHeader
+          sessionStartedAt={get('__sessionStartedAt', Date.now()) as number}
+          shareToken={playerConfig?.shareToken}
+          publishState={publishState}
+          onExitWithoutEnding={onExitWithoutEnding}
+          onOpenLibrary={onOpenLibrary}
+          onEndSession={onEndSession}
+        />
 
-        <div className="hide-scrollbar sticky top-0 z-20 -mx-3 flex gap-2 overflow-x-auto border-b border-rule bg-parchment/90 px-3 py-2 backdrop-blur sm:-mx-5 sm:px-5 md:-mx-6 md:px-6">
-          {SECTION_KEYS.map(k => {
-            const Icon = SECTION_META[k].icon;
-            return (
-              <button
-                key={k}
-                onClick={() => {
-                  setSection(s => ({ ...s, [k]: true }));
-                  setTimeout(() => {
-                    document.getElementById(`section-${k}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }, 0);
-                }}
-                className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-rule bg-parchment px-3 py-1 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep hover:text-ink"
-              >
-                <Icon size={10} className="text-brass-deep" />
-                {SECTION_META[k].label}
-              </button>
-            );
-          })}
-        </div>
+        <SectionNav
+          onNavigate={(k) => {
+            setSection(s => ({ ...s, [k]: true }));
+            setTimeout(() => {
+              document.getElementById(`section-${k}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 0);
+          }}
+        />
 
-        {strongStart && (() => {
-          const isShared = playerLog.some(e => e.text.includes(strongStart));
-          return (
-            <section className="rounded border-2 border-crimson/50 bg-crimson/5 p-3 shadow-card sm:p-4">
-              <div className="mb-1.5 flex items-start gap-2">
-                <Zap size={16} className="mt-0.5 flex-shrink-0 text-crimson" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-baseline justify-between gap-3">
-                    <h2 className="font-display text-sm uppercase tracking-wide text-crimson sm:text-base">
-                      Strong Start
-                    </h2>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          if (isShared) return;
-                          shareToPlayerLog(`Story Intro: ${strongStart}`);
-                        }}
-                        disabled={isShared}
-                        className={`flex items-center gap-1 rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
-                          isShared
-                            ? 'cursor-default border-moss bg-moss/10 text-moss'
-                            : 'border-brass-deep/60 text-brass-deep hover:bg-brass/10'
-                        }`}
-                        title={isShared ? 'Shared with Players' : 'Share with Players'}
-                      >
-                        <Eye size={10} />
-                        {isShared ? 'Shared' : 'Share'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          const next = !strongStartDone;
-                          setVal('__sessionStrongStartDelivered', next);
-                          if (next) {
-                            pushEvent(makeEvent('other', 'Strong start delivered'));
-                          } else {
-                            const currentEvents = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
-                            setVal('__sessionChangeEvents', currentEvents.filter(e => !(e.kind === 'other' && e.summary === 'Strong start delivered')));
-                          }
-                        }}
-                        className={`flex items-center gap-1 rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
-                          strongStartDone
-                            ? 'border-brass-deep bg-brass text-parchment'
-                            : 'border-brass-deep/60 text-brass-deep hover:bg-brass/10'
-                        }`}
-                      >
-                        {strongStartDone && <Check size={10} strokeWidth={3} />}
-                        {strongStartDone ? 'Delivered' : 'Mark Delivered'}
-                      </button>
-                    </div>
-                  </div>
-                  <p className={`mt-1 whitespace-pre-wrap font-serif text-sm text-ink-soft sm:text-base ${strongStartDone ? 'italic opacity-60' : ''}`}>
-                    {strongStart}
-                  </p>
-                </div>
-              </div>
-            </section>
-          );
-        })()}
+        <StrongStart
+          strongStart={strongStart}
+          strongStartDone={strongStartDone}
+          playerLog={playerLog}
+          get={get}
+          setVal={setVal}
+          pushEvent={pushEvent}
+          onShare={shareToPlayerLog}
+        />
 
         <StageBar
           pinned={pinned}
@@ -614,10 +329,7 @@ export default function RunSessionView({
                           {revealed && <Check size={10} strokeWidth={3} />}
                         </button>
                         <button
-                          onClick={() => {
-                            if (isShared) return;
-                            shareToPlayerLog(`Clue: ${s}`);
-                          }}
+                          onClick={() => { if (isShared) return; shareToPlayerLog(`Clue: ${s}`); }}
                           disabled={isShared}
                           className={`mt-0.5 p-0.5 transition-colors ${isShared ? 'cursor-default text-moss' : 'rounded text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
                           title={isShared ? 'Shared with Players' : 'Share with Players'}
@@ -697,10 +409,7 @@ export default function RunSessionView({
                       <li key={i} className="flex items-center gap-2 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink-soft">
                         <PinToggle pinned={isPinned('monster', key)} onClick={() => togglePin('monster', key)} />
                         <button
-                          onClick={() => {
-                            if (isShared) return;
-                            shareToPlayerLog(`Encountered: ${m}${hb?.challenge_rating ? ` — CR ${hb.challenge_rating}` : ''}`);
-                          }}
+                          onClick={() => { if (isShared) return; shareToPlayerLog(`Encountered: ${m}${hb?.challenge_rating ? ` — CR ${hb.challenge_rating}` : ''}`); }}
                           disabled={isShared}
                           className={`p-1 transition-colors ${isShared ? 'cursor-default text-moss' : 'rounded text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
                           title={isShared ? 'Shared with Players' : 'Share with Players'}
@@ -724,129 +433,22 @@ export default function RunSessionView({
               )}
             </SectionShell>
 
-            <SectionShell id="section-magicItems" title={SECTION_META.magicItems.label} icon={SECTION_META.magicItems.icon} open={section.magicItems} onToggle={() => toggleSection('magicItems')} count={magicItemsList.length}>
-              {normalizedItems.length === 0 ? (
-                <Empty>No magic items prepped.</Empty>
-              ) : (
-                <div className="space-y-2">
-                  {normalizedItems.map((item, i) => {
-                    const isGiven = givenItems.includes(item.name);
-                    const isAssigned = !!item.assignedPlayerId;
-                    const isShared = playerLog.some(entry => entry.text.includes(`Found Item: ${item.name}`));
-                    return (
-                      <div
-                        key={item.id}
-                        className={`flex items-start gap-2 rounded-lg border p-3 font-serif text-sm transition-all duration-150 ${
-                          isGiven
-                            ? 'border-brass/60 bg-brass/10 shadow-sm'
-                            : 'border-rule bg-parchment hover:border-brass/45'
-                        }`}
-                      >
-                        <button
-                          onClick={() => toggleItemGiven(item.name, item.assignedPlayerId)}
-                          className={`mt-0.5 flex size-4 flex-shrink-0 items-center justify-center rounded-sm border ${
-                            isGiven
-                              ? 'border-brass-deep bg-brass text-parchment'
-                              : 'border-ink-mute bg-parchment hover:border-brass-deep'
-                          }`}
-                          title={isGiven ? 'Unmark item given' : 'Mark item given this session'}
-                        >
-                          {isGiven && <Check size={10} strokeWidth={3} />}
-                        </button>
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className={`text-ink ${isGiven ? 'text-ink-mute' : ''}`}>
-                              {item.name || 'Unnamed Item'}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => {
-                                  if (isShared) return;
-                                  shareToPlayerLog(`Found Item: ${item.name}${item.description ? ` — ${item.description}` : ''}`);
-                                }}
-                                disabled={isShared}
-                                className={`p-1 transition-colors ${isShared ? 'cursor-default text-moss' : 'rounded text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
-                                title={isShared ? 'Shared with Party Feed' : 'Share with Party Feed'}
-                              >
-                                <Eye size={12} />
-                              </button>
-                              <PinToggle pinned={isPinned('item', item.name)} onClick={() => togglePin('item', item.name)} />
-                            </div>
-                          </div>
-                          {item.description && (
-                            <p className="whitespace-pre-wrap text-xs italic text-ink-soft">
-                              {item.description}
-                            </p>
-                          )}
-
-                          {/* GM Controls inside Full-Screen Run panel */}
-                          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-rule/30 pt-2 font-sans text-[11px]">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">
-                                Assigned to:
-                              </span>
-                              <select
-                                value={item.assignedPlayerId || ''}
-                                onChange={(e) => {
-                                  const slotId = e.target.value || undefined;
-                                  const nextItems = [...magicItemsList];
-                                  nextItems[i] = { ...item, assignedPlayerId: slotId };
-                                  setVal('items', nextItems);
-
-                                  if (givenItems.includes(item.name)) {
-                                    const currentEvents = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
-                                    let newSummary = `Magic item given: ${item.name}`;
-                                    if (slotId) {
-                                      const player = roster.find((r: any) => r.slotId === slotId);
-                                      const name = player ? player.displayName : 'Player';
-                                      newSummary = `Magic item "${item.name}" given to ${name}`;
-                                    }
-                                    const nextEvents = currentEvents.map(ev => {
-                                      if (ev.kind === 'magic_item_given' && (ev.summary === `Magic item given: ${item.name}` || ev.summary.startsWith(`Magic item "${item.name}"`))) {
-                                        return { ...ev, summary: newSummary };
-                                      }
-                                      return ev;
-                                    });
-                                    setVal('__sessionChangeEvents', nextEvents);
-                                  }
-                                }}
-                                className="cursor-pointer rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-[10px] text-ink-soft focus:outline-none"
-                              >
-                                <option value="">Unassigned</option>
-                                {roster.map((r: any) => (
-                                  <option key={r.slotId} value={r.slotId}>{r.displayName}</option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {isAssigned && (
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">
-                                  Player sees:
-                                </span>
-                                <select
-                                  value={item.playerVisibility || 'full'}
-                                  onChange={(e) => {
-                                    const vis = e.target.value as 'name-only' | 'full';
-                                    const nextItems = [...magicItemsList];
-                                    nextItems[i] = { ...item, playerVisibility: vis };
-                                    setVal('items', nextItems);
-                                  }}
-                                  className="cursor-pointer rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-[10px] text-ink-soft focus:outline-none"
-                                >
-                                  <option value="full">Name & Description</option>
-                                  <option value="name-only">Name Only</option>
-                                </select>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </SectionShell>
+            <MagicItemsSection
+              open={section.magicItems}
+              onToggle={() => toggleSection('magicItems')}
+              normalizedItems={normalizedItems}
+              magicItemsList={magicItemsList}
+              givenItems={givenItems}
+              playerLog={playerLog}
+              roster={roster}
+              isPinned={isPinned}
+              togglePin={togglePin}
+              toggleItemGiven={toggleItemGiven}
+              setVal={setVal}
+              get={get}
+              shareToPlayerLog={shareToPlayerLog}
+              pushEvent={pushEvent}
+            />
 
             <SectionShell id="section-goals" title={SECTION_META.goals.label} icon={SECTION_META.goals.icon} open={section.goals} onToggle={() => toggleSection('goals')} count={pcGoals.length}>
               {pcGoals.length === 0 ? <Empty>No PC goals prepped.</Empty> : (
@@ -858,10 +460,7 @@ export default function RunSessionView({
                         <div className="flex items-start justify-between gap-2">
                           <div className="text-ink-soft">{g.text || `Goal ${i + 1}`}</div>
                           <button
-                            onClick={() => {
-                              if (isShared) return;
-                              shareToPlayerLog(`Quest Update: "${g.text}" is currently ${g.status || 'Active'}.`);
-                            }}
+                            onClick={() => { if (isShared) return; shareToPlayerLog(`Quest Update: "${g.text}" is currently ${g.status || 'Active'}.`); }}
                             disabled={isShared}
                             className={`p-1 transition-colors ${isShared ? 'cursor-default text-moss' : 'rounded text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
                             title={isShared ? 'Shared with Players' : 'Share with Players'}
@@ -869,19 +468,19 @@ export default function RunSessionView({
                             <Eye size={12} />
                           </button>
                         </div>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {['Active', 'Progressed', 'Completed', 'Failed'].map(s => (
-                          <button
-                            key={s}
-                            onClick={() => updateGoalStatus(i, s)}
-                            className={`rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${g.status === s ? 'border-crimson bg-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'}`}
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </div>
-                    </li>
-                  );
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {['Active', 'Progressed', 'Completed', 'Failed'].map(s => (
+                            <button
+                              key={s}
+                              onClick={() => updateGoalStatus(i, s)}
+                              className={`rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${g.status === s ? 'border-crimson bg-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'}`}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      </li>
+                    );
                   })}
                 </ul>
               )}
@@ -947,7 +546,7 @@ export default function RunSessionView({
           </div>
 
           <div className="hidden space-y-3 pr-1 lg:sticky lg:top-3 lg:block lg:max-h-[calc(100vh-1.5rem)] lg:self-start lg:overflow-y-auto">
-            {toolsContent}
+            {toolsPanel}
           </div>
         </div>
 
@@ -963,42 +562,19 @@ export default function RunSessionView({
           <Wrench size={12} /> Tools {mobileToolsExpanded ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
         </button>
         <div className="max-h-[45vh] space-y-3 overflow-y-auto p-3">
-          {toolsContent}
+          {toolsPanel}
         </div>
       </div>
 
-      {statBlockMonster && (
-        <MonsterStatBlock monster={statBlockMonster} onClose={() => setStatBlockSlug(null)} />
-      )}
-
-      {longSessionPrompt && (
-        <div className="animate-in fade-in fixed left-1/2 top-16 z-50 -translate-x-1/2 duration-300">
-          <div className="flex w-[90vw] max-w-sm items-start gap-3 rounded border-2 border-brass-deep/60 bg-parchment-soft px-4 py-3 shadow-lg">
-            <Clock size={16} className="mt-0.5 flex-shrink-0 text-brass-deep" />
-            <div className="flex-1">
-              <div className="mb-1 font-display text-xs uppercase tracking-wider text-brass-deep">Long Session</div>
-              <p className="mb-2 font-serif text-sm text-ink-soft">
-                {sessionDurationHours > 12 
-                  ? "You've been in Run Session mode for over 12 hours! You definitely forgot to end the session."
-                  : "You've been in Run Session mode for over 4 hours. Did you forget to end the previous session?"}
-              </p>
-              <div className="flex justify-end gap-2">
-                <button onClick={() => setLongSessionPrompt(false)} className="rounded px-2 py-1 text-xs text-ink-mute hover:bg-parchment-deep">Dismiss</button>
-                <button onClick={() => { setLongSessionPrompt(false); onEndSession(); }} className="rounded border border-crimson/30 px-2 py-1 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson/10">End Session</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {toast && (
-        <div className="animate-in slide-in-from-bottom-2 fade-in fixed bottom-20 left-1/2 z-50 -translate-x-1/2 duration-200">
-          <div className="flex items-center gap-2 rounded bg-ink px-4 py-2 font-serif text-sm text-parchment shadow-lg">
-            <Check size={14} className="text-emerald-400" />
-            {toast}
-          </div>
-        </div>
-      )}
+      <Overlays
+        toast={toast}
+        longSessionPrompt={longSessionPrompt}
+        sessionDurationHours={sessionDurationHours}
+        statBlockMonster={statBlockMonster ?? null}
+        onDismissLongSession={() => setLongSessionPrompt(false)}
+        onEndSession={onEndSession}
+        onCloseStatBlock={() => setStatBlockSlug(null)}
+      />
 
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-rule bg-parchment shadow-page">
         <div className="mx-auto flex max-w-7xl items-start gap-2 p-2 sm:p-3">
