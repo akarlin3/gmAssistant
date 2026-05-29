@@ -202,4 +202,20 @@ describe('CrdtSync — transport-level convergence', () => {
     await a.destroy();
     await b.destroy();
   });
+
+  it('applyJson returns a promise that resolves once background writes are complete', async () => {
+    const a = new CrdtSync({
+      campaignId: 'c4', clientId: 'A',
+      legacyData: null,
+    });
+    await a.ready;
+
+    const promise = a.applyJson({ secrets: ['async resolved'] });
+    expect(promise).toBeInstanceOf(Promise);
+
+    await promise;
+    expect(stores['c4'].updates.length).toBe(1);
+
+    await a.destroy();
+  });
 });

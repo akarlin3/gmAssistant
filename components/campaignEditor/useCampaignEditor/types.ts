@@ -11,5 +11,5 @@ export type CampaignEditorProps = {
   /** When provided, campaign.data writes are routed through the Yjs CRDT
    * layer rather than directly to the Firestore doc. Provided by
    * `useCampaignAndWorld` on the main campaign detail page. */
-  crdtApply?: (next: Record<string, any>) => void;
+  crdtApply?: (next: Record<string, any>) => void | Promise<void>;
 };

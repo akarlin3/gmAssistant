@@ -11,7 +11,7 @@ import type { World } from '@/lib/firebase/worlds';
 export interface SyncAndSaveOptions {
   campaign: Campaign;
   world: World | null | undefined;
-  crdtApply: ((next: Record<string, any>) => void) | undefined;
+  crdtApply: ((next: Record<string, any>) => void | Promise<void>) | undefined;
   lastCrdtSnapshotRef: React.MutableRefObject<string>;
   setSyncState: React.Dispatch<React.SetStateAction<'synced' | 'pending' | 'saving' | 'error'>>;
   setSyncError: React.Dispatch<React.SetStateAction<string>>;
@@ -39,7 +39,10 @@ export function buildSaveToDB(opts: SyncAndSaveOptions) {
 
       const promises = [];
       if (crdtApply) {
-        crdtApply(campaignPatch);
+        const crdtPromise = crdtApply(campaignPatch);
+        if (crdtPromise instanceof Promise) {
+          promises.push(crdtPromise);
+        }
         lastCrdtSnapshotRef.current = JSON.stringify(campaignPatch);
         promises.push(updateCampaign(campaign.id, { name: payload.name, done: payload.done }));
       } else {

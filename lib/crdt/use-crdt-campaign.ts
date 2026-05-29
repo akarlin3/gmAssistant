@@ -28,7 +28,7 @@ export type CrdtCampaignState = {
   /** Underlying sync handle for advanced callers. */
   sync: CrdtSync | null;
   /** Apply a JSON snapshot of campaign.data to the Y.Doc. */
-  applyJson: (next: Record<string, any>) => void;
+  applyJson: (next: Record<string, any>) => Promise<void>;
 };
 
 /**
@@ -75,6 +75,6 @@ export function useCrdtCampaign(
     data,
     ready,
     sync: syncRef.current,
-    applyJson: (next) => syncRef.current?.applyJson(next),
+    applyJson: (next) => syncRef.current ? syncRef.current.applyJson(next) : Promise.resolve(),
   };
 }

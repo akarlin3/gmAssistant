@@ -51,6 +51,7 @@ export class CrdtSync {
   private updatesSinceSnapshot = 0;
   private lastSnapshotAt = Date.now();
   private snapshotPending = false;
+  private pendingWrites = new Set<Promise<void>>();
   private hydrated = false;
   private onError: (e: Error) => void;
   private onChange?: (snapshot: Record<string, any>) => void;
@@ -159,12 +160,16 @@ export class CrdtSync {
   private shipUpdate(update: Uint8Array): void {
     if (!this.remoteEnabled) return;
     const clock = this.nextClock();
-    void writeUpdate(this.campaignId, update, this.clientId, clock)
+    const promise = writeUpdate(this.campaignId, update, this.clientId, clock)
       .then(() => {
         this.updatesSinceSnapshot += 1;
         this.maybeSnapshot();
       })
-      .catch((e) => this.onError(e));
+      .catch((e) => this.onError(e))
+      .finally(() => {
+        this.pendingWrites.delete(promise);
+      });
+    this.pendingWrites.add(promise);
   }
 
   private nextClock(): number {
@@ -213,10 +218,16 @@ export class CrdtSync {
     this.lastSnapshotAt = Date.now();
   }
 
+  async flush(): Promise<void> {
+    if (this.pendingWrites.size === 0) return;
+    await Promise.all(Array.from(this.pendingWrites));
+  }
+
   /** Apply a new JSON snapshot — convenience wrapper for callers that still
    * think in terms of "the campaign.data object as JSON". */
-  applyJson(newData: Record<string, any>): void {
+  applyJson(newData: Record<string, any>): Promise<void> {
     applyJsonPatch(this.doc, newData, 'local-patch');
+    return this.flush();
   }
 
   /** Current JSON view of campaign.data. */
