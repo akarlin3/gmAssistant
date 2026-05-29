@@ -20,6 +20,7 @@ import {
   type GoogleDriveBackupFile
 } from '@/lib/google-drive';
 import { getUserCampaignsOnce, importCampaign } from '@/lib/firebase/campaigns';
+import { loadCampaignCrdtJson } from '@/lib/crdt/export';
 
 const PRO_PRICE_LABEL = '$3.99 / month';
 
@@ -101,15 +102,25 @@ function AccountPageBody() {
       setBackupActionStatus('Creating backup folder…');
       const folderId = await findOrCreateBackupFolder(token);
 
+      // Campaign content now lives in the CRDT log, not the legacy
+      // `campaign.data` field, so rebuild each campaign's current data from
+      // the CRDT snapshot+updates (falling back to the legacy field for
+      // never-migrated campaigns). Reading the raw field would back up an
+      // empty/stale blob and the restored campaign would open blank.
+      setBackupActionStatus('Collecting campaign data…');
+      const campaignsWithData = await Promise.all(
+        campaignsList.map(async (c) => ({
+          name: c.name,
+          data: await loadCampaignCrdtJson(c.id, c.data || null),
+          done: c.done || {},
+        }))
+      );
+
       setBackupActionStatus('Uploading backup…');
       const payload = {
         _format: 'gm_builder_backup_v1',
         _exported: new Date().toISOString(),
-        campaigns: campaignsList.map((c) => ({
-          name: c.name,
-          data: c.data || {},
-          done: c.done || {},
-        })),
+        campaigns: campaignsWithData,
       };
 
       const result = await uploadBackupFile(token, folderId, payload);
