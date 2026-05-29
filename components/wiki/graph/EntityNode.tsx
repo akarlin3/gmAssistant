@@ -15,30 +15,26 @@ export type EntityNodeData = {
   name: string;
   selected: boolean;
   dimmed: boolean;
-  /** GM editable graph (CP5): expose grabbable connect handles for drag-to-connect. */
-  editable?: boolean;
+  /** GM editing: allow dragging an edge from/to this node to create a link. */
+  connectable?: boolean;
 };
 
 function EntityNodeImpl({ data }: NodeProps) {
   const d = data as unknown as EntityNodeData;
+  const canConnect = !!d.connectable;
   const fill = ENTITY_COLORS[d.type] ?? '#52443a';
   const r = d.selected ? 11 : 8;
   const size = r * 2;
-  // In the editable GM graph the handles must be grabbable so the GM can drag a
-  // connection from one node to another; in the read-only player graph (and the
-  // read-only GM view) they stay hidden + non-connectable so they can't be
-  // dragged and the floating center-to-center edge is the only visible line.
-  const handleStyle = d.editable ? CONNECT_HANDLE : HIDDEN_HANDLE;
   return (
     <div
       className="flex flex-col items-center"
       style={{ opacity: d.dimmed ? 0.18 : 1, transition: 'opacity 120ms' }}
-      title={`${ENTITY_LABELS[d.type] ?? d.type}: ${d.name}${d.editable ? ' — drag the dot to connect' : ''}`}
+      title={`${ENTITY_LABELS[d.type] ?? d.type}: ${d.name}`}
     >
-      {/* Center handles: edges anchor here; the floating edge draws the visible
-          center-to-center path. Hidden + inert unless the graph is editable. */}
-      <Handle type="target" position={Position.Top} style={handleStyle} isConnectable={!!d.editable} />
-      <Handle type="source" position={Position.Bottom} style={handleStyle} isConnectable={!!d.editable} />
+      {/* Hidden center handles: edges anchor here; the floating edge draws the
+          visible center-to-center path. */}
+      <Handle type="target" position={Position.Top} style={HIDDEN_HANDLE} isConnectable={canConnect} />
+      <Handle type="source" position={Position.Bottom} style={HIDDEN_HANDLE} isConnectable={canConnect} />
       <div
         style={{
           width: size,
@@ -68,17 +64,6 @@ const HIDDEN_HANDLE: React.CSSProperties = {
   border: 'none',
   background: 'transparent',
   pointerEvents: 'none',
-};
-
-// Editable graph: a small brass connect dot the GM can grab to drag a new edge.
-const CONNECT_HANDLE: React.CSSProperties = {
-  width: 9,
-  height: 9,
-  minWidth: 0,
-  minHeight: 0,
-  background: '#9a7b3f',
-  border: '1.5px solid #f5ecd7',
-  opacity: 0.85,
 };
 
 export const EntityNode = memo(EntityNodeImpl);

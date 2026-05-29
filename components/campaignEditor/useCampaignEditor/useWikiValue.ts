@@ -4,12 +4,12 @@ import { useMemo, useCallback, useEffect } from 'react';
 import { buildEntityIndex, findEntity } from '@/lib/wiki/entities';
 import {
   createRelationship,
-  createEdge as createEdgeRel,
-  updateRelationship as updateRelInList,
   addRelationship as addRelToList,
   removeRelationship as removeRelFromList,
+  updateRelationship as updateRelInList,
   acceptSuggestion as acceptSugInList,
   rejectSuggestion as rejectSugFromList,
+  mergeProposals as mergeProposalsInList,
 } from '@/lib/wiki/relationships';
 import { scanTextForSuggestions, pruneExpiredSuggestions } from '@/lib/wiki/suggest';
 import type { EntityType as WikiEntityType, Relationship as WikiRelationship } from '@/lib/wiki/types';
@@ -17,18 +17,6 @@ import type { WikiContextValue } from '@/components/wiki/WikiContext';
 import type { Mode } from '@/lib/modes';
 
 type NavigateFn = (target: { mode: Mode; subview?: string; characterId?: string }) => void;
-
-// Wiki entity type → the campaign `data.*` array that stores those records.
-// Used by updateEntityState to patch a canonical entity in place (mirrors the
-// collections buildEntityIndex reads from). Types without a stable backing
-// array are intentionally absent — state editing is a no-op for them.
-const TYPE_TO_COLLECTION: Partial<Record<WikiEntityType, string>> = {
-  npc: 'npcs',
-  faction: 'factions',
-  location: 'locations',
-  pc: 'characters',
-  factionClock: 'clocks',
-};
 
 export function useWikiValue(
   state: Record<string, any>,
@@ -103,48 +91,16 @@ export function useWikiValue(
           createRelationship(from, to, kind, notes),
         ),
       })),
-    createEdge: (from, to, kind, init) =>
-      setState((s) => ({
-        ...s,
-        relationships: addRelToList(
-          Array.isArray(s.relationships) ? s.relationships : [],
-          createEdgeRel(from, to, kind, init),
-        ),
-      })),
-    updateRelationship: (id, patch) =>
-      setState((s) => ({
-        ...s,
-        relationships: updateRelInList(
-          Array.isArray(s.relationships) ? s.relationships : [],
-          id,
-          patch,
-        ),
-      })),
     removeRelationship: (id) =>
       setState((s) => ({
         ...s,
         relationships: removeRelFromList(Array.isArray(s.relationships) ? s.relationships : [], id),
       })),
-    updateEntityState: (type, id, patch) => {
-      const collection = TYPE_TO_COLLECTION[type];
-      if (!collection) return; // no canonical backing array — nothing to patch
-      setState((s) => {
-        const arr = Array.isArray(s[collection]) ? s[collection] : [];
-        let changed = false;
-        const next = arr.map((item: Record<string, unknown>) => {
-          if (!item || item.id !== id) return item;
-          changed = true;
-          return { ...item, ...patch };
-        });
-        return changed ? { ...s, [collection]: next } : s;
-      });
-    },
-    getEntityState: (type, id) => {
-      const collection = TYPE_TO_COLLECTION[type];
-      if (!collection) return undefined;
-      const arr = Array.isArray(state[collection]) ? state[collection] : [];
-      return arr.find((item: Record<string, unknown>) => item && item.id === id);
-    },
+    updateRelationship: (id, patch) =>
+      setState((s) => ({
+        ...s,
+        relationships: updateRelInList(Array.isArray(s.relationships) ? s.relationships : [], id, patch),
+      })),
     acceptSuggestion: (id) =>
       setState((s) => ({
         ...s,
@@ -155,10 +111,24 @@ export function useWikiValue(
         ...s,
         relationships: rejectSugFromList(Array.isArray(s.relationships) ? s.relationships : [], id),
       })),
+    proposeRelationships: (proposals) => {
+      let added = 0;
+      setState((s) => {
+        const existing: WikiRelationship[] = Array.isArray(s.relationships) ? s.relationships : [];
+        const merged = mergeProposalsInList(existing, proposals);
+        added = merged.added;
+        return merged.added > 0 ? { ...s, relationships: merged.relationships } : s;
+      });
+      return added;
+    },
+    graphPositions:
+      state.graphLayout && typeof state.graphLayout === 'object' ? state.graphLayout : undefined,
+    setGraphPositions: (positions) =>
+      setState((s) => ({ ...s, graphLayout: { ...(s.graphLayout ?? {}), ...positions } })),
     navigateToEntity,
     resolve: (type, id) => findEntity(wikiIndex, type, id),
     rescan: rescanForSuggestions,
-  }), [state, wikiIndex, wikiRelationships, navigateToEntity, rescanForSuggestions, setState]);
+  }), [wikiIndex, wikiRelationships, navigateToEntity, rescanForSuggestions, setState, state.graphLayout]);
 
   return { wikiIndex, wikiRelationships, wikiValue, navigateToEntity, rescanForSuggestions };
 }

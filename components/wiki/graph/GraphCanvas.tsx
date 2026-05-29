@@ -1,13 +1,16 @@
 'use client';
 
-// Shared read-only React Flow canvas for the campaign node graph (CP2). Used by
-// both the GM graph (WikiGraph) and the player graph (read-only projection).
-// It does NOT fetch or write anything: it renders the GraphNode/GraphEdge model
-// it is handed, runs a d3-force layout once per structural change, and reports
-// node/edge clicks upward. Pan/zoom/select are interactive; node dragging is
-// disabled so the settled layout can't drift.
+// Shared React Flow canvas for the campaign node graph. Used by both the GM
+// graph (WikiGraph) and the read-only player graph. It renders the
+// GraphNode/GraphEdge model it is handed, runs a d3-force layout once per
+// structural change, and reports node/edge clicks upward.
+//
+// Interactivity is opt-in via `interactive` (GM only): when on, nodes can be
+// dragged (final positions reported through onPositionsChange and pinned) and
+// dragged node→node to propose a new edge (onConnectNodes). The player graph
+// leaves `interactive` off, so it stays pan/zoom/select with a settled layout.
 
-import { useMemo, useEffect, useCallback } from 'react';
+import { useMemo, useEffect } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -15,6 +18,8 @@ import {
   Controls,
   MiniMap,
   useReactFlow,
+  useNodesState,
+  ConnectionMode,
   type Node,
   type Edge,
   type Connection,
@@ -39,13 +44,15 @@ export type GraphCanvasProps = {
   highlightKeys?: Set<string> | null;
   onNodeClick?: (node: GraphNode) => void;
   onEdgeClick?: (edge: GraphEdge, screenPos: { x: number; y: number }) => void;
-  /** GM-only write surface (CP5). When true, nodes expose connect handles and a
-   * drag between two nodes fires onConnect. Defaults false → fully read-only,
-   * which is what the player ConnectionsTab relies on. */
-  editable?: boolean;
-  /** Drag-to-connect handler. `source`/`target` are entityKeys. */
-  onConnect?: (source: string, target: string) => void;
   emptyLabel?: string;
+  /** GM editing: enable node drag + connect-to-create. */
+  interactive?: boolean;
+  /** Persisted (pinned) node positions; override the computed layout. */
+  savedPositions?: Record<string, { x: number; y: number }>;
+  /** Report dragged node positions (final, on drag stop). */
+  onPositionsChange?: (positions: Record<string, { x: number; y: number }>) => void;
+  /** A node was dragged onto another — propose an edge between them. */
+  onConnectNodes?: (sourceKey: string, targetKey: string) => void;
 };
 
 function GraphCanvasInner({
@@ -56,60 +63,83 @@ function GraphCanvasInner({
   highlightKeys,
   onNodeClick,
   onEdgeClick,
-  editable = false,
-  onConnect,
   emptyLabel = 'Nothing to graph yet.',
+  interactive = false,
+  savedPositions,
+  onPositionsChange,
+  onConnectNodes,
 }: GraphCanvasProps) {
   const { fitView } = useReactFlow();
 
-  // Only edges whose endpoints are both present as nodes.
   const nodeKeys = useMemo(() => new Set(nodes.map((n) => n.key)), [nodes]);
   const presentEdges = useMemo(
     () => edges.filter((e) => nodeKeys.has(e.source) && nodeKeys.has(e.target) && e.source !== e.target),
     [edges, nodeKeys],
   );
 
-  // Structural keys: layout only recomputes when the node/edge set or clustering
-  // changes — not when selection/spotlight changes. Edge *topology* (which nodes
-  // are linked) is structural; edge *weight* is NOT in the signature (CP5 perf):
-  // tuning a weight from the edge editor must not re-run the force layout and
-  // jolt every node, so the settled positions stay put while only stroke width
-  // updates. Weight still seeds the spring on the next genuine topology change.
+  // Structural keys: the force layout only recomputes when the node/edge set or
+  // clustering changes — not on selection/spotlight/drag.
   const nodesSig = useMemo(() => nodes.map((n) => n.key).sort().join(','), [nodes]);
   const edgesSig = useMemo(
-    () => presentEdges.map((e) => `${e.source}>${e.target}`).sort().join(','),
+    () => presentEdges.map((e) => `${e.source}>${e.target}:${e.weight.toFixed(2)}`).sort().join(','),
     [presentEdges],
   );
   const clusterSig = useMemo(
     () => [...clusters.entries()].map(([k, v]) => `${k}=${v ?? ''}`).sort().join(','),
     [clusters],
   );
+  const savedSig = useMemo(
+    () => Object.entries(savedPositions ?? {}).map(([k, p]) => `${k}:${p.x.toFixed(0)},${p.y.toFixed(0)}`).sort().join(','),
+    [savedPositions],
+  );
 
-  const positions = useMemo(
-    () =>
-      computeLayout(
-        nodes.map((n) => ({ id: n.key, cluster: clusters.get(n.key) ?? null })),
-        presentEdges.map((e) => ({ source: e.source, target: e.target, weight: e.weight })),
-      ),
+  const positions = useMemo(() => {
+    const computed = computeLayout(
+      nodes.map((n) => ({ id: n.key, cluster: clusters.get(n.key) ?? null })),
+      presentEdges.map((e) => ({ source: e.source, target: e.target, weight: e.weight })),
+    );
+    // Pinned (dragged) positions win over the computed layout.
+    return { ...computed, ...(savedPositions ?? {}) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [nodesSig, edgesSig, clusterSig],
-  );
+  }, [nodesSig, edgesSig, clusterSig, savedSig]);
 
-  const rfNodes = useMemo<Node[]>(
-    () =>
-      nodes.map((n) => {
-        const dimmed = !!highlightKeys && !highlightKeys.has(n.key);
-        return {
-          id: n.key,
-          type: 'entity',
-          position: positions[n.key] ?? { x: 0, y: 0 },
-          data: { type: n.type, name: n.name, selected: n.key === selectedKey, dimmed, editable },
-          draggable: false,
-          selectable: true,
-        };
-      }),
-    [nodes, positions, selectedKey, highlightKeys, editable],
-  );
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState<Node>([]);
+
+  // Reset node list (positions + data) when structure or layout changes.
+  useEffect(() => {
+    setRfNodes(
+      nodes.map((n) => ({
+        id: n.key,
+        type: 'entity',
+        position: positions[n.key] ?? { x: 0, y: 0 },
+        data: {
+          type: n.type,
+          name: n.name,
+          selected: n.key === selectedKey,
+          dimmed: !!highlightKeys && !highlightKeys.has(n.key),
+          connectable: interactive,
+        },
+        draggable: interactive,
+        selectable: true,
+      })),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodesSig, positions, interactive]);
+
+  // Update only data (selection/spotlight) without disturbing positions.
+  useEffect(() => {
+    setRfNodes((prev) =>
+      prev.map((rn) => ({
+        ...rn,
+        data: {
+          ...rn.data,
+          selected: rn.id === selectedKey,
+          dimmed: !!highlightKeys && !highlightKeys.has(rn.id),
+        },
+      })),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedKey, highlightKeys]);
 
   const rfEdges = useMemo<Edge[]>(
     () =>
@@ -127,21 +157,10 @@ function GraphCanvasInner({
     [presentEdges, highlightKeys],
   );
 
-  // Re-fit when the structure changes (new layout).
   useEffect(() => {
     const t = setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 60);
     return () => clearTimeout(t);
   }, [nodesSig, fitView]);
-
-  const handleConnect = useCallback(
-    (c: Connection) => {
-      // React Flow forbids self-connections via isValidConnection, but guard
-      // anyway so a stray same-node drop never creates a degenerate self-edge.
-      if (!c.source || !c.target || c.source === c.target) return;
-      onConnect?.(c.source, c.target);
-    },
-    [onConnect],
-  );
 
   if (nodes.length === 0) {
     return (
@@ -156,18 +175,26 @@ function GraphCanvasInner({
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
+        onNodesChange={onNodesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        connectionMode={ConnectionMode.Loose}
         fitView
         minZoom={0.1}
         maxZoom={2.5}
-        nodesDraggable={false}
-        nodesConnectable={editable}
-        isValidConnection={(c) => !!c.source && !!c.target && c.source !== c.target}
-        onConnect={editable ? handleConnect : undefined}
+        nodesDraggable={interactive}
+        nodesConnectable={interactive}
         elementsSelectable
         onlyRenderVisibleElements
         proOptions={{ hideAttribution: true }}
+        onNodeDragStop={(_, node) => {
+          if (interactive) onPositionsChange?.({ [node.id]: { x: node.position.x, y: node.position.y } });
+        }}
+        onConnect={(c: Connection) => {
+          if (interactive && c.source && c.target && c.source !== c.target) {
+            onConnectNodes?.(c.source, c.target);
+          }
+        }}
         onNodeClick={(_, node) => {
           const n = nodes.find((x) => x.key === node.id);
           if (n) onNodeClick?.(n);

@@ -3,11 +3,11 @@
 // Campaign-wide relationship graph. The dependency-free SVG force layout was
 // replaced (CP2) with a React Flow canvas backed by a d3-force layout
 // (lib/wiki/graphLayout.ts) so the graph stays interactive (pan/zoom/select)
-// and clustered by faction at 100+ nodes. This component keeps its original
-// prop contract — it still receives the in-memory entity/relationship view from
-// WikiTab (no second fetch) — and only swaps the renderer underneath. Clicking
-// a node selects it (parent opens the side panel / sidebar editor); clicking an
-// edge surfaces a read-only popover. "Spotlight" dims everything more than
+// and clustered by faction at 100+ nodes. It receives the in-memory entity/
+// relationship view from WikiTab (no second fetch). Clicking a node selects it
+// (parent opens the sidebar editor); clicking an edge opens its editor. When
+// `interactive` is set (GM), nodes can be dragged (positions persisted) and
+// dragged node→node to create a link. "Spotlight" dims everything more than
 // `spotlightDepth` edges from the selected node.
 
 import { useMemo } from 'react';
@@ -37,21 +37,23 @@ export default function WikiGraph({
   relationships,
   selectedKey,
   spotlightDepth,
-  editable,
   onNodeClick,
   onEdgeClick,
-  onConnect,
+  interactive,
+  savedPositions,
+  onPositionsChange,
+  onConnectNodes,
 }: {
   entities: WikiEntity[];
   relationships: Relationship[];
   selectedKey: string | null;
   spotlightDepth: number;
-  /** GM write surface (CP5): drag-to-connect + connect handles. */
-  editable?: boolean;
   onNodeClick: (e: WikiEntity) => void;
   onEdgeClick?: (rel: Relationship, screenPos: { x: number; y: number }) => void;
-  /** Drag-to-connect: source/target are entityKeys. */
-  onConnect?: (source: string, target: string) => void;
+  interactive?: boolean;
+  savedPositions?: Record<string, { x: number; y: number }>;
+  onPositionsChange?: (positions: Record<string, { x: number; y: number }>) => void;
+  onConnectNodes?: (sourceKey: string, targetKey: string) => void;
 }) {
   const nodes = useMemo<GraphNode[]>(
     () =>
@@ -110,9 +112,11 @@ export default function WikiGraph({
       clusters={clusters}
       selectedKey={selectedKey}
       highlightKeys={highlightKeys}
-      editable={editable}
-      onConnect={onConnect}
       emptyLabel="No entities match the current filters."
+      interactive={interactive}
+      savedPositions={savedPositions}
+      onPositionsChange={onPositionsChange}
+      onConnectNodes={onConnectNodes}
       onNodeClick={(n) => {
         const ent = byKey.get(n.key);
         if (ent) onNodeClick(ent);

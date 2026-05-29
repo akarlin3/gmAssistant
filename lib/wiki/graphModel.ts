@@ -67,7 +67,7 @@ export function edgesFromRelationships(
   relationships: ReadonlyArray<Relationship>,
 ): GraphEdge[] {
   return relationships
-    .filter((r) => r && r.id && !r.suggested)
+    .filter((r) => r && r.id && !r.suggested && !r.proposed)
     .map((r) => ({
       id: r.id,
       source: entityKey(r.fromType, r.fromId),

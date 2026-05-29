@@ -50,6 +50,14 @@ export type Relationship = {
   createdAt: number;
   /** true if auto-suggested by the scanner but not yet user-confirmed */
   suggested?: boolean;
+  /**
+   * true if produced by a derivation pass (relationship propagation or a faction
+   * turn) and awaiting GM review. Like `suggested`, a proposed edge is excluded
+   * from confirmed reads and player projections until accepted. `proposedReason`
+   * is a short human explanation shown in the review queue.
+   */
+  proposed?: boolean;
+  proposedReason?: string;
 
   // ── Edge-as-data fields (node-graph foundation, CP1) ──────────────────────
   // These augment the existing relationship into a graph edge. All optional so

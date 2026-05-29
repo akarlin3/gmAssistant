@@ -165,7 +165,9 @@ export function projectEdges(
   const out: NonNullable<SlotProjection['edges']> = [];
   for (const rel of rels as ReadonlyArray<Relationship>) {
     if (!rel || typeof rel !== 'object' || !rel.id) continue;
-    if (rel.suggested) continue;
+    // Review-queue edges (auto-suggested or derivation-proposed) are never
+    // published — they aren't confirmed campaign content yet.
+    if (rel.suggested || rel.proposed) continue;
     if (!edgeVisibleToSlot(rel.visibility, rel.customVisibleTo, slotId)) continue;
     const fromKey = `${rel.fromType}:${rel.fromId}`;
     const toKey = `${rel.toType}:${rel.toId}`;

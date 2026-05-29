@@ -2,12 +2,14 @@
 
 import { useState, useMemo } from 'react';
 import {
-  Plus, X, Play, RotateCcw, Trash2, Crown, Swords, Handshake, ChevronDown, ChevronRight,
+  Plus, X, Play, RotateCcw, Trash2, Crown, Swords, Handshake, ChevronDown, ChevronRight, GitMerge,
 } from 'lucide-react';
 import {
   emptyWorld, runTick, runTicks, getRelationship, setRelationship,
   type FactionWorld, type Faction, type Territory, type TickEvent,
 } from '@/lib/factionEngine';
+import { useWiki } from './wiki/WikiContext';
+import { factionStanceProposals } from '@/lib/wiki/factionTurnEdges';
 
 type Props = {
   campaignId: string;
@@ -21,6 +23,26 @@ export default function FactionEngineTab({ campaignId, world, onChange }: Props)
   const safeWorld = world.factions ? world : emptyWorld();
   const [tickCount, setTickCount] = useState(1);
   const [showLog, setShowLog] = useState(true);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const wiki = useWiki();
+
+  // Surface strong faction stances as proposed graph edges between the matching
+  // wiki faction entities (by name). Lands in the Wiki review queue.
+  const syncStancesToGraph = () => {
+    if (!wiki?.proposeRelationships) return;
+    const byName = new Map<string, string>();
+    for (const e of wiki.index.entities) {
+      if (e.type === 'faction') byName.set(e.name.trim().toLowerCase(), e.id);
+    }
+    const proposals = factionStanceProposals(safeWorld, (n) => byName.get(n.trim().toLowerCase()));
+    const added = wiki.proposeRelationships(proposals);
+    setSyncMsg(
+      added > 0
+        ? `Sent ${added} stance${added === 1 ? '' : 's'} to the graph review queue.`
+        : 'No matching factions with strong stances to send.',
+    );
+    setTimeout(() => setSyncMsg(null), 4000);
+  };
 
   const addFaction = () => {
     const id = `f${Date.now().toString(36)}`;
@@ -100,6 +122,16 @@ export default function FactionEngineTab({ campaignId, world, onChange }: Props)
           >
             <RotateCcw size={12} /> Rollback log
           </button>
+          {wiki?.proposeRelationships && (
+            <button
+              onClick={syncStancesToGraph}
+              disabled={safeWorld.factions.length < 2}
+              className="flex items-center gap-1.5 rounded border border-brass/40 bg-brass-soft/20 px-2.5 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep hover:bg-brass-soft/40 disabled:opacity-40"
+              title="Propose ally/enemy graph edges between faction entities whose stances are strong (matched by name), for review in the Wiki"
+            >
+              <GitMerge size={12} /> Stances → graph
+            </button>
+          )}
           <button
             onClick={reset}
             className="ml-auto flex items-center gap-1.5 rounded border border-crimson/40 px-2.5 py-1.5 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson/10"
@@ -107,6 +139,7 @@ export default function FactionEngineTab({ campaignId, world, onChange }: Props)
             <Trash2 size={12} /> Reset world
           </button>
         </div>
+        {syncMsg && <p className="font-serif text-xs italic text-brass-deep">{syncMsg}</p>}
       </section>
 
       <FactionsSection world={safeWorld} onChange={onChange} onAdd={addFaction} />

@@ -74,6 +74,17 @@ describe('buildPlayerGraph (read-only player graph)', () => {
     expect(edges[0].directed).toBe(true); // locatedAt is asymmetric
   });
 
+  it('never surfaces a proposed (review-queue) edge to players, even if party-visible', () => {
+    const data = seed();
+    data.relationships = [
+      // A derivation proposal awaiting GM review — must stay GM-only until accepted.
+      { id: 'e_prop', fromType: 'npc', fromId: 'npc1', toType: 'location', toId: 'loc1', kind: 'allyOf', createdAt: 0, visibility: 'party', proposed: true },
+    ];
+    const proj = buildSlotProjection(data, 'C', 'slot-a');
+    const { edges } = buildPlayerGraph(proj);
+    expect(edges).toEqual([]);
+  });
+
   it('produces an empty graph when nothing is shared', () => {
     const data = seed();
     data.relationships = [];
