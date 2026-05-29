@@ -21,6 +21,7 @@ import PlayerPcSheetCard from './playerCampaign/PlayerPcSheetCard';
 import SessionRecapsTab from './playerCampaign/SessionRecapsTab';
 import PlanningTab from './playerCampaign/PlanningTab';
 import GoalsTab from './playerCampaign/GoalsTab';
+import ConnectionsTab from './playerCampaign/ConnectionsTab';
 import { usePlayerCampaign } from './playerCampaign/usePlayerCampaign';
 import type { Character } from '@/lib/character-schema';
 import type { PlayerCampaignViewProps, ProjectionEntityKey } from './playerCampaign/types';
@@ -110,6 +111,8 @@ export default function PlayerCampaignView({
             <div className="space-y-3">
               {active === 'maps' ? (
                 <PlayerMapView maps={projection.maps ?? []} />
+              ) : active === 'connections' ? (
+                <ConnectionsTab projection={projection} />
               ) : active === 'my_pcs' ? (
                 <div className="space-y-4">
                   {myPcs.map((pc) => (

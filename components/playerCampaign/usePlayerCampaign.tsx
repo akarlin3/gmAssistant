@@ -8,7 +8,7 @@
 // — is preserved exactly.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Calendar, Map, BookOpen, UserCircle, Gift, Compass, Target } from 'lucide-react';
+import { Calendar, Map, BookOpen, UserCircle, Gift, Compass, Target, Network } from 'lucide-react';
 import { subscribeSlotProjection } from '@/lib/playerMode/playerClient';
 import type { SlotProjection } from '@/lib/playerMode/types';
 import { TYPE_META } from './constants';
@@ -86,6 +86,11 @@ export function usePlayerCampaign({
       }
     }
     if (projection.maps && projection.maps.length > 0) out.push({ id: 'maps', label: 'Maps', icon: <Map size={15} /> });
+    // Connections graph: only when the GM has shared at least one edge with this
+    // slot (projection.edges is already redacted in projection.ts:projectEdges).
+    if (projection.edges && projection.edges.length > 0) {
+      out.push({ id: 'connections', label: 'Connections', icon: <Network size={15} /> });
+    }
     out.push({ id: 'recaps', label: 'Sessions', icon: <Calendar size={15} /> });
     if (projection.handouts) out.push({ id: 'handouts', label: 'Handouts', icon: <BookOpen size={15} /> });
     if (projection.items && projection.items.length > 0) {

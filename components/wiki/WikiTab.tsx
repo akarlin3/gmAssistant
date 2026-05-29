@@ -13,13 +13,17 @@ import RelationshipsSection from './RelationshipsSection';
 import { ENTITY_COLORS, ENTITY_LABELS, edgeColor } from '@/lib/wiki/colors';
 import { entityKey, type WikiEntity } from '@/lib/wiki/entities';
 import { ruleFor } from '@/lib/wiki/catalog';
-import type { EntityType, RelationshipKind } from '@/lib/wiki/types';
+import { effectiveWeight } from '@/lib/wiki/edges';
+import type { EntityType, Relationship, RelationshipKind } from '@/lib/wiki/types';
 
 export default function WikiTab() {
   const wiki = useWiki();
   const [hiddenTypes, setHiddenTypes] = useState<Set<EntityType>>(new Set());
   const [hiddenKinds, setHiddenKinds] = useState<Set<RelationshipKind>>(new Set());
   const [selected, setSelected] = useState<WikiEntity | null>(null);
+  const [edgePopover, setEdgePopover] = useState<{ rel: Relationship; x: number; y: number } | null>(
+    null,
+  );
   const [spotlight, setSpotlight] = useState(false);
   const [depth, setDepth] = useState(2);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
@@ -224,7 +228,11 @@ export default function WikiTab() {
           relationships={visibleRels}
           selectedKey={spotlight ? selectedKey : null}
           spotlightDepth={depth}
-          onNodeClick={(e) => setSelected(e)}
+          onNodeClick={(e) => {
+            setEdgePopover(null);
+            setSelected(e);
+          }}
+          onEdgeClick={(rel, pos) => setEdgePopover({ rel, x: pos.x, y: pos.y })}
         />
         <aside className="rounded-lg border border-rule bg-parchment p-3 shadow-card">
           {selected ? (
@@ -278,6 +286,62 @@ export default function WikiTab() {
           )}
         </aside>
       </div>
+
+      {edgePopover && <EdgePopover entry={edgePopover} onClose={() => setEdgePopover(null)} />}
     </div>
+  );
+}
+
+// Read-only edge inspector. Clicking an edge in the graph surfaces its type,
+// effective weight, and player-mode visibility. No editing from the graph this
+// PR (CP2 is read-only); relationship edits stay in the sidebar editor.
+function EdgePopover({
+  entry,
+  onClose,
+}: {
+  entry: { rel: Relationship; x: number; y: number };
+  onClose: () => void;
+}) {
+  const { rel, x, y } = entry;
+  const rule = ruleFor(rel.kind);
+  const weight = effectiveWeight(rel);
+  const visibility = rel.visibility ?? 'private';
+  const visibilityLabel =
+    visibility === 'party' ? 'Party (all players)' : visibility === 'custom' ? 'Custom slots' : 'Private (GM only)';
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div
+        className="fixed z-50 w-56 rounded-lg border border-rule bg-parchment p-3 shadow-card"
+        style={{ left: Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 240), top: y + 8 }}
+        role="dialog"
+      >
+        <div className="mb-1.5 flex items-center justify-between">
+          <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
+            Relationship
+          </span>
+          <button onClick={onClose} aria-label="Close" className="text-ink-mute hover:text-crimson">
+            <X size={14} />
+          </button>
+        </div>
+        <dl className="space-y-1 font-serif text-xs text-ink">
+          <div className="flex items-center justify-between gap-2">
+            <dt className="text-ink-mute">Type</dt>
+            <dd className="flex items-center gap-1.5 font-display">
+              <span className="inline-block h-1 w-3 rounded" style={{ background: edgeColor(rel.kind) }} />
+              {rule?.label ?? rel.kind}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <dt className="text-ink-mute">Weight</dt>
+            <dd className="font-display">{weight.toFixed(2)}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <dt className="text-ink-mute">Visibility</dt>
+            <dd className="font-display">{visibilityLabel}</dd>
+          </div>
+        </dl>
+      </div>
+    </>
   );
 }
