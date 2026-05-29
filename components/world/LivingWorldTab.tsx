@@ -15,6 +15,7 @@ import { useLivingWorldData } from './livingWorld/useLivingWorldData';
 import { TickRulesSection } from './livingWorld/TickRulesSection';
 import { AgendasSection } from './livingWorld/AgendasSection';
 import { PreviewModal } from './livingWorld/PreviewModal';
+import WorldEventsReview from './WorldEventsReview';
 import type { GetFn, SetFn } from './livingWorld/types';
 
 type Props = {
@@ -57,6 +58,9 @@ export default function LivingWorldTab({ get, setVal, isPro, soloMode, campaignN
         downtime resolves, and NPCs chase their agendas on their own — then read the &ldquo;While
         You Were Away&rdquo; briefing when you sit back down. No more frozen world waiting on you.
       </SoloNote>
+
+      {/* Procedural state-propagation engine: propose-only world events. */}
+      <WorldEventsReview get={get} setVal={setVal} campaignName={campaignName} />
 
       {/* World status + advance controls */}
       <section className="rounded border border-rule bg-parchment p-4 shadow-card">

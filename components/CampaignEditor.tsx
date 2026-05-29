@@ -35,6 +35,7 @@ import {
 } from './campaignEditor/useCampaignEditor';
 import { PlanPrepView } from './campaignEditor/PlanPrepView';
 import { EditorSubviews } from './campaignEditor/EditorSubviews';
+import { useReactiveWorldEvents } from '@/lib/world/useReactiveWorldEvents';
 
 export default function CampaignEditor(props: CampaignEditorProps) {
   const ed = useCampaignEditor(props);
@@ -118,6 +119,10 @@ export default function CampaignEditor(props: CampaignEditorProps) {
     world,
     worldOnlyMode,
   } = ed;
+
+  // Reactive world-events observer (propose-only): watches NPC death
+  // transitions and enqueues bounded propagation into data.pendingWorldEvents.
+  useReactiveWorldEvents(get, setVal);
 
   if (get('__runSessionOpen', false)) {
     return (
