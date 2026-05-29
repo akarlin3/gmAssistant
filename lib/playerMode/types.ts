@@ -108,6 +108,19 @@ export type SlotProjection = {
     linked?: string;
     status?: string;
   }>;
+  // Redacted graph edges visible to this slot. Only edges whose own visibility
+  // admits the slot AND whose both endpoints are themselves projected to the
+  // slot are included (so an edge can never reveal a hidden entity). GM-only
+  // edge fields (notes, visibility, customVisibleTo) are stripped.
+  edges?: Array<{
+    id: string;
+    fromType: string;
+    fromId: string;
+    toType: string;
+    toId: string;
+    kind: string;
+    weight?: number;
+  }>;
   // Player-visible maps: only layers flagged visibleToPlayers, with GM-only
   // fields (marker notes, entity links, edge travel times) already stripped.
   maps?: import('@/lib/maps/playerProjection').PlayerMap[];
@@ -153,6 +166,9 @@ export type PlayerLogEntry = {
 export type PlayerModeData = Partial<Record<PlayerEntityType, PlayerEntity[]>> & {
   player: PlayerConfig;
   handouts?: unknown;
+  // Graph edges (lib/wiki/types.ts:Relationship). Declared here so the
+  // projection pipeline may read them; redaction is applied per edge.
+  relationships?: readonly import('@/lib/wiki/types').Relationship[];
   playerLog?: readonly PlayerLogEntry[];
   items?: ReadonlyArray<string | CampaignItem>;
   pcGoals?: readonly any[];

@@ -5,6 +5,8 @@
 
 import { DEFAULT_FIELD_VISIBILITY } from './fieldDefaults';
 import { resolveVisibility } from './resolveVisibility';
+import { edgeVisibleToSlot, effectiveWeight } from '@/lib/wiki/edges';
+import type { EntityType, Relationship } from '@/lib/wiki/types';
 import { projectPlayerMaps } from '@/lib/maps/playerProjection';
 import {
   PLAYER_ENTITY_TYPES,
@@ -134,6 +136,53 @@ export function indexItemsBySlot(
   return bySlot;
 }
 
+// Map a projected (plural) player-entity collection key to the (singular)
+// wiki EntityType used on edges, so we can test an edge endpoint against the
+// set of entities actually projected to this slot.
+const PLAYER_TYPE_TO_EDGE_TYPE: Record<PlayerEntityType, EntityType> = {
+  characters: 'pc',
+  pcs: 'pc',
+  npcs: 'npc',
+  locations: 'location',
+  factions: 'faction',
+  clocks: 'factionClock',
+};
+
+// Redact the campaign's graph edges for one slot. An edge is published only
+// when BOTH (a) its own visibility admits the slot and (b) both endpoints were
+// themselves projected to this slot — so an edge can never betray the
+// existence of a hidden entity. Endpoints of a type that is never projected
+// (secret, monster, magicItem, scene, …) therefore fail closed automatically.
+// Suggested-but-unconfirmed edges are never published. GM-only fields (notes,
+// visibility, customVisibleTo, timestamps) are stripped.
+export function projectEdges(
+  data: PlayerModeData,
+  visibleEntityKeys: ReadonlySet<string>,
+  slotId: string,
+): SlotProjection['edges'] {
+  const rels = data.relationships;
+  if (!Array.isArray(rels)) return undefined;
+  const out: NonNullable<SlotProjection['edges']> = [];
+  for (const rel of rels as ReadonlyArray<Relationship>) {
+    if (!rel || typeof rel !== 'object' || !rel.id) continue;
+    if (rel.suggested) continue;
+    if (!edgeVisibleToSlot(rel.visibility, rel.customVisibleTo, slotId)) continue;
+    const fromKey = `${rel.fromType}:${rel.fromId}`;
+    const toKey = `${rel.toType}:${rel.toId}`;
+    if (!visibleEntityKeys.has(fromKey) || !visibleEntityKeys.has(toKey)) continue;
+    out.push({
+      id: rel.id,
+      fromType: rel.fromType,
+      fromId: rel.fromId,
+      toType: rel.toType,
+      toId: rel.toId,
+      kind: rel.kind,
+      weight: effectiveWeight(rel),
+    });
+  }
+  return out;
+}
+
 export function buildShareMeta(
   campaignId: string,
   data: PlayerModeData,
@@ -168,6 +217,18 @@ export function buildSlotProjection(
       if (r) redacted.push(r);
     }
     if (redacted.length > 0) entities[type] = redacted;
+  }
+
+  // Set of `${edgeType}:${id}` for every entity actually projected to this
+  // slot — the endpoint allowlist for edge redaction below.
+  const visibleEntityKeys = new Set<string>();
+  for (const type of PLAYER_ENTITY_TYPES) {
+    const projected = entities[type];
+    if (!projected) continue;
+    const edgeType = PLAYER_TYPE_TO_EDGE_TYPE[type];
+    for (const e of projected) {
+      if (e && typeof e.id === 'string') visibleEntityKeys.add(`${edgeType}:${e.id}`);
+    }
   }
 
   // Handouts: a single string gated by its own visibility record.
@@ -255,6 +316,7 @@ export function buildSlotProjection(
     sessionLog,
     updatedAtMs: nowMs,
     items: projectedItems,
+    edges: projectEdges(data, visibleEntityKeys, slotId),
     planning,
     pcGoals: projectedGoals,
     maps,

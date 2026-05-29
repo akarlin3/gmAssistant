@@ -82,6 +82,11 @@ service cloud.firestore {
       // except by the snapshot-GC path, which the same owner runs). Players
       // never read these — the only player-facing surface remains the
       // public-read playerShares projection docs.
+      //
+      // NOTE: graph edges (data.relationships) live INSIDE the Y.Doc and thus
+      // ride this same owner-only update log — they are not a separate
+      // collection and need no additional rules. Players receive only the
+      // redacted edges baked into the playerShares slot projections.
       match /crdtUpdates/{updateId} {
         allow read: if request.auth != null
           && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.userId == request.auth.uid;

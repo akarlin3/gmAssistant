@@ -224,3 +224,69 @@ describe('buildSlotProjection', () => {
   });
 });
 
+describe('buildSlotProjection — graph edges', () => {
+  // Make npc1 and loc1 visible to the party; npc2 stays private.
+  function seedWithVisibleEndpoints(): PlayerModeData {
+    const data = seedCampaignData();
+    data.player.entityVisibility.npcs = { npc1: { mode: 'party' } };
+    data.player.entityVisibility.locations = { loc1: { mode: 'party' } };
+    return data;
+  }
+
+  it('a private edge is absent from a player projection', () => {
+    const data = seedWithVisibleEndpoints();
+    data.relationships = [
+      { id: 'e1', fromType: 'npc', fromId: 'npc1', toType: 'location', toId: 'loc1', kind: 'locatedAt', createdAt: 0, visibility: 'private' },
+    ];
+    const proj = buildSlotProjection(data, 'C', 'slot-a');
+    expect(proj.edges).toEqual([]);
+  });
+
+  it('an untagged edge defaults to private (fail-closed) and is absent', () => {
+    const data = seedWithVisibleEndpoints();
+    data.relationships = [
+      { id: 'e1', fromType: 'npc', fromId: 'npc1', toType: 'location', toId: 'loc1', kind: 'locatedAt', createdAt: 0 },
+    ];
+    expect(buildSlotProjection(data, 'C', 'slot-a').edges).toEqual([]);
+  });
+
+  it('a party edge between two visible entities appears, with a weight and no GM fields', () => {
+    const data = seedWithVisibleEndpoints();
+    data.relationships = [
+      { id: 'e1', fromType: 'npc', fromId: 'npc1', toType: 'location', toId: 'loc1', kind: 'locatedAt', createdAt: 0, visibility: 'party', notes: 'GM only' },
+    ];
+    const edges = buildSlotProjection(data, 'C', 'slot-a').edges ?? [];
+    expect(edges).toHaveLength(1);
+    expect(edges[0].id).toBe('e1');
+    expect(edges[0].kind).toBe('locatedAt');
+    expect(typeof edges[0].weight).toBe('number');
+    expect(edges[0]).not.toHaveProperty('notes');
+    expect(edges[0]).not.toHaveProperty('visibility');
+  });
+
+  it('a party edge to a HIDDEN endpoint never leaks (endpoint guard)', () => {
+    const data = seedWithVisibleEndpoints(); // npc2 is private
+    data.relationships = [
+      { id: 'e1', fromType: 'npc', fromId: 'npc1', toType: 'npc', toId: 'npc2', kind: 'allyOf', createdAt: 0, visibility: 'party' },
+    ];
+    expect(buildSlotProjection(data, 'C', 'slot-a').edges).toEqual([]);
+  });
+
+  it('a custom edge reaches only listed slots', () => {
+    const data = seedWithVisibleEndpoints();
+    data.relationships = [
+      { id: 'e1', fromType: 'npc', fromId: 'npc1', toType: 'location', toId: 'loc1', kind: 'locatedAt', createdAt: 0, visibility: 'custom', customVisibleTo: ['slot-b'] },
+    ];
+    expect(buildSlotProjection(data, 'C', 'slot-a').edges).toEqual([]);
+    expect(buildSlotProjection(data, 'C', 'slot-b').edges).toHaveLength(1);
+  });
+
+  it('suggested (unconfirmed) edges are never published', () => {
+    const data = seedWithVisibleEndpoints();
+    data.relationships = [
+      { id: 'e1', fromType: 'npc', fromId: 'npc1', toType: 'location', toId: 'loc1', kind: 'locatedAt', createdAt: 0, visibility: 'party', suggested: true },
+    ];
+    expect(buildSlotProjection(data, 'C', 'slot-a').edges).toEqual([]);
+  });
+});
+
