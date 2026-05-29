@@ -223,6 +223,33 @@ export class CrdtSync {
     await Promise.all(Array.from(this.pendingWrites));
   }
 
+  /**
+   * Seed the Y.Doc from legacy `campaign.data` JSON *iff* it is still empty
+   * (i.e. no local IndexedDB state and no remote CRDT log). Returns true when
+   * a seed actually happened.
+   *
+   * This exists for the common runtime case where the Firestore campaign
+   * metadata — and therefore `campaign.data` — is not yet available at the
+   * moment CrdtSync is constructed. Callers invoke this once metadata loads so
+   * never-migrated campaigns don't appear blank (which previously popped the
+   * Session 0 wizard and looked like data loss).
+   */
+  async seedFromLegacyIfEmpty(legacyData: Record<string, any> | null): Promise<boolean> {
+    await this.ready;
+    if (this.destroyed) return false;
+    if (!legacyData || Object.keys(legacyData).length === 0) return false;
+    const root = getRoot(this.doc);
+    if (root.size !== 0) return false; // already has content — never clobber
+    // seedFromJson runs in a transaction with origin 'legacy-migration', so
+    // the wired update handler ships it to the Firestore log (just like
+    // applyJson) and peers / future cold-starts converge to it. flush() waits
+    // for that background write to land.
+    seedFromJson(this.doc, legacyData, 'legacy-migration');
+    this.notifyChange();
+    await this.flush();
+    return true;
+  }
+
   /** Apply a new JSON snapshot — convenience wrapper for callers that still
    * think in terms of "the campaign.data object as JSON". */
   applyJson(newData: Record<string, any>): Promise<void> {

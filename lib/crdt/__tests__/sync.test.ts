@@ -203,6 +203,45 @@ describe('CrdtSync — transport-level convergence', () => {
     await b.destroy();
   });
 
+  it('seeds legacy data when the doc is empty but legacyData was unknown at construction', async () => {
+    // Mirrors the real bug: a never-migrated campaign whose Firestore metadata
+    // (and thus `campaign.data`) arrives AFTER CrdtSync is constructed, so the
+    // constructor sees legacyData=null. The doc + remote are both empty.
+    const a = new CrdtSync({ campaignId: 'c5', clientId: 'A', legacyData: null });
+    await a.ready;
+    expect(a.getJson()).toEqual({}); // nothing seeded yet
+
+    // Metadata loads later; the hook hands us the legacy blob.
+    const seeded = await a.seedFromLegacyIfEmpty({
+      pitch: 'doomed kingdom',
+      npcs: [{ id: 'n1', name: 'Mara' }],
+    });
+    expect(seeded).toBe(true);
+    expect(a.getJson().pitch).toBe('doomed kingdom');
+    expect(a.getJson().npcs.map((n: any) => n.id)).toEqual(['n1']);
+
+    // The seed must be shipped so other devices / future cold-starts converge.
+    const b = new CrdtSync({ campaignId: 'c5', clientId: 'B', legacyData: null });
+    await b.ready;
+    expect(b.getJson().pitch).toBe('doomed kingdom');
+
+    await a.destroy();
+    await b.destroy();
+  });
+
+  it('does NOT re-seed legacy data when the doc already has content', async () => {
+    const a = new CrdtSync({ campaignId: 'c6', clientId: 'A', legacyData: { pitch: 'real data' } });
+    await a.ready;
+    expect(a.getJson().pitch).toBe('real data');
+
+    // A stale/empty legacy blob arriving later must not clobber existing state.
+    const seeded = await a.seedFromLegacyIfEmpty({ pitch: 'stale overwrite' });
+    expect(seeded).toBe(false);
+    expect(a.getJson().pitch).toBe('real data');
+
+    await a.destroy();
+  });
+
   it('applyJson returns a promise that resolves once background writes are complete', async () => {
     const a = new CrdtSync({
       campaignId: 'c4', clientId: 'A',
