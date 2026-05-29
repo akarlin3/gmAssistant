@@ -30,15 +30,47 @@ export const PENDING_EVENTS_KEY = 'pendingWorldEvents';
 
 export type WorldEventStatus = 'pending' | 'approved' | 'rejected';
 
-/** A single proposed change. `targetId` is a relationship (edge) id; `field` is
- * the field to change. Only `weight` is committed today; unknown fields are
- * preserved on the proposal but skipped at commit (forward-compatible). */
+/**
+ * The campaign collection a delta targets. Defaults to `relationships` when a
+ * delta omits `target`, so every pre-existing engine delta (edge-weight changes)
+ * keeps working untouched. The Living World tick adds the other collections.
+ *   - relationships → edge `weight`
+ *   - clocks        → faction-clock `filled`
+ *   - downtime      → downtime `progress`
+ *   - factions      → faction `renown`
+ *   - agendas       → `worldClock.agendas[].progress` (+ appended `blockers`)
+ */
+export type DeltaCollection =
+  | 'relationships'
+  | 'clocks'
+  | 'downtime'
+  | 'factions'
+  | 'agendas';
+
+/** A single proposed change. `targetId` is the target entity id (an edge id for
+ * relationships); `field` is the field to change. `target` carries the
+ * collection discriminator — when absent the collection is `relationships` and
+ * the id is `targetId`, preserving the original edge-only shape. `blockers`
+ * bundles newly-appended agenda blockers alongside a progress change. Unknown
+ * fields are preserved on the proposal but skipped at commit (forward-compatible). */
 export type WorldDelta = {
   targetId: string;
   field: string;
   from: number | string;
   to: number | string;
+  /** Collection discriminator. Absent ⇒ `{ collection: 'relationships', id: targetId }`. */
+  target?: { collection: DeltaCollection; id: string };
+  /** Agenda-only: blocker strings appended by this change (bundled with progress). */
+  blockers?: string[];
 };
+
+/** Resolve a delta's collection + id, defaulting to the legacy relationship shape. */
+export function deltaCollection(d: WorldDelta): DeltaCollection {
+  return d.target?.collection ?? 'relationships';
+}
+export function deltaTargetId(d: WorldDelta): string {
+  return d.target?.id ?? d.targetId;
+}
 
 export type PendingWorldEvent = {
   id: string;
@@ -98,12 +130,24 @@ export function pendingOnly(events: ReadonlyArray<PendingWorldEvent>): PendingWo
   return events.filter((e) => e.status === 'pending');
 }
 
-/** Append newly-proposed events, dropping any with no deltas. */
+/** Append newly-proposed events, dropping any with no deltas and any whose `id`
+ * already exists in the queue. The id-dedupe is the idempotency guard for the
+ * Living World tick: a tick's review events carry deterministic ids
+ * (`tick:<from>-<to>:<collection>:<id>:<field>`), so recomputing the same
+ * logical tick — across reopen or two converging devices — never enqueues it
+ * twice. Engine events use unique ids, so they are never falsely deduped. */
 export function appendEvents(
   existing: ReadonlyArray<PendingWorldEvent>,
   incoming: ReadonlyArray<PendingWorldEvent>,
 ): PendingWorldEvent[] {
-  return [...existing, ...incoming.filter((e) => e.deltas.length > 0)];
+  const have = new Set(existing.map((e) => e.id));
+  const add: PendingWorldEvent[] = [];
+  for (const e of incoming) {
+    if (e.deltas.length === 0 || have.has(e.id)) continue;
+    have.add(e.id);
+    add.push(e);
+  }
+  return [...existing, ...add];
 }
 
 export function setEventStatus(
@@ -272,29 +316,113 @@ export function proposeFactionConflicts(
 
 // ── Commit translation (the only place canonical edges change) ───────────────
 
+/** The campaign collections a commit can touch. Agendas are passed flattened
+ * (the caller re-nests them under `worldClock.agendas`). Any collection may be
+ * omitted; only those actually changed are returned. */
+export type DeltaCollections = {
+  relationships?: ReadonlyArray<Relationship>;
+  clocks?: ReadonlyArray<Record<string, any>>;
+  downtime?: ReadonlyArray<Record<string, any>>;
+  factions?: ReadonlyArray<Record<string, any>>;
+  agendas?: ReadonlyArray<Record<string, any>>;
+};
+
+// Per-collection committable field. A delta whose collection/field is not
+// listed here is ignored at commit (forward-compatible, fail-safe).
+const COMMITTABLE_FIELD: Record<DeltaCollection, string> = {
+  relationships: 'weight',
+  clocks: 'filled',
+  downtime: 'progress',
+  factions: 'renown',
+  agendas: 'progress',
+};
+
+function numericTo(d: WorldDelta): number | null {
+  const to = typeof d.to === 'number' ? d.to : Number(d.to);
+  return Number.isFinite(to) ? to : null;
+}
+
+/** Apply one delta onto a matched entity, returning a NEW entity (or the same
+ * reference when nothing changed). Pure. */
+function applyDeltaToEntity(
+  collection: DeltaCollection,
+  entity: Record<string, any>,
+  d: WorldDelta,
+): Record<string, any> {
+  if (d.field !== COMMITTABLE_FIELD[collection]) return entity;
+  const to = numericTo(d);
+  if (to === null) return entity;
+  if (collection === 'relationships') {
+    return { ...entity, weight: clampWeight(to), updatedAt: Date.now() };
+  }
+  const next = { ...entity, [d.field]: to };
+  if (collection === 'agendas' && Array.isArray(d.blockers) && d.blockers.length) {
+    next.blockers = [...(Array.isArray(entity.blockers) ? entity.blockers : []), ...d.blockers];
+  }
+  return next;
+}
+
+function applyToCollection(
+  collection: DeltaCollection,
+  arr: ReadonlyArray<Record<string, any>>,
+  deltas: ReadonlyArray<WorldDelta>,
+): Record<string, any>[] | null {
+  const relevant = deltas.filter(
+    (d) => deltaCollection(d) === collection && d.field === COMMITTABLE_FIELD[collection],
+  );
+  if (relevant.length === 0) return null;
+  let changed = false;
+  const next = arr.map((e) => {
+    if (!e || typeof e.id !== 'string') return e;
+    let cur = e as Record<string, any>;
+    for (const d of relevant) {
+      if (deltaTargetId(d) !== cur.id) continue;
+      const updated = applyDeltaToEntity(collection, cur, d);
+      if (updated !== cur) {
+        cur = updated;
+        changed = true;
+      }
+    }
+    return cur;
+  });
+  return changed ? next : null;
+}
+
 /**
- * Apply approved deltas to the relationships array, returning a NEW array. Only
- * `field === 'weight'` is committed; the matched edge's weight is set to the
- * clamped `to`. Unknown fields / unmatched targets are ignored. The caller is
- * responsible for writing the result through the CRDT/auto-save path.
+ * THE single canonical-commit translator. Apply approved deltas across every
+ * supported collection, returning a NEW object containing only the collections
+ * that actually changed (each a new array; inputs are never mutated). The caller
+ * writes each returned collection through the CRDT/auto-save path. Unknown
+ * fields / collections / unmatched targets are ignored.
+ *
+ * Overloaded for back-compat: called with a `Relationship[]` it returns a
+ * `Relationship[]` (the original edge-only contract); called with a
+ * `DeltaCollections` it returns a `DeltaCollections`.
  */
 export function applyApprovedDeltas(
   relationships: ReadonlyArray<Relationship>,
   deltas: ReadonlyArray<WorldDelta>,
-): Relationship[] {
-  if (deltas.length === 0) return relationships.slice();
-  const weightByEdge = new Map<string, number>();
-  for (const d of deltas) {
-    if (d.field !== 'weight') continue;
-    const to = typeof d.to === 'number' ? d.to : Number(d.to);
-    if (!Number.isFinite(to)) continue;
-    weightByEdge.set(d.targetId, clampWeight(to));
+): Relationship[];
+export function applyApprovedDeltas(
+  collections: DeltaCollections,
+  deltas: ReadonlyArray<WorldDelta>,
+): DeltaCollections;
+export function applyApprovedDeltas(
+  input: ReadonlyArray<Relationship> | DeltaCollections,
+  deltas: ReadonlyArray<WorldDelta>,
+): Relationship[] | DeltaCollections {
+  if (Array.isArray(input)) {
+    const next = applyToCollection('relationships', input, deltas);
+    return (next as Relationship[] | null) ?? input.slice();
   }
-  if (weightByEdge.size === 0) return relationships.slice();
-  const now = Date.now();
-  return relationships.map((r) =>
-    weightByEdge.has(r.id)
-      ? { ...r, weight: weightByEdge.get(r.id)!, updatedAt: now }
-      : r,
-  );
+  // Array.isArray doesn't narrow a ReadonlyArray out of the union, so cast.
+  const collections = input as DeltaCollections;
+  const out: DeltaCollections = {};
+  for (const collection of Object.keys(COMMITTABLE_FIELD) as DeltaCollection[]) {
+    const arr = collections[collection];
+    if (!Array.isArray(arr)) continue;
+    const next = applyToCollection(collection, arr, deltas);
+    if (next) (out as any)[collection] = next;
+  }
+  return out;
 }

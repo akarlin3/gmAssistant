@@ -16,6 +16,8 @@ import { buildEntityIndex, entityKey } from '@/lib/wiki/entities';
 import { kindLabel } from '@/lib/wiki/graphModel';
 import type { Relationship } from '@/lib/wiki/types';
 import { runBatchProposals } from '@/lib/world/batch';
+import { readWorldClock } from '@/lib/world/types';
+import { clockName, downtimeName } from '@/lib/world/tick';
 import {
   applyApprovedDeltas,
   appendEvents,
@@ -45,6 +47,11 @@ const RULE_LABELS: Record<string, string> = {
   'faction:propagation': 'Faction ripple',
   'propagation': 'State propagation',
   'reactive:death': 'NPC death ripple',
+  // Living World tick (routed through the same propose-only queue).
+  'tick:clockComplete': 'Clock completed',
+  'tick:downtimeComplete': 'Downtime completed',
+  'tick:renown': 'Renown shift',
+  'tick:agenda': 'Agenda advance',
 };
 
 function ruleLabel(rule: string): string {
@@ -68,13 +75,19 @@ export default function WorldEventsReview({
   const pending = pendingOnly(events);
   const autoApply: Record<string, boolean> = get(SETTINGS_KEY, {})?.autoApply ?? {};
 
-  // Resolve entityKey → display name and edge id → label.
-  const { nameFor, edgeLabel } = useMemo(() => {
+  // Resolve entityKey → display name, edge id → label, and any tick delta →
+  // a friendly "<entity> · <field>" label (clocks/downtime/factions/agendas).
+  const { nameFor, edgeLabel, deltaLabel } = useMemo(() => {
     const data: Record<string, any> = {};
     for (const k of ENTITY_KEYS) data[k] = get(k, []);
     const index = buildEntityIndex(data);
     const rels: Relationship[] = Array.isArray(data.relationships) ? data.relationships : get('relationships', []);
     const byId = new Map<string, Relationship>(rels.map((r) => [r.id, r]));
+    const clocksById = new Map((get('clocks', []) as any[]).map((c) => [c?.id, c]));
+    const downtimeById = new Map((get('downtime', []) as any[]).map((d) => [d?.id, d]));
+    const factionsById = new Map((get('factions', []) as any[]).map((f) => [f?.id, f]));
+    const wc = readWorldClock({ worldClock: get('worldClock', null) });
+    const agendasById = new Map(wc.agendas.map((a) => [a.id, a]));
     const nameFor = (key: string) => index.byKey.get(key)?.name ?? key;
     const edgeLabel = (edgeId: string): string => {
       const r = byId.get(edgeId);
@@ -83,9 +96,33 @@ export default function WorldEventsReview({
       const to = nameFor(entityKey(r.toType, r.toId));
       return `${from} —${kindLabel(r.kind)}→ ${to}`;
     };
-    return { nameFor, edgeLabel };
+    const deltaLabel = (d: WorldDelta): string => {
+      const collection = d.target?.collection ?? 'relationships';
+      const id = d.target?.id ?? d.targetId;
+      switch (collection) {
+        case 'clocks': {
+          const c = clocksById.get(id);
+          return `${c ? clockName(c) : id} · fill`;
+        }
+        case 'downtime': {
+          const dt = downtimeById.get(id);
+          return `${dt ? downtimeName(dt) : id} · progress`;
+        }
+        case 'factions': {
+          const f = factionsById.get(id);
+          return `${f?.name ?? id} · renown`;
+        }
+        case 'agendas': {
+          const a = agendasById.get(id);
+          return `${a?.goal ?? 'Agenda'} · progress`;
+        }
+        default:
+          return d.field === 'weight' ? edgeLabel(id) : `${id}.${d.field}`;
+      }
+    };
+    return { nameFor, edgeLabel, deltaLabel };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [get('relationships', []), get('npcs', []), get('factions', [])]);
+  }, [get('relationships', []), get('npcs', []), get('factions', []), get('clocks', []), get('downtime', []), get('worldClock', null)]);
 
   const commit = useCallback(
     (ids: string[]) => {
@@ -93,8 +130,25 @@ export default function WorldEventsReview({
       const toCommit = current.filter((e) => ids.includes(e.id) && e.status === 'pending');
       if (toCommit.length === 0) return;
       const deltas: WorldDelta[] = toCommit.flatMap((e) => e.deltas);
-      const rels: Relationship[] = get('relationships', []) ?? [];
-      setVal('relationships', applyApprovedDeltas(rels, deltas));
+      // The single canonical commit — across every collection a delta may target
+      // (edges, clocks, downtime, factions, agendas). Each changed collection is
+      // written through the CRDT/auto-save path; agendas re-nest under worldClock.
+      const wc = readWorldClock({ worldClock: get('worldClock', null) });
+      const out = applyApprovedDeltas(
+        {
+          relationships: get('relationships', []) ?? [],
+          clocks: get('clocks', []) ?? [],
+          downtime: get('downtime', []) ?? [],
+          factions: get('factions', []) ?? [],
+          agendas: wc.agendas,
+        },
+        deltas,
+      );
+      if (out.relationships) setVal('relationships', out.relationships);
+      if (out.clocks) setVal('clocks', out.clocks);
+      if (out.downtime) setVal('downtime', out.downtime);
+      if (out.factions) setVal('factions', out.factions);
+      if (out.agendas) setVal('worldClock', { ...wc, agendas: out.agendas });
       setVal(PENDING_EVENTS_KEY, current.filter((e) => !ids.includes(e.id)));
     },
     [get, setVal],
@@ -208,7 +262,7 @@ export default function WorldEventsReview({
               <ul className="space-y-1">
                 {ev.deltas.map((d, i) => (
                   <li key={i} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="text-ink">{d.field === 'weight' ? edgeLabel(d.targetId) : `${d.targetId}.${d.field}`}</span>
+                    <span className="text-ink">{deltaLabel(d)}</span>
                     <span className="shrink-0 font-mono text-ink-soft">
                       {fmtWeight(d.from)} → <span className="text-ink">{fmtWeight(d.to)}</span>
                     </span>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { applyTicks, previewTicks, clockName, downtimeName } from '@/lib/world/tick';
+import { previewTicks, clockName, downtimeName } from '@/lib/world/tick';
+import { commitTick } from '@/lib/world/tickProposals';
 import { undoLastBriefing, canUndo } from '@/lib/world/undo';
 import {
   readWorldClock,
@@ -106,12 +107,11 @@ export function useLivingWorldData(get: GetFn, setVal: SetFn): LivingWorldData {
 
   const applyPreview = () => {
     if (!preview) return;
-    const { data: next, briefing } = applyTicks({
-      data: buildData(),
-      toDay: preview.toDay,
-      rngSeed: preview.rngSeed,
-    });
-    writeBack(next);
+    // Route through propose-only: auto-apply deltas (clock/downtime increments +
+    // day advance) commit now; reviewable deltas (renown, agendas, completions)
+    // enqueue into pendingWorldEvents. Reuse the preview seed so the applied
+    // auto half matches what the preview showed.
+    const { briefing } = commitTick(get, setVal, { toDay: preview.toDay, rngSeed: preview.rngSeed });
     setVal('__livingWorldBriefingPendingId', briefing.id);
     setPreview(null);
   };

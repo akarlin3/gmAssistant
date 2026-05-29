@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { CalendarClock, X } from 'lucide-react';
-import { applyTicks } from '@/lib/world/tick';
+import { commitTick } from '@/lib/world/tickProposals';
+import { getPendingEvents, pendingOnly, PENDING_EVENTS_KEY } from '@/lib/world/proposals';
 import { readWorldClock, STALE_WORLD_MS, type WorldClock } from '@/lib/world/types';
 import { BriefingView } from './BriefingView';
+import WorldEventsReview from './WorldEventsReview';
 
 type GetFn = (k: string, fb: any) => any;
 type SetFn = (k: string, v: any) => void;
@@ -32,13 +34,18 @@ export function WhileYouWereAway({
 
   const pending = pendingId ? wc.briefingLog.find((b) => b.id === pendingId) : undefined;
 
-  const buildData = () => ({
-    worldClock: wc,
-    clocks: get('clocks', []),
-    downtime: get('downtime', []),
-    factions: get('factions', []),
-    npcs: get('npcs', []),
-  });
+  // The reviewable half of any tick (plus reactive death ripples) lands in the
+  // shared propose-only queue. Surface it here, reusing WorldEventsReview, so a
+  // tick's recap (auto-applied) and its proposals (to review) live in one panel.
+  const pendingEvents = pendingOnly(
+    getPendingEvents({ [PENDING_EVENTS_KEY]: get(PENDING_EVENTS_KEY, []) }),
+  );
+  const reviewBlock =
+    pendingEvents.length > 0 ? (
+      <div className="mt-3">
+        <WorldEventsReview get={get} setVal={setVal} campaignName={campaignName} />
+      </div>
+    ) : null;
 
   const setBriefingNarrative = (briefingId: string, narrative: string) => {
     const next = structuredClone(wc);
@@ -64,6 +71,7 @@ export function WhileYouWereAway({
           campaignName={campaignName}
           onNarrative={setBriefingNarrative}
         />
+        {reviewBlock}
       </div>
     );
   }
@@ -71,15 +79,16 @@ export function WhileYouWereAway({
   // State 2: stale world with something to advance — offer to advance.
   const stale = Date.now() - wc.lastTickAt > STALE_WORLD_MS;
   const hasMechanisms = wc.tickRules.some((r) => !r.paused) || wc.agendas.length > 0;
-  if (!stale || !hasMechanisms || promptDismissed) return null;
+  const showPrompt = stale && hasMechanisms && !promptDismissed;
+  if (!showPrompt) {
+    // No recap and no prompt — but tick/death proposals may still await review.
+    return reviewBlock ? <div className="mb-4">{reviewBlock}</div> : null;
+  }
 
   const advance = () => {
     const toDay = wc.currentDay + Math.max(1, days);
-    const { data: next, briefing } = applyTicks({ data: buildData(), toDay });
-    setVal('clocks', next.clocks);
-    setVal('downtime', next.downtime);
-    setVal('factions', next.factions);
-    setVal('worldClock', next.worldClock);
+    // Propose-only: auto half commits, reviewable half enqueues for approval.
+    const { briefing } = commitTick(get, setVal, { toDay });
     setVal('__livingWorldBriefingPendingId', briefing.id);
   };
 
@@ -132,6 +141,7 @@ export function WhileYouWereAway({
           Not Now
         </button>
       </div>
+      {reviewBlock}
     </div>
   );
 }

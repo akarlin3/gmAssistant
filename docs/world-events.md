@@ -124,3 +124,51 @@ projection bypass.
   updates only stroke width without re-settling the force layout. Combined with
   React Flow's `onlyRenderVisibleElements`, drag/connect stays responsive at
   100+ nodes.
+
+## Living World Tick on the propose-only pipeline
+
+The Living World Tick (`lib/world/tick.ts`, `applyTicks`) used to direct-write
+canonical `data.*` (clocks, downtime, factions, agendas) with no review. It now
+routes through this same propose-only pipeline so there is **one** write path,
+**one** audit trail, and **one** review surface.
+
+- **Pure categorizer** (`lib/world/tickProposals.ts`, `computeTickDeltas`). Reuses
+  `applyTicks` purely as a computation, then diffs its briefing into categorized
+  `TickDelta`s. Routing principle — *auto-apply continuous/magnitude deltas;
+  review discrete/threshold/narrative transitions*:
+  - clock / downtime **increments** below cap → **auto-apply**
+  - clock / downtime **completion** (hits cap / 100) → **review** (discrete carve-out)
+  - faction **renown** shift → **review** (faction power change)
+  - NPC **agenda** progress → **review** (plot motion + RNG)
+  - in-world **day advance** / `lastTickAt` → **auto-apply** (deterministic bookkeeping)
+- **One commit shape** (`commitTickToData`). The auto half lands canonically
+  (clock/downtime increments + day advance), recorded in a recap `Briefing`
+  (the read-only "While You Were Away" recap, still undoable via
+  `undoLastBriefing`). The review half is enqueued into `data.pendingWorldEvents`
+  with tick-origin `sourceRule`s (`tick:clockComplete`, `tick:downtimeComplete`,
+  `tick:renown`, `tick:agenda`). All three callers — `useLivingWorldData`,
+  `WhileYouWereAway`, and `maps/travel` — route through it, so the day-advance
+  bookkeeping and the proposals are produced together.
+- **Delta shape.** `WorldDelta` gained an optional `target: { collection, id }`
+  discriminator (absent ⇒ legacy `relationships`/edge-weight shape) plus an
+  agenda-only `blockers` bundle. `applyApprovedDeltas` — still the single
+  canonical commit — now applies `clocks.filled`, `downtime.progress`,
+  `factions.renown`, and `agendas.progress` (+blockers) as well as edge `weight`,
+  returning only the collections that actually changed.
+- **Idempotency.** Review events carry a deterministic id
+  (`tick:<from>-<to>:<collection>:<id>:<field>`); `appendEvents` dedupes by id, so
+  recomputing the same logical tick — across reopen or two converging devices —
+  never enqueues it twice. The `applyTicks` day guard (`toDay <= currentDay`
+  throws) prevents a second device from re-ticking an already-advanced span.
+- **Surface.** `WhileYouWereAway` is one panel: the auto-applied **recap**
+  (`BriefingView`) plus a **review** region reusing `WorldEventsReview` (not a
+  fork). Tick proposals and reactive `reactive:death` proposals coexist in the
+  same queue and list.
+- **Tests.** `lib/world/__tests__/tickProposals.test.ts` covers classification,
+  the auto/review split, the no-direct-write invariant (source data unmutated),
+  deterministic-id idempotency across two devices, the day guard, and the
+  multi-collection commit.
+- **Known limitation.** Undo (`undoLastBriefing`) reverts the auto recap + day
+  advance but does not purge that tick's pending proposals; the GM rejects them
+  in the review list. Tightening undo to also drop the matching proposals is a
+  follow-up.

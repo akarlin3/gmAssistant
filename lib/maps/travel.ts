@@ -2,11 +2,13 @@
 //
 // Travelling from one pointcrawl node to another advances the in-world clock by
 // the summed `travelTimeDays` of the shortest path between them, reusing the
-// Living World tick engine so faction clocks, downtime, and NPC agendas all move
-// forward and a "While You Were Away" briefing is recorded. Pure apart from the
-// `applyTicks` call, which is itself pure.
+// Living World tick — now routed through the propose-only pipeline
+// (`commitTickToData`): clock/downtime increments + the day advance apply to the
+// returned data and a "While You Were Away" recap briefing is recorded, while
+// reviewable changes (renown, agendas, completions) ride back in the returned
+// data's `pendingWorldEvents` for GM approval. Pure (clones its input).
 
-import { applyTicks } from '@/lib/world/tick';
+import { commitTickToData } from '@/lib/world/tickProposals';
 import type { PointcrawlData, PointcrawlEdge } from './types';
 
 export type ShortestPath = { totalDays: number; edges: PointcrawlEdge[]; nodeIds: string[] };
@@ -104,8 +106,11 @@ export function travelToNode(args: {
 
   const currentDay =
     typeof args.data?.worldClock?.currentDay === 'number' ? args.data.worldClock.currentDay : 1;
-  const result = applyTicks({
-    data: args.data,
+  // Route the travel-time tick through the propose-only pipeline: auto-apply
+  // deltas (clock/downtime increments + day advance) land in the returned data;
+  // reviewable deltas (renown, agendas, completions) are enqueued into the
+  // returned data's pendingWorldEvents for the GM to approve in Living World.
+  const result = commitTickToData(args.data, {
     toDay: currentDay + daysElapsed,
     now: args.now,
   });
