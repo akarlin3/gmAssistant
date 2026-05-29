@@ -65,6 +65,9 @@ export function MusicPlayer({
   const isPlayingPropRef = useRef(isPlayingProp);
   const playlistIndexPropRef = useRef(playlistIndexProp);
 
+  const autoResumeCountRef = useRef(0);
+  const lastAutoResumeTimeRef = useRef(0);
+
   // Keep refs in sync with latest state/props on every render
   useEffect(() => {
     volumeRef.current = volume;
@@ -223,6 +226,7 @@ export function MusicPlayer({
                 setPlayerState('playing');
                 setIsPlaying(true);
                 onChangePlayingRef.current?.(true);
+                autoResumeCountRef.current = 0; // Reset auto-resume counter on successful playback
                 try {
                   const idx = event.target.getPlaylistIndex();
                   if (typeof idx === 'number' && idx >= 0) {
@@ -240,6 +244,37 @@ export function MusicPlayer({
                 // in togglePlay), so YT auto-pausing for any other reason
                 // (volume going to 0 on some browsers, transient network
                 // hiccups, etc.) keeps players' music flowing.
+
+                // --- AUTO-RESUME FOR UNEXPECTED AUTO-PAUSES ---
+                // If the session is supposed to be playing (isPlayingPropRef is true)
+                // but the player transitioned to PAUSED automatically (i.e. not via
+                // explicit GM pause), try to auto-resume.
+                if (isPlayingPropRef.current) {
+                  const now = Date.now();
+                  // Reset retry counter if enough time has passed since the last attempt
+                  if (now - lastAutoResumeTimeRef.current > 2000) {
+                    autoResumeCountRef.current = 0;
+                  }
+
+                  if (autoResumeCountRef.current < 3) {
+                    autoResumeCountRef.current += 1;
+                    lastAutoResumeTimeRef.current = now;
+                    console.warn(`[MusicPlayer] Automatic pause detected while playing. Attempting auto-resume (attempt ${autoResumeCountRef.current}/3)`);
+                    
+                    const targetPlayer = event.target;
+                    setTimeout(() => {
+                      try {
+                        if (isPlayingPropRef.current) {
+                          targetPlayer.playVideo();
+                        }
+                      } catch (err) {
+                        console.warn('[MusicPlayer] Failed to play video on auto-resume', err);
+                      }
+                    }, 500); // Small delay to let the iframe settle
+                  } else {
+                    console.warn('[MusicPlayer] Auto-resume limit reached. Autoplay may be blocked by the browser or adblocker.');
+                  }
+                }
               } else if (event.data === states.BUFFERING) {
                 setPlayerState('buffering');
               } else if (event.data === states.ENDED) {
