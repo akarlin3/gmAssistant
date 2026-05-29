@@ -391,7 +391,6 @@ export function useYouTubePlayer({
     publishAnchor(ytPlayer);
     const id = setInterval(() => publishAnchor(ytPlayer), 15000);
     return () => clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readOnly, ytPlayer, isApiReady, isPlayingProp, playlistId, videoId, playlistIndexProp]);
 
   // Player: receive sync anchor, seek when local playback drifts > tolerance

@@ -186,9 +186,10 @@ export function useCampaignEditor(props: CampaignEditorProps) {
   } = useSummonSave(setState, scrollToEntity, flashHighlight);
 
   // ── Save to DB ──────────────────────────────────────────────────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const saveToDB = useCallback(
     buildSaveToDB({ campaign, world, crdtApply, lastCrdtSnapshotRef, setSyncState, setSyncError }),
-    [campaign.id, campaign.worldId, world, crdtApply], // eslint-disable-line react-hooks/exhaustive-deps
+    [campaign.id, campaign.worldId, world, crdtApply],
   );
 
   const handleConvertToWorld = buildHandleConvertToWorld({ campaign, state, setState, setSyncState, setSyncError, confirmModal });
