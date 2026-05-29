@@ -190,11 +190,18 @@ export async function copyCampaign(campaignId: string, newName?: string) {
   const original = await getCampaignOnce(campaignId);
   if (!original) throw new Error('Campaign not found');
 
+  // Current content lives in the CRDT log, not the legacy `data` field, so
+  // rebuild it from the snapshot+updates (falling back to the legacy field for
+  // never-migrated campaigns). Copying `original.data` directly would produce
+  // a blank campaign for anything edited after the CRDT migration.
+  const { loadCampaignCrdtJson } = await import('@/lib/crdt/export');
+  const data = await loadCampaignCrdtJson(campaignId, original.data || null);
+
   const name = newName || `${original.name} (Copy)`;
   const ref = await withRetry(() => addDoc(campaignsCol(), {
     userId: original.userId,
     name,
-    data: original.data || {},
+    data,
     done: original.done || {},
     playerIds: original.playerIds || [],
     pendingPlayers: original.pendingPlayers || [],
