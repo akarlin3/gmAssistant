@@ -37,15 +37,21 @@ export default function WikiGraph({
   relationships,
   selectedKey,
   spotlightDepth,
+  editable,
   onNodeClick,
   onEdgeClick,
+  onConnect,
 }: {
   entities: WikiEntity[];
   relationships: Relationship[];
   selectedKey: string | null;
   spotlightDepth: number;
+  /** GM write surface (CP5): drag-to-connect + connect handles. */
+  editable?: boolean;
   onNodeClick: (e: WikiEntity) => void;
   onEdgeClick?: (rel: Relationship, screenPos: { x: number; y: number }) => void;
+  /** Drag-to-connect: source/target are entityKeys. */
+  onConnect?: (source: string, target: string) => void;
 }) {
   const nodes = useMemo<GraphNode[]>(
     () =>
@@ -104,6 +110,8 @@ export default function WikiGraph({
       clusters={clusters}
       selectedKey={selectedKey}
       highlightKeys={highlightKeys}
+      editable={editable}
+      onConnect={onConnect}
       emptyLabel="No entities match the current filters."
       onNodeClick={(n) => {
         const ent = byKey.get(n.key);

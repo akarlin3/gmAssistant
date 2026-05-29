@@ -12,16 +12,20 @@ import WikiGraph from './WikiGraph';
 import RelationshipsSection from './RelationshipsSection';
 import { ENTITY_COLORS, ENTITY_LABELS, edgeColor } from '@/lib/wiki/colors';
 import { entityKey, type WikiEntity } from '@/lib/wiki/entities';
-import { ruleFor } from '@/lib/wiki/catalog';
-import { effectiveWeight } from '@/lib/wiki/edges';
-import type { EntityType, Relationship, RelationshipKind } from '@/lib/wiki/types';
+import { ruleFor, validKinds, validTargets } from '@/lib/wiki/catalog';
+import { effectiveWeight, defaultWeightForKind } from '@/lib/wiki/edges';
+import type { EdgeVisibility, EntityType, Relationship, RelationshipKind } from '@/lib/wiki/types';
 
 export default function WikiTab() {
   const wiki = useWiki();
   const [hiddenTypes, setHiddenTypes] = useState<Set<EntityType>>(new Set());
   const [hiddenKinds, setHiddenKinds] = useState<Set<RelationshipKind>>(new Set());
   const [selected, setSelected] = useState<WikiEntity | null>(null);
-  const [edgePopover, setEdgePopover] = useState<{ rel: Relationship; x: number; y: number } | null>(
+  const [edgeEditor, setEdgeEditor] = useState<{ rel: Relationship; x: number; y: number } | null>(
+    null,
+  );
+  // Drag-to-connect draft: two endpoints awaiting a kind/weight/visibility pick.
+  const [connectDraft, setConnectDraft] = useState<{ from: WikiEntity; to: WikiEntity } | null>(
     null,
   );
   const [spotlight, setSpotlight] = useState(false);
@@ -228,11 +232,20 @@ export default function WikiTab() {
           relationships={visibleRels}
           selectedKey={spotlight ? selectedKey : null}
           spotlightDepth={depth}
+          editable
           onNodeClick={(e) => {
-            setEdgePopover(null);
+            setEdgeEditor(null);
             setSelected(e);
           }}
-          onEdgeClick={(rel, pos) => setEdgePopover({ rel, x: pos.x, y: pos.y })}
+          onEdgeClick={(rel, pos) => setEdgeEditor({ rel, x: pos.x, y: pos.y })}
+          onConnect={(source, target) => {
+            const from = wiki.index.byKey.get(source);
+            const to = wiki.index.byKey.get(target);
+            if (from && to) {
+              setEdgeEditor(null);
+              setConnectDraft({ from, to });
+            }
+          }}
         />
         <aside className="rounded-lg border border-rule bg-parchment p-3 shadow-card">
           {selected ? (
@@ -277,71 +290,335 @@ export default function WikiTab() {
                   entityId={selected.id}
                   entityName={selected.name}
                 />
+                <NodeStateEditor entity={selected} />
               </WikiProvider>
             </div>
           ) : (
             <p className="font-serif text-sm italic text-ink-mute">
-              Click a node in the graph to inspect that entity and add or remove its relationships.
+              Click a node to inspect it; drag from a node’s connect dot to link two entities.
             </p>
           )}
         </aside>
       </div>
 
-      {edgePopover && <EdgePopover entry={edgePopover} onClose={() => setEdgePopover(null)} />}
+      {edgeEditor && (
+        <EdgeEditor relId={edgeEditor.rel.id} x={edgeEditor.x} y={edgeEditor.y} onClose={() => setEdgeEditor(null)} />
+      )}
+      {connectDraft && (
+        <EdgeCreateModal
+          from={connectDraft.from}
+          to={connectDraft.to}
+          onClose={() => setConnectDraft(null)}
+        />
+      )}
     </div>
   );
 }
 
-// Read-only edge inspector. Clicking an edge in the graph surfaces its type,
-// effective weight, and player-mode visibility. No editing from the graph this
-// PR (CP2 is read-only); relationship edits stay in the sidebar editor.
-function EdgePopover({
-  entry,
+const VISIBILITY_OPTIONS: { value: EdgeVisibility; label: string }[] = [
+  { value: 'private', label: 'Private (GM only)' },
+  { value: 'party', label: 'Party (all players)' },
+  { value: 'custom', label: 'Custom slots' },
+];
+
+// Editable edge inspector (CP5). Clicking an edge opens this popover to adjust
+// its relationship kind, weight, and player-mode visibility, or delete it — all
+// through WikiContext (the CRDT/auto-save path). Reads the live edge from the
+// context by id, so it always reflects the merged state, not a stale snapshot.
+function EdgeEditor({
+  relId,
+  x,
+  y,
   onClose,
 }: {
-  entry: { rel: Relationship; x: number; y: number };
+  relId: string;
+  x: number;
+  y: number;
   onClose: () => void;
 }) {
-  const { rel, x, y } = entry;
-  const rule = ruleFor(rel.kind);
-  const weight = effectiveWeight(rel);
+  const wiki = useWiki();
+  const rel = wiki?.relationships.find((r) => r.id === relId);
+  // Edge vanished (e.g. deleted on another device) — close.
+  if (!wiki || !rel) return null;
+
+  const kindOptions = validKinds(rel.fromType).filter((k) =>
+    validTargets(rel.fromType, k).includes(rel.toType),
+  );
   const visibility = rel.visibility ?? 'private';
-  const visibilityLabel =
-    visibility === 'party' ? 'Party (all players)' : visibility === 'custom' ? 'Custom slots' : 'Private (GM only)';
+  const weight = effectiveWeight(rel);
+
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
-        className="fixed z-50 w-56 rounded-lg border border-rule bg-parchment p-3 shadow-card"
-        style={{ left: Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 240), top: y + 8 }}
+        className="fixed z-50 w-64 space-y-2 rounded-lg border border-rule bg-parchment p-3 shadow-card"
+        style={{ left: Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 272), top: y + 8 }}
         role="dialog"
+        aria-label="Edit relationship"
       >
-        <div className="mb-1.5 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
-            Relationship
+            Edit Relationship
           </span>
           <button onClick={onClose} aria-label="Close" className="text-ink-mute hover:text-crimson">
             <X size={14} />
           </button>
         </div>
-        <dl className="space-y-1 font-serif text-xs text-ink">
-          <div className="flex items-center justify-between gap-2">
-            <dt className="text-ink-mute">Type</dt>
-            <dd className="flex items-center gap-1.5 font-display">
-              <span className="inline-block h-1 w-3 rounded" style={{ background: edgeColor(rel.kind) }} />
-              {rule?.label ?? rel.kind}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <dt className="text-ink-mute">Weight</dt>
-            <dd className="font-display">{weight.toFixed(2)}</dd>
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <dt className="text-ink-mute">Visibility</dt>
-            <dd className="font-display">{visibilityLabel}</dd>
-          </div>
-        </dl>
+
+        <label className="block space-y-0.5">
+          <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Type</span>
+          <select
+            aria-label="Relationship type"
+            value={rel.kind}
+            onChange={(e) => wiki.updateRelationship(rel.id, { kind: e.target.value as RelationshipKind })}
+            className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
+          >
+            {(kindOptions.length ? kindOptions : [rel.kind]).map((k) => (
+              <option key={k} value={k}>
+                {ruleFor(k)?.label ?? k}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block space-y-0.5">
+          <span className="flex items-center justify-between font-display text-[10px] uppercase tracking-wider text-ink-mute">
+            Weight <span className="text-ink">{weight.toFixed(2)}</span>
+          </span>
+          <input
+            type="range"
+            aria-label="Weight"
+            min={0}
+            max={1}
+            step={0.05}
+            value={weight}
+            onChange={(e) => wiki.updateRelationship(rel.id, { weight: Number(e.target.value) })}
+            className="w-full accent-crimson"
+          />
+        </label>
+
+        <label className="block space-y-0.5">
+          <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">
+            Visibility
+          </span>
+          <select
+            aria-label="Visibility"
+            value={visibility}
+            onChange={(e) => wiki.updateRelationship(rel.id, { visibility: e.target.value as EdgeVisibility })}
+            className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
+          >
+            {VISIBILITY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          {visibility === 'private' && (
+            <span className="font-serif text-[10px] italic text-ink-mute">
+              Hidden from every player projection.
+            </span>
+          )}
+          {visibility === 'custom' && (
+            <span className="font-serif text-[10px] italic text-ink-mute">
+              Visible to {rel.customVisibleTo?.length ?? 0} slot(s); manage slots in player roster.
+            </span>
+          )}
+        </label>
+
+        <div className="flex justify-end pt-0.5">
+          <button
+            onClick={() => {
+              if (window.confirm('Delete this relationship?')) {
+                wiki.removeRelationship(rel.id);
+                onClose();
+              }
+            }}
+            className="flex items-center gap-1 rounded border border-crimson/50 px-2 py-0.5 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson/10"
+          >
+            <X size={12} /> Delete
+          </button>
+        </div>
       </div>
     </>
+  );
+}
+
+// Drag-to-connect picker (CP5). Opened when the GM drags an edge between two
+// nodes; collects kind/weight/visibility, then creates the edge via the CRDT
+// path. Kind options are intersected against the relationship catalog so the
+// new edge is always type-valid for the dragged endpoints.
+function EdgeCreateModal({
+  from,
+  to,
+  onClose,
+}: {
+  from: WikiEntity;
+  to: WikiEntity;
+  onClose: () => void;
+}) {
+  const wiki = useWiki()!;
+  const kinds = useMemo(
+    () => validKinds(from.type).filter((k) => validTargets(from.type, k).includes(to.type)),
+    [from.type, to.type],
+  );
+  const [kind, setKind] = useState<RelationshipKind | ''>(kinds[0] ?? '');
+  const [weight, setWeight] = useState<number>(
+    () => (kinds[0] ? defaultWeightForKind(kinds[0]) ?? 0.5 : 0.5),
+  );
+  const [visibility, setVisibility] = useState<EdgeVisibility>('private');
+
+  const save = () => {
+    if (!kind) return;
+    wiki.createEdge(
+      { type: from.type, id: from.id },
+      { type: to.type, id: to.id },
+      kind,
+      { weight, visibility },
+    );
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-ink/50 px-4 pt-[12vh] backdrop-blur-[2px]"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Connect entities"
+    >
+      <div
+        className="w-full max-w-md space-y-3 rounded-lg border border-rule bg-parchment p-4 shadow-page"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-sm uppercase tracking-wide text-ink">Connect</h3>
+          <button onClick={onClose} aria-label="Close" className="text-ink-mute hover:text-crimson">
+            <X size={16} />
+          </button>
+        </div>
+
+        <p className="font-serif text-xs italic text-ink-mute">
+          <span className="font-display not-italic text-ink">{from.name}</span>
+          <span className="mx-1.5">→</span>
+          <span className="font-display not-italic text-ink">{to.name}</span>
+        </p>
+
+        {kinds.length === 0 ? (
+          <p className="font-serif text-sm italic text-crimson">
+            No valid relationship kind links a {ENTITY_LABELS[from.type]} to a {ENTITY_LABELS[to.type]}.
+          </p>
+        ) : (
+          <>
+            <label className="block space-y-1">
+              <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Kind</span>
+              <select
+                aria-label="Kind"
+                value={kind}
+                onChange={(e) => {
+                  const k = e.target.value as RelationshipKind;
+                  setKind(k);
+                  setWeight(defaultWeightForKind(k) ?? 0.5);
+                }}
+                className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
+              >
+                {kinds.map((k) => (
+                  <option key={k} value={k}>
+                    {ruleFor(k)?.label ?? k}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block space-y-1">
+              <span className="flex items-center justify-between font-display text-[10px] uppercase tracking-wider text-brass-deep">
+                Weight <span className="text-ink">{weight.toFixed(2)}</span>
+              </span>
+              <input
+                type="range"
+                aria-label="Weight"
+                min={0}
+                max={1}
+                step={0.05}
+                value={weight}
+                onChange={(e) => setWeight(Number(e.target.value))}
+                className="w-full accent-crimson"
+              />
+            </label>
+
+            <label className="block space-y-1">
+              <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
+                Visibility
+              </span>
+              <select
+                aria-label="Visibility"
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value as EdgeVisibility)}
+                className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
+              >
+                {VISIBILITY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button
+            onClick={onClose}
+            className="rounded border border-rule px-3 py-1 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={save}
+            disabled={!kind}
+            className="rounded bg-crimson px-3 py-1 font-display text-xs uppercase tracking-wider text-parchment hover:bg-wine disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Connect
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Node-state editor (CP5). Lets the GM change an NPC's living/dead state from
+// the graph sidebar. It writes the canonical npc record through the SAME
+// WikiContext.updateEntityState → setState/auto-save path the rest of the editor
+// uses (not a fork). Because that write lands a real death transition, the
+// reactive world-event observer (lib/world/useReactiveWorldEvents) detects it
+// and enqueues a propagation PROPOSAL into data.pendingWorldEvents — it does NOT
+// silently rewrite neighbouring edge weights. Consistent with CP3's invariant:
+// the anchor change is canonical, its ripple is proposed for GM review.
+function NodeStateEditor({ entity }: { entity: WikiEntity }) {
+  const wiki = useWiki();
+  // Only NPCs feed the reactive death→propagation rule today, so this is the
+  // one type with a state toggle. Other types render nothing.
+  if (!wiki || entity.type !== 'npc' || !entity.id) return null;
+
+  const raw = wiki.getEntityState('npc', entity.id) ?? {};
+  const isDead = raw.dead === true;
+
+  return (
+    <div className="mt-2 border-t border-rule pt-2">
+      <div className="mb-1 font-display text-xs uppercase tracking-wider text-brass-deep">State</div>
+      <label className="flex items-center gap-2 font-serif text-xs text-ink">
+        <input
+          type="checkbox"
+          checked={isDead}
+          onChange={(e) => wiki.updateEntityState('npc', entity.id, { dead: e.target.checked })}
+          className="accent-crimson"
+          aria-label="Mark dead"
+        />
+        Dead
+      </label>
+      <p className="mt-1 font-serif text-[10px] italic text-ink-mute">
+        Marking an NPC dead queues a world-event proposal you can review and apply — it never
+        rewrites the graph on its own.
+      </p>
+    </div>
   );
 }

@@ -92,6 +92,35 @@ the matched edge, clamped to 0..1) and writes the result via
 `setVal('relationships', …)`. That flows through the CRDT and regenerates player
 projections. Rejecting drops the event from the queue with no canonical write.
 
-## Out of scope
+## Interactive graph editing (CP5)
 
-Graph editing by drag/connect and a weight-editing UI (CP5).
+The campaign graph is now a **write surface**, and every write goes through the
+same CRDT/auto-save path as the rest of the editor — no second writer, no
+projection bypass.
+
+- **Edge editing** (`components/wiki/WikiTab.tsx`). Drag from one node's connect
+  dot to another opens a create-edge picker (kind/weight/visibility); clicking an
+  edge opens an in-place editor (kind/weight/visibility/delete). All route
+  through new `WikiContext` methods `createEdge` / `updateRelationship` /
+  `removeRelationship`, whose pure array transforms live in
+  `lib/wiki/relationships.ts` (`createEdge`, `updateRelationship`). Because they
+  call `setState`, edits ride the CRDT and converge across offline devices.
+- **Node-state editing.** The graph sidebar's `NodeStateEditor` toggles an NPC's
+  `dead` flag via `WikiContext.updateEntityState` — the same `setState` path the
+  rest of the editor uses (not a fork). That canonical death transition is then
+  picked up by the reactive observer and lands as a **propagation proposal**, not
+  a silent edge mutation — preserving the non-negotiable invariant above.
+- **Loop safety.** Graph-originated edits feed the CP3 engine only through the
+  guarded `propagate()` (visited-set + ε + depthCap). An adversarial A→B→C→A
+  high-weight cycle terminates with ≤1 bounded delta per edge
+  (`lib/world/__tests__/proposals.test.ts`).
+- **Player mode stays read-only.** `GraphCanvas` is editable only when passed
+  `editable` (GM `WikiTab`); the player `ConnectionsTab` never passes it, so
+  handles are inert and `nodesConnectable` is false. A `private` edge created
+  here is absent from player projections (`projectEdges` is fail-closed;
+  `lib/playerMode/__tests__/projection.test.ts`).
+- **Perf.** Layout recomputes only on a *topology* signature (node/edge set +
+  clustering) — edge **weight** is deliberately excluded, so tuning a weight
+  updates only stroke width without re-settling the force layout. Combined with
+  React Flow's `onlyRenderVisibleElements`, drag/connect stays responsive at
+  100+ nodes.

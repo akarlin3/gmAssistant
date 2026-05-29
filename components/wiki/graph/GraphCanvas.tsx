@@ -7,7 +7,7 @@
 // node/edge clicks upward. Pan/zoom/select are interactive; node dragging is
 // disabled so the settled layout can't drift.
 
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useCallback } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -17,6 +17,7 @@ import {
   useReactFlow,
   type Node,
   type Edge,
+  type Connection,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { computeLayout } from '@/lib/wiki/graphLayout';
@@ -38,6 +39,12 @@ export type GraphCanvasProps = {
   highlightKeys?: Set<string> | null;
   onNodeClick?: (node: GraphNode) => void;
   onEdgeClick?: (edge: GraphEdge, screenPos: { x: number; y: number }) => void;
+  /** GM-only write surface (CP5). When true, nodes expose connect handles and a
+   * drag between two nodes fires onConnect. Defaults false → fully read-only,
+   * which is what the player ConnectionsTab relies on. */
+  editable?: boolean;
+  /** Drag-to-connect handler. `source`/`target` are entityKeys. */
+  onConnect?: (source: string, target: string) => void;
   emptyLabel?: string;
 };
 
@@ -49,6 +56,8 @@ function GraphCanvasInner({
   highlightKeys,
   onNodeClick,
   onEdgeClick,
+  editable = false,
+  onConnect,
   emptyLabel = 'Nothing to graph yet.',
 }: GraphCanvasProps) {
   const { fitView } = useReactFlow();
@@ -61,10 +70,14 @@ function GraphCanvasInner({
   );
 
   // Structural keys: layout only recomputes when the node/edge set or clustering
-  // changes — not when selection/spotlight changes.
+  // changes — not when selection/spotlight changes. Edge *topology* (which nodes
+  // are linked) is structural; edge *weight* is NOT in the signature (CP5 perf):
+  // tuning a weight from the edge editor must not re-run the force layout and
+  // jolt every node, so the settled positions stay put while only stroke width
+  // updates. Weight still seeds the spring on the next genuine topology change.
   const nodesSig = useMemo(() => nodes.map((n) => n.key).sort().join(','), [nodes]);
   const edgesSig = useMemo(
-    () => presentEdges.map((e) => `${e.source}>${e.target}:${e.weight.toFixed(2)}`).sort().join(','),
+    () => presentEdges.map((e) => `${e.source}>${e.target}`).sort().join(','),
     [presentEdges],
   );
   const clusterSig = useMemo(
@@ -90,12 +103,12 @@ function GraphCanvasInner({
           id: n.key,
           type: 'entity',
           position: positions[n.key] ?? { x: 0, y: 0 },
-          data: { type: n.type, name: n.name, selected: n.key === selectedKey, dimmed },
+          data: { type: n.type, name: n.name, selected: n.key === selectedKey, dimmed, editable },
           draggable: false,
           selectable: true,
         };
       }),
-    [nodes, positions, selectedKey, highlightKeys],
+    [nodes, positions, selectedKey, highlightKeys, editable],
   );
 
   const rfEdges = useMemo<Edge[]>(
@@ -120,6 +133,16 @@ function GraphCanvasInner({
     return () => clearTimeout(t);
   }, [nodesSig, fitView]);
 
+  const handleConnect = useCallback(
+    (c: Connection) => {
+      // React Flow forbids self-connections via isValidConnection, but guard
+      // anyway so a stray same-node drop never creates a degenerate self-edge.
+      if (!c.source || !c.target || c.source === c.target) return;
+      onConnect?.(c.source, c.target);
+    },
+    [onConnect],
+  );
+
   if (nodes.length === 0) {
     return (
       <div className="flex h-[60vh] items-center justify-center rounded-lg border border-dashed border-rule bg-parchment-soft text-center font-serif text-sm italic text-ink-mute">
@@ -139,7 +162,9 @@ function GraphCanvasInner({
         minZoom={0.1}
         maxZoom={2.5}
         nodesDraggable={false}
-        nodesConnectable={false}
+        nodesConnectable={editable}
+        isValidConnection={(c) => !!c.source && !!c.target && c.source !== c.target}
+        onConnect={editable ? handleConnect : undefined}
         elementsSelectable
         onlyRenderVisibleElements
         proOptions={{ hideAttribution: true }}

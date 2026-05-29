@@ -94,6 +94,31 @@ describe('proposeFromAnchorChange — propose-only', () => {
     const rels = [rel({ fromType: 'npc', fromId: 'a', toType: 'npc', toId: 'b', kind: 'allyOf', weight: 0.5 })];
     assert.equal(proposeFromAnchorChange(rels, 'npc:lonely', -1), null);
   });
+
+  // CP5 adversarial loop guard: a cyclic graph A→B→C→A with high weights must
+  // terminate at the *proposal* level (not just inside propagate()) and yield at
+  // most one bounded, clamped delta per edge — no runaway writes, no infinite
+  // recursion even with a generous depthCap.
+  test('adversarial cycle (A→B→C→A, high weights) terminates with ≤1 delta/edge', () => {
+    const rels = [
+      rel({ id: 'ab', fromType: 'npc', fromId: 'A', toType: 'npc', toId: 'B', kind: 'allyOf', weight: 1 }),
+      rel({ id: 'bc', fromType: 'npc', fromId: 'B', toType: 'npc', toId: 'C', kind: 'allyOf', weight: 1 }),
+      rel({ id: 'ca', fromType: 'npc', fromId: 'C', toType: 'npc', toId: 'A', kind: 'allyOf', weight: 1 }),
+    ];
+    const ev = proposeFromAnchorChange(rels, 'npc:A', -1, {
+      now: 1,
+      // High depthCap + high decay would loop forever without the visited-set/ε.
+      params: { decay: 0.9, epsilon: 0.01, depthCap: 100 },
+    });
+    assert.ok(ev, 'cycle still produces a (bounded) proposal');
+    // At most one delta per edge in the graph.
+    assert.ok(ev!.deltas.length <= rels.length);
+    const ids = ev!.deltas.map((d) => d.targetId);
+    assert.equal(new Set(ids).size, ids.length, 'each edge appears at most once');
+    for (const d of ev!.deltas) {
+      assert.ok((d.to as number) >= 0 && (d.to as number) <= 1, 'clamped to 0..1');
+    }
+  });
 });
 
 describe('proposeWeightDrift', () => {
