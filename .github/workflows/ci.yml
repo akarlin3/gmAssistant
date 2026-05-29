@@ -121,3 +121,53 @@ jobs:
           cd gmbuilder
           npm ci --no-audit --no-fund
           npm run lint
+
+  # Firebase App Hosting auto-deploys the Next.js app on push to main, but it
+  # does NOT deploy Firestore/Storage security rules or indexes. Those must be
+  # shipped separately or the app (which writes campaign data through the CRDT
+  # `crdtUpdates`/`crdtSnapshots` subcollections) hits "Missing or insufficient
+  # permissions" at runtime. This job closes that gap: on push to main, after
+  # the rules emulator tests pass, it deploys rules + indexes.
+  #
+  # Auth uses a `firebase login:ci` user token stored in the FIREBASE_TOKEN
+  # secret — NOT a service-account key, since the org policy blocks SA-key
+  # creation for this project. Generate it with `firebase login:ci` and add it
+  # under Settings → Secrets and variables → Actions. Until the secret exists
+  # the deploy step is skipped (the job stays green).
+  deploy-firestore-rules:
+    name: Deploy Firestore Rules & Indexes
+    runs-on: ubuntu-latest
+    needs: [firestore-rules-tests, lint-and-typecheck, unit-tests, app-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for deploy token
+        id: guard
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -n "$FIREBASE_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::FIREBASE_TOKEN secret not set — skipping rules deploy. Run 'firebase login:ci' and add the token to deploy automatically."
+          fi
+
+      - name: Set up Node.js
+        if: steps.guard.outputs.enabled == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.guard.outputs.enabled == 'true'
+        run: npm ci --no-audit --no-fund
+
+      - name: Deploy Firestore & Storage rules + indexes
+        if: steps.guard.outputs.enabled == 'true'
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: npx firebase deploy --only firestore,storage --project campaign-prep-fc9ed --non-interactive

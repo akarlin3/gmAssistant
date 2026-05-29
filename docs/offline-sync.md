@@ -184,3 +184,48 @@ match /campaigns/{campaignId}/crdtUpdates/{updateId} {
 - `lib/crdt/__tests__/sync.test.ts` — transport-level convergence
   (offline divergence then heal), snapshot+GC correctness, new-device
   cold-start hydration from the log.
+
+## Deploying (security rules) — REQUIRED
+
+⚠️ **The security rules are a separate deploy from the app.** The campaign
+data path (NPCs, secrets, **session logs**, everything in `data.*`) now
+writes through the `campaigns/{id}/crdtUpdates` and `crdtSnapshots`
+subcollections. Those writes are only permitted by the rules in
+`firestore.rules` (the `crdtUpdates` / `crdtSnapshots` `match` blocks).
+
+Firebase **App Hosting auto-deploys the Next.js app on push to `main`, but
+it does NOT deploy Firestore rules or indexes.** If you ship the app on top
+of stale rules, every CRDT write fails with
+`FirebaseError: Missing or insufficient permissions`, and the most visible
+symptom is **ending a session** — the session-log write is rejected, so the
+recap page reports the log as missing. (This actually happened in
+production: the offline-sync app shipped before its rules were deployed.)
+
+**Always deploy rules whenever `firestore.rules`, `firestore.indexes.json`,
+or `storage.rules` change.**
+
+- **Automated (preferred).** The `deploy-firestore-rules` job in
+  `.github/workflows/ci.yml` deploys rules + indexes on push to `main`,
+  after the rules emulator tests pass. It authenticates with a
+  `firebase login:ci` user token (the org policy blocks service-account-key
+  creation, so a token — not an SA key — is used). One-time setup:
+
+  ```bash
+  firebase login:ci   # prints a token; copy it
+  ```
+
+  Add it as the repo secret `FIREBASE_TOKEN` (Settings → Secrets and
+  variables → Actions). Until the secret exists the job skips the deploy and
+  stays green.
+
+- **Manual.** From the repo root:
+
+  ```bash
+  npm run deploy:rules       # firestore + storage rules only
+  npm run deploy:firestore   # rules + indexes + storage
+  ```
+
+The CRDT log query (`where('clock','>', x)` + `orderBy('clock')`) is a
+single-field query that Firestore auto-indexes, so no composite index is
+required today — but deploying indexes alongside rules keeps prod in sync if
+that ever changes.
