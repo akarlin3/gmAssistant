@@ -15,10 +15,13 @@ export type EntityNodeData = {
   name: string;
   selected: boolean;
   dimmed: boolean;
+  /** GM editing: allow dragging an edge from/to this node to create a link. */
+  connectable?: boolean;
 };
 
 function EntityNodeImpl({ data }: NodeProps) {
   const d = data as unknown as EntityNodeData;
+  const canConnect = !!d.connectable;
   const fill = ENTITY_COLORS[d.type] ?? '#52443a';
   const r = d.selected ? 11 : 8;
   const size = r * 2;
@@ -30,8 +33,8 @@ function EntityNodeImpl({ data }: NodeProps) {
     >
       {/* Hidden center handles: edges anchor here; the floating edge draws the
           visible center-to-center path. */}
-      <Handle type="target" position={Position.Top} style={HIDDEN_HANDLE} isConnectable={false} />
-      <Handle type="source" position={Position.Bottom} style={HIDDEN_HANDLE} isConnectable={false} />
+      <Handle type="target" position={Position.Top} style={HIDDEN_HANDLE} isConnectable={canConnect} />
+      <Handle type="source" position={Position.Bottom} style={HIDDEN_HANDLE} isConnectable={canConnect} />
       <div
         style={{
           width: size,

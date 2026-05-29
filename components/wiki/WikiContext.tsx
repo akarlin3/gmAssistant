@@ -21,8 +21,16 @@ export type WikiContextValue = {
     notes?: string,
   ) => void;
   removeRelationship: (id: string) => void;
+  /** Patch editable fields of one edge (kind/weight/visibility/notes…). */
+  updateRelationship?: (id: string, patch: Partial<Omit<Relationship, 'id' | 'createdAt'>>) => void;
   acceptSuggestion: (id: string) => void;
   rejectSuggestion: (id: string) => void;
+  /** Merge derivation proposals into the review queue. Returns count added. */
+  proposeRelationships?: (proposals: Relationship[]) => number;
+  /** Persisted graph node positions (entityKey -> {x,y}); GM-only. */
+  graphPositions?: Record<string, { x: number; y: number }>;
+  /** Persist dragged graph node positions. */
+  setGraphPositions?: (positions: Record<string, { x: number; y: number }>) => void;
   /** Optional jump-to-entity (e.g. select it in the graph side panel). */
   navigateToEntity?: (type: EntityType, id: string) => void;
   resolve: (type: EntityType, id: string) => WikiEntity | undefined;

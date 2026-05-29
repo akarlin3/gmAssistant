@@ -63,9 +63,49 @@ export function removeRelationship(all: ReadonlyArray<Relationship>, id: string)
   return all.filter((r) => r.id !== id);
 }
 
-// Confirm a suggested relationship — clears the `suggested` flag in place.
+// Patch the editable fields of one relationship (kind/weight/visibility/notes…)
+// and stamp `updatedAt`. Immutable; unknown ids are a no-op.
+export function updateRelationship(
+  all: ReadonlyArray<Relationship>,
+  id: string,
+  patch: Partial<Omit<Relationship, 'id' | 'createdAt'>>,
+): Relationship[] {
+  return all.map((r) => (r.id === id ? { ...r, ...patch, updatedAt: Date.now() } : r));
+}
+
+// Confirm a suggested OR proposed relationship — clears both review flags so it
+// joins the confirmed set. Drops the now-irrelevant proposal reason.
 export function acceptSuggestion(all: ReadonlyArray<Relationship>, id: string): Relationship[] {
-  return all.map((r) => (r.id === id ? { ...r, suggested: false } : r));
+  return all.map((r) => {
+    if (r.id !== id) return r;
+    const { proposedReason, ...rest } = r;
+    void proposedReason;
+    return { ...rest, suggested: false, proposed: false };
+  });
+}
+
+// Merge derivation proposals into the array, skipping any that duplicate an
+// existing link (same kind + same entity pair, direction-insensitive) — whether
+// that existing link is confirmed, suggested, or already proposed. Returns the
+// (possibly unchanged) array plus how many were actually added.
+export function mergeProposals(
+  all: ReadonlyArray<Relationship>,
+  proposals: ReadonlyArray<Relationship>,
+): { relationships: Relationship[]; added: number } {
+  const out = [...all];
+  let added = 0;
+  for (const p of proposals) {
+    const exists = out.some((r) => {
+      if (r.kind !== p.kind) return false;
+      const fwd = r.fromType === p.fromType && r.fromId === p.fromId && r.toType === p.toType && r.toId === p.toId;
+      const bwd = r.fromType === p.toType && r.fromId === p.toId && r.toType === p.fromType && r.toId === p.fromId;
+      return fwd || bwd;
+    });
+    if (exists) continue;
+    out.push(p);
+    added++;
+  }
+  return { relationships: out, added };
 }
 
 export function rejectSuggestion(all: ReadonlyArray<Relationship>, id: string): Relationship[] {

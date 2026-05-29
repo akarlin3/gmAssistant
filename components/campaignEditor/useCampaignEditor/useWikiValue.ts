@@ -6,8 +6,10 @@ import {
   createRelationship,
   addRelationship as addRelToList,
   removeRelationship as removeRelFromList,
+  updateRelationship as updateRelInList,
   acceptSuggestion as acceptSugInList,
   rejectSuggestion as rejectSugFromList,
+  mergeProposals as mergeProposalsInList,
 } from '@/lib/wiki/relationships';
 import { scanTextForSuggestions, pruneExpiredSuggestions } from '@/lib/wiki/suggest';
 import type { EntityType as WikiEntityType, Relationship as WikiRelationship } from '@/lib/wiki/types';
@@ -94,6 +96,11 @@ export function useWikiValue(
         ...s,
         relationships: removeRelFromList(Array.isArray(s.relationships) ? s.relationships : [], id),
       })),
+    updateRelationship: (id, patch) =>
+      setState((s) => ({
+        ...s,
+        relationships: updateRelInList(Array.isArray(s.relationships) ? s.relationships : [], id, patch),
+      })),
     acceptSuggestion: (id) =>
       setState((s) => ({
         ...s,
@@ -104,10 +111,24 @@ export function useWikiValue(
         ...s,
         relationships: rejectSugFromList(Array.isArray(s.relationships) ? s.relationships : [], id),
       })),
+    proposeRelationships: (proposals) => {
+      let added = 0;
+      setState((s) => {
+        const existing: WikiRelationship[] = Array.isArray(s.relationships) ? s.relationships : [];
+        const merged = mergeProposalsInList(existing, proposals);
+        added = merged.added;
+        return merged.added > 0 ? { ...s, relationships: merged.relationships } : s;
+      });
+      return added;
+    },
+    graphPositions:
+      state.graphLayout && typeof state.graphLayout === 'object' ? state.graphLayout : undefined,
+    setGraphPositions: (positions) =>
+      setState((s) => ({ ...s, graphLayout: { ...(s.graphLayout ?? {}), ...positions } })),
     navigateToEntity,
     resolve: (type, id) => findEntity(wikiIndex, type, id),
     rescan: rescanForSuggestions,
-  }), [wikiIndex, wikiRelationships, navigateToEntity, rescanForSuggestions, setState]);
+  }), [wikiIndex, wikiRelationships, navigateToEntity, rescanForSuggestions, setState, state.graphLayout]);
 
   return { wikiIndex, wikiRelationships, wikiValue, navigateToEntity, rescanForSuggestions };
 }
