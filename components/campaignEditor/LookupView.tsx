@@ -109,15 +109,15 @@ export function LookupView({
 
   return (
     <div className="space-y-3">
-      <div className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2">
+      <div className="space-y-2 rounded border border-rule bg-parchment p-3 shadow-card">
         <div className="flex items-center gap-2">
-          <Search size={14} className="text-brass-deep flex-shrink-0" />
+          <Search size={14} className="flex-shrink-0 text-brass-deep" />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search NPCs, locations, secrets, factions, items…"
-            className="flex-1 bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif placeholder:text-ink-faint focus:border-crimson focus:outline-none"
+            className="flex-1 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none"
           />
         </div>
         <div className="flex flex-wrap gap-1">
@@ -133,16 +133,16 @@ export function LookupView({
               key={id}
               type="button"
               onClick={() => setKind(id)}
-              className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider ${
-                kind === id ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'
+              className={`rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
+                kind === id ? 'border-crimson bg-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'
               }`}
             >
               {label}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2 border-t border-rule/60 pt-2 flex-wrap">
-          <span className="text-[10px] font-display uppercase tracking-wider text-ink-soft">Visibility:</span>
+        <div className="flex flex-wrap items-center gap-2 border-t border-rule/60 pt-2">
+          <span className="font-display text-[10px] uppercase tracking-wider text-ink-soft">Visibility:</span>
           {([
             ['all', 'All Info', Globe],
             ['known', 'Known to Players', Eye],
@@ -152,8 +152,8 @@ export function LookupView({
               key={id}
               type="button"
               onClick={() => setKnowledge(id)}
-              className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider flex items-center gap-1.5 ${
-                knowledge === id ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'
+              className={`flex items-center gap-1.5 rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
+                knowledge === id ? 'border-crimson bg-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'
               }`}
             >
               <Icon size={10} />
@@ -161,7 +161,7 @@ export function LookupView({
             </button>
           ))}
         </div>
-        <div className="text-[11px] text-ink-mute font-serif italic">
+        <div className="font-serif text-[11px] italic text-ink-mute">
           {totalCount === 0 && q ? 'No matches.' : totalCount === 0 ? 'Nothing prepped yet.' : `${totalCount} match${totalCount === 1 ? '' : 'es'}`}
         </div>
       </div>
@@ -194,7 +194,7 @@ export function LookupView({
             return (
               <LookupCard key={id} label={label} tag={l.type || ''} open={open} onToggle={() => setOpenId(open ? null : id)} isShared={isLocKnown(l)}>
                 {Array.isArray(l.aspects) && l.aspects.filter(Boolean).length > 0 && (
-                  <ul className="ml-3 list-disc text-[12px] text-ink-soft italic">
+                  <ul className="ml-3 list-disc text-[12px] italic text-ink-soft">
                     {l.aspects.filter(Boolean).map((a: string, j: number) => <li key={j}>{a}</li>)}
                   </ul>
                 )}
@@ -212,14 +212,14 @@ export function LookupView({
             return (
               <div
                 key={`sec-${i}`}
-                className={`px-2 py-1.5 rounded border text-sm font-serif flex items-center gap-2 ${revealed ? 'border-emerald-700/40 bg-emerald-100/30 text-ink-mute' : 'border-rule bg-parchment text-ink-soft'}`}
+                className={`flex items-center gap-2 rounded border px-2 py-1.5 font-serif text-sm ${revealed ? 'border-emerald-700/40 bg-emerald-100/30 text-ink-mute' : 'border-rule bg-parchment text-ink-soft'}`}
               >
                 {revealed ? (
-                  <span title="Revealed to Players"><Eye size={11} className="text-moss/70 flex-shrink-0" /></span>
+                  <span title="Revealed to Players"><Eye size={11} className="flex-shrink-0 text-moss/70" /></span>
                 ) : (
-                  <span title="Hidden from Players"><EyeOff size={11} className="text-ink-mute/50 flex-shrink-0" /></span>
+                  <span title="Hidden from Players"><EyeOff size={11} className="flex-shrink-0 text-ink-mute/50" /></span>
                 )}
-                <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider mr-1">{revealed ? 'Revealed' : 'Hidden'}</span>
+                <span className="mr-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">{revealed ? 'Revealed' : 'Hidden'}</span>
                 <span className="flex-1">{s}</span>
               </div>
             );
@@ -251,7 +251,7 @@ export function LookupView({
           {filteredItems.map(({ m, i }) => {
             const player = roster?.find(r => r.slotId === m.assignedPlayerId);
             return (
-              <div key={`item-${i}`} className="px-3 py-2 rounded border border-rule bg-parchment text-sm font-serif text-ink-soft space-y-1 shadow-sm">
+              <div key={`item-${i}`} className="space-y-1 rounded border border-rule bg-parchment px-3 py-2 font-serif text-sm text-ink-soft shadow-sm">
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-ink">{m.name}</div>
                   {player ? (
@@ -260,8 +260,8 @@ export function LookupView({
                     <span title="Not assigned (GM Private)"><EyeOff size={11} className="text-ink-mute/50" /></span>
                   )}
                 </div>
-                {m.description && <div className="text-xs text-ink-soft/80 italic">{m.description}</div>}
-                {player && <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep mt-0.5">Carried by: {player.displayName}</div>}
+                {m.description && <div className="text-xs italic text-ink-soft/80">{m.description}</div>}
+                {player && <div className="mt-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep">Carried by: {player.displayName}</div>}
               </div>
             );
           })}
@@ -276,11 +276,11 @@ function LookupGroup({
 }: { title: string; icon: any; children: React.ReactNode }) {
   return (
     <section className="rounded border border-rule bg-parchment-soft shadow-card">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-rule">
+      <div className="flex items-center gap-2 border-b border-rule px-3 py-2">
         <Icon size={14} className="text-brass-deep" />
-        <span className="font-display tracking-wide text-sm text-ink">{title}</span>
+        <span className="font-display text-sm tracking-wide text-ink">{title}</span>
       </div>
-      <div className="p-3 space-y-1.5">{children}</div>
+      <div className="space-y-1.5 p-3">{children}</div>
     </section>
   );
 }
@@ -289,21 +289,21 @@ function LookupCard({
   label, tag, open, onToggle, isShared, children,
 }: { label: string; tag?: string; open: boolean; onToggle: () => void; isShared?: boolean; children?: React.ReactNode }) {
   return (
-    <div className="rounded border border-rule bg-parchment text-sm font-serif">
-      <button onClick={onToggle} className="w-full text-left px-2 py-1.5 flex items-center gap-2 hover:bg-parchment-deep/30">
+    <div className="rounded border border-rule bg-parchment font-serif text-sm">
+      <button onClick={onToggle} className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-parchment-deep/30">
         {open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />}
-        <span className="flex-1 text-ink truncate">{label}</span>
-        {tag && <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider mr-1">{tag}</span>}
+        <span className="flex-1 truncate text-ink">{label}</span>
+        {tag && <span className="mr-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">{tag}</span>}
         {isShared !== undefined && (
           isShared ? (
-            <span title="Visible/Known to Players"><Eye size={11} className="text-moss/70 flex-shrink-0" /></span>
+            <span title="Visible/Known to Players"><Eye size={11} className="flex-shrink-0 text-moss/70" /></span>
           ) : (
-            <span title="GM Private / Hidden from Players"><EyeOff size={11} className="text-ink-mute/50 flex-shrink-0" /></span>
+            <span title="GM Private / Hidden from Players"><EyeOff size={11} className="flex-shrink-0 text-ink-mute/50" /></span>
           )
         )}
       </button>
       {open && children && (
-        <div className="px-3 pb-2 pt-1 border-t border-rule text-[12px] text-ink-soft space-y-0.5">
+        <div className="space-y-0.5 border-t border-rule px-3 pb-2 pt-1 text-[12px] text-ink-soft">
           {children}
         </div>
       )}

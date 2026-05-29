@@ -437,32 +437,32 @@ export default function RunSessionView({
               Started {new Date(get('__sessionStartedAt', Date.now()) as number).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
             {playerConfig?.shareToken && (
-              <div className="flex items-center gap-1.5 rounded-full border border-rule/50 bg-parchment px-2.5 py-0.5 text-[10px] font-display uppercase tracking-wider shadow-sm select-none">
+              <div className="flex select-none items-center gap-1.5 rounded-full border border-rule/50 bg-parchment px-2.5 py-0.5 font-display text-[10px] uppercase tracking-wider shadow-sm">
                 {publishState === 'publishing' ? (
                   <>
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brass opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-brass-deep"></span>
+                    <span className="relative flex size-2">
+                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-brass opacity-75"></span>
+                      <span className="relative inline-flex size-2 rounded-full bg-brass-deep"></span>
                     </span>
-                    <span className="text-brass-deep font-semibold">Syncing...</span>
+                    <span className="font-semibold text-brass-deep">Syncing...</span>
                   </>
                 ) : publishState === 'error' ? (
                   <>
-                    <span className="h-2 w-2 rounded-full bg-crimson"></span>
-                    <span className="text-crimson font-semibold">Sync Error</span>
+                    <span className="size-2 rounded-full bg-crimson"></span>
+                    <span className="font-semibold text-crimson">Sync Error</span>
                   </>
                 ) : publishState === 'done' ? (
                   <>
-                    <span className="h-2 w-2 rounded-full bg-moss"></span>
-                    <span className="text-moss font-semibold">Synced</span>
+                    <span className="size-2 rounded-full bg-moss"></span>
+                    <span className="font-semibold text-moss">Synced</span>
                   </>
                 ) : (
                   <>
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-moss opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-moss"></span>
+                    <span className="relative flex size-2">
+                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-moss opacity-75"></span>
+                      <span className="relative inline-flex size-2 rounded-full bg-moss"></span>
                     </span>
-                    <span className="text-moss font-semibold">Live Sharing</span>
+                    <span className="font-semibold text-moss">Live Sharing</span>
                   </>
                 )}
               </div>
@@ -476,7 +476,7 @@ export default function RunSessionView({
           </button>
         </header>
 
-        <div className="sticky top-0 z-20 flex overflow-x-auto bg-parchment/90 backdrop-blur border-b border-rule py-2 gap-2 hide-scrollbar -mx-3 px-3 sm:-mx-5 sm:px-5 md:-mx-6 md:px-6">
+        <div className="hide-scrollbar sticky top-0 z-20 -mx-3 flex gap-2 overflow-x-auto border-b border-rule bg-parchment/90 px-3 py-2 backdrop-blur sm:-mx-5 sm:px-5 md:-mx-6 md:px-6">
           {SECTION_KEYS.map(k => {
             const Icon = SECTION_META[k].icon;
             return (
@@ -517,7 +517,7 @@ export default function RunSessionView({
                         disabled={isShared}
                         className={`flex items-center gap-1 rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
                           isShared
-                            ? 'border-moss bg-moss/10 text-moss cursor-default'
+                            ? 'cursor-default border-moss bg-moss/10 text-moss'
                             : 'border-brass-deep/60 text-brass-deep hover:bg-brass/10'
                         }`}
                         title={isShared ? 'Shared with Players' : 'Share with Players'}
@@ -619,7 +619,7 @@ export default function RunSessionView({
                             shareToPlayerLog(`Clue: ${s}`);
                           }}
                           disabled={isShared}
-                          className={`mt-0.5 p-0.5 transition-colors ${isShared ? 'text-moss cursor-default' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10 rounded'}`}
+                          className={`mt-0.5 p-0.5 transition-colors ${isShared ? 'cursor-default text-moss' : 'rounded text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
                           title={isShared ? 'Shared with Players' : 'Share with Players'}
                         >
                           <Eye size={12} />
@@ -665,7 +665,7 @@ export default function RunSessionView({
                         <PinToggle pinned={pin} onClick={() => togglePin('location', key)} />
                         <button
                           onClick={() => toggleEntityShare('locations', l.id)}
-                          className={`mt-0.5 p-1 transition-colors ${isShared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10'}`}
+                          className={`mt-0.5 p-1 transition-colors ${isShared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
                           title={isShared ? 'Shared with Players (Click to hide)' : 'Share with Players'}
                         >
                           {isShared ? <Eye size={12} /> : <EyeOff size={12} />}
@@ -702,7 +702,7 @@ export default function RunSessionView({
                             shareToPlayerLog(`Encountered: ${m}${hb?.challenge_rating ? ` — CR ${hb.challenge_rating}` : ''}`);
                           }}
                           disabled={isShared}
-                          className={`p-1 transition-colors ${isShared ? 'text-moss cursor-default' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10 rounded'}`}
+                          className={`p-1 transition-colors ${isShared ? 'cursor-default text-moss' : 'rounded text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
                           title={isShared ? 'Shared with Players' : 'Share with Players'}
                         >
                           <Eye size={12} />
@@ -711,7 +711,7 @@ export default function RunSessionView({
                         {hb && (
                           <button
                             onClick={() => setStatBlockSlug(hb.slug)}
-                            className="font-display text-[10px] uppercase tracking-wider text-brass-deep hover:text-crimson underline decoration-dotted underline-offset-2"
+                            className="font-display text-[10px] uppercase tracking-wider text-brass-deep underline decoration-dotted underline-offset-2 hover:text-crimson"
                             title="Open stat block"
                           >
                             Stat
@@ -736,7 +736,7 @@ export default function RunSessionView({
                     return (
                       <div
                         key={item.id}
-                        className={`p-3 rounded-lg border font-serif text-sm transition-all duration-150 flex gap-2 items-start ${
+                        className={`flex items-start gap-2 rounded-lg border p-3 font-serif text-sm transition-all duration-150 ${
                           isGiven
                             ? 'border-brass/60 bg-brass/10 shadow-sm'
                             : 'border-rule bg-parchment hover:border-brass/45'
@@ -754,7 +754,7 @@ export default function RunSessionView({
                           {isGiven && <Check size={10} strokeWidth={3} />}
                         </button>
                         <div className="flex-1 space-y-1">
-                          <div className="flex justify-between items-start gap-2">
+                          <div className="flex items-start justify-between gap-2">
                             <div className={`text-ink ${isGiven ? 'text-ink-mute' : ''}`}>
                               {item.name || 'Unnamed Item'}
                             </div>
@@ -765,7 +765,7 @@ export default function RunSessionView({
                                   shareToPlayerLog(`Found Item: ${item.name}${item.description ? ` — ${item.description}` : ''}`);
                                 }}
                                 disabled={isShared}
-                                className={`p-1 transition-colors ${isShared ? 'text-moss cursor-default' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10 rounded'}`}
+                                className={`p-1 transition-colors ${isShared ? 'cursor-default text-moss' : 'rounded text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
                                 title={isShared ? 'Shared with Party Feed' : 'Share with Party Feed'}
                               >
                                 <Eye size={12} />
@@ -774,13 +774,13 @@ export default function RunSessionView({
                             </div>
                           </div>
                           {item.description && (
-                            <p className="text-xs text-ink-soft italic whitespace-pre-wrap">
+                            <p className="whitespace-pre-wrap text-xs italic text-ink-soft">
                               {item.description}
                             </p>
                           )}
 
                           {/* GM Controls inside Full-Screen Run panel */}
-                          <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 items-center text-[11px] border-t border-rule/30 pt-2 font-sans">
+                          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-rule/30 pt-2 font-sans text-[11px]">
                             <div className="flex items-center gap-1.5">
                               <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">
                                 Assigned to:
@@ -810,7 +810,7 @@ export default function RunSessionView({
                                     setVal('__sessionChangeEvents', nextEvents);
                                   }
                                 }}
-                                className="rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-[10px] text-ink-soft cursor-pointer focus:outline-none"
+                                className="cursor-pointer rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-[10px] text-ink-soft focus:outline-none"
                               >
                                 <option value="">Unassigned</option>
                                 {roster.map((r: any) => (
@@ -832,7 +832,7 @@ export default function RunSessionView({
                                     nextItems[i] = { ...item, playerVisibility: vis };
                                     setVal('items', nextItems);
                                   }}
-                                  className="rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-[10px] text-ink-soft cursor-pointer focus:outline-none"
+                                  className="cursor-pointer rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-[10px] text-ink-soft focus:outline-none"
                                 >
                                   <option value="full">Name & Description</option>
                                   <option value="name-only">Name Only</option>
@@ -863,7 +863,7 @@ export default function RunSessionView({
                               shareToPlayerLog(`Quest Update: "${g.text}" is currently ${g.status || 'Active'}.`);
                             }}
                             disabled={isShared}
-                            className={`p-1 transition-colors ${isShared ? 'text-moss cursor-default' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10 rounded'}`}
+                            className={`p-1 transition-colors ${isShared ? 'cursor-default text-moss' : 'rounded text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
                             title={isShared ? 'Shared with Players' : 'Share with Players'}
                           >
                             <Eye size={12} />
@@ -901,7 +901,7 @@ export default function RunSessionView({
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => toggleEntityShare('clocks', c.id)}
-                              className={`p-1 transition-colors ${isShared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10'}`}
+                              className={`p-1 transition-colors ${isShared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
                               title={isShared ? 'Shared with Players (Click to hide)' : 'Share with Players'}
                             >
                               {isShared ? <Eye size={12} /> : <EyeOff size={12} />}
@@ -946,7 +946,7 @@ export default function RunSessionView({
             )}
           </div>
 
-          <div className="hidden lg:block space-y-3 pr-1 lg:sticky lg:top-3 lg:max-h-[calc(100vh-1.5rem)] lg:self-start lg:overflow-y-auto">
+          <div className="hidden space-y-3 pr-1 lg:sticky lg:top-3 lg:block lg:max-h-[calc(100vh-1.5rem)] lg:self-start lg:overflow-y-auto">
             {toolsContent}
           </div>
         </div>
@@ -955,14 +955,14 @@ export default function RunSessionView({
       </div>
 
       {/* Mobile Tools Drawer */}
-      <div className={`lg:hidden fixed left-0 right-0 z-30 bg-parchment/95 backdrop-blur border-t border-rule shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] transition-transform duration-300 flex flex-col ${mobileToolsExpanded ? 'bottom-[56px] translate-y-0' : 'bottom-[56px] translate-y-full'}`}>
+      <div className={`fixed inset-x-0 z-30 flex flex-col border-t border-rule bg-parchment/95 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] backdrop-blur transition-transform duration-300 lg:hidden ${mobileToolsExpanded ? 'bottom-[56px] translate-y-0' : 'bottom-[56px] translate-y-full'}`}>
         <button
           onClick={() => setMobileToolsExpanded(!mobileToolsExpanded)}
-          className="absolute right-4 -top-8 bg-parchment border border-rule border-b-0 rounded-t px-3 py-1.5 text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-1.5 shadow-[0_-2px_4px_rgba(0,0,0,0.05)]"
+          className="absolute -top-8 right-4 flex items-center gap-1.5 rounded-t border border-b-0 border-rule bg-parchment px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep shadow-[0_-2px_4px_rgba(0,0,0,0.05)]"
         >
           <Wrench size={12} /> Tools {mobileToolsExpanded ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
         </button>
-        <div className="max-h-[45vh] overflow-y-auto p-3 space-y-3">
+        <div className="max-h-[45vh] space-y-3 overflow-y-auto p-3">
           {toolsContent}
         </div>
       </div>
@@ -972,19 +972,19 @@ export default function RunSessionView({
       )}
 
       {longSessionPrompt && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-in fade-in duration-300">
-          <div className="bg-parchment-soft border-2 border-brass-deep/60 px-4 py-3 rounded shadow-lg flex items-start gap-3 w-[90vw] max-w-sm">
-            <Clock size={16} className="text-brass-deep mt-0.5 flex-shrink-0" />
+        <div className="animate-in fade-in fixed left-1/2 top-16 z-50 -translate-x-1/2 duration-300">
+          <div className="flex w-[90vw] max-w-sm items-start gap-3 rounded border-2 border-brass-deep/60 bg-parchment-soft px-4 py-3 shadow-lg">
+            <Clock size={16} className="mt-0.5 flex-shrink-0 text-brass-deep" />
             <div className="flex-1">
-              <div className="font-display text-xs uppercase tracking-wider text-brass-deep mb-1">Long Session</div>
-              <p className="font-serif text-sm text-ink-soft mb-2">
+              <div className="mb-1 font-display text-xs uppercase tracking-wider text-brass-deep">Long Session</div>
+              <p className="mb-2 font-serif text-sm text-ink-soft">
                 {sessionDurationHours > 12 
                   ? "You've been in Run Session mode for over 12 hours! You definitely forgot to end the session."
                   : "You've been in Run Session mode for over 4 hours. Did you forget to end the previous session?"}
               </p>
               <div className="flex justify-end gap-2">
-                <button onClick={() => setLongSessionPrompt(false)} className="px-2 py-1 text-xs text-ink-mute hover:bg-parchment-deep rounded">Dismiss</button>
-                <button onClick={() => { setLongSessionPrompt(false); onEndSession(); }} className="px-2 py-1 text-xs text-crimson hover:bg-crimson/10 border border-crimson/30 rounded font-display uppercase tracking-wider">End Session</button>
+                <button onClick={() => setLongSessionPrompt(false)} className="rounded px-2 py-1 text-xs text-ink-mute hover:bg-parchment-deep">Dismiss</button>
+                <button onClick={() => { setLongSessionPrompt(false); onEndSession(); }} className="rounded border border-crimson/30 px-2 py-1 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson/10">End Session</button>
               </div>
             </div>
           </div>
@@ -992,8 +992,8 @@ export default function RunSessionView({
       )}
 
       {toast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-2 fade-in duration-200">
-          <div className="bg-ink text-parchment px-4 py-2 rounded shadow-lg font-serif text-sm flex items-center gap-2">
+        <div className="animate-in slide-in-from-bottom-2 fade-in fixed bottom-20 left-1/2 z-50 -translate-x-1/2 duration-200">
+          <div className="flex items-center gap-2 rounded bg-ink px-4 py-2 font-serif text-sm text-parchment shadow-lg">
             <Check size={14} className="text-emerald-400" />
             {toast}
           </div>

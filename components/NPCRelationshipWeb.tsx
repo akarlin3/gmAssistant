@@ -195,12 +195,12 @@ export default function NPCRelationshipWeb({ npcs, characters, graph, onChange }
           Add at least two NPCs or characters to build a relationship web.
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-3">
-          <div className="rounded border border-rule bg-parchment shadow-card overflow-hidden">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_280px]">
+          <div className="overflow-hidden rounded border border-rule bg-parchment shadow-card">
             <svg
               ref={svgRef}
               viewBox="0 0 800 500"
-              className="w-full h-[500px] cursor-grab active:cursor-grabbing"
+              className="h-[500px] w-full cursor-grab active:cursor-grabbing"
               onMouseMove={onSvgMouseMove}
               onMouseUp={onSvgMouseUp}
               onMouseLeave={onSvgMouseUp}
@@ -239,7 +239,7 @@ export default function NPCRelationshipWeb({ npcs, characters, graph, onChange }
                       textAnchor="middle"
                       fontSize="10"
                       fill={style.color}
-                      className="font-serif pointer-events-none select-none"
+                      className="pointer-events-none select-none font-serif"
                     >
                       {e.label || style.label}
                     </text>
@@ -272,7 +272,7 @@ export default function NPCRelationshipWeb({ npcs, characters, graph, onChange }
                       textAnchor="middle"
                       fontSize="11"
                       fill="#1a1410"
-                      className="font-display pointer-events-none select-none"
+                      className="pointer-events-none select-none font-display"
                     >
                       {n.label}
                     </text>
@@ -282,7 +282,7 @@ export default function NPCRelationshipWeb({ npcs, characters, graph, onChange }
                         textAnchor="middle"
                         fontSize="9"
                         fill="#8a7a6a"
-                        className="font-serif italic pointer-events-none select-none"
+                        className="pointer-events-none select-none font-serif italic"
                       >
                         {n.faction}
                       </text>
@@ -293,7 +293,7 @@ export default function NPCRelationshipWeb({ npcs, characters, graph, onChange }
             </svg>
           </div>
 
-          <aside className="rounded border border-rule bg-parchment p-3 shadow-card space-y-3 max-h-[500px] overflow-y-auto">
+          <aside className="max-h-[500px] space-y-3 overflow-y-auto rounded border border-rule bg-parchment p-3 shadow-card">
             <div className="space-y-2">
               <h3 className="font-display text-sm uppercase tracking-wide text-ink">Legend</h3>
               <ul className="space-y-1">

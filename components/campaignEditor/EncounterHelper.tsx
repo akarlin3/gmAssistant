@@ -49,14 +49,14 @@ export const EncounterHelper = ({
   };
 
   return (
-    <div className="rounded border border-amber-900/30 bg-amber-950/10 p-3 space-y-2.5">
+    <div className="space-y-2.5 rounded border border-amber-900/30 bg-amber-950/10 p-3">
       <div className="flex items-center justify-between">
         <span className="font-display text-xs uppercase tracking-wider text-amber-900">Solo Encounter Helper</span>
-        <span className="text-[10px] text-ink-mute italic font-serif">5e SRD thresholds · solo-adjusted</span>
+        <span className="font-serif text-[10px] italic text-ink-mute">5e SRD thresholds · solo-adjusted</span>
       </div>
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <label className="text-xs text-ink-soft font-serif">PC Level</label>
+          <label className="font-serif text-xs text-ink-soft">PC Level</label>
           <input
             type="number"
             min={1}
@@ -66,10 +66,10 @@ export const EncounterHelper = ({
               const v = parseInt(e.target.value || '1', 10);
               onChange({ ...state, pcLevel: Math.min(20, Math.max(1, isNaN(v) ? 1 : v)) });
             }}
-            className="w-16 bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+            className="w-16 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink"
           />
         </div>
-        <label className="flex items-center gap-1.5 text-xs text-ink-soft font-serif cursor-pointer select-none">
+        <label className="flex cursor-pointer select-none items-center gap-1.5 font-serif text-xs text-ink-soft">
           <input
             type="checkbox"
             checked={!!state.gestalt}
@@ -83,16 +83,16 @@ export const EncounterHelper = ({
       <div className="space-y-1.5">
         {monsters.map((m, i) => (
           <div key={i} className="flex items-center gap-2">
-            <span className="text-xs text-ink-mute w-4">{i + 1}.</span>
-            <label className="text-[10px] text-ink-mute font-display uppercase tracking-wider">CR</label>
+            <span className="w-4 text-xs text-ink-mute">{i + 1}.</span>
+            <label className="font-display text-[10px] uppercase tracking-wider text-ink-mute">CR</label>
             <select
               value={m.cr}
               onChange={(e) => updateMonster(i, { cr: e.target.value })}
-              className="bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+              className="rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink"
             >
               {CR_OPTIONS.map(cr => <option key={cr} value={cr}>{cr}</option>)}
             </select>
-            <span className="text-[10px] text-ink-mute font-serif">×</span>
+            <span className="font-serif text-[10px] text-ink-mute">×</span>
             <input
               type="number"
               min={1}
@@ -102,22 +102,22 @@ export const EncounterHelper = ({
                 const v = parseInt(e.target.value || '1', 10);
                 updateMonster(i, { count: Math.max(1, isNaN(v) ? 1 : v) });
               }}
-              className="w-14 bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+              className="w-14 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink"
             />
-            <span className="text-[10px] text-ink-mute font-serif flex-1">
+            <span className="flex-1 font-serif text-[10px] text-ink-mute">
               = {(CR_TO_XP[m.cr] || 0) * (m.count || 0)} XP
             </span>
             <button onClick={() => removeMonster(i)} className="text-ink-mute hover:text-crimson"><X size={12} /></button>
           </div>
         ))}
         {monsters.length < 6 && (
-          <button onClick={addMonster} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+          <button onClick={addMonster} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
             <Plus size={12} /> Add Monster
           </button>
         )}
       </div>
       {monsters.length > 0 && (
-        <div className="border-t border-amber-900/20 pt-2 space-y-1 text-xs font-serif">
+        <div className="space-y-1 border-t border-amber-900/20 pt-2 font-serif text-xs">
           <div className="flex justify-between text-ink-soft">
             <span>Base XP</span><span>{baseXP}</span>
           </div>
@@ -125,11 +125,11 @@ export const EncounterHelper = ({
             <span>Group multiplier ({totalCount} creature{totalCount === 1 ? '' : 's'})</span>
             <span>× {mult}</span>
           </div>
-          <div className="flex justify-between text-ink font-semibold">
+          <div className="flex justify-between font-semibold text-ink">
             <span>Adjusted XP</span><span>{adjustedXP}</span>
           </div>
-          <div className={`mt-1.5 rounded border px-2 py-1.5 flex items-center justify-between ${ratingClass}`}>
-            <span className="font-display uppercase tracking-wider text-xs">{rating}</span>
+          <div className={`mt-1.5 flex items-center justify-between rounded border px-2 py-1.5 ${ratingClass}`}>
+            <span className="font-display text-xs uppercase tracking-wider">{rating}</span>
             <span className="text-[10px] italic">{rationale}</span>
           </div>
         </div>

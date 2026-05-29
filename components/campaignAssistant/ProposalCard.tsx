@@ -52,7 +52,7 @@ export function ProposalCard({
       }`}
     >
       <div className="mb-1 flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 text-xs font-display uppercase tracking-wider text-brass-deep">
+        <span className="flex items-center gap-1.5 font-display text-xs uppercase tracking-wider text-brass-deep">
           <Sparkles size={12} /> Proposal · {call.name}
         </span>
         {call.status === 'executed' && (
@@ -103,7 +103,7 @@ export function ProposalCard({
               <button
                 onClick={() => onReject(call.id, reason.trim() || 'Not a fit right now.')}
                 disabled={disabled}
-                className="rounded-md bg-crimson px-2.5 py-1 text-xs font-display uppercase tracking-wider text-parchment hover:bg-crimson/90 disabled:opacity-50"
+                className="rounded-md bg-crimson px-2.5 py-1 font-display text-xs uppercase tracking-wider text-parchment hover:bg-crimson/90 disabled:opacity-50"
               >
                 Confirm Reject
               </button>
@@ -119,21 +119,21 @@ export function ProposalCard({
               <button
                 onClick={approve}
                 disabled={disabled}
-                className="flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-display uppercase tracking-wider text-white hover:bg-emerald-700 disabled:opacity-50"
+                className="flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 font-display text-xs uppercase tracking-wider text-white hover:bg-emerald-700 disabled:opacity-50"
               >
                 <Check size={12} /> Approve
               </button>
               <button
                 onClick={() => setRejecting(true)}
                 disabled={disabled}
-                className="flex items-center gap-1 rounded-md border border-crimson/50 px-2.5 py-1 text-xs font-display uppercase tracking-wider text-crimson hover:bg-crimson/10 disabled:opacity-50"
+                className="flex items-center gap-1 rounded-md border border-crimson/50 px-2.5 py-1 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson/10 disabled:opacity-50"
               >
                 <X size={12} /> Reject
               </button>
               <button
                 onClick={() => setEditing((e) => !e)}
                 disabled={disabled}
-                className="flex items-center gap-1 rounded-md border border-parchment-deep px-2.5 py-1 text-xs font-display uppercase tracking-wider text-brass-deep hover:bg-parchment-deep/40 disabled:opacity-50"
+                className="flex items-center gap-1 rounded-md border border-parchment-deep px-2.5 py-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:bg-parchment-deep/40 disabled:opacity-50"
               >
                 <Pencil size={12} /> {editing ? 'Done Editing' : 'Edit'}
               </button>

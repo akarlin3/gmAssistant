@@ -75,8 +75,8 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, 
       <div className="space-y-4">
         {/* Header */}
         <header className="flex items-center gap-2 rounded border border-rule bg-parchment p-3 shadow-card">
-          <Sparkles size={16} className="text-wine animate-pulse" />
-          <h2 className="font-display text-lg uppercase tracking-wider text-wine font-semibold">The Wells Oracle</h2>
+          <Sparkles size={16} className="animate-pulse text-wine" />
+          <h2 className="font-display text-lg font-semibold uppercase tracking-wider text-wine">The Wells Oracle</h2>
           <span className="ml-1 text-[10px] italic text-ink-mute">Ask the world a question or complicate a scene</span>
         </header>
 
@@ -84,10 +84,10 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
           {/* Left Column: Ask the Oracle */}
           <div className="space-y-4">
-            <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-4">
+            <div className="space-y-4 rounded border border-rule bg-parchment p-4 shadow-card">
               {/* Question */}
               <div>
-                <label className="mb-1.5 block font-display text-[11px] uppercase tracking-wider text-ink-mute font-semibold">
+                <label className="mb-1.5 block font-display text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
                   Ask the Oracle
                 </label>
                 <div className="flex gap-2">
@@ -106,7 +106,7 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, 
                   <button
                     type="button"
                     onClick={ask}
-                    className="flex items-center gap-1.5 rounded bg-wine px-4 py-2 font-display text-xs uppercase tracking-wider text-parchment hover:bg-crimson transition-colors"
+                    className="flex items-center gap-1.5 rounded bg-wine px-4 py-2 font-display text-xs uppercase tracking-wider text-parchment transition-colors hover:bg-crimson"
                   >
                     <Dices size={14} /> Ask
                   </button>
@@ -116,7 +116,7 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, 
               {/* Odds + Chaos */}
               <div className="flex flex-col gap-4 sm:flex-row">
                 <div className="flex-1">
-                  <label className="mb-1 block font-display text-[11px] uppercase tracking-wider text-ink-mute font-semibold">
+                  <label className="mb-1 block font-display text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
                     Odds
                   </label>
                   <select
@@ -133,9 +133,9 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, 
                   </select>
                 </div>
                 <div className="flex-1">
-                  <label className="mb-1 flex items-center justify-between font-display text-[11px] uppercase tracking-wider text-ink-mute font-semibold">
+                  <label className="mb-1 flex items-center justify-between font-display text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
                     <span>Chaos Factor</span>
-                    <span className="text-wine font-bold">{chaos}</span>
+                    <span className="font-bold text-wine">{chaos}</span>
                   </label>
                   <input
                     type="range"
@@ -145,7 +145,7 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, 
                     value={chaos}
                     data-oracle-chaos
                     onChange={(e) => onChaosChange(Number(e.target.value))}
-                    className="mt-2 w-full accent-wine cursor-pointer"
+                    className="mt-2 w-full cursor-pointer accent-wine"
                   />
                   <div className="flex justify-between font-serif text-[10px] text-ink-faint">
                     <span>Calm</span>
@@ -159,7 +159,7 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, 
                 <button
                   type="button"
                   onClick={complicate}
-                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded border border-wine/50 px-3.5 py-2 font-display text-xs uppercase tracking-wider text-wine hover:bg-wine/10 transition-colors"
+                  className="flex w-full items-center justify-center gap-1.5 rounded border border-wine/50 px-3.5 py-2 font-display text-xs uppercase tracking-wider text-wine transition-colors hover:bg-wine/10 sm:w-auto"
                 >
                   <Zap size={14} /> Complicate Scene
                 </button>
@@ -168,10 +168,10 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, 
 
             {/* Complication (ephemeral) */}
             {complication && (
-              <div className="flex items-start gap-2.5 rounded border border-wine/40 bg-wine/5 p-3.5 text-sm shadow-card animate-fadeIn">
-                <Wand2 size={16} className="mt-0.5 flex-shrink-0 text-wine animate-pulse" />
+              <div className="animate-fadeIn flex items-start gap-2.5 rounded border border-wine/40 bg-wine/5 p-3.5 text-sm shadow-card">
+                <Wand2 size={16} className="mt-0.5 flex-shrink-0 animate-pulse text-wine" />
                 <div className="font-serif text-ink-soft">
-                  <span className="font-display text-xs uppercase tracking-wider text-wine font-semibold">
+                  <span className="font-display text-xs font-semibold uppercase tracking-wider text-wine">
                     Complication (d100: {complication.roll}) ·{' '}
                   </span>
                   {complication.text}
@@ -181,11 +181,11 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, 
           </div>
 
           {/* Right Column: Recent Answers */}
-          <div className="rounded border border-rule bg-parchment p-4 shadow-card flex flex-col h-[calc(100vh-240px)] min-h-[450px] lg:h-[580px]">
-            <div className="font-display text-[11px] uppercase tracking-wider text-ink-mute font-semibold border-b border-rule pb-2 mb-3">
+          <div className="flex h-[calc(100vh-240px)] min-h-[450px] flex-col rounded border border-rule bg-parchment p-4 shadow-card lg:h-[580px]">
+            <div className="mb-3 border-b border-rule pb-2 font-display text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
               Recent Answers
             </div>
-            <div className="flex-1 overflow-y-auto pr-1 hide-scrollbar">
+            <div className="hide-scrollbar flex-1 overflow-y-auto pr-1">
               {recent.length === 0 ? (
                 <p className="py-8 text-center font-serif text-sm italic text-ink-faint">
                   Ask the world a question to begin.
@@ -197,11 +197,11 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, 
                       key={entry.id}
                       data-oracle-result
                       data-oracle-result-index={i}
-                      className="rounded border border-rule bg-parchment-soft p-3 space-y-2 hover:border-wine/30 transition-colors"
+                      className="space-y-2 rounded border border-rule bg-parchment-soft p-3 transition-colors hover:border-wine/30"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span
-                          className={`rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider font-semibold ${resultTone(
+                          className={`rounded-sm border px-2 py-0.5 font-display text-[10px] font-semibold uppercase tracking-wider ${resultTone(
                             entry.result,
                           )}`}
                         >
@@ -220,7 +220,7 @@ export default function WellsOracle({ log, onLog, chaos, onChaosChange, raised, 
                         <div className="flex items-start gap-1.5 rounded border border-wine/30 bg-wine/5 px-2 py-1.5">
                           <Sparkles size={12} className="mt-0.5 flex-shrink-0 text-wine" />
                           <p className="font-serif text-xs text-ink-soft">
-                            <span className="font-display text-[10px] uppercase tracking-wider text-wine font-semibold">
+                            <span className="font-display text-[10px] font-semibold uppercase tracking-wider text-wine">
                               Random Event ·{' '}
                             </span>
                             {entry.randomEvent.focus}: {entry.randomEvent.action} /{' '}

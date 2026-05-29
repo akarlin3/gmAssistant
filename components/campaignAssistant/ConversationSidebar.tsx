@@ -33,7 +33,7 @@ export function ConversationSidebar({
       <div className="flex items-center justify-between gap-2 border-b border-parchment-deep p-2">
         <button
           onClick={onStart}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-wine/10 px-2 py-1.5 text-xs font-display uppercase tracking-wider text-wine hover:bg-wine/20"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-wine/10 px-2 py-1.5 font-display text-xs uppercase tracking-wider text-wine hover:bg-wine/20"
         >
           <Plus size={13} /> New Conversation
         </button>
@@ -102,7 +102,7 @@ export function ConversationSidebar({
       </div>
       <button
         onClick={onToggleArchived}
-        className="border-t border-parchment-deep p-2 text-[11px] font-display uppercase tracking-wider text-ink-mute hover:text-ink"
+        className="border-t border-parchment-deep p-2 font-display text-[11px] uppercase tracking-wider text-ink-mute hover:text-ink"
       >
         {showArchived ? 'Show Active' : 'Show Archived'}
       </button>

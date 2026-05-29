@@ -75,14 +75,14 @@ export default function LoggedTab({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-rule bg-parchment p-4 shadow-card space-y-3">
+      <div className="space-y-3 rounded-lg border border-rule bg-parchment p-4 shadow-card">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <History size={16} className="text-crimson animate-pulse" />
+            <History size={16} className="animate-pulse text-crimson" />
             <h2 className="font-display text-lg tracking-wide text-ink sm:text-xl">
               Logged Library Items
             </h2>
-            <span className="rounded-full bg-parchment-deep border border-rule px-2.5 py-0.5 text-xs text-ink-soft italic font-serif">
+            <span className="rounded-full border border-rule bg-parchment-deep px-2.5 py-0.5 font-serif text-xs italic text-ink-soft">
               {allEntries.length} items saved
             </span>
           </div>
@@ -96,7 +96,7 @@ export default function LoggedTab({
               placeholder="Search logged items..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded border border-rule bg-parchment-soft pl-8 pr-3 py-1 text-sm font-serif text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
+              className="w-full rounded border border-rule bg-parchment-soft py-1 pl-8 pr-3 font-serif text-sm text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
             />
             {searchQuery && (
               <button
@@ -118,9 +118,9 @@ export default function LoggedTab({
               <button
                 key={cat.value}
                 onClick={() => setActiveCategory(cat.value)}
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 font-display text-[10px] uppercase tracking-wider transition-all shadow-sm ${
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 font-display text-[10px] uppercase tracking-wider shadow-sm transition-all ${
                   active
-                    ? 'border-crimson bg-crimson text-parchment font-semibold'
+                    ? 'border-crimson bg-crimson font-semibold text-parchment'
                     : 'border-rule bg-parchment-soft text-ink-soft hover:bg-parchment-deep hover:text-ink'
                 }`}
               >
@@ -134,10 +134,10 @@ export default function LoggedTab({
 
       {/* Main Results Listing */}
       {filteredEntries.length === 0 ? (
-        <div className="rounded-lg border border-rule bg-parchment p-8 shadow-card text-center space-y-2">
+        <div className="space-y-2 rounded-lg border border-rule bg-parchment p-8 text-center shadow-card">
           <BookOpen size={24} className="mx-auto text-ink-mute opacity-60" />
           <h3 className="font-display text-sm uppercase tracking-wide text-ink">No saved items found</h3>
-          <p className="font-serif text-xs italic text-ink-mute max-w-sm mx-auto">
+          <p className="mx-auto max-w-sm font-serif text-xs italic text-ink-mute">
             {searchQuery
               ? "No items match your active search filter. Clear the query or pick another category."
               : "Items you generated in the Library and saved will be collected here to share, copy, or run."}

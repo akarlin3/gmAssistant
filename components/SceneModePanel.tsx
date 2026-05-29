@@ -429,7 +429,7 @@ export default function SceneModePanel({
                 <button
                   type="button"
                   onClick={() => deleteScene(s.id)}
-                  className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-ink-mute hover:text-crimson ml-1.5 transition-colors"
+                  className="ml-1.5 flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-ink-mute transition-colors hover:text-crimson"
                 >
                   <Trash2 size={10} /> Delete
                 </button>
@@ -440,13 +440,13 @@ export default function SceneModePanel({
                       onSceneEnded(s);
                       patchScene(s.id, (prev) => ({ ...prev, savedToLog: true }));
                     }}
-                    className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-teal-600 hover:text-teal-700 font-semibold border border-teal-500/20 bg-teal-500/5 px-2 py-0.5 rounded transition-all ml-1.5"
+                    className="ml-1.5 flex items-center gap-1 rounded border border-teal-500/20 bg-teal-500/5 px-2 py-0.5 font-display text-[10px] font-semibold uppercase tracking-wider text-teal-600 transition-all hover:text-teal-700"
                   >
                     Save to Session Log
                   </button>
                 )}
                 {playMode !== 'solo' && s.savedToLog && (
-                  <span className="text-[9px] uppercase font-display tracking-wider text-ink-mute ml-1.5 italic">
+                  <span className="ml-1.5 font-display text-[9px] uppercase italic tracking-wider text-ink-mute">
                     Saved to Log
                   </span>
                 )}

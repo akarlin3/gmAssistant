@@ -92,7 +92,7 @@ function HighlightMatch({ text, query }: { text: string; query: string }) {
     <>
       {parts.map((part, i) => {
         if (tokens.some(t => t === part.toLowerCase())) {
-          return <strong key={i} className="text-crimson font-semibold">{part}</strong>;
+          return <strong key={i} className="font-semibold text-crimson">{part}</strong>;
         }
         return <span key={i}>{part}</span>;
       })}
@@ -214,7 +214,7 @@ export default function CommandPalette({
           <input
             ref={inputRef}
             type="text"
-            // eslint-disable-next-line jsx-a11y/no-autofocus
+             
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}

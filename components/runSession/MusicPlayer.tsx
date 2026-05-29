@@ -486,7 +486,7 @@ export function MusicPlayer({
     publishAnchor(ytPlayer);
     const id = setInterval(() => publishAnchor(ytPlayer), 15000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [readOnly, ytPlayer, isApiReady, isPlayingProp, playlistId, videoId, playlistIndexProp]);
 
   // --- Player: receive sync anchor, seek when local playback drifts > tolerance.
@@ -591,21 +591,21 @@ export function MusicPlayer({
     return (
       <div className="space-y-2 rounded-lg border border-rule/60 bg-parchment/40 p-3 shadow-inner">
         <div className="flex items-center justify-between">
-          <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep font-semibold">
+          <span className="font-display text-[10px] font-semibold uppercase tracking-wider text-brass-deep">
             Scenario Playlists
           </span>
           <button
             type="button"
             onClick={() => setShowAddForm(true)}
-            className="text-[9px] px-2 py-0.5 rounded border border-brass-deep/45 bg-brass/10 hover:bg-brass text-brass-deep hover:text-parchment font-display uppercase tracking-wider transition-all"
+            className="rounded border border-brass-deep/45 bg-brass/10 px-2 py-0.5 font-display text-[9px] uppercase tracking-wider text-brass-deep transition-all hover:bg-brass hover:text-parchment"
           >
             + Add Scenario
           </button>
         </div>
 
         {showAddForm && (
-          <form onSubmit={handleSavePlaylist} className="mt-2 space-y-2 border border-rule/50 bg-parchment p-2.5 rounded shadow-sm">
-            <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep font-semibold">
+          <form onSubmit={handleSavePlaylist} className="mt-2 space-y-2 rounded border border-rule/50 bg-parchment p-2.5 shadow-sm">
+            <div className="font-display text-[10px] font-semibold uppercase tracking-wider text-brass-deep">
               Add Custom Scenario
             </div>
             <div className="space-y-1">
@@ -630,13 +630,13 @@ export function MusicPlayer({
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}
-                className="text-[9px] px-2 py-0.5 rounded border border-rule hover:bg-parchment-deep font-display uppercase tracking-wider text-ink-soft transition-all"
+                className="rounded border border-rule px-2 py-0.5 font-display text-[9px] uppercase tracking-wider text-ink-soft transition-all hover:bg-parchment-deep"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="text-[9px] px-2 py-0.5 rounded border border-crimson/50 bg-crimson/10 hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider text-crimson transition-all"
+                className="rounded border border-crimson/50 bg-crimson/10 px-2 py-0.5 font-display text-[9px] uppercase tracking-wider text-crimson transition-all hover:bg-crimson hover:text-parchment"
               >
                 Save
               </button>
@@ -650,10 +650,10 @@ export function MusicPlayer({
             return (
               <div
                 key={pl.id}
-                className={`group relative flex items-center justify-between rounded border p-2 transition-all text-xs font-serif ${
+                className={`group relative flex items-center justify-between rounded border p-2 font-serif text-xs transition-all ${
                   isActive
-                    ? 'border-crimson/50 bg-crimson/5 text-crimson font-medium shadow-sm'
-                    : 'border-rule bg-parchment/65 hover:bg-parchment text-ink-soft'
+                    ? 'border-crimson/50 bg-crimson/5 font-medium text-crimson shadow-sm'
+                    : 'border-rule bg-parchment/65 text-ink-soft hover:bg-parchment'
                 }`}
               >
                 <button
@@ -661,7 +661,7 @@ export function MusicPlayer({
                   onClick={() => {
                     if (onChangePlaylist) onChangePlaylist(pl.url);
                   }}
-                  className="flex-1 text-left truncate pr-5 font-serif"
+                  className="flex-1 truncate pr-5 text-left font-serif"
                   title={pl.name}
                 >
                   {pl.name}
@@ -670,7 +670,7 @@ export function MusicPlayer({
                   <button
                     type="button"
                     onClick={() => handleDeletePlaylist(pl.id)}
-                    className="absolute right-1 text-ink-mute hover:text-crimson opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute right-1 text-ink-mute opacity-0 transition-opacity hover:text-crimson group-hover:opacity-100"
                     title="Delete scenario"
                   >
                     <X size={11} />
@@ -687,7 +687,7 @@ export function MusicPlayer({
   if (readOnly) {
     if (!playlistId && !videoId) {
       return (
-        <div className="flex flex-row items-center justify-between gap-4 bg-parchment-soft border border-rule/70 rounded-lg shadow-sm px-4 py-2.5 text-xs font-serif italic text-ink-mute">
+        <div className="flex flex-row items-center justify-between gap-4 rounded-lg border border-rule/70 bg-parchment-soft px-4 py-2.5 font-serif text-xs italic text-ink-mute shadow-sm">
           No session music is playing.
         </div>
       );
@@ -710,15 +710,15 @@ export function MusicPlayer({
     const autoplayBlocked = isApiReady && !!isPlayingProp && !isPlaying && playerState !== 'buffering';
 
     return (
-      <div className="flex flex-row items-center justify-between gap-4 bg-parchment-soft border border-rule/70 rounded-lg shadow-sm px-4 py-2.5 overflow-hidden text-xs">
+      <div className="flex flex-row items-center justify-between gap-4 overflow-hidden rounded-lg border border-rule/70 bg-parchment-soft px-4 py-2.5 text-xs shadow-sm">
         {/* Left Side: Status / Music Icon / Small Label */}
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="relative flex items-center justify-center flex-shrink-0">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="relative flex flex-shrink-0 items-center justify-center">
             {autoplayBlocked ? (
               <button
                 type="button"
                 onClick={togglePlay}
-                className="flex items-center justify-center w-6 h-6 rounded-full bg-crimson text-parchment hover:bg-wine active:scale-95 transition-all shadow-sm"
+                className="flex size-6 items-center justify-center rounded-full bg-crimson text-parchment shadow-sm transition-all hover:bg-wine active:scale-95"
                 title="Your browser blocked autoplay — tap to start music"
                 aria-label="Start music"
               >
@@ -726,22 +726,22 @@ export function MusicPlayer({
               </button>
             ) : (
               <>
-                <Music className={`${isPlaying ? 'text-crimson animate-pulse' : 'text-ink-mute'}`} size={16} />
+                <Music className={`${isPlaying ? 'animate-pulse text-crimson' : 'text-ink-mute'}`} size={16} />
                 {isPlaying && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-crimson opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-crimson"></span>
+                  <span className="absolute -right-0.5 -top-0.5 flex size-2">
+                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-crimson opacity-75"></span>
+                    <span className="relative inline-flex size-2 rounded-full bg-crimson"></span>
                   </span>
                 )}
               </>
             )}
           </div>
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="font-display font-semibold tracking-wide text-ink text-xs uppercase">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="font-display text-xs font-semibold uppercase tracking-wide text-ink">
               Live Music
             </span>
-            <span className="h-1.5 w-1.5 rounded-full bg-rule/70" />
-            <span className={`font-serif italic text-ink-soft text-xs truncate`}>
+            <span className="size-1.5 rounded-full bg-rule/70" />
+            <span className={`truncate font-serif text-xs italic text-ink-soft`}>
               {playerState === 'buffering'
                 ? 'Buffering...'
                 : isPlaying
@@ -754,11 +754,11 @@ export function MusicPlayer({
         </div>
 
         {/* Right Side: Volume Controls */}
-        <div className="flex items-center gap-2.5 w-32 sm:w-44 flex-shrink-0 justify-end">
+        <div className="flex w-32 flex-shrink-0 items-center justify-end gap-2.5 sm:w-44">
           <button
             type="button"
             onClick={toggleMute}
-            className="text-ink-mute hover:text-crimson transition-colors p-1 flex-shrink-0 focus:outline-none"
+            className="flex-shrink-0 p-1 text-ink-mute transition-colors hover:text-crimson focus:outline-none"
             aria-label={isMuted ? 'Unmute' : 'Mute'}
           >
             {isMuted || volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
@@ -769,7 +769,7 @@ export function MusicPlayer({
             max="100"
             value={isMuted ? 0 : volume}
             onChange={handleVolumeChange}
-            className="w-full accent-crimson h-1 bg-rule/50 rounded-lg appearance-none cursor-pointer disabled:opacity-50 focus:outline-none"
+            className="h-1 w-full cursor-pointer appearance-none rounded-lg bg-rule/50 accent-crimson focus:outline-none disabled:opacity-50"
           />
         </div>
 
@@ -824,11 +824,11 @@ export function MusicPlayer({
           }
         `}</style>
 
-        <div className="flex flex-col sm:flex-row items-center gap-4 bg-parchment/65 backdrop-blur-md rounded-lg border border-rule/70 p-4 shadow-inner relative overflow-hidden">
+        <div className="relative flex flex-col items-center gap-4 overflow-hidden rounded-lg border border-rule/70 bg-parchment/65 p-4 shadow-inner backdrop-blur-md sm:flex-row">
           {/* Spinning Vinyl Record Visual */}
-          <div className="relative flex items-center justify-center w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0">
+          <div className="relative flex size-24 flex-shrink-0 items-center justify-center sm:size-28">
             <div
-              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-neutral-900 border-2 border-neutral-700 shadow-lg relative flex items-center justify-center overflow-hidden transition-transform duration-300 ${
+              className={`relative flex size-20 items-center justify-center overflow-hidden rounded-full border-2 border-neutral-700 bg-neutral-900 shadow-lg transition-transform duration-300 sm:size-24 ${
                 isPlaying ? 'animate-[spin_8s_linear_infinite]' : ''
               }`}
               style={{
@@ -843,18 +843,18 @@ export function MusicPlayer({
               <div className="absolute inset-8 rounded-full border border-neutral-800 opacity-20" />
 
               {/* Vinyl Label */}
-              <div className="w-8 h-8 rounded-full bg-brass/30 border border-brass-deep/45 flex items-center justify-center shadow-inner relative">
-                <div className="w-2.5 h-2.5 rounded-full bg-parchment-soft border border-brass/50 flex items-center justify-center">
-                  <div className="w-1 h-1 rounded-full bg-neutral-950" />
+              <div className="relative flex size-8 items-center justify-center rounded-full border border-brass-deep/45 bg-brass/30 shadow-inner">
+                <div className="flex size-2.5 items-center justify-center rounded-full border border-brass/50 bg-parchment-soft">
+                  <div className="size-1 rounded-full bg-neutral-950" />
                 </div>
               </div>
             </div>
 
             {/* Audio tone arm / needle overlay */}
-            <div className={`absolute top-1 right-2 w-7 h-10 origin-[20%_10%] transition-transform duration-500 pointer-events-none ${
-              isPlaying ? 'rotate-[12deg]' : 'rotate-0'
+            <div className={`pointer-events-none absolute right-2 top-1 h-10 w-7 origin-[20%_10%] transition-transform duration-500 ${
+              isPlaying ? 'rotate-12' : 'rotate-0'
             }`}>
-              <svg viewBox="0 0 30 40" fill="none" className="w-full h-full text-brass-deep drop-shadow-sm">
+              <svg viewBox="0 0 30 40" fill="none" className="size-full text-brass-deep drop-shadow-sm">
                 <path d="M 5 5 Q 15 5 15 15 L 20 30 L 25 32" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
                 <circle cx="5" cy="5" r="3.5" fill="currentColor" />
                 <rect x="22" y="28" width="5" height="6" rx="1.5" fill="#444" />
@@ -863,31 +863,31 @@ export function MusicPlayer({
           </div>
 
           {/* Custom Control Layout */}
-          <div className="flex-1 w-full space-y-3">
+          <div className="w-full flex-1 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="font-display text-sm font-semibold tracking-wide text-ink truncate">
+                <h3 className="truncate font-display text-sm font-semibold tracking-wide text-ink">
                   Campaign Atmosphere
                 </h3>
-                <p className="font-serif text-[11px] text-ink-soft italic truncate">
+                <p className="truncate font-serif text-[11px] italic text-ink-soft">
                   Live Broadcast from GM
                 </p>
               </div>
 
               {/* Pulse Glow Light */}
-              <div className="flex items-center gap-1.5 flex-shrink-0 bg-parchment border border-rule/50 rounded-full px-2 py-0.5 shadow-sm">
-                <span className="relative flex h-2 w-2">
-                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-crimson opacity-75 ${isPlaying ? 'running' : 'paused'}`}></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-crimson"></span>
+              <div className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-rule/50 bg-parchment px-2 py-0.5 shadow-sm">
+                <span className="relative flex size-2">
+                  <span className={`absolute inline-flex size-full animate-ping rounded-full bg-crimson opacity-75 ${isPlaying ? 'running' : 'paused'}`}></span>
+                  <span className="relative inline-flex size-2 rounded-full bg-crimson"></span>
                 </span>
-                <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute font-semibold">
+                <span className="font-display text-[9px] font-semibold uppercase tracking-wider text-ink-mute">
                   {playerState === 'buffering' ? 'Buffering' : isPlaying ? 'Live' : 'Paused'}
                 </span>
               </div>
             </div>
 
             {/* sound wave visualizer */}
-            <div className="flex items-end gap-1 h-7 px-1 pt-1 bg-parchment-soft/40 border border-rule/30 rounded shadow-inner">
+            <div className="flex h-7 items-end gap-1 rounded border border-rule/30 bg-parchment-soft/40 px-1 pt-1 shadow-inner">
               {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => {
                 const delay = `${0.08 * i}s`;
                 const duration = `${0.6 + Math.random() * 0.7}s`;
@@ -906,14 +906,14 @@ export function MusicPlayer({
 
             {/* Main controls */}
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex flex-wrap items-center gap-3">
                 {/* Skip Back (GM Only) */}
                 {!readOnly && (
                   <button
                     type="button"
                     onClick={() => ytPlayer?.previousVideo()}
                     disabled={!isApiReady || !ytPlayer}
-                    className="flex items-center justify-center w-8 h-8 rounded-full border border-rule bg-parchment hover:bg-parchment-deep text-brass-deep transition-all disabled:opacity-50"
+                    className="flex size-8 items-center justify-center rounded-full border border-rule bg-parchment text-brass-deep transition-all hover:bg-parchment-deep disabled:opacity-50"
                     aria-label="Previous song"
                   >
                     <SkipBack size={14} fill="currentColor" />
@@ -926,7 +926,7 @@ export function MusicPlayer({
                     type="button"
                     onClick={togglePlay}
                     disabled={!isApiReady}
-                    className="flex items-center justify-center w-9 h-9 rounded-full bg-crimson text-parchment hover:bg-wine hover:scale-105 active:scale-95 transition-all shadow-md disabled:opacity-50"
+                    className="flex size-9 items-center justify-center rounded-full bg-crimson text-parchment shadow-md transition-all hover:scale-105 hover:bg-wine active:scale-95 disabled:opacity-50"
                     aria-label={isPlaying ? 'Pause music' : 'Play music'}
                   >
                     {!isApiReady ? (
@@ -945,7 +945,7 @@ export function MusicPlayer({
                     type="button"
                     onClick={() => ytPlayer?.nextVideo()}
                     disabled={!isApiReady || !ytPlayer}
-                    className="flex items-center justify-center w-8 h-8 rounded-full border border-rule bg-parchment hover:bg-parchment-deep text-brass-deep transition-all disabled:opacity-50"
+                    className="flex size-8 items-center justify-center rounded-full border border-rule bg-parchment text-brass-deep transition-all hover:bg-parchment-deep disabled:opacity-50"
                     aria-label="Next song"
                   >
                     <SkipForward size={14} fill="currentColor" />
@@ -954,12 +954,12 @@ export function MusicPlayer({
 
                 {/* Play on YouTube External Links (GM Only) */}
                 {!readOnly && (
-                  <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <a
                       href={externalUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 px-2 py-1 rounded border border-rule bg-parchment hover:bg-parchment-deep font-display text-[10px] uppercase tracking-wider text-brass-deep transition-colors"
+                      className="flex items-center gap-1 rounded border border-rule bg-parchment px-2 py-1 font-display text-[10px] uppercase tracking-wider text-brass-deep transition-colors hover:bg-parchment-deep"
                     >
                       <ExternalLink size={10} /> YouTube Music
                     </a>
@@ -967,7 +967,7 @@ export function MusicPlayer({
                       href={ytNormalUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 px-2 py-1 rounded border border-rule bg-parchment hover:bg-parchment-deep font-display text-[10px] uppercase tracking-wider text-brass-deep transition-colors"
+                      className="flex items-center gap-1 rounded border border-rule bg-parchment px-2 py-1 font-display text-[10px] uppercase tracking-wider text-brass-deep transition-colors hover:bg-parchment-deep"
                     >
                       <ExternalLink size={10} /> standard YouTube
                     </a>
@@ -979,7 +979,7 @@ export function MusicPlayer({
                   <button
                     type="button"
                     onClick={handleDisconnect}
-                    className="font-display text-[10px] uppercase tracking-wider text-crimson hover:text-wine border border-crimson/30 hover:border-wine/50 rounded px-2 py-1 transition-colors"
+                    className="rounded border border-crimson/30 px-2 py-1 font-display text-[10px] uppercase tracking-wider text-crimson transition-colors hover:border-wine/50 hover:text-wine"
                   >
                     Disconnect
                   </button>
@@ -987,11 +987,11 @@ export function MusicPlayer({
               </div>
 
               {/* Volume Controls */}
-              <div className="flex items-center gap-2.5 w-32 sm:w-44 flex-shrink-0 justify-end">
+              <div className="flex w-32 flex-shrink-0 items-center justify-end gap-2.5 sm:w-44">
                 <button
                   type="button"
                   onClick={toggleMute}
-                  className="text-ink-mute hover:text-crimson transition-colors p-1 flex-shrink-0 focus:outline-none"
+                  className="flex-shrink-0 p-1 text-ink-mute transition-colors hover:text-crimson focus:outline-none"
                   aria-label={isMuted ? 'Unmute' : 'Mute'}
                 >
                   {isMuted || volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
@@ -1002,7 +1002,7 @@ export function MusicPlayer({
                   max="100"
                   value={isMuted ? 0 : volume}
                   onChange={handleVolumeChange}
-                  className="w-full accent-crimson h-1 bg-rule/50 rounded-lg appearance-none cursor-pointer disabled:opacity-50 focus:outline-none"
+                  className="h-1 w-full cursor-pointer appearance-none rounded-lg bg-rule/50 accent-crimson focus:outline-none disabled:opacity-50"
                 />
               </div>
             </div>
@@ -1040,7 +1040,7 @@ export function MusicPlayer({
           <button
             type="submit"
             disabled={!inputUrl.trim()}
-            className="rounded border border-brass-deep/60 bg-brass/10 px-3 py-1 font-display text-[11px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded border border-brass-deep/60 bg-brass/10 px-3 py-1 font-display text-[11px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40"
           >
             Connect
           </button>

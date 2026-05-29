@@ -65,48 +65,48 @@ export default function PlayersManager({ campaign }: { campaign: Campaign }) {
     <div
       ref={containerRef}
       onMouseEnter={updateAlignment}
-      className="relative group inline-block"
+      className="group relative inline-block"
     >
-      <button className="text-xs font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded bg-moss/10 text-moss hover:bg-moss hover:text-parchment border border-moss/40 shadow-sm">
+      <button className="flex items-center gap-1.5 rounded border border-moss/40 bg-moss/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-moss shadow-sm transition-colors hover:bg-moss hover:text-parchment">
         <Users size={14} />
         {playerIds.length === 0 ? 'Invite players' : `Players (${playerIds.length})`}
         {pendingPlayers.length > 0 && (
-          <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-crimson text-[10px] text-parchment shadow-sm animate-pulse">
+          <span className="ml-1 flex size-4 animate-pulse items-center justify-center rounded-full bg-crimson text-[10px] text-parchment shadow-sm">
             {pendingPlayers.length}
           </span>
         )}
       </button>
 
-      <div className={`absolute ${alignRight ? 'right-0' : 'left-0'} top-full mt-2 w-72 rounded-lg border border-rule bg-parchment shadow-xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all`}>
-        <div className="p-3 border-b border-rule bg-parchment-soft rounded-t-lg">
-          <div className="font-display text-sm tracking-wide text-ink mb-2">Invite Link</div>
+      <div className={`absolute ${alignRight ? 'right-0' : 'left-0'} invisible top-full z-50 mt-2 w-72 rounded-lg border border-rule bg-parchment opacity-0 shadow-xl transition-all group-hover:visible group-hover:opacity-100`}>
+        <div className="rounded-t-lg border-b border-rule bg-parchment-soft p-3">
+          <div className="mb-2 font-display text-sm tracking-wide text-ink">Invite Link</div>
           <button
             onClick={handleCopyLink}
-            className="w-full flex items-center justify-between px-3 py-2 bg-parchment border border-rule rounded text-xs text-ink-soft hover:border-brass hover:text-brass transition-colors"
+            className="flex w-full items-center justify-between rounded border border-rule bg-parchment px-3 py-2 text-xs text-ink-soft transition-colors hover:border-brass hover:text-brass"
           >
-            <span className="truncate flex-1 text-left">.../invite/{campaign.id.slice(0, 8)}</span>
-            {copied ? <CheckCircle2 size={14} className="text-moss ml-2" /> : <Copy size={14} className="ml-2" />}
+            <span className="flex-1 truncate text-left">.../invite/{campaign.id.slice(0, 8)}</span>
+            {copied ? <CheckCircle2 size={14} className="ml-2 text-moss" /> : <Copy size={14} className="ml-2" />}
           </button>
         </div>
 
         {pendingPlayers.length > 0 && (
-          <div className="p-3 border-b border-rule">
-            <div className="font-display text-xs tracking-wide text-crimson uppercase mb-2">Pending Requests</div>
+          <div className="border-b border-rule p-3">
+            <div className="mb-2 font-display text-xs uppercase tracking-wide text-crimson">Pending Requests</div>
             <div className="space-y-2">
               {pendingPlayers.map((user) => (
                 <div key={user.uid} className="flex items-center justify-between text-sm">
-                  <span className="text-ink truncate max-w-[120px]" title={user.email}>{user.email}</span>
+                  <span className="max-w-[120px] truncate text-ink" title={user.email}>{user.email}</span>
                   <div className="flex gap-1">
                     <button
                       onClick={() => handleApprove(user)}
-                      className="p-1 text-moss hover:bg-moss/10 rounded"
+                      className="rounded p-1 text-moss hover:bg-moss/10"
                       title="Approve"
                     >
                       <Check size={14} />
                     </button>
                     <button
                       onClick={() => handleReject(user)}
-                      className="p-1 text-crimson hover:bg-crimson/10 rounded"
+                      className="rounded p-1 text-crimson hover:bg-crimson/10"
                       title="Reject"
                     >
                       <X size={14} />
@@ -119,19 +119,19 @@ export default function PlayersManager({ campaign }: { campaign: Campaign }) {
         )}
 
         {playerIds.length > 0 && (
-          <div className="p-3 border-b border-rule max-h-48 overflow-y-auto">
-            <div className="font-display text-xs tracking-wide text-ink-soft uppercase mb-2">Approved Players</div>
+          <div className="max-h-48 overflow-y-auto border-b border-rule p-3">
+            <div className="mb-2 font-display text-xs uppercase tracking-wide text-ink-soft">Approved Players</div>
             <div className="space-y-2">
               {playerIds.map((uid) => {
                 const email = campaign.playerEmails?.[uid] || `User (${uid.slice(0, 8)})`;
                 return (
                   <div key={uid} className="flex items-center justify-between text-sm">
-                    <span className="text-ink truncate max-w-[190px]" title={email}>
+                    <span className="max-w-[190px] truncate text-ink" title={email}>
                       {email}
                     </span>
                     <button
                       onClick={() => handleRemove(uid)}
-                      className="p-1 text-crimson hover:bg-crimson/10 rounded transition-colors"
+                      className="rounded p-1 text-crimson transition-colors hover:bg-crimson/10"
                       title="Remove player"
                     >
                       <Trash2 size={14} />
@@ -143,7 +143,7 @@ export default function PlayersManager({ campaign }: { campaign: Campaign }) {
           </div>
         )}
 
-        <div className="p-3 text-xs text-ink-mute italic text-center">
+        <div className="p-3 text-center text-xs italic text-ink-mute">
           {playerIds.length} player{playerIds.length === 1 ? '' : 's'} in campaign.
         </div>
       </div>

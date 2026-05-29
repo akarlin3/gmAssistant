@@ -43,13 +43,13 @@ export const FactionCard = ({ data, onChange, onRemove }: any) => {
   const renown = typeof data.renown === 'number' ? data.renown : 0;
   const rank = renownRank(renown, data.rankLabels);
   return (
-    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
-      <div className="flex justify-between items-center gap-2">
+    <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
+      <div className="flex items-center justify-between gap-2">
         <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Faction Name" />
         <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
       </div>
       <div><CardLabel>Archetype</CardLabel>
-        <select value={data.archetype || ''} onChange={(e) => onChange({ ...data, archetype: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
+        <select value={data.archetype || ''} onChange={(e) => onChange({ ...data, archetype: e.target.value })} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink">
           <option value="">— Choose —</option>
           <option>Government (preserves order/stability)</option>
           <option>Religious</option><option>Criminal / underground</option><option>Mercantile</option>
@@ -72,10 +72,10 @@ export const FactionCard = ({ data, onChange, onRemove }: any) => {
         <Field value={data.longGoal} onChange={(v) => onChange({ ...data, longGoal: v })} placeholder="The one big thing" /></div>
       <div>
         <CardLabel>Renown</CardLabel>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => onChange({ ...data, renown: renown - 1 })}
-            className="w-7 h-7 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display"
+            className="size-7 rounded border border-rule font-display text-ink-soft hover:bg-parchment-deep"
             title="Decrease renown"
           >
             −
@@ -87,16 +87,16 @@ export const FactionCard = ({ data, onChange, onRemove }: any) => {
               const v = parseInt(e.target.value || '0', 10);
               onChange({ ...data, renown: isNaN(v) ? 0 : v });
             }}
-            className="w-16 bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif text-center"
+            className="w-16 rounded border border-rule bg-parchment-soft px-2 py-1 text-center font-serif text-sm text-ink"
           />
           <button
             onClick={() => onChange({ ...data, renown: renown + 1 })}
-            className="w-7 h-7 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display"
+            className="size-7 rounded border border-rule font-display text-ink-soft hover:bg-parchment-deep"
             title="Increase renown"
           >
             +
           </button>
-          <span className="text-xs px-2 py-0.5 rounded-sm border border-wine/40 bg-wine/5 text-wine font-display uppercase tracking-wider">
+          <span className="rounded-sm border border-wine/40 bg-wine/5 px-2 py-0.5 font-display text-xs uppercase tracking-wider text-wine">
             {rank}
           </span>
         </div>
@@ -114,8 +114,8 @@ export const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }:
   onRemove: () => void;
 }) => (
   <div className="rounded border border-rule bg-parchment shadow-card">
-    <div className="flex items-center flex-wrap gap-1.5 p-2">
-      <button onClick={onToggleOpen} className="text-brass-deep hover:text-crimson flex-shrink-0">
+    <div className="flex flex-wrap items-center gap-1.5 p-2">
+      <button onClick={onToggleOpen} className="flex-shrink-0 text-brass-deep hover:text-crimson">
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>
       <textarea
@@ -123,26 +123,26 @@ export const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }:
         value={data.title || ''}
         onChange={(e) => onChange({ ...data, title: e.target.value })}
         placeholder="Session title"
-        className="flex-1 min-w-[8rem] bg-transparent font-display tracking-wide text-sm text-ink placeholder:text-ink-faint placeholder:italic placeholder:font-serif focus:outline-none border-b border-transparent focus:border-crimson pb-0.5 resize-none whitespace-pre-wrap break-words [field-sizing:content]"
+        className="min-w-32 flex-1 resize-none whitespace-pre-wrap break-words border-b border-transparent bg-transparent pb-0.5 font-display text-sm tracking-wide text-ink [field-sizing:content] placeholder:font-serif placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
       />
       <input
         type="date"
         value={data.date || ''}
         onChange={(e) => onChange({ ...data, date: e.target.value })}
-        className="bg-parchment-soft border border-rule rounded px-1 py-0.5 text-[11px] sm:text-xs text-ink-soft font-serif focus:border-crimson focus:outline-none flex-shrink-0"
+        className="flex-shrink-0 rounded border border-rule bg-parchment-soft px-1 py-0.5 font-serif text-[11px] text-ink-soft focus:border-crimson focus:outline-none sm:text-xs"
       />
-      <button onClick={onRemove} className="text-ink-mute hover:text-crimson px-1 flex-shrink-0">
+      <button onClick={onRemove} className="flex-shrink-0 px-1 text-ink-mute hover:text-crimson">
         <X size={14} />
       </button>
     </div>
     {open && (
-      <div className="px-2.5 pb-2.5 pt-2 border-t border-rule">
+      <div className="border-t border-rule px-2.5 pb-2.5 pt-2">
         <textarea
           value={data.body || ''}
           onChange={(e) => onChange({ ...data, body: e.target.value })}
           placeholder="What happened. Open threads."
           rows={6}
-          className="w-full bg-transparent border-b border-rule text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y px-1 py-1 text-sm"
+          className="w-full resize-y border-b border-rule bg-transparent p-1 font-serif text-sm text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
         />
       </div>
     )}
@@ -155,28 +155,28 @@ export const ClockCard = ({ data, onChange, onRemove }: any) => {
   const notes: string = data.notes || '';
   const [notesOpen, setNotesOpen] = useState(notes.trim().length > 0);
   return (
-    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+    <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex justify-between gap-2">
         <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="What is this faction trying to do?" />
         <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
       </div>
       <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="Faction" />
       <div className="flex flex-wrap items-center gap-2">
-        <select value={max} onChange={(e) => onChange({ ...data, max: Number(e.target.value) })} className="bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif flex-shrink-0">
+        <select value={max} onChange={(e) => onChange({ ...data, max: Number(e.target.value) })} className="flex-shrink-0 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink">
           {[4, 6, 8, 12, 16].map(n => <option key={n} value={n}>{n} segments</option>)}
         </select>
-        <div className="flex gap-0.5 flex-1 min-w-[8rem] border border-brass-deep rounded-sm p-0.5 bg-parchment-deep">
+        <div className="flex min-w-32 flex-1 gap-0.5 rounded-sm border border-brass-deep bg-parchment-deep p-0.5">
           {Array.from({ length: max }).map((_, i) => (
-            <button key={i} onClick={() => onChange({ ...data, filled: i + 1 === filled ? i : i + 1 })} className={`flex-1 min-w-[14px] h-5 rounded-sm transition-colors ${i < filled ? 'bg-crimson' : 'bg-parchment hover:bg-parchment-deep'}`} />
+            <button key={i} onClick={() => onChange({ ...data, filled: i + 1 === filled ? i : i + 1 })} className={`h-5 min-w-[14px] flex-1 rounded-sm transition-colors ${i < filled ? 'bg-crimson' : 'bg-parchment hover:bg-parchment-deep'}`} />
           ))}
         </div>
-        <span className="text-xs text-brass-deep font-display flex-shrink-0">{filled}/{max}</span>
+        <span className="flex-shrink-0 font-display text-xs text-brass-deep">{filled}/{max}</span>
       </div>
-      <div className="pt-1 border-t border-rule/60">
+      <div className="border-t border-rule/60 pt-1">
         <button
           type="button"
           onClick={() => setNotesOpen(o => !o)}
-          className="flex items-center gap-1 text-[10px] text-brass-deep hover:text-crimson font-display uppercase tracking-wider"
+          className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:text-crimson"
         >
           {notesOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           Notes{notes.trim() ? '' : ' (empty)'}
@@ -187,7 +187,7 @@ export const ClockCard = ({ data, onChange, onRemove }: any) => {
             onChange={(e) => onChange({ ...data, notes: e.target.value })}
             placeholder="Front notes — what this faction is doing, why it matters, what advances it"
             rows={3}
-            className="mt-1.5 w-full bg-parchment-soft border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y [field-sizing:content]"
+            className="mt-1.5 w-full resize-y rounded border border-rule bg-parchment-soft px-2 py-1.5 font-serif text-sm text-ink [field-sizing:content] placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
           />
         )}
       </div>
@@ -309,14 +309,14 @@ export const DowntimeCard = ({
   const type = DOWNTIME_TYPES.find(t => t.id === entry.type);
   if (!type) return null;
   return (
-    <div className={`rounded border p-3 space-y-2 shadow-card ${entry.archived ? 'border-rule/60 bg-parchment-deep/40 opacity-80' : 'border-rule bg-parchment'}`}>
+    <div className={`space-y-2 rounded border p-3 shadow-card ${entry.archived ? 'border-rule/60 bg-parchment-deep/40 opacity-80' : 'border-rule bg-parchment'}`}>
       <div className="flex items-center justify-between gap-2">
         <span className="font-display text-sm tracking-wide text-ink">{type.label}</span>
         <div className="flex gap-1.5">
           {entry.archived ? (
-            <button onClick={onUnarchive} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">Unarchive</button>
+            <button onClick={onUnarchive} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">Unarchive</button>
           ) : (
-            <button onClick={onArchive} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">Archive</button>
+            <button onClick={onArchive} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">Archive</button>
           )}
           <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
         </div>
@@ -335,7 +335,7 @@ export const DowntimeCard = ({
         ))}
       </div>
       {type.reference && (
-        <div className="text-[10px] text-ink-mute italic font-serif border-t border-rule pt-1.5">
+        <div className="border-t border-rule pt-1.5 font-serif text-[10px] italic text-ink-mute">
           {type.reference}
         </div>
       )}

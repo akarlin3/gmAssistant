@@ -404,7 +404,7 @@ function ManualPartyControls({
           </div>
         )}
         {showSidekick && (
-          <label className="flex cursor-pointer select-none items-center gap-1.5 font-display uppercase tracking-wider text-ink-soft pb-1">
+          <label className="flex cursor-pointer select-none items-center gap-1.5 pb-1 font-display uppercase tracking-wider text-ink-soft">
             <input
               type="checkbox"
               checked={value.sidekicks > 0}

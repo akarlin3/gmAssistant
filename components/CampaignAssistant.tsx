@@ -373,7 +373,7 @@ export default function CampaignAssistant({ data, campaignName, setData }: Props
             <header className="flex items-center justify-between gap-2 border-b border-parchment-deep p-2.5">
               <div className="flex min-w-0 items-center gap-2">
                 <Bot size={15} className="shrink-0 text-wine" />
-                <h3 className="truncate text-sm font-display">{active.title}</h3>
+                <h3 className="truncate font-display text-sm">{active.title}</h3>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-ink-mute" title="Rough token estimate">
@@ -403,7 +403,7 @@ export default function CampaignAssistant({ data, campaignName, setData }: Props
                   </p>
                   <button
                     onClick={prepSession}
-                    className="flex items-center gap-1.5 rounded-md bg-wine/10 px-3 py-1.5 text-xs font-display uppercase tracking-wider text-wine hover:bg-wine/20"
+                    className="flex items-center gap-1.5 rounded-md bg-wine/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-wine hover:bg-wine/20"
                   >
                     <Wand2 size={13} /> Prep My Next Session
                   </button>
@@ -453,7 +453,7 @@ export default function CampaignAssistant({ data, campaignName, setData }: Props
                 <button
                   onClick={prepSession}
                   disabled={streaming}
-                  className="flex items-center gap-1 rounded-md border border-parchment-deep px-2 py-1 text-[11px] font-display uppercase tracking-wider text-brass-deep hover:bg-parchment-deep/40 disabled:opacity-50"
+                  className="flex items-center gap-1 rounded-md border border-parchment-deep px-2 py-1 font-display text-[11px] uppercase tracking-wider text-brass-deep hover:bg-parchment-deep/40 disabled:opacity-50"
                 >
                   <Wand2 size={11} /> Prep My Next Session
                 </button>
@@ -482,7 +482,7 @@ export default function CampaignAssistant({ data, campaignName, setData }: Props
                 <button
                   type="submit"
                   disabled={streaming || !input.trim()}
-                  className="flex items-center gap-1.5 rounded-md bg-wine px-3 py-2 text-sm font-display uppercase tracking-wider text-parchment hover:bg-wine/90 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-md bg-wine px-3 py-2 font-display text-sm uppercase tracking-wider text-parchment hover:bg-wine/90 disabled:opacity-50"
                 >
                   {streaming ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}{' '}
                   Send

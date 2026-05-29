@@ -59,15 +59,15 @@ export default function ModeSwitcherModal({ open, currentMode, onClose, onSave }
             type="button"
             onClick={onClose}
             aria-label="Close settings"
-            className="text-ink-mute hover:text-crimson transition-colors"
+            className="text-ink-mute transition-colors hover:text-crimson"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <div className="rounded border border-brass-deep/20 bg-brass/5 p-3 flex gap-2.5 items-start text-xs text-brass-deep leading-relaxed">
+        <div className="flex-1 space-y-4 overflow-y-auto p-4">
+          <div className="flex items-start gap-2.5 rounded border border-brass-deep/20 bg-brass/5 p-3 text-xs leading-relaxed text-brass-deep">
             <Info size={16} className="mt-0.5 flex-shrink-0" />
             <p>
               Changing the campaign's play mode adjusts the visual layout, prep target scales, and active tools (such as Player Mode or the Wells Oracle). <strong>No data will be deleted or altered</strong> in your database.
@@ -79,29 +79,29 @@ export default function ModeSwitcherModal({ open, currentMode, onClose, onSave }
             <button
               type="button"
               onClick={() => setSelectedMode('solo')}
-              className={`w-full text-left p-3 rounded-lg border transition-all flex items-start gap-3 ${
+              className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-all ${
                 selectedMode === 'solo'
                   ? 'border-pink-500 bg-pink-950/5 text-ink'
-                  : 'border-rule hover:border-pink-500/50 bg-transparent text-ink-soft'
+                  : 'border-rule bg-transparent text-ink-soft hover:border-pink-500/50'
               }`}
             >
               <div
-                className={`p-2 rounded-md ${
+                className={`rounded-md p-2 ${
                   selectedMode === 'solo' ? 'bg-pink-500/15 text-pink-500' : 'bg-parchment-deep text-ink-soft'
                 }`}
               >
                 <Sparkles size={18} />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
                   <span className="font-display text-sm font-semibold tracking-wide">Solo Mode</span>
                   {selectedMode === 'solo' && (
-                    <span className="text-[10px] px-1.5 py-0.2 bg-pink-500/15 text-pink-500 border border-pink-500/30 rounded font-semibold uppercase font-display tracking-wider">
+                    <span className="py-0.2 rounded border border-pink-500/30 bg-pink-500/15 px-1.5 font-display text-[10px] font-semibold uppercase tracking-wider text-pink-500">
                       Selected
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-ink-mute mt-0.5 leading-relaxed font-serif">
+                <p className="mt-0.5 font-serif text-[11px] leading-relaxed text-ink-mute">
                   Zero players (GM-less). Driven entirely by oracle dice rolls and local scene generation. Pink visual accents.
                 </p>
               </div>
@@ -111,29 +111,29 @@ export default function ModeSwitcherModal({ open, currentMode, onClose, onSave }
             <button
               type="button"
               onClick={() => setSelectedMode('duet')}
-              className={`w-full text-left p-3 rounded-lg border transition-all flex items-start gap-3 ${
+              className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-all ${
                 selectedMode === 'duet'
                   ? 'border-teal-500 bg-teal-950/5 text-ink'
-                  : 'border-rule hover:border-teal-500/50 bg-transparent text-ink-soft'
+                  : 'border-rule bg-transparent text-ink-soft hover:border-teal-500/50'
               }`}
             >
               <div
-                className={`p-2 rounded-md ${
+                className={`rounded-md p-2 ${
                   selectedMode === 'duet' ? 'bg-teal-500/15 text-teal-500' : 'bg-parchment-deep text-ink-soft'
                 }`}
               >
                 <User size={18} />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
                   <span className="font-display text-sm font-semibold tracking-wide">Duet Mode</span>
                   {selectedMode === 'duet' && (
-                    <span className="text-[10px] px-1.5 py-0.2 bg-teal-500/15 text-teal-500 border border-teal-500/30 rounded font-semibold uppercase font-display tracking-wider">
+                    <span className="py-0.2 rounded border border-teal-500/30 bg-teal-500/15 px-1.5 font-display text-[10px] font-semibold uppercase tracking-wider text-teal-500">
                       Selected
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-ink-mute mt-0.5 leading-relaxed font-serif">
+                <p className="mt-0.5 font-serif text-[11px] leading-relaxed text-ink-mute">
                   1 GM + exactly 1 player. Streamlined prep requirements and real-time player character write-backs. Teal visual accents.
                 </p>
               </div>
@@ -143,29 +143,29 @@ export default function ModeSwitcherModal({ open, currentMode, onClose, onSave }
             <button
               type="button"
               onClick={() => setSelectedMode('standard')}
-              className={`w-full text-left p-3 rounded-lg border transition-all flex items-start gap-3 ${
+              className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-all ${
                 selectedMode === 'standard'
                   ? 'border-amber-500 bg-amber-950/5 text-ink'
-                  : 'border-rule hover:border-amber-500/50 bg-transparent text-ink-soft'
+                  : 'border-rule bg-transparent text-ink-soft hover:border-amber-500/50'
               }`}
             >
               <div
-                className={`p-2 rounded-md ${
+                className={`rounded-md p-2 ${
                   selectedMode === 'standard' ? 'bg-amber-500/15 text-amber-500' : 'bg-parchment-deep text-ink-soft'
                 }`}
               >
                 <Users size={18} />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
                   <span className="font-display text-sm font-semibold tracking-wide">Standard Mode</span>
                   {selectedMode === 'standard' && (
-                    <span className="text-[10px] px-1.5 py-0.2 bg-amber-500/15 text-amber-500 border border-amber-500/30 rounded font-semibold uppercase font-display tracking-wider">
+                    <span className="py-0.2 rounded border border-amber-500/30 bg-amber-500/15 px-1.5 font-display text-[10px] font-semibold uppercase tracking-wider text-amber-500">
                       Selected
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-ink-mute mt-0.5 leading-relaxed font-serif">
+                <p className="mt-0.5 font-serif text-[11px] leading-relaxed text-ink-mute">
                   1 GM + multiple players. Traditional group campaign play, comprehensive checklists, and multi-PC management. Amber visual accents.
                 </p>
               </div>
@@ -178,14 +178,14 @@ export default function ModeSwitcherModal({ open, currentMode, onClose, onSave }
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-rule px-3 py-1.5 text-xs font-display uppercase tracking-wider text-ink hover:bg-parchment transition-colors"
+            className="rounded border border-rule px-3 py-1.5 font-display text-xs uppercase tracking-wider text-ink transition-colors hover:bg-parchment"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="rounded bg-brass-deep hover:bg-crimson text-parchment px-4 py-1.5 text-xs font-display uppercase tracking-wider transition-colors shadow-sm"
+            className="rounded bg-brass-deep px-4 py-1.5 font-display text-xs uppercase tracking-wider text-parchment shadow-sm transition-colors hover:bg-crimson"
           >
             Save Changes
           </button>

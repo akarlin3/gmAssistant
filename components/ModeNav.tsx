@@ -64,11 +64,11 @@ export default function ModeNav({ mode, subview, onModeChange, onSubviewChange, 
         )}
       </nav>
       {mode === 'run' ? (
-        <div className="border-b border-rule pb-1.5 space-y-1.5">
+        <div className="space-y-1.5 border-b border-rule pb-1.5">
           <nav
             role="tablist"
             aria-label="Run sub-view row 1"
-            className="flex items-center gap-1 overflow-x-auto hide-scrollbar"
+            className="hide-scrollbar flex items-center gap-1 overflow-x-auto"
           >
             <div className="flex flex-shrink-0 items-center gap-1">
               {activeSubviews.slice(0, Math.ceil(activeSubviews.length / 2)).map(sv => (
@@ -84,7 +84,7 @@ export default function ModeNav({ mode, subview, onModeChange, onSubviewChange, 
           <nav
             role="tablist"
             aria-label="Run sub-view row 2"
-            className="flex items-center gap-1 overflow-x-auto hide-scrollbar"
+            className="hide-scrollbar flex items-center gap-1 overflow-x-auto"
           >
             <div className="flex flex-shrink-0 items-center gap-1">
               {activeSubviews.slice(Math.ceil(activeSubviews.length / 2)).map(sv => (
@@ -99,11 +99,11 @@ export default function ModeNav({ mode, subview, onModeChange, onSubviewChange, 
           </nav>
         </div>
       ) : mode === 'library' ? (
-        <div className="border-b border-rule pb-1.5 space-y-1.5">
+        <div className="space-y-1.5 border-b border-rule pb-1.5">
           <nav
             role="tablist"
             aria-label="Library sub-view row 1"
-            className="flex items-center gap-1 overflow-x-auto hide-scrollbar"
+            className="hide-scrollbar flex items-center gap-1 overflow-x-auto"
           >
             <div className="flex flex-shrink-0 items-center gap-1">
               {activeSubviews.slice(0, Math.ceil(activeSubviews.length / 2)).map(sv => (
@@ -119,7 +119,7 @@ export default function ModeNav({ mode, subview, onModeChange, onSubviewChange, 
           <nav
             role="tablist"
             aria-label="Library sub-view row 2"
-            className="flex items-center gap-1 overflow-x-auto hide-scrollbar"
+            className="hide-scrollbar flex items-center gap-1 overflow-x-auto"
           >
             <div className="flex flex-shrink-0 items-center gap-1">
               {activeSubviews.slice(Math.ceil(activeSubviews.length / 2)).map(sv => (
@@ -138,7 +138,7 @@ export default function ModeNav({ mode, subview, onModeChange, onSubviewChange, 
           <nav
             role="tablist"
             aria-label={`${MODES[mode].label} sub-view`}
-            className="flex items-center gap-1 overflow-x-auto hide-scrollbar pr-8"
+            className="hide-scrollbar flex items-center gap-1 overflow-x-auto pr-8"
           >
             {groupSubviewsByAudience(activeSubviews).map((group, gi) => (
               <div key={gi} className={gi > 0 ? 'ml-1 flex flex-shrink-0 items-center gap-1 border-l border-rule pl-2' : 'flex flex-shrink-0 items-center gap-1'}>
@@ -153,7 +153,7 @@ export default function ModeNav({ mode, subview, onModeChange, onSubviewChange, 
               </div>
             ))}
           </nav>
-          <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-parchment via-parchment/80 to-transparent pointer-events-none lg:hidden" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-parchment via-parchment/80 to-transparent lg:hidden" />
         </div>
       )}
     </div>

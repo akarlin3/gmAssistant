@@ -41,25 +41,25 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   // CRDT state on the first auto-save.
   if (authLoading || loading || (campaign && user && campaign.userId === user.uid && !crdtReady)) {
     return (
-      <main className="min-h-screen bg-parchment flex flex-col">
-        <header className="h-14 border-b border-rule bg-parchment px-4 flex items-center gap-3">
-          <div className="h-5 w-5 bg-parchment-deep animate-pulse rounded-sm" />
-          <div className="h-4 w-32 bg-parchment-deep animate-pulse rounded-sm" />
+      <main className="flex min-h-screen flex-col bg-parchment">
+        <header className="flex h-14 items-center gap-3 border-b border-rule bg-parchment px-4">
+          <div className="size-5 animate-pulse rounded-sm bg-parchment-deep" />
+          <div className="h-4 w-32 animate-pulse rounded-sm bg-parchment-deep" />
         </header>
         <div className="flex flex-1">
-          <aside className="w-[240px] border-r border-rule bg-parchment-soft p-4 hidden md:flex flex-col gap-3">
-            <div className="h-3 w-16 bg-parchment-deep animate-pulse rounded-sm mb-2" />
-            <div className="h-8 w-full bg-parchment-deep animate-pulse rounded-sm" />
-            <div className="h-8 w-full bg-parchment-deep animate-pulse rounded-sm" />
-            <div className="h-8 w-full bg-parchment-deep animate-pulse rounded-sm" />
+          <aside className="hidden w-[240px] flex-col gap-3 border-r border-rule bg-parchment-soft p-4 md:flex">
+            <div className="mb-2 h-3 w-16 animate-pulse rounded-sm bg-parchment-deep" />
+            <div className="h-8 w-full animate-pulse rounded-sm bg-parchment-deep" />
+            <div className="h-8 w-full animate-pulse rounded-sm bg-parchment-deep" />
+            <div className="h-8 w-full animate-pulse rounded-sm bg-parchment-deep" />
           </aside>
           <div className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto space-y-4">
-              <div className="h-8 w-48 bg-parchment-deep animate-pulse rounded-sm" />
-              <div className="h-4 w-full bg-parchment-deep animate-pulse rounded-sm" />
-              <div className="h-4 w-full bg-parchment-deep animate-pulse rounded-sm" />
-              <div className="h-4 w-2/3 bg-parchment-deep animate-pulse rounded-sm" />
-              <div className="h-32 w-full mt-6 bg-parchment-deep animate-pulse rounded-sm" />
+            <div className="mx-auto max-w-4xl space-y-4">
+              <div className="h-8 w-48 animate-pulse rounded-sm bg-parchment-deep" />
+              <div className="h-4 w-full animate-pulse rounded-sm bg-parchment-deep" />
+              <div className="h-4 w-full animate-pulse rounded-sm bg-parchment-deep" />
+              <div className="h-4 w-2/3 animate-pulse rounded-sm bg-parchment-deep" />
+              <div className="mt-6 h-32 w-full animate-pulse rounded-sm bg-parchment-deep" />
             </div>
           </div>
         </div>

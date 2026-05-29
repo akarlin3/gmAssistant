@@ -114,10 +114,10 @@ function RunSessionInlineIdle({
   return (
     <div className="space-y-3">
       <div className="rounded border-2 border-crimson/50 bg-crimson/5 p-5 shadow-card">
-        <h2 className="font-display text-xl tracking-wide text-crimson mb-1 flex items-center gap-2">
+        <h2 className="mb-1 flex items-center gap-2 font-display text-xl tracking-wide text-crimson">
           <Swords size={20} /> Start a Session
         </h2>
-        <p className="text-sm text-ink-soft font-serif mb-3">
+        <p className="mb-3 font-serif text-sm text-ink-soft">
           Track prep items used, capture events, and seed the session log. Start in-tab to keep
           the app chrome visible, or open the full-screen run-session overlay.
         </p>
@@ -125,14 +125,14 @@ function RunSessionInlineIdle({
           <button
             type="button"
             onClick={() => startNewSession(false)}
-            className="text-sm px-4 py-2 rounded border border-crimson/60 bg-crimson text-parchment hover:bg-wine font-display uppercase tracking-wider flex items-center gap-2"
+            className="flex items-center gap-2 rounded border border-crimson/60 bg-crimson px-4 py-2 font-display text-sm uppercase tracking-wider text-parchment hover:bg-wine"
           >
             <Play size={14} /> Start In-Tab
           </button>
           <button
             type="button"
             onClick={() => startNewSession(true)}
-            className="text-sm px-4 py-2 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-2"
+            className="flex items-center gap-2 rounded border border-crimson/60 bg-crimson/10 px-4 py-2 font-display text-sm uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment"
           >
             Start Full-Screen
           </button>
@@ -140,39 +140,39 @@ function RunSessionInlineIdle({
       </div>
 
       <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-display tracking-wide text-ink text-sm">Recent Sessions</h3>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="font-display text-sm tracking-wide text-ink">Recent Sessions</h3>
           {recent.length > 0 && (
             <button
               type="button"
               onClick={() => navigateTo({ mode: 'organize', subview: 'log' })}
-              className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider"
+              className="font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
             >
               View All →
             </button>
           )}
         </div>
         {recent.length === 0 ? (
-          <p className="text-xs text-ink-mute italic font-serif">No session logs yet.</p>
+          <p className="font-serif text-xs italic text-ink-mute">No session logs yet.</p>
         ) : (
           <ul className="space-y-2">
             {recent.map(entry => (
               <li key={entry.id} className="rounded border border-rule bg-parchment-soft p-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
                       Session {entry.number}
                       {entry.endedAt && <span className="ml-2 text-ink-mute">{new Date(entry.endedAt).toLocaleDateString()}</span>}
                     </div>
-                    {entry.title && <div className="font-display text-sm text-ink truncate">{entry.title}</div>}
+                    {entry.title && <div className="truncate font-display text-sm text-ink">{entry.title}</div>}
                     {entry.recap && (
-                      <p className="text-xs text-ink-soft font-serif italic line-clamp-2 mt-0.5">{entry.recap}</p>
+                      <p className="mt-0.5 line-clamp-2 font-serif text-xs italic text-ink-soft">{entry.recap}</p>
                     )}
                   </div>
                   <button
                     type="button"
                     onClick={() => navigateTo({ mode: 'organize', subview: 'log' })}
-                    className="text-[10px] px-2 py-0.5 rounded-sm border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex-shrink-0"
+                    className="flex-shrink-0 rounded-sm border border-brass-deep/60 px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
                   >
                     View
                   </button>
@@ -184,8 +184,8 @@ function RunSessionInlineIdle({
       </div>
 
       <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-        <h3 className="font-display tracking-wide text-ink text-sm mb-2">Prep Status</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+        <h3 className="mb-2 font-display text-sm tracking-wide text-ink">Prep Status</h3>
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <PrepStat label="NPCs" value={npcsCount} />
           <PrepStat label="Locations" value={locationsCount} />
           <PrepStat label="Secrets" value={`${secretsRemaining}/${secretsTotal}`} sub="unrevealed" />
@@ -193,21 +193,21 @@ function RunSessionInlineIdle({
         </div>
         {nextUp ? (
           <div className="flex items-center gap-2 rounded border border-brass/40 bg-brass/5 p-2">
-            <span className="text-[10px] font-display uppercase tracking-wider text-brass-deep flex-shrink-0">Lowest Progress</span>
-            <span className="flex-1 text-xs font-serif text-ink-soft">
-              <span className="text-ink font-display">{nextUp.label}</span>
-              <span className="text-ink-mute italic ml-1">— {nextUp.current} of {nextUp.target}</span>
+            <span className="flex-shrink-0 font-display text-[10px] uppercase tracking-wider text-brass-deep">Lowest Progress</span>
+            <span className="flex-1 font-serif text-xs text-ink-soft">
+              <span className="font-display text-ink">{nextUp.label}</span>
+              <span className="ml-1 italic text-ink-mute">— {nextUp.current} of {nextUp.target}</span>
             </span>
             <button
               type="button"
               onClick={jumpToNextUp}
-              className="text-[10px] px-2 py-0.5 rounded-sm border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex-shrink-0"
+              className="flex-shrink-0 rounded-sm border border-brass-deep/60 px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
             >
               Jump
             </button>
           </div>
         ) : (
-          <p className="text-xs text-moss italic font-serif">All prep targets met. Ready to run.</p>
+          <p className="font-serif text-xs italic text-moss">All prep targets met. Ready to run.</p>
         )}
       </div>
     </div>
@@ -217,9 +217,9 @@ function RunSessionInlineIdle({
 function PrepStat({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
   return (
     <div className="rounded border border-rule bg-parchment-soft p-2 text-center">
-      <div className="font-display text-xl text-ink tabular-nums">{value}</div>
-      <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep">{label}</div>
-      {sub && <div className="text-[9px] text-ink-mute italic">{sub}</div>}
+      <div className="font-display text-xl tabular-nums text-ink">{value}</div>
+      <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{label}</div>
+      {sub && <div className="text-[9px] italic text-ink-mute">{sub}</div>}
     </div>
   );
 }
@@ -382,18 +382,18 @@ function RunSessionInlineActive({
   return (
     <div className="space-y-3">
       <header className="flex flex-wrap items-center justify-between gap-2 rounded border-2 border-crimson/50 bg-crimson/5 p-3">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           <Swords size={16} className="text-crimson" />
           <span className="font-display text-base tracking-wide text-crimson">
             Session {sessionNumber}
           </span>
-          <span className="text-xs text-ink-soft font-serif italic">started {elapsed} ago</span>
+          <span className="font-serif text-xs italic text-ink-soft">started {elapsed} ago</span>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setVal('__runSessionOpen', true)}
-            className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+            className="flex items-center gap-1.5 rounded border border-brass-deep/60 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
             title="Switch to the full-screen overlay"
           >
             Full-Screen
@@ -401,22 +401,22 @@ function RunSessionInlineActive({
           <button
             type="button"
             onClick={onEndSession}
-            className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+            className="flex items-center gap-1.5 rounded border border-crimson/60 bg-crimson/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment"
           >
             End Session
           </button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-3">
-        <div className="space-y-3 min-w-0">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_320px]">
+        <div className="min-w-0 space-y-3">
           {strongStart && (
-            <section className="rounded border-2 border-crimson/50 bg-crimson/5 shadow-card p-3 sm:p-4">
-              <div className="flex items-start gap-2 mb-1.5">
-                <Zap size={16} className="text-crimson flex-shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                    <h2 className="font-display tracking-wide text-sm sm:text-base text-crimson uppercase">
+            <section className="rounded border-2 border-crimson/50 bg-crimson/5 p-3 shadow-card sm:p-4">
+              <div className="mb-1.5 flex items-start gap-2">
+                <Zap size={16} className="mt-0.5 flex-shrink-0 text-crimson" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-3">
+                    <h2 className="font-display text-sm uppercase tracking-wide text-crimson sm:text-base">
                       Strong Start
                     </h2>
                     <button
@@ -430,9 +430,9 @@ function RunSessionInlineActive({
                           setVal('__sessionChangeEvents', currentEvents.filter(e => !(e.kind === 'other' && e.summary === 'Strong start delivered')));
                         }
                       }}
-                      className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider flex items-center gap-1 ${
+                      className={`flex items-center gap-1 rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
                         strongStartDone
-                          ? 'bg-brass border-brass-deep text-parchment'
+                          ? 'border-brass-deep bg-brass text-parchment'
                           : 'border-brass-deep/60 text-brass-deep hover:bg-brass/10'
                       }`}
                     >
@@ -440,7 +440,7 @@ function RunSessionInlineActive({
                       {strongStartDone ? 'Delivered' : 'Mark Delivered'}
                     </button>
                   </div>
-                  <p className={`mt-1 text-sm sm:text-base font-serif text-ink-soft whitespace-pre-wrap ${strongStartDone ? 'italic opacity-60' : ''}`}>
+                  <p className={`mt-1 whitespace-pre-wrap font-serif text-sm text-ink-soft sm:text-base ${strongStartDone ? 'italic opacity-60' : ''}`}>
                     {strongStart}
                   </p>
                 </div>
@@ -505,7 +505,7 @@ function RunSessionInlineActive({
                 tag={l.type || ''}
               >
                 {Array.isArray(l.aspects) && l.aspects.filter(Boolean).length > 0 && (
-                  <ul className="ml-3 list-disc text-[12px] text-ink-soft italic">
+                  <ul className="ml-3 list-disc text-[12px] italic text-ink-soft">
                     {l.aspects.filter(Boolean).map((a: string, j: number) => <li key={j}>{a}</li>)}
                   </ul>
                 )}
@@ -518,7 +518,7 @@ function RunSessionInlineActive({
             {monstersList.length === 0 ? <Empty>No monsters prepped.</Empty> : (
               <ul className="space-y-1">
                 {monstersList.map((m, i) => (
-                  <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif text-ink-soft">
+                  <li key={i} className="rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink-soft">
                     {m}
                   </li>
                 ))}
@@ -530,14 +530,14 @@ function RunSessionInlineActive({
             {normalizedItems.length === 0 && treasureList.length === 0 ? (
               <Empty>No magic items or treasure prepped.</Empty>
             ) : (
-              <div className="space-y-2 w-full">
+              <div className="w-full space-y-2">
                 {normalizedItems.map((item, i) => {
                   const isGiven = givenItems.includes(item.name);
                   const isAssigned = !!item.assignedPlayerId;
                   return (
                     <div
                       key={item.id}
-                      className={`p-3 rounded border font-serif text-sm transition-all duration-150 flex gap-2 items-start ${
+                      className={`flex items-start gap-2 rounded border p-3 font-serif text-sm transition-all duration-150 ${
                         isGiven
                           ? 'border-brass/60 bg-brass/10 shadow-sm'
                           : 'border-rule bg-parchment hover:border-brass/45'
@@ -555,19 +555,19 @@ function RunSessionInlineActive({
                         {isGiven && <Check size={10} strokeWidth={3} />}
                       </button>
                       <div className="flex-1 space-y-1">
-                        <div className="flex justify-between items-start gap-2">
+                        <div className="flex items-start justify-between gap-2">
                           <div className={`text-ink ${isGiven ? 'text-ink-mute' : ''}`}>
                             {item.name || 'Unnamed Item'}
                           </div>
                         </div>
                         {item.description && (
-                          <p className="text-xs text-ink-soft italic whitespace-pre-wrap">
+                          <p className="whitespace-pre-wrap text-xs italic text-ink-soft">
                             {item.description}
                           </p>
                         )}
 
                         {/* GM Controls inside Session Running panel */}
-                        <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 items-center text-[11px] border-t border-rule/30 pt-2 font-sans">
+                        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-rule/30 pt-2 font-sans text-[11px]">
                           <div className="flex items-center gap-1.5">
                             <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">
                               Assigned to:
@@ -610,7 +610,7 @@ function RunSessionInlineActive({
                                   setVal('__sessionChangeEvents', nextEvents);
                                 }
                               }}
-                              className="rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-[10px] text-ink-soft cursor-pointer focus:outline-none"
+                              className="cursor-pointer rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-[10px] text-ink-soft focus:outline-none"
                             >
                               <option value="">Unassigned</option>
                               {roster.map((r: any) => (
@@ -645,7 +645,7 @@ function RunSessionInlineActive({
                                     setVal('items', allItems);
                                   }
                                 }}
-                                className="rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-[10px] text-ink-soft cursor-pointer focus:outline-none"
+                                className="cursor-pointer rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-[10px] text-ink-soft focus:outline-none"
                               >
                                 <option value="full">Name & Description</option>
                                 <option value="name-only">Name Only</option>
@@ -663,7 +663,7 @@ function RunSessionInlineActive({
                   return (
                     <div
                       key={`t-${idx}`}
-                      className={`p-3 rounded border font-serif text-sm transition-all duration-150 flex gap-2 items-start ${
+                      className={`flex items-start gap-2 rounded border p-3 font-serif text-sm transition-all duration-150 ${
                         isGiven
                           ? 'border-brass/60 bg-brass/10 shadow-sm'
                           : 'border-rule bg-parchment hover:border-brass/45'
@@ -681,11 +681,11 @@ function RunSessionInlineActive({
                         {isGiven && <Check size={10} strokeWidth={3} />}
                       </button>
                       <div className="flex-1 space-y-1">
-                        <div className="flex justify-between items-start gap-2">
+                        <div className="flex items-start justify-between gap-2">
                           <div className={`text-ink ${isGiven ? 'text-ink-mute' : ''}`}>
                             {treasure}
                           </div>
-                          <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep bg-brass/10 border border-brass/25 rounded px-1.5 py-0.5">
+                          <span className="rounded border border-brass/25 bg-brass/10 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-wider text-brass-deep">
                             Treasure
                           </span>
                         </div>
@@ -701,14 +701,14 @@ function RunSessionInlineActive({
             {pcGoals.length === 0 ? <Empty>No PC goals prepped.</Empty> : (
               <ul className="space-y-1.5">
                 {pcGoals.map((g: any, i: number) => (
-                  <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif">
+                  <li key={i} className="rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
                     <div className="text-ink-soft">{g.text || `Goal ${i + 1}`}</div>
                     <div className="mt-1 flex flex-wrap gap-1">
                       {['Active', 'Progressed', 'Completed', 'Failed'].map(s => (
                         <button
                           key={s}
                           onClick={() => updateGoalStatus(i, s)}
-                          className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider ${g.status === s ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'}`}
+                          className={`rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${g.status === s ? 'border-crimson bg-crimson text-parchment' : 'border-rule text-ink-mute hover:bg-parchment-deep'}`}
                         >
                           {s}
                         </button>
@@ -727,24 +727,24 @@ function RunSessionInlineActive({
                   const max = c.max || 6;
                   const filled = c.filled || 0;
                   return (
-                    <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif space-y-1">
+                    <li key={i} className="space-y-1 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-ink">{c.text || `Clock ${i + 1}`}</span>
-                        <span className="text-[11px] text-brass-deep font-display">{filled}/{max}</span>
+                        <span className="font-display text-[11px] text-brass-deep">{filled}/{max}</span>
                       </div>
-                      {c.faction && <div className="text-[10px] text-ink-mute italic">{c.faction}</div>}
+                      {c.faction && <div className="text-[10px] italic text-ink-mute">{c.faction}</div>}
                       <div className="flex gap-0.5">
                         {Array.from({ length: max }).map((_, j) => (
                           <button
                             key={j}
                             onClick={() => tickClock(i, j + 1 === filled ? -filled : (j + 1) - filled)}
-                            className={`flex-1 h-3 rounded-sm transition-colors ${j < filled ? 'bg-crimson' : 'bg-parchment-deep hover:bg-parchment-deep/70'}`}
+                            className={`h-3 flex-1 rounded-sm transition-colors ${j < filled ? 'bg-crimson' : 'bg-parchment-deep hover:bg-parchment-deep/70'}`}
                           />
                         ))}
                       </div>
                       <div className="flex gap-1">
-                        <button onClick={() => tickClock(i, -1)} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">−1</button>
-                        <button onClick={() => tickClock(i, 1)} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">+1</button>
+                        <button onClick={() => tickClock(i, -1)} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">−1</button>
+                        <button onClick={() => tickClock(i, 1)} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">+1</button>
                       </div>
                     </li>
                   );
@@ -757,11 +757,11 @@ function RunSessionInlineActive({
             <ActivePrepGroup title="Faction Renown" icon={Users} count={factions.length}>
               <ul className="space-y-1.5">
                 {factions.map((f: any, i: number) => (
-                  <li key={i} className="px-2 py-1.5 rounded border border-rule bg-parchment text-sm font-serif flex items-center gap-2">
+                  <li key={i} className="flex items-center gap-2 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
                     <span className="flex-1 text-ink">{f.name || `Faction ${i + 1}`}</span>
-                    <span className="text-xs text-brass-deep font-display tabular-nums">{typeof f.renown === 'number' ? f.renown : 0}</span>
-                    <button onClick={() => adjustRenown(i, -1)} className="text-[11px] w-6 h-6 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display">−</button>
-                    <button onClick={() => adjustRenown(i, 1)} className="text-[11px] w-6 h-6 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display">+</button>
+                    <span className="font-display text-xs tabular-nums text-brass-deep">{typeof f.renown === 'number' ? f.renown : 0}</span>
+                    <button onClick={() => adjustRenown(i, -1)} className="size-6 rounded border border-rule font-display text-[11px] text-ink-soft hover:bg-parchment-deep">−</button>
+                    <button onClick={() => adjustRenown(i, 1)} className="size-6 rounded border border-rule font-display text-[11px] text-ink-soft hover:bg-parchment-deep">+</button>
                   </li>
                 ))}
               </ul>
@@ -781,7 +781,7 @@ function RunSessionInlineActive({
                 onClose={() => setInitiativeOpen(false)}
               />
             ) : (
-              <p className="text-xs text-ink-mute italic font-serif px-1">Tap to expand and track turns, HP, conditions.</p>
+              <p className="px-1 font-serif text-xs italic text-ink-mute">Tap to expand and track turns, HP, conditions.</p>
             )}
           </PanelShell>
 
@@ -815,14 +815,14 @@ function RunSessionInlineActive({
 
       <InlineNoteSeed trackEvent={trackEvent} />
 
-      <div className="sticky bottom-2 bg-parchment-soft border border-rule rounded shadow-page p-2 flex items-start gap-2">
-        <NotebookPen size={14} className="text-brass-deep flex-shrink-0 mt-1.5" />
+      <div className="sticky bottom-2 flex items-start gap-2 rounded border border-rule bg-parchment-soft p-2 shadow-page">
+        <NotebookPen size={14} className="mt-1.5 flex-shrink-0 text-brass-deep" />
         <textarea
           value={scratchpad}
           onChange={(e) => setVal('__sessionScratchpad', e.target.value)}
           placeholder="Session scratchpad — what happened, threads, open questions. Seeds the log when you end the session."
           rows={2}
-          className="flex-1 bg-parchment border border-rule rounded px-2 py-1.5 text-sm text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y"
+          className="flex-1 resize-y rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
         />
       </div>
     </div>
@@ -843,20 +843,20 @@ function InlineNoteSeed({ trackEvent }: { trackEvent: (kind: ChangeEventKind, su
   const [text, setText] = useState('');
   return (
     <details className="rounded border border-rule bg-parchment-soft shadow-card">
-      <summary className="px-3 py-2 cursor-pointer font-display tracking-wide text-sm text-ink hover:bg-parchment-deep/30 flex items-center gap-2">
+      <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 font-display text-sm tracking-wide text-ink hover:bg-parchment-deep/30">
         <Plus size={12} className="text-brass-deep" /> Add Session Note
       </summary>
-      <div className="px-3 pb-3 pt-1 border-t border-rule space-y-1.5">
+      <div className="space-y-1.5 border-t border-rule px-3 pb-3 pt-1">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="A moment to remember…"
-          className="w-full bg-parchment border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+          className="w-full rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink"
         />
         <button
           disabled={!text.trim()}
           onClick={() => { trackEvent('other', text.trim()); setText(''); }}
-          className="text-xs px-2 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed font-display uppercase tracking-wider"
+          className="rounded border border-crimson/60 bg-crimson/10 px-2 py-1 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40"
         >
           Mark as Session Note
         </button>
@@ -874,14 +874,14 @@ function ActivePrepGroup({
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-parchment-deep/30"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-parchment-deep/30"
       >
-        <Icon size={14} className="text-brass-deep flex-shrink-0" />
-        <span className="font-display tracking-wide text-sm text-ink flex-1">{title}</span>
-        {typeof count === 'number' && <span className="text-[11px] text-ink-mute font-serif">{count}</span>}
+        <Icon size={14} className="flex-shrink-0 text-brass-deep" />
+        <span className="flex-1 font-display text-sm tracking-wide text-ink">{title}</span>
+        {typeof count === 'number' && <span className="font-serif text-[11px] text-ink-mute">{count}</span>}
         {open ? <ChevronDown size={14} className="text-ink-mute" /> : <ChevronRight size={14} className="text-ink-mute" />}
       </button>
-      {open && <div className="px-3 pb-3 pt-1 border-t border-rule space-y-1.5">{children}</div>}
+      {open && <div className="space-y-1.5 border-t border-rule px-3 pb-3 pt-1">{children}</div>}
     </section>
   );
 }
@@ -895,13 +895,13 @@ function CompactCard({
 }) {
   const dim = status === 'used';
   return (
-    <div className={`flex items-start gap-2 px-2 py-1.5 rounded border text-sm font-serif ${dim ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
+    <div className={`flex items-start gap-2 rounded border px-2 py-1.5 font-serif text-sm ${dim ? 'border-brass/60 bg-brass/10' : 'border-rule bg-parchment'}`}>
       <span className={`flex-1 ${dim ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{label}</span>
       {action && (
         <button
           type="button"
           onClick={action.onClick}
-          className="text-[10px] px-2 py-0.5 rounded-sm border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex-shrink-0"
+          className="flex-shrink-0 rounded-sm border border-brass-deep/60 px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
         >
           {action.label}
         </button>
@@ -916,18 +916,18 @@ function ExpandableCard({
   const [open, setOpen] = useState(false);
   const hasContent = !!children && (React.Children.count(children) > 0);
   return (
-    <div className="rounded border border-rule bg-parchment text-sm font-serif">
+    <div className="rounded border border-rule bg-parchment font-serif text-sm">
       <button
         type="button"
         onClick={() => hasContent && setOpen(o => !o)}
-        className="w-full text-left px-2 py-1.5 flex items-center gap-2 hover:bg-parchment-deep/30"
+        className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-parchment-deep/30"
       >
         {hasContent && (open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />)}
-        <span className="flex-1 text-ink truncate">{label}</span>
-        {tag && <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">{tag}</span>}
+        <span className="flex-1 truncate text-ink">{label}</span>
+        {tag && <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{tag}</span>}
       </button>
       {open && hasContent && (
-        <div className="px-3 pb-2 pt-1 border-t border-rule text-[12px] text-ink-soft space-y-0.5">{children}</div>
+        <div className="space-y-0.5 border-t border-rule px-3 pb-2 pt-1 text-[12px] text-ink-soft">{children}</div>
       )}
     </div>
   );

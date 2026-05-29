@@ -41,9 +41,9 @@ export default function WorldDetailPage({ params }: { params: Promise<{ id: stri
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-screen bg-parchment flex flex-col">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="h-8 w-8 rounded-full border-2 border-brass border-t-transparent animate-spin"></div>
+      <main className="flex min-h-screen flex-col bg-parchment">
+        <div className="flex flex-1 items-center justify-center">
+          <div className="size-8 animate-spin rounded-full border-2 border-brass border-t-transparent"></div>
         </div>
       </main>
     );

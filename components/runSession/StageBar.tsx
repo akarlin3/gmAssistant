@@ -41,7 +41,7 @@ export function StageBar({
     }
     if (p.kind === 'npc') {
       const n = npcs.find((x: any) => (x.name || '') === p.key);
-      if (!n) return <p className="font-serif text-sm text-ink-mute italic">{p.key} (removed)</p>;
+      if (!n) return <p className="font-serif text-sm italic text-ink-mute">{p.key} (removed)</p>;
       return (
         <>
           <p className="font-serif text-sm text-ink">{n.name || 'Unnamed NPC'}</p>
@@ -55,7 +55,7 @@ export function StageBar({
     }
     if (p.kind === 'location') {
       const l = locations.find((x: any) => (x.name || '') === p.key);
-      if (!l) return <p className="font-serif text-sm text-ink-mute italic">{p.key} (removed)</p>;
+      if (!l) return <p className="font-serif text-sm italic text-ink-mute">{p.key} (removed)</p>;
       return (
         <>
           <p className="font-serif text-sm text-ink">{l.name || 'Location'}</p>
@@ -77,7 +77,7 @@ export function StageBar({
           {hb && (
             <button
               onClick={() => onOpenStatBlock(hb.slug)}
-              className="mt-1 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:text-crimson underline decoration-dotted underline-offset-2"
+              className="mt-1 font-display text-[10px] uppercase tracking-wider text-brass-deep underline decoration-dotted underline-offset-2 hover:text-crimson"
             >
               Open stat block
             </button>

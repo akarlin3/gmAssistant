@@ -226,7 +226,7 @@ export default function CampaignListPage() {
               {sty.label}
             </span>
             {e.isPlayer && (
-              <span className="rounded-sm border border-wine/40 bg-wine/10 text-wine px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider flex-shrink-0">
+              <span className="flex-shrink-0 rounded-sm border border-wine/40 bg-wine/10 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-wine">
                 Player
               </span>
             )}
@@ -338,7 +338,7 @@ export default function CampaignListPage() {
             <div className="flex items-center gap-3">
               <Link
                 href="/account?action=backup"
-                className="hidden sm:inline-flex items-center gap-1.5 rounded border border-rule px-2.5 py-1 font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep hover:text-crimson transition-colors"
+                className="hidden items-center gap-1.5 rounded border border-rule px-2.5 py-1 font-display text-xs uppercase tracking-wider text-ink-soft transition-colors hover:bg-parchment-deep hover:text-crimson sm:inline-flex"
                 title="Back up all campaigns to Google Drive"
               >
                 <Cloud size={12} className="text-brass-deep" /> Back up to Drive
@@ -410,7 +410,7 @@ export default function CampaignListPage() {
                   <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
               </select>
-              <p className="text-[10px] uppercase font-display tracking-wider text-ink-mute">
+              <p className="font-display text-[10px] uppercase tracking-wider text-ink-mute">
                 Select a shared world to link this campaign to common lore.
               </p>
             </div>

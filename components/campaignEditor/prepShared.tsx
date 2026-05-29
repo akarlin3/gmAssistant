@@ -4,13 +4,13 @@
 import React from 'react';
 
 export function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-ink-mute italic font-serif">{children}</p>;
+  return <p className="font-serif text-xs italic text-ink-mute">{children}</p>;
 }
 
 export function Detail({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <span className="text-brass-deep font-display uppercase tracking-wider text-[10px]">{label} · </span>
+      <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{label} · </span>
       {children}
     </div>
   );

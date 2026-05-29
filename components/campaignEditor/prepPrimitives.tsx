@@ -25,13 +25,13 @@ export const M = {
 // (shared with the pre-session PrepWizard).
 
 export const Tag = ({ m }: { m: keyof typeof M }) => (
-  <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider ${M[m].color}`}>{M[m].label}</span>
+  <span className={`rounded-sm border px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider ${M[m].color}`}>{M[m].label}</span>
 );
 
 export const BookQuote = ({ source, children }: { source: string; children: React.ReactNode }) => (
-  <blockquote className="pl-3 border-l-2 border-crimson/70 bg-parchment-soft/60 py-2 pr-3 text-sm rounded-r">
-    <div className="font-serif italic text-ink-soft leading-relaxed">{children}</div>
-    <div className="text-brass-deep mt-1 text-xs uppercase tracking-wider font-display">— {source}</div>
+  <blockquote className="rounded-r border-l-2 border-crimson/70 bg-parchment-soft/60 px-3 py-2 text-sm">
+    <div className="font-serif italic leading-relaxed text-ink-soft">{children}</div>
+    <div className="mt-1 font-display text-xs uppercase tracking-wider text-brass-deep">— {source}</div>
   </blockquote>
 );
 
@@ -46,9 +46,9 @@ export const ModeAdaptationHint = ({ mode, children }: { mode: 'solo' | 'duet'; 
 
   return (
     <div className={`flex items-start gap-2.5 rounded border p-2.5 text-xs leading-relaxed ${colorClass}`}>
-      <Icon size={14} className={`${textClass} flex-shrink-0 mt-0.5`} />
-      <div className="text-ink-soft font-serif">
-        <span className={`font-display font-semibold uppercase tracking-wider text-[10px] ${textClass}`}>
+      <Icon size={14} className={`${textClass} mt-0.5 flex-shrink-0`} />
+      <div className="font-serif text-ink-soft">
+        <span className={`font-display text-[10px] font-semibold uppercase tracking-wider ${textClass}`}>
           {label} ·{' '}
         </span>
         {children}
@@ -68,8 +68,8 @@ export const SoloNote = ({ children }: { children: React.ReactNode }) => {
 
 export const Pitfall = ({ children }: { children: React.ReactNode }) => (
   <div className="flex items-start gap-2 rounded border border-crimson/40 bg-crimson/5 p-2.5 text-sm">
-    <X size={13} className="text-crimson flex-shrink-0 mt-0.5" />
-    <div className="text-ink-soft font-serif"><span className="font-display uppercase tracking-wider text-xs text-crimson">Common Pitfall · </span>{children}</div>
+    <X size={13} className="mt-0.5 flex-shrink-0 text-crimson" />
+    <div className="font-serif text-ink-soft"><span className="font-display text-xs uppercase tracking-wider text-crimson">Common Pitfall · </span>{children}</div>
   </div>
 );
 
@@ -164,25 +164,25 @@ export const Inspire = ({
         <div
           ref={popupRef}
           style={{ position: 'fixed', top: coords.top, left: coords.left, width: coords.width, zIndex: 50 }}
-          className="rounded border border-brass-deep/70 bg-parchment shadow-xl p-2 space-y-1.5"
+          className="space-y-1.5 rounded border border-brass-deep/70 bg-parchment p-2 shadow-xl"
         >
-          <div className="flex items-center justify-between text-[10px] text-ink-mute px-1 pb-1 border-b border-rule">
+          <div className="flex items-center justify-between border-b border-rule px-1 pb-1 text-[10px] text-ink-mute">
             <span className="font-display uppercase tracking-wider text-brass-deep">{table.title}</span>
             <div className="flex gap-2">
-              <button onClick={reroll} className="text-crimson hover:text-wine font-display uppercase tracking-wider">Reroll</button>
-              <button onClick={() => setOpen(false)} className="text-ink-mute hover:text-ink font-display uppercase tracking-wider">Close</button>
+              <button onClick={reroll} className="font-display uppercase tracking-wider text-crimson hover:text-wine">Reroll</button>
+              <button onClick={() => setOpen(false)} className="font-display uppercase tracking-wider text-ink-mute hover:text-ink">Close</button>
             </div>
           </div>
           {picks.map((entry, i) => (
             <button
               key={i}
               onClick={() => { onPick(entry); setOpen(false); }}
-              className="block w-full text-left text-xs px-2 py-1.5 rounded text-ink-soft hover:bg-parchment-deep hover:text-ink font-serif"
+              className="block w-full rounded px-2 py-1.5 text-left font-serif text-xs text-ink-soft hover:bg-parchment-deep hover:text-ink"
             >
               {entry}
             </button>
           ))}
-          <div className="text-[9px] text-ink-mute px-1 pt-1 italic">{table.attribution}</div>
+          <div className="px-1 pt-1 text-[9px] italic text-ink-mute">{table.attribution}</div>
         </div>
       )}
     </div>
@@ -190,7 +190,7 @@ export const Inspire = ({
 };
 
 export const InspireGroup = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex flex-wrap gap-1.5 items-center">{children}</div>
+  <div className="flex flex-wrap items-center gap-1.5">{children}</div>
 );
 
 export const TargetBar = ({ current, target, source }: { current: number; target: number; source?: string }) => {
@@ -199,13 +199,13 @@ export const TargetBar = ({ current, target, source }: { current: number; target
   const complete = current >= target;
   return (
     <div className="space-y-1" title={source}>
-      <div className="flex items-center justify-between text-xs font-serif">
-        <span className={complete ? 'text-brass-deep font-semibold' : 'text-ink-soft'}>
+      <div className="flex items-center justify-between font-serif text-xs">
+        <span className={complete ? 'font-semibold text-brass-deep' : 'text-ink-soft'}>
           {current} of {target}
         </span>
-        {source && <span className="text-ink-mute italic">{source}</span>}
+        {source && <span className="italic text-ink-mute">{source}</span>}
       </div>
-      <div className="h-1.5 bg-parchment-deep rounded-sm overflow-hidden border border-rule">
+      <div className="h-1.5 overflow-hidden rounded-sm border border-rule bg-parchment-deep">
         <div
           className={`h-full transition-all ${complete ? 'bg-brass' : 'bg-brass/50'}`}
           style={{ width: `${pct}%` }}
@@ -217,14 +217,14 @@ export const TargetBar = ({ current, target, source }: { current: number; target
 
 export const Example = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="rounded border border-rule bg-parchment-deep/40 p-2.5 text-sm">
-    <p className="text-brass-deep mb-1 text-xs font-display uppercase tracking-wider">Example — {title}</p>
-    <div className="text-ink-soft font-serif italic leading-relaxed">{children}</div>
+    <p className="mb-1 font-display text-xs uppercase tracking-wider text-brass-deep">Example — {title}</p>
+    <div className="font-serif italic leading-relaxed text-ink-soft">{children}</div>
   </div>
 );
 
 export const Field = ({ value, onChange, placeholder, rows = 1 }: { value: string; onChange: (v: string) => void; placeholder: string; rows?: number }) => (
   <textarea value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows}
-    className="w-full bg-transparent border-b border-rule text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-none px-1 py-1 text-sm whitespace-pre-wrap break-words [field-sizing:content]" />
+    className="w-full resize-none whitespace-pre-wrap break-words border-b border-rule bg-transparent p-1 font-serif text-sm text-ink [field-sizing:content] placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none" />
 );
 
 export const ListField = ({
@@ -291,13 +291,13 @@ export const ListField = ({
           <div
             key={i}
             id={rid ? `entity-${rid}` : undefined}
-            className={`flex gap-2 items-center transition-shadow rounded ${
+            className={`flex items-center gap-2 rounded transition-shadow ${
               highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''
             } ${
-              shared ? 'bg-moss/5 border border-moss/10 px-1 py-0.5' : ''
+              shared ? 'border border-moss/10 bg-moss/5 px-1 py-0.5' : ''
             }`}
           >
-            <span className="text-brass-deep font-display text-xs w-5 text-right">{i + 1}.</span>
+            <span className="w-5 text-right font-display text-xs text-brass-deep">{i + 1}.</span>
             <div className="flex-1"><Field value={valStr} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} /></div>
             {playMode !== 'solo' && onToggleShare && isShared && hasContent && (
               <button
@@ -305,26 +305,26 @@ export const ListField = ({
                 onClick={() => onToggleShare(i)}
                 aria-label={shared ? 'Hide from players' : 'Share with players'}
                 className={`p-1 transition-colors ${
-                  shared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10'
+                  shared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:bg-brass/10 hover:text-brass-deep'
                 }`}
                 title={shared ? 'Shared with Players (Click to hide)' : 'Share with Players'}
               >
                 {shared ? <Eye size={12} /> : <EyeOff size={12} />}
               </button>
             )}
-            <button onClick={() => remove(i)} aria-label="Remove item" className="text-ink-mute hover:text-crimson px-1"><X size={14} /></button>
+            <button onClick={() => remove(i)} aria-label="Remove item" className="px-1 text-ink-mute hover:text-crimson"><X size={14} /></button>
           </div>
         );
       })}
       {target > 0 && filled < target && (
-        <div className="ml-7 text-[11px] text-ink-mute italic font-serif">
+        <div className="ml-7 font-serif text-[11px] italic text-ink-mute">
           {remaining} more to reach target
           {filled === 0 && (
             <span className="text-ink-faint"> (target: {target})</span>
           )}
         </div>
       )}
-      <button onClick={add} className="ml-7 text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+      <button onClick={add} className="ml-7 flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
         <Plus size={12} /> Add
       </button>
     </div>
@@ -338,21 +338,21 @@ export const Section = ({ id, title, methods, children, done, onToggle, open, on
         onClick={() => onToggle(id)}
         aria-label={done ? 'Mark step uncompleted' : 'Mark step completed'}
         aria-pressed={done}
-        className={`w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${done ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment'}`}
+        className={`flex size-4 flex-shrink-0 items-center justify-center rounded-sm border ${done ? 'border-brass-deep bg-brass text-parchment' : 'border-ink-mute bg-parchment'}`}
         title={done ? "Mark step uncompleted" : "Mark step completed"}
       >
         {done && <Check size={10} strokeWidth={3} />}
       </button>
-      <button onClick={() => onToggleOpen(id)} className="flex-1 min-w-0 flex items-center gap-2 text-left">
-        {Icon && <Icon size={14} className="text-brass-deep flex-shrink-0" />}
-        <span className="font-display text-sm tracking-wide text-ink flex-1 min-w-0">{title}</span>
-        <span className="hidden sm:flex gap-1 flex-shrink-0">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
-        <span className="text-ink-mute flex-shrink-0">{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
+      <button onClick={() => onToggleOpen(id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+        {Icon && <Icon size={14} className="flex-shrink-0 text-brass-deep" />}
+        <span className="min-w-0 flex-1 font-display text-sm tracking-wide text-ink">{title}</span>
+        <span className="hidden flex-shrink-0 gap-1 sm:flex">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
+        <span className="flex-shrink-0 text-ink-mute">{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
       </button>
     </div>
     <div className={`gm-collapse ${open ? 'gm-collapse-open' : ''}`}>
       <div className="gm-collapse-content">
-        <div className="px-2.5 sm:px-3 pb-3 border-t border-rule pt-3 space-y-3">
+        <div className="space-y-3 border-t border-rule px-2.5 py-3 sm:px-3">
           {children}
         </div>
       </div>
@@ -361,16 +361,16 @@ export const Section = ({ id, title, methods, children, done, onToggle, open, on
 );
 
 export const CardLabel = ({ children }: { children: React.ReactNode }) => (
-  <div className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5">{children}</div>
+  <div className="mb-0.5 font-display text-xs uppercase tracking-wider text-brass-deep">{children}</div>
 );
 
 export const GoalCard = ({ data, onChange, onRemove }: any) => {
   const playMode = useContext(CampaignPlayModeContext);
   return (
-    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+    <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex justify-between gap-2">
         <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="Goal Statement" rows={2} />
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-shrink-0 items-center gap-2">
           {playMode !== 'solo' && (
             <button
               type="button"
@@ -379,7 +379,7 @@ export const GoalCard = ({ data, onChange, onRemove }: any) => {
               aria-pressed={!!data.isPublic}
               className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
                 data.isPublic
-                  ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
+                  ? 'border-moss bg-moss text-parchment hover:bg-moss/90'
                   : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
               }`}
               title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
@@ -393,7 +393,7 @@ export const GoalCard = ({ data, onChange, onRemove }: any) => {
       </div>
       <div className="grid grid-cols-3 gap-1.5">
         {[['short', 'Short-Term'], ['mid', 'Mid-Term'], ['long', 'Long-Term']].map(([t, label]) => (
-          <button key={t} onClick={() => onChange({ ...data, timeframe: t })} className={`text-xs py-1 rounded border font-display uppercase tracking-wider ${data.timeframe === t ? 'bg-wine/10 border-wine text-wine' : 'border-rule text-ink-mute'}`}>{label}</button>
+          <button key={t} onClick={() => onChange({ ...data, timeframe: t })} className={`rounded border py-1 font-display text-xs uppercase tracking-wider ${data.timeframe === t ? 'border-wine bg-wine/10 text-wine' : 'border-rule text-ink-mute'}`}>{label}</button>
         ))}
       </div>
       <div><CardLabel>Rule 3 — Success State</CardLabel>
@@ -422,7 +422,7 @@ export const NPCFieldRow = ({
   tableId?: string;
 }) => (
   <div>
-    <div className="flex items-center justify-between gap-2 mb-0.5">
+    <div className="mb-0.5 flex items-center justify-between gap-2">
       <CardLabel>{label}</CardLabel>
       {tableId && (
         <Inspire
@@ -452,17 +452,17 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
     onChange({ ...data, archetype: e });
   };
   return (
-    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+    <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex justify-between gap-2">
         <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-shrink-0 items-center gap-2">
           {playMode !== 'solo' && (
             <button
               type="button"
               onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
               className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
                 data.isPublic
-                  ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
+                  ? 'border-moss bg-moss text-parchment hover:bg-moss/90'
                   : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
               }`}
               title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
@@ -476,7 +476,7 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div><CardLabel>Type</CardLabel>
-          <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
+          <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink">
             <option value="">— Choose —</option>
             <option>Ally</option><option>Villain</option><option>Patron</option><option>Rival</option><option>Neutral / Colour</option>
           </select></div>
@@ -484,9 +484,9 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
           <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="..." /></div>
       </div>
       <div>
-        <div className="flex items-center justify-between gap-2 mb-0.5 flex-wrap">
+        <div className="mb-0.5 flex flex-wrap items-center justify-between gap-2">
           <CardLabel>Archetype</CardLabel>
-          <div className="flex gap-1 flex-wrap">
+          <div className="flex flex-wrap gap-1">
             <Inspire tableId="villainArchetypes" compact label="Villain" onPick={archetypeInspire('villainArchetypes')} />
             <Inspire tableId="npcBackgroundConcepts" compact label="Background" onPick={archetypeInspire('npcBackgroundConcepts')} />
             <Inspire tableId="raceCharacterNotes" compact label="Species" onPick={archetypeInspire('raceCharacterNotes')} />
@@ -500,13 +500,13 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
         <Field value={data.method} onChange={(v) => onChange({ ...data, method: v })} placeholder="Violence? Charm?" /></div>
       <button
         onClick={() => setShowDetails(s => !s)}
-        className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider"
+        className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
       >
         {showDetails ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         {showDetails ? 'Hide Details' : 'Show Details'}
       </button>
       {showDetails && (
-        <div className="space-y-2 pt-1 border-t border-rule">
+        <div className="space-y-2 border-t border-rule pt-1">
           <NPCFieldRow label="Appearance" value={data.appearance || ''} onChange={(v) => onChange({ ...data, appearance: v })} placeholder="Distinctive physical detail or two" />
           <NPCFieldRow label="Abilities" value={data.abilities || ''} onChange={(v) => onChange({ ...data, abilities: v })} placeholder="High/low ability — strong, slow, perceptive..." />
           <NPCFieldRow label="Talent" value={data.talent || ''} onChange={(v) => onChange({ ...data, talent: v })} placeholder="Something they can do that's distinctive" tableId="npcTalents" />
@@ -526,17 +526,17 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
 export const LocationCard = ({ data, onChange, onRemove }: any) => {
   const playMode = useContext(CampaignPlayModeContext);
   return (
-    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+    <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex justify-between gap-2">
         <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Evocative Name" />
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-shrink-0 items-center gap-2">
           {playMode !== 'solo' && (
             <button
               type="button"
               onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
               className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
                 data.isPublic
-                  ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
+                  ? 'border-moss bg-moss text-parchment hover:bg-moss/90'
                   : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
               }`}
               title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
@@ -549,7 +549,7 @@ export const LocationCard = ({ data, onChange, onRemove }: any) => {
         </div>
       </div>
       <div><CardLabel>Type</CardLabel>
-        <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
+        <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink">
           <option value="">— Choose —</option>
           <option>Player Base</option><option>Faction Stronghold</option><option>Wilderness Landmark</option>
           <option>Dungeon Room / Area</option><option>Settlement</option><option>Travel Waypoint</option><option>Other</option>

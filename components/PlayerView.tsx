@@ -88,9 +88,9 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
   if (!shareToken) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-parchment p-5">
-        <div className="w-full max-w-md space-y-4 rounded-lg border border-rule bg-parchment-soft p-6 shadow-page text-center">
-          <header className="flex items-center justify-between border-b border-rule pb-3 mb-4">
-            <Link href="/campaign" className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson transition-colors">
+        <div className="w-full max-w-md space-y-4 rounded-lg border border-rule bg-parchment-soft p-6 text-center shadow-page">
+          <header className="mb-4 flex items-center justify-between border-b border-rule pb-3">
+            <Link href="/campaign" className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:text-crimson">
               <ChevronLeft size={14} /> Back
             </Link>
             <AccountMenu />
@@ -122,8 +122,8 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
     return (
       <div className="min-h-screen bg-parchment">
         {/* Helper Navigation bar for authenticated players to return to dashboard */}
-        <div className="bg-parchment-deep/40 border-b border-rule px-4 py-1.5 flex items-center justify-between text-xs">
-          <Link href="/campaign" className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:text-crimson transition-colors">
+        <div className="flex items-center justify-between border-b border-rule bg-parchment-deep/40 px-4 py-1.5 text-xs">
+          <Link href="/campaign" className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-brass-deep transition-colors hover:text-crimson">
             <ChevronLeft size={12} /> Dashboard
           </Link>
           <AccountMenu />
@@ -148,7 +148,7 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
     <main className="flex min-h-screen items-center justify-center bg-parchment p-5">
       <div className="w-full max-w-md space-y-5 rounded-lg border border-rule bg-parchment-soft p-6 shadow-page">
         <div className="flex items-center justify-between border-b border-rule pb-3">
-          <Link href="/campaign" className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson transition-colors">
+          <Link href="/campaign" className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:text-crimson">
             <ChevronLeft size={14} /> Back
           </Link>
           <AccountMenu />
@@ -170,7 +170,7 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
                 onClick={() => pick(s.slotId)}
                 className="flex w-full items-center gap-3 rounded border border-rule bg-parchment px-4 py-3 text-left font-display tracking-wide text-ink transition-colors hover:border-brass-deep hover:bg-brass/5"
               >
-                <span className="h-4 w-4 flex-shrink-0 rounded-full border border-rule" style={{ backgroundColor: s.color || '#8a6d3b' }} />
+                <span className="size-4 flex-shrink-0 rounded-full border border-rule" style={{ backgroundColor: s.color || '#8a6d3b' }} />
                 {s.displayName}
               </button>
             ))}
@@ -184,15 +184,15 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
 function Centered({ campaignName, children }: { campaignName: string; children: React.ReactNode }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-parchment p-5">
-      <div className="w-full max-w-sm text-center space-y-4 rounded-lg border border-rule bg-parchment-soft p-6 shadow-page">
+      <div className="w-full max-w-sm space-y-4 rounded-lg border border-rule bg-parchment-soft p-6 text-center shadow-page">
         <header className="flex items-center justify-between border-b border-rule pb-3">
-          <Link href="/campaign" className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson transition-colors">
+          <Link href="/campaign" className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:text-crimson">
             <ChevronLeft size={14} /> Back
           </Link>
           <AccountMenu />
         </header>
         <div>
-          <h1 className="font-display text-lg tracking-wide text-ink mb-1">{campaignName}</h1>
+          <h1 className="mb-1 font-display text-lg tracking-wide text-ink">{campaignName}</h1>
           {children}
         </div>
       </div>

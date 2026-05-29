@@ -50,9 +50,9 @@ export default function PartyTab({
       </p>
 
       {showDuetPrompt && (
-        <div className="rounded border border-teal-500/30 bg-teal-950/10 p-3 shadow-sm backdrop-blur-sm animate-fade-in flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="animate-fade-in flex flex-col gap-3 rounded border border-teal-500/30 bg-teal-950/10 p-3 shadow-sm backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
-            <h4 className="font-display text-sm tracking-wide text-teal-400 font-semibold">Duet Mode Setup</h4>
+            <h4 className="font-display text-sm font-semibold tracking-wide text-teal-400">Duet Mode Setup</h4>
             <p className="font-serif text-xs text-ink-soft">
               Is <strong className="text-teal-400">{singlePc.name || 'Unnamed PC'}</strong> your player&apos;s character? Duet campaigns are designed around exactly one player-owned character.
             </p>
@@ -66,13 +66,13 @@ export default function PartyTab({
                   ownership: { ownerType: 'player', playerSlotId: firstSlotId }
                 });
               }}
-              className="rounded bg-teal-600 hover:bg-teal-500 px-2.5 py-1 text-xs font-display uppercase tracking-wider text-white transition-colors"
+              className="rounded bg-teal-600 px-2.5 py-1 font-display text-xs uppercase tracking-wider text-white transition-colors hover:bg-teal-500"
             >
               Set as Player PC
             </button>
             <button
               onClick={() => setPromptDismissed(true)}
-              className="rounded border border-rule bg-transparent px-2.5 py-1 text-xs font-display uppercase tracking-wider text-ink-mute hover:bg-parchment-deep hover:text-ink transition-colors"
+              className="rounded border border-rule bg-transparent px-2.5 py-1 font-display text-xs uppercase tracking-wider text-ink-mute transition-colors hover:bg-parchment-deep hover:text-ink"
             >
               Keep as DM NPC
             </button>

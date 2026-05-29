@@ -47,7 +47,7 @@ export function PinToggle({ pinned, onClick }: { pinned: boolean; onClick: () =>
   return (
     <button
       onClick={onClick}
-      className={`flex-shrink-0 rounded p-1 transition-colors ${pinned ? 'text-crimson hover:bg-crimson/10' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10'}`}
+      className={`flex-shrink-0 rounded p-1 transition-colors ${pinned ? 'text-crimson hover:bg-crimson/10' : 'text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
       title={pinned ? 'Unpin from Stage' : 'Pin to Stage'}
     >
       <Icon size={12} />
@@ -75,7 +75,7 @@ export function NPCRow({
         </button>
         <button
           onClick={onToggleShare}
-          className={`p-1 transition-colors ${shared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10'}`}
+          className={`p-1 transition-colors ${shared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
           title={shared ? 'Shared with Players (Click to hide)' : 'Share with Players'}
         >
           {shared ? <Eye size={12} /> : <EyeOff size={12} />}

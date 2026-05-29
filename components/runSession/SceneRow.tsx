@@ -80,8 +80,8 @@ export function SceneRow({
                 disabled={shared}
                 className={`flex items-center gap-1 rounded px-1.5 py-0.5 font-display text-[9px] uppercase tracking-wider transition-colors ${
                   shared
-                    ? 'bg-moss/10 text-moss cursor-default font-semibold'
-                    : 'bg-brass/20 text-brass-deep hover:bg-brass hover:text-parchment font-semibold'
+                    ? 'cursor-default bg-moss/10 font-semibold text-moss'
+                    : 'bg-brass/20 font-semibold text-brass-deep hover:bg-brass hover:text-parchment'
                 }`}
                 title={shared ? 'Shared with Players' : 'Share with Players'}
               >

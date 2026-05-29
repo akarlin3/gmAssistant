@@ -148,13 +148,13 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
         <div className="flex-1 space-y-5 overflow-y-auto px-4 py-3">
           <div className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-x-4 border-b border-rule pb-1 font-display text-[10px] uppercase tracking-wider text-ink-mute">
             <span>Category</span>
-            <span className="flex w-16 items-center justify-center gap-1 text-center text-pink-500 font-bold">
+            <span className="flex w-16 items-center justify-center gap-1 text-center font-bold text-pink-500">
               <User size={10} /> Solo
             </span>
-            <span className="flex w-16 items-center justify-center gap-1 text-center text-teal-500 font-bold">
+            <span className="flex w-16 items-center justify-center gap-1 text-center font-bold text-teal-500">
               <Users size={10} /> Duet
             </span>
-            <span className="flex w-16 items-center justify-center gap-1 text-center text-amber-500 font-bold">
+            <span className="flex w-16 items-center justify-center gap-1 text-center font-bold text-amber-500">
               <Users size={10} /> Group
             </span>
             <span className="w-6" />
@@ -162,7 +162,7 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
 
           {PHASE_GROUPS.map((group) => (
             <section key={group.phase} className="space-y-2">
-              <h3 className="font-display text-[10px] uppercase tracking-wider text-brass-deep border-b border-rule/30 pb-0.5">
+              <h3 className="border-b border-rule/30 pb-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep">
                 {group.title}
               </h3>
               <div className="space-y-2">
@@ -209,7 +209,7 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
                         type="button"
                         onClick={() => resetRow(key)}
                         disabled={!isOverridden}
-                        className="p-1 text-ink-mute hover:text-crimson disabled:cursor-default disabled:opacity-30 disabled:hover:text-ink-mute justify-self-center"
+                        className="justify-self-center p-1 text-ink-mute hover:text-crimson disabled:cursor-default disabled:opacity-30 disabled:hover:text-ink-mute"
                         title={isOverridden ? 'Reset to suggested default' : 'Matches default'}
                         aria-label={`Reset ${spec.label} to default`}
                       >

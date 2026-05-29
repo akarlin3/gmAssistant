@@ -163,9 +163,9 @@ export default function SessionLogFinalizer({
                     const m = durationMinutes % 60;
                     setDurationMinutes(h * 60 + m);
                   }}
-                  className="w-12 rounded border border-rule bg-parchment px-1.5 py-1 font-serif text-sm text-ink text-center"
+                  className="w-12 rounded border border-rule bg-parchment px-1.5 py-1 text-center font-serif text-sm text-ink"
                 />
-                <span className="text-[11px] font-serif text-ink-mute">h</span>
+                <span className="font-serif text-[11px] text-ink-mute">h</span>
                 <input
                   type="number"
                   min={0}
@@ -176,9 +176,9 @@ export default function SessionLogFinalizer({
                     const m = parseInt(e.target.value || '0', 10);
                     setDurationMinutes(h * 60 + m);
                   }}
-                  className="w-12 rounded border border-rule bg-parchment px-1.5 py-1 font-serif text-sm text-ink text-center"
+                  className="w-12 rounded border border-rule bg-parchment px-1.5 py-1 text-center font-serif text-sm text-ink"
                 />
-                <span className="text-[11px] font-serif text-ink-mute">m</span>
+                <span className="font-serif text-[11px] text-ink-mute">m</span>
               </div>
             </label>
           </div>

@@ -37,37 +37,37 @@ export default function GoalsTab({ pcGoals }: { pcGoals: SlotProjection['pcGoals
         const statusStyle = STATUS_BADGE_STYLES[status] || STATUS_BADGE_STYLES.Active;
 
         return (
-          <div key={idx} className="rounded border border-rule bg-parchment p-4 shadow-card space-y-3 font-serif text-sm flex flex-col justify-between">
+          <div key={idx} className="flex flex-col justify-between space-y-3 rounded border border-rule bg-parchment p-4 font-serif text-sm shadow-card">
             <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <span className={`text-[10px] px-2 py-0.5 rounded border font-display uppercase tracking-wider ${timeframeStyle}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className={`rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${timeframeStyle}`}>
                   {timeframeLabel}
                 </span>
-                <span className={`text-[10px] px-2 py-0.5 rounded border font-display uppercase tracking-wider ${statusStyle}`}>
+                <span className={`rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${statusStyle}`}>
                   {status}
                 </span>
               </div>
-              <p className="text-ink font-serif text-base leading-snug font-medium tracking-wide">
+              <p className="font-serif text-base font-medium leading-snug tracking-wide text-ink">
                 {g.text}
               </p>
             </div>
             <div className="space-y-2 pt-1">
               {g.success && (
-                <div className="space-y-0.5 pt-1.5 border-t border-rule/50">
-                  <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep">Success State</div>
-                  <p className="text-ink-soft font-serif text-xs leading-relaxed italic">{g.success}</p>
+                <div className="space-y-0.5 border-t border-rule/50 pt-1.5">
+                  <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Success State</div>
+                  <p className="font-serif text-xs italic leading-relaxed text-ink-soft">{g.success}</p>
                 </div>
               )}
               {g.failure && (
-                <div className="space-y-0.5 pt-1.5 border-t border-rule/50">
-                  <div className="text-[10px] font-display uppercase tracking-wider text-crimson">Failure Consequence</div>
-                  <p className="text-ink-soft font-serif text-xs leading-relaxed italic">{g.failure}</p>
+                <div className="space-y-0.5 border-t border-rule/50 pt-1.5">
+                  <div className="font-display text-[10px] uppercase tracking-wider text-crimson">Failure Consequence</div>
+                  <p className="font-serif text-xs italic leading-relaxed text-ink-soft">{g.failure}</p>
                 </div>
               )}
               {g.linked && (
-                <div className="space-y-0.5 pt-1.5 border-t border-rule/50">
-                  <div className="text-[10px] font-display uppercase tracking-wider text-ink-mute">Linked Elements</div>
-                  <p className="text-ink-soft font-serif text-xs leading-relaxed">{g.linked}</p>
+                <div className="space-y-0.5 border-t border-rule/50 pt-1.5">
+                  <div className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Linked Elements</div>
+                  <p className="font-serif text-xs leading-relaxed text-ink-soft">{g.linked}</p>
                 </div>
               )}
             </div>

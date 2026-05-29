@@ -240,13 +240,13 @@ export default function PcSheet({
           {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         </button>
         <button onClick={onToggleOpen} className="min-w-0 flex-1 text-left">
-          <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="font-display tracking-wide text-ink">{pc.name || 'Unnamed PC'}</span>
             {ownerLabel && (
-              <span className={`px-1.5 py-0.5 text-[9px] uppercase font-display tracking-wider font-semibold rounded border ${
+              <span className={`rounded border px-1.5 py-0.5 font-display text-[9px] font-semibold uppercase tracking-wider ${
                 playMode === 'duet'
-                  ? 'bg-teal-950/20 text-teal-400 border-teal-500/30'
-                  : 'bg-amber-950/20 text-amber-400 border-amber-500/30'
+                  ? 'border-teal-500/30 bg-teal-950/20 text-teal-400'
+                  : 'border-amber-500/30 bg-amber-950/20 text-amber-400'
               }`}>
                 {ownerLabel}
               </span>
@@ -269,7 +269,7 @@ export default function PcSheet({
       </div>
 
       {!open ? null : (
-        <div className="space-y-3 border-t border-rule px-3 py-3">
+        <div className="space-y-3 border-t border-rule p-3">
           {/* Identity */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <div className="col-span-2 sm:col-span-1">
@@ -305,7 +305,7 @@ export default function PcSheet({
                       patch({ ownership: { ownerType: 'player', playerSlotId: val === 'player-generic' ? undefined : val } });
                     }
                   }}
-                  className="w-full border-b border-rule bg-transparent px-1 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none cursor-pointer"
+                  className="w-full cursor-pointer border-b border-rule bg-transparent p-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
                 >
                   <option value="dm">DM-Owned NPC</option>
                   {roster.map((r: any) => {
@@ -448,7 +448,7 @@ export default function PcSheet({
                     className={`flex items-center justify-between rounded border px-2 py-1 font-serif text-sm ${prof ? 'border-brass-deep/50 bg-brass/10' : 'border-rule'}`}
                   >
                     <span className="flex items-center gap-1.5">
-                      <span className={`inline-block h-2.5 w-2.5 rounded-full border ${prof ? 'border-crimson bg-crimson' : 'border-ink-mute'}`} />
+                      <span className={`inline-block size-2.5 rounded-full border ${prof ? 'border-crimson bg-crimson' : 'border-ink-mute'}`} />
                       <span className="font-display text-[11px] uppercase tracking-wider text-ink-soft">{a}</span>
                     </span>
                     <span className="font-display text-crimson">{formatMod(savingThrowModifier(pc, a))}</span>
@@ -479,7 +479,7 @@ export default function PcSheet({
                     className={`flex items-center justify-between rounded px-2 py-1 font-serif text-sm ${prof ? 'bg-brass/10' : 'hover:bg-parchment-deep'}`}
                   >
                     <span className="flex items-center gap-1.5">
-                      <span className={`inline-block h-2.5 w-2.5 rounded-sm border ${prof ? 'border-crimson bg-crimson' : 'border-ink-mute'}`} />
+                      <span className={`inline-block size-2.5 rounded-sm border ${prof ? 'border-crimson bg-crimson' : 'border-ink-mute'}`} />
                       <span className="text-ink-soft">{s}</span>
                       <span className="font-display text-[9px] uppercase text-ink-faint">{SKILL_ABILITIES[s]}</span>
                     </span>
@@ -508,7 +508,7 @@ export default function PcSheet({
                     <button
                       key={n}
                       onClick={() => patch({ exhaustion: n as PlayerCharacter['exhaustion'] })}
-                      className={`h-6 w-6 rounded border font-display text-xs ${pc.exhaustion === n ? 'border-crimson bg-crimson text-parchment' : 'border-rule text-ink-soft hover:bg-parchment-deep'}`}
+                      className={`size-6 rounded border font-display text-xs ${pc.exhaustion === n ? 'border-crimson bg-crimson text-parchment' : 'border-rule text-ink-soft hover:bg-parchment-deep'}`}
                     >
                       {n}
                     </button>
@@ -542,16 +542,16 @@ export default function PcSheet({
                     <button onClick={() => removeAttack(a.id)} className="text-ink-mute hover:text-crimson"><X size={13} /></button>
                   </div>
                   <div className="mt-1 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                    <label className="text-[9px] font-display uppercase tracking-wider text-ink-mute">Bonus
+                    <label className="font-display text-[9px] uppercase tracking-wider text-ink-mute">Bonus
                       <input name="attackBonus" type="number" value={a.attackBonus} onChange={(e) => updateAttack(a.id, { attackBonus: parseInt(e.target.value, 10) || 0 })} className={`${inputCls} text-center`} />
                     </label>
-                    <label className="text-[9px] font-display uppercase tracking-wider text-ink-mute">Damage
+                    <label className="font-display text-[9px] uppercase tracking-wider text-ink-mute">Damage
                       <input name="damageExpr" value={a.damageExpr} onChange={(e) => updateAttack(a.id, { damageExpr: e.target.value })} placeholder="1d8+3" className={inputCls} />
                     </label>
-                    <label className="text-[9px] font-display uppercase tracking-wider text-ink-mute">Type
+                    <label className="font-display text-[9px] uppercase tracking-wider text-ink-mute">Type
                       <input name="damageType" value={a.damageType} onChange={(e) => updateAttack(a.id, { damageType: e.target.value })} placeholder="slashing" className={inputCls} />
                     </label>
-                    <label className="text-[9px] font-display uppercase tracking-wider text-ink-mute">Range
+                    <label className="font-display text-[9px] uppercase tracking-wider text-ink-mute">Range
                       <input name="range" value={a.range} onChange={(e) => updateAttack(a.id, { range: e.target.value })} placeholder="5 ft." className={inputCls} />
                     </label>
                   </div>
@@ -711,7 +711,7 @@ function Bubbles({
           // Click a filled bubble to clear back to n-1, else fill up to n.
           onClick={() => onSet((count >= n ? n - 1 : n) as 0 | 1 | 2 | 3)}
           aria-label={`${label} ${n}`}
-          className={`h-4 w-4 rounded-full border ${count >= n ? filledCls : 'border-ink-mute'}`}
+          className={`size-4 rounded-full border ${count >= n ? filledCls : 'border-ink-mute'}`}
         />
       ))}
     </div>

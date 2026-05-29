@@ -135,52 +135,51 @@ export default function PlayerPcSheetCard({
     return true;
   };
 
+  const currentHp = pc.hp?.current ?? 0;
+  const tempHp = pc.hp?.temp ?? 0;
+  const deathSavesSuccesses = pc.deathSaves?.successes ?? 0;
+  const deathSavesFailures = pc.deathSaves?.failures ?? 0;
+
   useEffect(() => {
-    const incoming = pc.hp?.current ?? 0;
-    if (!isPending('hp.current', incoming)) {
-      setLocalHp(incoming);
+    if (!isPending('hp.current', currentHp)) {
+      setLocalHp(currentHp);
       clearStagedEdit(campaignId, pc.id, 'hp.current');
     }
-  }, [pc.hp?.current, campaignId, pc.id]);
+  }, [currentHp, campaignId, pc.id]);
 
   useEffect(() => {
-    const incoming = pc.hp?.temp ?? 0;
-    if (!isPending('hp.temp', incoming)) {
-      setLocalTempHp(incoming);
+    if (!isPending('hp.temp', tempHp)) {
+      setLocalTempHp(tempHp);
       clearStagedEdit(campaignId, pc.id, 'hp.temp');
     }
-  }, [pc.hp?.temp, campaignId, pc.id]);
+  }, [tempHp, campaignId, pc.id]);
 
   useEffect(() => {
-    const incoming = pc.notes ?? '';
-    if (!isPending('notes', incoming)) {
-      setLocalNotes(incoming);
+    if (!isPending('notes', pc.notes ?? '')) {
+      setLocalNotes(pc.notes ?? '');
       clearStagedEdit(campaignId, pc.id, 'notes');
     }
   }, [pc.notes, campaignId, pc.id]);
 
   useEffect(() => {
-    const incoming = pc.exhaustion ?? 0;
-    if (!isPending('exhaustion', incoming)) {
-      setLocalExhaustion(incoming);
+    if (!isPending('exhaustion', pc.exhaustion ?? 0)) {
+      setLocalExhaustion(pc.exhaustion ?? 0);
       clearStagedEdit(campaignId, pc.id, 'exhaustion');
     }
   }, [pc.exhaustion, campaignId, pc.id]);
 
   useEffect(() => {
-    const incomingSuccesses = pc.deathSaves?.successes ?? 0;
-    const incomingFailures = pc.deathSaves?.failures ?? 0;
-    const pendingSuccesses = isPending('deathSaves.successes', incomingSuccesses);
-    const pendingFailures = isPending('deathSaves.failures', incomingFailures);
+    const pendingSuccesses = isPending('deathSaves.successes', deathSavesSuccesses);
+    const pendingFailures = isPending('deathSaves.failures', deathSavesFailures);
 
     setLocalDeathSaves((prev) => ({
-      successes: pendingSuccesses ? prev.successes : incomingSuccesses,
-      failures: pendingFailures ? prev.failures : incomingFailures,
+      successes: pendingSuccesses ? prev.successes : deathSavesSuccesses,
+      failures: pendingFailures ? prev.failures : deathSavesFailures,
     }));
 
     if (!pendingSuccesses) clearStagedEdit(campaignId, pc.id, 'deathSaves.successes');
     if (!pendingFailures) clearStagedEdit(campaignId, pc.id, 'deathSaves.failures');
-  }, [pc.deathSaves?.successes, pc.deathSaves?.failures, campaignId, pc.id]);
+  }, [deathSavesSuccesses, deathSavesFailures, campaignId, pc.id]);
 
   useEffect(() => {
     const incoming = pc.conditions ?? [];
@@ -292,21 +291,21 @@ export default function PlayerPcSheetCard({
     : `Level ${pc.level ?? 1}`;
 
   return (
-    <div className="rounded-lg border border-rule bg-parchment shadow-md space-y-4 p-4 sm:p-5">
+    <div className="space-y-4 rounded-lg border border-rule bg-parchment p-4 shadow-md sm:p-5">
       {/* Identity Summary */}
-      <div className="border-b border-rule pb-3 flex flex-wrap justify-between items-start gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-rule pb-3">
         <div>
-          <h3 className="font-display text-xl tracking-wide text-ink font-semibold">{pc.name || 'Unnamed Character'}</h3>
+          <h3 className="font-display text-xl font-semibold tracking-wide text-ink">{pc.name || 'Unnamed Character'}</h3>
           <p className="font-serif text-xs italic text-ink-mute">
             {[pc.race, classesLabel].filter(Boolean).join(' · ')}
           </p>
         </div>
         <div className="flex items-center gap-3 font-serif text-xs">
-          <div className="flex items-center gap-1 rounded bg-parchment-deep px-2.5 py-1 border border-rule">
+          <div className="flex items-center gap-1 rounded border border-rule bg-parchment-deep px-2.5 py-1">
             <span className="font-semibold text-ink">AC:</span>
-            <span className="text-crimson font-display font-medium">{pc.ac ?? 10}</span>
+            <span className="font-display font-medium text-crimson">{pc.ac ?? 10}</span>
           </div>
-          <div className="flex items-center gap-1 rounded bg-parchment-deep px-2.5 py-1 border border-rule">
+          <div className="flex items-center gap-1 rounded border border-rule bg-parchment-deep px-2.5 py-1">
             <span className="font-semibold text-ink">Speed:</span>
             <span className="text-ink-soft">{pc.speed ?? 30} ft.</span>
           </div>
@@ -316,14 +315,14 @@ export default function PlayerPcSheetCard({
       {/* HP and Vitality Dashboard */}
       <div className="grid gap-3 sm:grid-cols-3">
         {/* HP Panel */}
-        <div className="rounded border border-rule bg-parchment-soft p-3 space-y-2">
-          <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep flex items-center gap-1 font-semibold">
+        <div className="space-y-2 rounded border border-rule bg-parchment-soft p-3">
+          <div className="flex items-center gap-1 font-display text-[10px] font-semibold uppercase tracking-wider text-brass-deep">
             <Heart size={12} className="text-crimson" /> Hit Points
           </div>
           <div className="flex items-center justify-between gap-1.5">
             <button
               onClick={() => adjustHp(-1)}
-              className="h-7 w-7 rounded border border-rule bg-parchment flex items-center justify-center font-bold text-ink hover:bg-parchment-deep"
+              className="flex size-7 items-center justify-center rounded border border-rule bg-parchment font-bold text-ink hover:bg-parchment-deep"
             >
               -
             </button>
@@ -336,11 +335,11 @@ export default function PlayerPcSheetCard({
                 className="w-12 border-b border-rule bg-transparent text-center font-display text-lg text-ink focus:border-crimson focus:outline-none"
               />
               <span className="text-ink-mute">/</span>
-              <span className="text-ink-soft font-display">{pc.hp?.max ?? 0}</span>
+              <span className="font-display text-ink-soft">{pc.hp?.max ?? 0}</span>
             </div>
             <button
               onClick={() => adjustHp(1)}
-              className="h-7 w-7 rounded border border-rule bg-parchment flex items-center justify-center font-bold text-ink hover:bg-parchment-deep"
+              className="flex size-7 items-center justify-center rounded border border-rule bg-parchment font-bold text-ink hover:bg-parchment-deep"
             >
               +
             </button>
@@ -358,8 +357,8 @@ export default function PlayerPcSheetCard({
         </div>
 
         {/* Exhaustion Panel */}
-        <div className="rounded border border-rule bg-parchment-soft p-3 space-y-2">
-          <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep font-semibold">
+        <div className="space-y-2 rounded border border-rule bg-parchment-soft p-3">
+          <div className="font-display text-[10px] font-semibold uppercase tracking-wider text-brass-deep">
             Exhaustion
           </div>
           <div className="flex justify-between gap-1 pt-1">
@@ -369,7 +368,7 @@ export default function PlayerPcSheetCard({
                 onClick={() => handleExhaustionChange(n)}
                 className={`h-6 flex-1 rounded border font-display text-[10px] transition-colors ${
                   localExhaustion === n
-                    ? 'border-crimson bg-crimson text-white font-semibold'
+                    ? 'border-crimson bg-crimson font-semibold text-white'
                     : 'border-rule text-ink-soft hover:bg-parchment'
                 }`}
               >
@@ -377,14 +376,14 @@ export default function PlayerPcSheetCard({
               </button>
             ))}
           </div>
-          <p className="font-serif text-[10px] text-ink-faint leading-normal text-center italic pt-0.5">
+          <p className="pt-0.5 text-center font-serif text-[10px] italic leading-normal text-ink-faint">
             {localExhaustion >= 6 ? '☠ Level 6: Death' : EXHAUSTION_LABELS[localExhaustion]}
           </p>
         </div>
 
         {/* Death Saves Panel */}
-        <div className="rounded border border-rule bg-parchment-soft p-3 space-y-2">
-          <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep font-semibold">
+        <div className="space-y-2 rounded border border-rule bg-parchment-soft p-3">
+          <div className="font-display text-[10px] font-semibold uppercase tracking-wider text-brass-deep">
             Death Saves
           </div>
           <div className="space-y-1.5 pt-1.5">
@@ -395,7 +394,7 @@ export default function PlayerPcSheetCard({
                   <button
                     key={n}
                     onClick={() => handleDeathSave('successes', n)}
-                    className={`h-5 w-5 rounded-full border transition-all ${
+                    className={`size-5 rounded-full border transition-all ${
                       localDeathSaves.successes >= n
                         ? 'border-emerald-600 bg-emerald-500 shadow-sm'
                         : 'border-rule hover:bg-parchment'
@@ -412,7 +411,7 @@ export default function PlayerPcSheetCard({
                   <button
                     key={n}
                     onClick={() => handleDeathSave('failures', n)}
-                    className={`h-5 w-5 rounded-full border transition-all ${
+                    className={`size-5 rounded-full border transition-all ${
                       localDeathSaves.failures >= n
                         ? 'border-crimson bg-crimson shadow-sm'
                         : 'border-rule hover:bg-parchment'
@@ -427,8 +426,8 @@ export default function PlayerPcSheetCard({
       </div>
 
       {/* Conditions Editor */}
-      <div className="rounded border border-rule bg-parchment-soft p-3 space-y-2">
-        <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep font-semibold">
+      <div className="space-y-2 rounded border border-rule bg-parchment-soft p-3">
+        <div className="font-display text-[10px] font-semibold uppercase tracking-wider text-brass-deep">
           Active Conditions
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -438,10 +437,10 @@ export default function PlayerPcSheetCard({
               <button
                 key={cond}
                 onClick={() => toggleCondition(cond)}
-                className={`text-[9px] px-2 py-0.5 rounded border font-display uppercase tracking-wider transition-colors ${
+                className={`rounded border px-2 py-0.5 font-display text-[9px] uppercase tracking-wider transition-colors ${
                   isActive
-                    ? 'border-wine/50 bg-wine/15 text-wine font-semibold'
-                    : 'border-rule text-ink-soft bg-parchment hover:bg-parchment-deep'
+                    ? 'border-wine/50 bg-wine/15 font-semibold text-wine'
+                    : 'border-rule bg-parchment text-ink-soft hover:bg-parchment-deep'
                 }`}
               >
                 {cond}
@@ -452,23 +451,23 @@ export default function PlayerPcSheetCard({
       </div>
 
       {/* Roleplay Fields (Editable Roster Lists) */}
-      <div className="grid gap-3 sm:grid-cols-2 border-t border-rule pt-3">
+      <div className="grid gap-3 border-t border-rule pt-3 sm:grid-cols-2">
         {PC_ROLEPLAY_FIELDS.map((field) => (
           <div key={field} className="space-y-1.5">
-            <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep font-semibold">
+            <div className="font-display text-[10px] font-semibold uppercase tracking-wider text-brass-deep">
               {prettify(field)}
             </div>
-            <div className="space-y-1 bg-parchment-soft/50 p-2 rounded border border-rule/50">
+            <div className="space-y-1 rounded border border-rule/50 bg-parchment-soft/50 p-2">
               {getRenderedList(field).map((val: string, idx: number) => (
-                <div key={idx} className="flex items-center gap-1.5 group">
+                <div key={idx} className="group flex items-center gap-1.5">
                   <input
                     value={val}
                     onChange={(e) => handleEditListItem(field, idx, e.target.value)}
-                    className="w-full border-b border-transparent hover:border-rule bg-transparent px-1 py-0.5 font-serif text-xs text-ink-soft focus:border-crimson focus:outline-none"
+                    className="w-full border-b border-transparent bg-transparent px-1 py-0.5 font-serif text-xs text-ink-soft hover:border-rule focus:border-crimson focus:outline-none"
                   />
                   <button
                     onClick={() => handleRemoveListItem(field, idx)}
-                    className="text-ink-mute hover:text-crimson opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="text-ink-mute opacity-0 transition-opacity hover:text-crimson group-hover:opacity-100"
                     aria-label={`Remove ${field} item`}
                   >
                     <X size={12} />
@@ -477,7 +476,7 @@ export default function PlayerPcSheetCard({
               ))}
               <button
                 onClick={() => handleAddListItem(field, '')}
-                className="flex items-center gap-1 font-display text-[9px] uppercase tracking-wider text-brass-deep hover:text-crimson pt-1"
+                className="flex items-center gap-1 pt-1 font-display text-[9px] uppercase tracking-wider text-brass-deep hover:text-crimson"
               >
                 <Plus size={10} /> Add {prettify(field.replace(/s$/, ''))}
               </button>
@@ -487,8 +486,8 @@ export default function PlayerPcSheetCard({
       </div>
 
       {/* Personal Notes (Editable Textarea) */}
-      <div className="border-t border-rule pt-3 space-y-1.5">
-        <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep font-semibold">
+      <div className="space-y-1.5 border-t border-rule pt-3">
+        <div className="font-display text-[10px] font-semibold uppercase tracking-wider text-brass-deep">
           Personal Notes
         </div>
         <textarea
@@ -497,22 +496,22 @@ export default function PlayerPcSheetCard({
           onBlur={handleNotesBlur}
           placeholder="Freeform character notes (session logs, inventory lists, sidekick stats...)"
           rows={3}
-          className="w-full border border-rule rounded bg-parchment-soft p-2.5 font-serif text-xs text-ink focus:border-crimson focus:outline-none resize-none leading-relaxed"
+          className="w-full resize-none rounded border border-rule bg-parchment-soft p-2.5 font-serif text-xs leading-relaxed text-ink focus:border-crimson focus:outline-none"
         />
       </div>
 
       {/* Read-only PC Properties */}
-      <details className="border-t border-rule pt-2 group">
-        <summary className="font-display text-[10px] uppercase tracking-wider text-ink-mute cursor-pointer select-none hover:text-ink flex items-center justify-between">
+      <details className="group border-t border-rule pt-2">
+        <summary className="flex cursor-pointer select-none items-center justify-between font-display text-[10px] uppercase tracking-wider text-ink-mute hover:text-ink">
           <span>View Ability Scores & Skills</span>
           <span className="font-serif text-[9px] text-ink-faint">(Click to Expand)</span>
         </summary>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 animate-fade-in">
+        <div className="animate-fade-in mt-3 grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <div className="font-display text-[9px] uppercase tracking-wider text-brass-deep font-semibold">Ability Scores</div>
-            <div className="grid grid-cols-3 gap-1 bg-parchment-soft p-2 rounded border border-rule">
+            <div className="font-display text-[9px] font-semibold uppercase tracking-wider text-brass-deep">Ability Scores</div>
+            <div className="grid grid-cols-3 gap-1 rounded border border-rule bg-parchment-soft p-2">
               {ABILITY_KEYS.map((a) => (
-                <div key={a} className="text-center py-1">
+                <div key={a} className="py-1 text-center">
                   <div className="font-display text-[9px] uppercase text-brass-deep">{a}</div>
                   <div className="font-serif text-sm font-semibold text-ink">{pc.abilities?.[a] ?? 10}</div>
                   <div className="font-display text-[10px] text-crimson">
@@ -524,8 +523,8 @@ export default function PlayerPcSheetCard({
             </div>
           </div>
           <div className="space-y-1.5">
-            <div className="font-display text-[9px] uppercase tracking-wider text-brass-deep font-semibold">Details</div>
-            <div className="bg-parchment-soft p-2.5 rounded border border-rule font-serif text-xs text-ink-soft space-y-1">
+            <div className="font-display text-[9px] font-semibold uppercase tracking-wider text-brass-deep">Details</div>
+            <div className="space-y-1 rounded border border-rule bg-parchment-soft p-2.5 font-serif text-xs text-ink-soft">
               <div><span className="font-semibold text-ink">Proficiency Bonus:</span> {pc.proficiencyBonus ? `+${pc.proficiencyBonus}` : '+2'}</div>
               <div><span className="font-semibold text-ink">Saving Throws:</span> {pc.proficiencies?.savingThrows?.join(', ') || 'None'}</div>
               <div><span className="font-semibold text-ink">Skills:</span> {pc.proficiencies?.skills?.join(', ') || 'None'}</div>

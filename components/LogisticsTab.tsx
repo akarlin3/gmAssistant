@@ -131,7 +131,7 @@ function PursePanel({
   const totalGp = purseToGp(purse);
   const weight = purseWeightLb(purse);
   return (
-    <section className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2.5">
+    <section className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <h3 className="flex items-center gap-1.5 font-display text-sm uppercase tracking-wide text-ink">
         <Coins size={14} /> Coin Purse
       </h3>
@@ -174,7 +174,7 @@ function ContainersPanel({
   onChangeItems: (i: Item[]) => void;
 }) {
   return (
-    <section className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2.5">
+    <section className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-1.5 font-display text-sm uppercase tracking-wide text-ink">
           <Package size={14} /> Containers
@@ -209,7 +209,7 @@ function ContainersPanel({
           const bind = s.weightUsage >= s.volumeUsage ? 'weight' : 'volume';
           const pct = Math.min(100, Math.max(s.weightUsage, s.volumeUsage) * 100);
           return (
-            <div key={c.id} className="rounded border border-rule bg-parchment-soft p-2.5 space-y-1.5">
+            <div key={c.id} className="space-y-1.5 rounded border border-rule bg-parchment-soft p-2.5">
               <div className="flex items-center justify-between gap-2">
                 <input
                   value={c.label}
@@ -269,9 +269,9 @@ function ItemsPanel({
     setDraft({ name: '', weightLb: 0, volumeL: 0, quantity: 1, containerId: draft.containerId });
   };
   return (
-    <section className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2.5">
+    <section className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <h3 className="font-display text-sm uppercase tracking-wide text-ink">Items</h3>
-      <div className="grid grid-cols-[1fr_70px_70px_60px_120px_auto] gap-1.5 items-end">
+      <div className="grid grid-cols-[1fr_70px_70px_60px_120px_auto] items-end gap-1.5">
         <label className="flex flex-col gap-0.5">
           <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Name</span>
           <input
@@ -397,11 +397,11 @@ function CharacterPanel({
 
   return (
     <div className="space-y-4">
-      <section className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2.5">
+      <section className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
         <h3 className="flex items-center gap-1.5 font-display text-sm uppercase tracking-wide text-ink">
           <Weight size={14} /> Encumbrance
         </h3>
-        <div className="grid grid-cols-[100px_120px_1fr] gap-3 items-end">
+        <div className="grid grid-cols-[100px_120px_1fr] items-end gap-3">
           <label className="flex flex-col gap-1">
             <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">STR</span>
             <input

@@ -70,20 +70,20 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
 
   if (authLoading || loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center p-5 bg-parchment font-serif">
-        <p className="text-sm italic text-ink-mute animate-pulse">Loading invite...</p>
+      <main className="flex min-h-screen items-center justify-center bg-parchment p-5 font-serif">
+        <p className="animate-pulse text-sm italic text-ink-mute">Loading invite...</p>
       </main>
     );
   }
 
   if (error) {
     return (
-      <main className="flex min-h-screen items-center justify-center p-5 bg-parchment">
-        <div className="space-y-4 text-center max-w-sm">
-          <p className="text-sm font-serif text-crimson">{error}</p>
+      <main className="flex min-h-screen items-center justify-center bg-parchment p-5">
+        <div className="max-w-sm space-y-4 text-center">
+          <p className="font-serif text-sm text-crimson">{error}</p>
           <button 
             onClick={() => router.replace('/campaign')} 
-            className="rounded border border-rule px-4 py-2 text-sm font-display tracking-wide text-ink-soft hover:bg-parchment-deep hover:text-ink transition-colors"
+            className="rounded border border-rule px-4 py-2 font-display text-sm tracking-wide text-ink-soft transition-colors hover:bg-parchment-deep hover:text-ink"
           >
             Go to My Campaigns
           </button>
@@ -93,9 +93,9 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-5 bg-parchment">
-      <div className="max-w-md w-full rounded-lg border border-rule bg-parchment-soft shadow-card p-6 md:p-8 space-y-6 text-center">
-        <div className="mx-auto w-12 h-12 flex items-center justify-center rounded-full bg-brass/10 border border-brass/40">
+    <main className="flex min-h-screen items-center justify-center bg-parchment p-5">
+      <div className="w-full max-w-md space-y-6 rounded-lg border border-rule bg-parchment-soft p-6 text-center shadow-card md:p-8">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-brass/40 bg-brass/10">
           <Shield className="text-brass-deep" size={24} />
         </div>
         
@@ -106,11 +106,11 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
           </p>
         </div>
 
-        <div className="pt-4 border-t border-rule">
+        <div className="border-t border-rule pt-4">
           <button
             onClick={handleJoin}
             disabled={joining}
-            className="w-full flex items-center justify-center gap-2 rounded border border-brass-deep bg-brass/10 px-4 py-3 font-display text-sm tracking-wider uppercase text-brass-deep hover:bg-brass hover:text-parchment transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex w-full items-center justify-center gap-2 rounded border border-brass-deep bg-brass/10 px-4 py-3 font-display text-sm uppercase tracking-wider text-brass-deep transition-colors hover:bg-brass hover:text-parchment disabled:cursor-not-allowed disabled:opacity-50"
           >
             {joining ? 'Request Pending...' : 'Request to Join'}
           </button>

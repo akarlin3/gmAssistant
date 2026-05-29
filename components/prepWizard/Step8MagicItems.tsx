@@ -119,9 +119,9 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
         {unassignedItems.map((item) => (
           <div
             key={item.id}
-            className="group relative rounded-lg border border-rule bg-parchment-soft/50 hover:bg-parchment-soft p-3.5 shadow-sm hover:shadow transition-all duration-200 space-y-2.5"
+            className="group relative space-y-2.5 rounded-lg border border-rule bg-parchment-soft/50 p-3.5 shadow-sm transition-all duration-200 hover:bg-parchment-soft hover:shadow"
           >
-            <div className="flex gap-3 items-start">
+            <div className="flex items-start gap-3">
               <div className="flex-1 space-y-2">
                 <input
                   type="text"
@@ -137,7 +137,7 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
                   rows={2}
                   className="w-full resize-y rounded border border-rule bg-parchment px-2.5 py-1.5 font-serif text-xs text-ink-soft placeholder:text-ink-faint focus:border-crimson focus:outline-none"
                 />
-                <div className="flex flex-wrap gap-x-4 gap-y-2 items-center text-[11px]">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px]">
                   <div className="flex items-center gap-1.5">
                     <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep">
                       Assign to player:
@@ -145,7 +145,7 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
                     <select
                       value={item.assignedPlayerId || ''}
                       onChange={(e) => updateItem(item.id, { assignedPlayerId: e.target.value || undefined })}
-                      className="rounded border border-rule bg-parchment px-2 py-0.5 font-serif text-[10px] text-ink-soft focus:border-crimson focus:outline-none cursor-pointer"
+                      className="cursor-pointer rounded border border-rule bg-parchment px-2 py-0.5 font-serif text-[10px] text-ink-soft focus:border-crimson focus:outline-none"
                     >
                       <option value="">Unassigned</option>
                       {roster.map(r => (
@@ -161,7 +161,7 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
                       <select
                         value={item.playerVisibility || 'full'}
                         onChange={(e) => updateItem(item.id, { playerVisibility: e.target.value as 'name-only' | 'full' })}
-                        className="rounded border border-rule bg-parchment px-2 py-0.5 font-serif text-[10px] text-ink-soft focus:border-crimson focus:outline-none cursor-pointer"
+                        className="cursor-pointer rounded border border-rule bg-parchment px-2 py-0.5 font-serif text-[10px] text-ink-soft focus:border-crimson focus:outline-none"
                       >
                         <option value="full">Name & Description</option>
                         <option value="name-only">Name Only</option>
@@ -173,7 +173,7 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
               <button
                 type="button"
                 onClick={() => removeItem(item.id)}
-                className="p-1 rounded text-ink-mute hover:text-crimson hover:bg-crimson/5 transition-colors duration-150 flex-shrink-0"
+                className="flex-shrink-0 rounded p-1 text-ink-mute transition-colors duration-150 hover:bg-crimson/5 hover:text-crimson"
                 title="Remove Item"
               >
                 <Trash2 size={14} />
@@ -184,13 +184,13 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
         <button
           type="button"
           onClick={addItem}
-          className="inline-flex items-center gap-1.5 rounded-full border border-brass-deep/60 bg-brass/5 px-4 py-1.5 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass-deep transition-all duration-150"
+          className="inline-flex items-center gap-1.5 rounded-full border border-brass-deep/60 bg-brass/5 px-4 py-1.5 font-display text-[10px] uppercase tracking-wider text-brass-deep transition-all duration-150 hover:border-brass-deep hover:bg-brass hover:text-parchment"
         >
           <Plus size={12} /> Add Magic Item
         </button>
       </div>
 
-      <label className="block space-y-1 mt-4">
+      <label className="mt-4 block space-y-1">
         <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
           Notes for this session
         </span>
@@ -199,7 +199,7 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="Who gets what, how it surfaces in the fiction."
-          className="w-full resize-y rounded border border-rule bg-parchment px-2.5 py-1.5 font-serif text-sm text-ink focus:border-crimson focus:outline-none placeholder:italic placeholder:text-ink-faint"
+          className="w-full resize-y rounded border border-rule bg-parchment px-2.5 py-1.5 font-serif text-sm text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
         />
       </label>
     </StepShell>

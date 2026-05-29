@@ -73,10 +73,10 @@ export default function Tour({ mode, steps, onComplete }: Props) {
   };
 
   return (
-    <div className="absolute inset-0 pointer-events-none">
+    <div className="pointer-events-none absolute inset-0">
       {/* Target element highlight ring */}
       <div
-        className={`absolute rounded transition-all pointer-events-auto ring-4 animate-pulse ${
+        className={`pointer-events-auto absolute animate-pulse rounded ring-4 transition-all ${
           isSolo ? 'ring-pink-500/40' : 'ring-teal-500/40'
         }`}
         style={{
@@ -92,12 +92,12 @@ export default function Tour({ mode, steps, onComplete }: Props) {
       <div
         ref={tooltipRef}
         style={tooltipStyle}
-        className={`w-72 rounded-lg border bg-parchment shadow-lg p-4 pointer-events-auto space-y-3 relative ${borderTheme}`}
+        className={`pointer-events-auto relative w-72 space-y-3 rounded-lg border bg-parchment p-4 shadow-lg ${borderTheme}`}
       >
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 font-display text-[11px] uppercase tracking-wider text-ink-mute">
-            <span className={`p-1 rounded ${themeColor}`}>
+            <span className={`rounded p-1 ${themeColor}`}>
               <Sparkles size={11} />
             </span>
             <span>{mode} tour · {currentStepIndex + 1}/{steps.length}</span>
@@ -105,7 +105,7 @@ export default function Tour({ mode, steps, onComplete }: Props) {
           <button
             type="button"
             onClick={onComplete}
-            className="text-ink-mute hover:text-crimson transition-colors"
+            className="text-ink-mute transition-colors hover:text-crimson"
           >
             <X size={14} />
           </button>
@@ -114,7 +114,7 @@ export default function Tour({ mode, steps, onComplete }: Props) {
         {/* Body */}
         <div className="space-y-1">
           <h4 className="font-display text-sm font-bold tracking-wide text-ink">{step.title}</h4>
-          <p className="font-serif text-xs text-ink-soft leading-relaxed">{step.body}</p>
+          <p className="font-serif text-xs leading-relaxed text-ink-soft">{step.body}</p>
         </div>
 
         {/* Footer */}
@@ -122,14 +122,14 @@ export default function Tour({ mode, steps, onComplete }: Props) {
           <button
             type="button"
             onClick={onComplete}
-            className="text-[10px] font-display uppercase tracking-wider text-ink-mute hover:text-ink transition-colors"
+            className="font-display text-[10px] uppercase tracking-wider text-ink-mute transition-colors hover:text-ink"
           >
             Skip
           </button>
           <button
             type="button"
             onClick={handleNext}
-            className={`flex items-center gap-1 px-2.5 py-1 text-[10px] font-display uppercase tracking-wider text-parchment rounded shadow-sm transition-colors ${btnTheme}`}
+            className={`flex items-center gap-1 rounded px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-parchment shadow-sm transition-colors ${btnTheme}`}
           >
             {isLast ? 'Got It' : 'Next'} <ChevronRight size={10} />
           </button>

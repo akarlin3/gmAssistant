@@ -589,7 +589,7 @@ function PreviewAsPlayer({
   if (roster.length === 0) return <p className="font-serif text-sm italic text-ink-mute">Add a roster slot to preview.</p>;
   return (
     <div className="space-y-3">
-      <select value={slotId} onChange={(e) => setPreviewSlot(e.target.value)} className="rounded border border-rule bg-parchment px-2 py-1 text-sm text-ink font-serif">
+      <select value={slotId} onChange={(e) => setPreviewSlot(e.target.value)} className="rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink">
         {roster.map((s) => <option key={s.slotId} value={s.slotId}>{s.displayName}</option>)}
       </select>
       {projection && (
@@ -614,7 +614,7 @@ function PreviewAsPlayer({
               {projection.sessionLog.length > 0 && <div className="font-serif text-ink-soft">{projection.sessionLog.length} session log entr{projection.sessionLog.length === 1 ? 'y' : 'ies'} shared</div>}
               {projection.pcGoals && projection.pcGoals.length > 0 && (
                 <div>
-                  <div className="font-display text-xs uppercase tracking-wider text-brass-deep mt-2">goals</div>
+                  <div className="mt-2 font-display text-xs uppercase tracking-wider text-brass-deep">goals</div>
                   <ul className="list-disc pl-5 font-serif text-ink-soft">
                     {projection.pcGoals.map((g: any, idx: number) => (
                       <li key={idx}>{g.text}</li>
@@ -624,7 +624,7 @@ function PreviewAsPlayer({
               )}
               {projection.items && projection.items.length > 0 && (
                 <div>
-                  <div className="font-display text-xs uppercase tracking-wider text-brass-deep font-semibold mt-2">Given Items</div>
+                  <div className="mt-2 font-display text-xs font-semibold uppercase tracking-wider text-brass-deep">Given Items</div>
                   <ul className="list-disc pl-5 font-serif text-ink-soft">
                     {projection.items.map((it) => (
                       <li key={it.id}>{it.name}</li>

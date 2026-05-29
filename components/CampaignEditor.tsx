@@ -1140,7 +1140,7 @@ export default function CampaignEditor({
       if (unsubscribe) unsubscribe();
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [campaign.id, playMode, worldOnlyMode]);
+  }, [campaign.id, playMode, worldOnlyMode, campaign.userId]);
 
   const addPc = () => {
     if (pcs.length >= PC_CAP) return;
@@ -1280,10 +1280,10 @@ export default function CampaignEditor({
   };
 
   const SyncIndicator = () => {
-    if (syncState === 'saving') return <span className="text-xs text-ink-soft flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} className="animate-pulse" /> Saving…</span>;
-    if (syncState === 'pending') return <span className="text-xs text-ink-mute flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} /> Pending</span>;
-    if (syncState === 'error') return <span className="text-xs text-crimson flex items-center gap-1 font-display uppercase tracking-wider" title={syncError}><CloudOff size={12} /> Save Failed</span>;
-    return <span className="text-xs text-brass-deep flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} /> Saved</span>;
+    if (syncState === 'saving') return <span className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-ink-soft"><Cloud size={12} className="animate-pulse" /> Saving…</span>;
+    if (syncState === 'pending') return <span className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-ink-mute"><Cloud size={12} /> Pending</span>;
+    if (syncState === 'error') return <span className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-crimson" title={syncError}><CloudOff size={12} /> Save Failed</span>;
+    return <span className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep"><Cloud size={12} /> Saved</span>;
   };
 
   // Manual retry — uses current state, bypasses the debounce timer. Wired to
@@ -1312,7 +1312,7 @@ export default function CampaignEditor({
         type="button"
         onClick={retrySave}
         title={syncError || 'Click to retry'}
-        className={`${base} border-crimson/70 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment cursor-pointer`}
+        className={`${base} cursor-pointer border-crimson/70 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment`}
       >
         <CloudOff size={12} />
         Save failed — click to retry
@@ -1330,10 +1330,10 @@ export default function CampaignEditor({
   }, [syncState]);
 
   const ToolBtn = ({ onClick, children, danger = false, title }: { onClick: () => void; children: React.ReactNode; danger?: boolean; title?: string }) => (
-    <button onClick={onClick} title={title} className={`text-xs px-3 py-1 rounded border font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
+    <button onClick={onClick} title={title} className={`flex items-center gap-1.5 rounded border px-3 py-1 font-display text-xs uppercase tracking-wider transition-colors ${
       danger
         ? 'border-crimson/50 text-crimson hover:bg-crimson hover:text-parchment'
-        : 'border-brass-deep/50 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass'
+        : 'border-brass-deep/50 text-brass-deep hover:border-brass hover:bg-brass hover:text-parchment'
     }`}>
       {children}
     </button>
@@ -2029,14 +2029,14 @@ export default function CampaignEditor({
     <WikiProvider value={wikiValue}>
     <CampaignPlayModeContext.Provider value={playMode}>
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
-          <header className="pb-3 border-b border-rule">
-            <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="mx-auto max-w-5xl">
+        <div className="space-y-4 rounded-lg border border-rule bg-parchment-soft p-3 shadow-page sm:p-5 md:p-8">
+          <header className="border-b border-rule pb-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => { if (confirmUnsavedNav()) router.push('/campaign'); }}
-                className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1"
+                className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
               >
                 <ArrowLeft size={12} /> All Campaigns
               </button>
@@ -2054,26 +2054,26 @@ export default function CampaignEditor({
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <ScrollText size={20} className="text-crimson flex-shrink-0" />
+            <div className="flex flex-wrap items-center gap-2">
+              <ScrollText size={20} className="flex-shrink-0 text-crimson" />
               <textarea rows={1} value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign Name"
-                className="flex-1 min-w-[12rem] bg-transparent border-b border-rule font-display text-xl sm:text-2xl tracking-wide text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none pb-1 resize-none whitespace-pre-wrap break-words [field-sizing:content]" />
+                className="min-w-48 flex-1 resize-none whitespace-pre-wrap break-words border-b border-rule bg-transparent pb-1 font-display text-xl tracking-wide text-ink [field-sizing:content] placeholder:text-ink-faint focus:border-crimson focus:outline-none sm:text-2xl" />
               {isArchived && (
                 <span
                   title="This campaign is archived — hidden from your main list. Unarchive from the Account menu."
-                  className="text-[10px] not-italic px-1.5 py-0.5 rounded-sm border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex-shrink-0"
+                  className="flex-shrink-0 rounded-sm border border-brass-deep/60 bg-brass/10 px-1.5 py-0.5 font-display text-[10px] uppercase not-italic tracking-wider text-brass-deep"
                 >
                   Archived
                 </span>
               )}
               {worldOnlyMode ? (
-                <span className="text-[10px] not-italic px-1.5 py-0.5 rounded-sm border border-moss/60 bg-moss/10 text-moss font-display uppercase tracking-wider flex-shrink-0">
+                <span className="flex-shrink-0 rounded-sm border border-moss/60 bg-moss/10 px-1.5 py-0.5 font-display text-[10px] uppercase not-italic tracking-wider text-moss">
                   Shared World
                 </span>
               ) : campaign.worldId ? (
                 <button
                   onClick={() => router.push(`/world/${campaign.worldId}`)}
-                  className="text-[10px] not-italic px-2 py-0.5 rounded border border-indigo-700/60 bg-indigo-50 text-indigo-700 font-display uppercase tracking-wider flex-shrink-0 hover:bg-indigo-100 transition-colors flex items-center gap-1"
+                  className="flex flex-shrink-0 items-center gap-1 rounded border border-indigo-700/60 bg-indigo-50 px-2 py-0.5 font-display text-[10px] uppercase not-italic tracking-wider text-indigo-700 transition-colors hover:bg-indigo-100"
                 >
                   <Globe size={10} /> World Linked
                 </button>
@@ -2081,7 +2081,7 @@ export default function CampaignEditor({
                 <button
                   type="button"
                   onClick={handleConvertToWorld}
-                  className="text-[10px] not-italic px-2 py-0.5 rounded border border-brass-deep/60 bg-brass/5 text-brass-deep font-display uppercase tracking-wider flex-shrink-0 hover:bg-brass/10 transition-colors"
+                  className="flex-shrink-0 rounded border border-brass-deep/60 bg-brass/5 px-2 py-0.5 font-display text-[10px] uppercase not-italic tracking-wider text-brass-deep transition-colors hover:bg-brass/10"
                 >
                   Convert to Shared World
                 </button>
@@ -2089,12 +2089,12 @@ export default function CampaignEditor({
               <button
                 type="button"
                 onClick={() => setModeSwitcherOpen(true)}
-                className={`font-semibold px-2 py-0.5 rounded border text-[10px] tracking-wider uppercase font-display flex items-center gap-1 transition-all hover:opacity-85 ${
+                className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] font-semibold uppercase tracking-wider transition-all hover:opacity-85 ${
                   playMode === 'solo'
-                    ? 'bg-pink-950/20 text-pink-400 border-pink-500/30'
+                    ? 'border-pink-500/30 bg-pink-950/20 text-pink-400'
                     : playMode === 'duet'
-                    ? 'bg-teal-950/20 text-teal-400 border-teal-500/30'
-                    : 'bg-amber-950/20 text-amber-400 border-amber-500/30'
+                    ? 'border-teal-500/30 bg-teal-950/20 text-teal-400'
+                    : 'border-amber-500/30 bg-amber-950/20 text-amber-400'
                 }`}
                 title="Click to change campaign play mode"
               >
@@ -2109,11 +2109,11 @@ export default function CampaignEditor({
             </div>
             <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
 
-            <div className="mt-2.5 flex flex-wrap items-center gap-1.5 justify-between">
+            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5">
               <div className="flex flex-wrap items-center gap-1.5">
                 <ToolBtn onClick={() => setPaletteOpen(true)} title="Open command palette (⌘K)">
                   <Search size={12} /> Search
-                  <kbd className="ml-1 text-[10px] font-display uppercase tracking-wider border border-rule rounded px-1 py-px text-ink-mute">⌘K</kbd>
+                  <kbd className="ml-1 rounded border border-rule px-1 py-px font-display text-[10px] uppercase tracking-wider text-ink-mute">⌘K</kbd>
                 </ToolBtn>
                 <button
                   type="button"
@@ -2122,7 +2122,7 @@ export default function CampaignEditor({
                     setVal('__prepWizardStep', 1);
                   }}
                   disabled={!!get('__activeSessionId', '')}
-                  className="text-xs px-3 py-1 rounded border border-moss/60 bg-moss/10 text-moss hover:bg-moss hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-moss/10 disabled:hover:text-moss"
+                  className="flex items-center gap-1.5 rounded border border-moss/60 bg-moss/10 px-3 py-1 font-display text-xs uppercase tracking-wider text-moss shadow-sm hover:bg-moss hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-moss/10 disabled:hover:text-moss"
                   title={get('__activeSessionId', '') ? 'Finish your current session first' : 'Walk through Lazy DM\'s 8-step prep'}
                 >
                   <ClipboardList size={12} /> Prep Next Session
@@ -2145,7 +2145,7 @@ export default function CampaignEditor({
                       __runSessionOpen: true,
                     }));
                   }}
-                  className="text-xs px-3 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
+                  className="flex items-center gap-1.5 rounded border border-crimson/60 bg-crimson/10 px-3 py-1 font-display text-xs uppercase tracking-wider text-crimson shadow-sm hover:bg-crimson hover:text-parchment"
                   title="Enter Run Session mode for live play"
                 >
                   <Play size={12} /> Run Session
@@ -2155,30 +2155,30 @@ export default function CampaignEditor({
                 <button
                   type="button"
                   onClick={() => setProgressOpen(!progressOpen)}
-                  className="flex items-center gap-1.5 rounded-full border border-moss/45 bg-moss/5 px-2.5 py-1 hover:bg-moss/10 transition-colors"
+                  className="flex items-center gap-1.5 rounded-full border border-moss/45 bg-moss/5 px-2.5 py-1 transition-colors hover:bg-moss/10"
                 >
-                  <div className="font-display text-[10px] uppercase tracking-wider text-moss flex items-center gap-1">
+                  <div className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-moss">
                     {completedCount}/{totalPrepSteps} Steps Done <ChevronDown size={10} className={`transition-transform ${progressOpen ? 'rotate-180' : ''}`} />
                   </div>
                 </button>
                 {progressOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-64 rounded border border-rule bg-parchment-soft shadow-page z-30 max-h-[80vh] overflow-y-auto">
-                    <div className="p-3 border-b border-rule font-display text-xs uppercase tracking-wider text-ink bg-parchment-deep/50">
+                  <div className="absolute right-0 top-full z-30 mt-2 max-h-[80vh] w-64 overflow-y-auto rounded border border-rule bg-parchment-soft shadow-page">
+                    <div className="border-b border-rule bg-parchment-deep/50 p-3 font-display text-xs uppercase tracking-wider text-ink">
                       Uncompleted Tasks
                     </div>
-                    <div className="p-2 space-y-3">
+                    <div className="space-y-3 p-2">
                       {PREP_GROUPS.map(g => {
                         const uncompleted = g.keys.map((k, i) => ({ k, label: g.labels[i] })).filter(x => !done?.[x.k]);
                         if (uncompleted.length === 0) return null;
                         return (
                           <div key={g.name}>
-                            <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep mb-1 px-1">
+                            <div className="mb-1 px-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
                               {g.name}
                             </div>
                             <ul className="space-y-1">
                               {uncompleted.map(u => (
-                                <li key={u.k} className="font-serif text-xs text-ink-soft flex items-start gap-1.5 px-1 leading-tight">
-                                  <span className="text-crimson/60 mt-0.5">•</span> <span>{u.label}</span>
+                                <li key={u.k} className="flex items-start gap-1.5 px-1 font-serif text-xs leading-tight text-ink-soft">
+                                  <span className="mt-0.5 text-crimson/60">•</span> <span>{u.label}</span>
                                 </li>
                               ))}
                             </ul>
@@ -2186,7 +2186,7 @@ export default function CampaignEditor({
                         );
                       })}
                       {PREP_GROUPS.every(g => g.keys.every(k => done?.[k])) && (
-                        <div className="text-center font-serif text-xs italic text-moss p-2">
+                        <div className="p-2 text-center font-serif text-xs italic text-moss">
                           All standard prep steps are complete!
                         </div>
                       )}
@@ -2210,25 +2210,25 @@ export default function CampaignEditor({
           <div className="space-y-3">
             {mode === 'prep' && subview === 'flow' && (
               nextUp ? (
-                <div className="rounded border border-brass/40 bg-brass/5 p-3 flex items-center gap-3 shadow-card">
-                  <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep flex-shrink-0">
+                <div className="flex items-center gap-3 rounded border border-brass/40 bg-brass/5 p-3 shadow-card">
+                  <div className="flex-shrink-0 font-display text-[10px] uppercase tracking-wider text-brass-deep">
                     Next Up
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-display text-ink text-sm">{nextUp.label}</div>
-                    <div className="text-xs text-ink-soft font-serif italic">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-display text-sm text-ink">{nextUp.label}</div>
+                    <div className="font-serif text-xs italic text-ink-soft">
                       {nextUp.current} of {nextUp.target} — {nextUp.target - nextUp.current} to go
                     </div>
                   </div>
                   <button
                     onClick={jumpToNextUp}
-                    className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass font-display uppercase tracking-wider flex-shrink-0 transition-colors"
+                    className="flex-shrink-0 rounded border border-brass-deep/60 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:border-brass hover:bg-brass hover:text-parchment"
                   >
                     Jump To
                   </button>
                 </div>
               ) : completedCount > 0 ? (
-                <div className="rounded border border-moss/40 bg-moss/5 p-3 text-sm font-serif italic text-moss text-center">
+                <div className="rounded border border-moss/40 bg-moss/5 p-3 text-center font-serif text-sm italic text-moss">
                   All prep targets met. Ready to run.
                 </div>
               ) : null
@@ -2313,7 +2313,7 @@ export default function CampaignEditor({
                   const curConfig = get('player', {});
                   const pitchShared = !!curConfig.planningVisibility?.pitch;
                   return (
-                    <div className="flex justify-end mt-1">
+                    <div className="mt-1 flex justify-end">
                       <button
                         type="button"
                         onClick={() => {
@@ -2321,8 +2321,8 @@ export default function CampaignEditor({
                           pv.pitch = !pv.pitch;
                           setVal('player', { ...curConfig, planningVisibility: pv });
                         }}
-                        className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded transition-colors ${
-                          pitchShared ? 'bg-moss/10 text-moss hover:bg-moss/20 font-medium' : 'bg-parchment-deep border border-rule text-ink-mute hover:text-ink'
+                        className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${
+                          pitchShared ? 'bg-moss/10 font-medium text-moss hover:bg-moss/20' : 'border border-rule bg-parchment-deep text-ink-mute hover:text-ink'
                         }`}
                       >
                         {pitchShared ? <Eye size={12} /> : <EyeOff size={12} />}
@@ -2332,7 +2332,7 @@ export default function CampaignEditor({
                   );
                 })()}
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Goal seeds:</span>
+                  <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Goal seeds:</span>
                   <Inspire tableId="dungeonGoals" label="Dungeon" onPick={(e) => {
                     const cur = get('pitch', '') as string;
                     setVal('pitch', cur ? `${cur}\n• ${e}` : `• ${e}`);
@@ -2361,7 +2361,7 @@ export default function CampaignEditor({
                   const curConfig = get('player', {});
                   const genreShared = !!curConfig.planningVisibility?.genre;
                   return (
-                    <div className="flex justify-end mt-1">
+                    <div className="mt-1 flex justify-end">
                       <button
                         type="button"
                         onClick={() => {
@@ -2369,8 +2369,8 @@ export default function CampaignEditor({
                           pv.genre = !pv.genre;
                           setVal('player', { ...curConfig, planningVisibility: pv });
                         }}
-                        className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded transition-colors ${
-                          genreShared ? 'bg-moss/10 text-moss hover:bg-moss/20 font-medium' : 'bg-parchment-deep border border-rule text-ink-mute hover:text-ink'
+                        className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${
+                          genreShared ? 'bg-moss/10 font-medium text-moss hover:bg-moss/20' : 'border border-rule bg-parchment-deep text-ink-mute hover:text-ink'
                         }`}
                       >
                         {genreShared ? <Eye size={12} /> : <EyeOff size={12} />}
@@ -2442,7 +2442,7 @@ export default function CampaignEditor({
                   </div>
                 ))}
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add faction from:</span>
+                  <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Add faction from:</span>
                   <Inspire tableId="villainArchetypes" label="Villain" onPick={(e) => {
                     setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }]);
                   }} />
@@ -2453,7 +2453,7 @@ export default function CampaignEditor({
                     setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }]);
                   }} />
                 </InspireGroup>
-                <button onClick={() => setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: '', area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                <button onClick={() => setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: '', area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }])} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
                   <Plus size={12} /> Add Faction
                 </button>
               </Section>
@@ -2476,7 +2476,7 @@ export default function CampaignEditor({
                   }}
                 />
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Inspire:</span>
                   <Inspire tableId="twists" label="Twist" onPick={(e) => {
                     setVal('conflicts', [...(get('conflicts', []) as string[]), e]);
                   }} />
@@ -2523,12 +2523,12 @@ export default function CampaignEditor({
                 </div>
               </Section>
               <Section id="goals" title="PC Goals (5 Rules of Proactive Fun)" methods={['pr']} done={done.goals} onToggle={toggleDone} open={open.goals} onToggleOpen={toggleOpen} icon={Target}>
-                <div className="rounded border border-wine/40 bg-wine/5 p-3 text-sm space-y-1.5 text-ink-soft font-serif">
-                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">1 · </span>Multiple Goals (3+ concurrent)</p>
-                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">2 · </span>Varying Timeframes</p>
-                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">3 · </span>Achievable (measurable)</p>
-                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">4 · </span>Consequences for Failure</p>
-                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">5 · </span>Fun to Pursue</p>
+                <div className="space-y-1.5 rounded border border-wine/40 bg-wine/5 p-3 font-serif text-sm text-ink-soft">
+                  <p><span className="font-display text-xs uppercase tracking-wider text-wine">1 · </span>Multiple Goals (3+ concurrent)</p>
+                  <p><span className="font-display text-xs uppercase tracking-wider text-wine">2 · </span>Varying Timeframes</p>
+                  <p><span className="font-display text-xs uppercase tracking-wider text-wine">3 · </span>Achievable (measurable)</p>
+                  <p><span className="font-display text-xs uppercase tracking-wider text-wine">4 · </span>Consequences for Failure</p>
+                  <p><span className="font-display text-xs uppercase tracking-wider text-wine">5 · </span>Fun to Pursue</p>
                 </div>
                 <Example title="Bad → Good">"Become powerful" → "Win a duel against the captain of the guard"</Example>
                 <Pitfall>Long-term goals locked in Session 0 are usually worse than ones locked after Session 1.</Pitfall>
@@ -2538,7 +2538,7 @@ export default function CampaignEditor({
                     const next = [...(get('pcGoals', []) as any[])]; next[i] = v; setVal('pcGoals', next);
                   }} onRemove={() => setVal('pcGoals', (get('pcGoals', []) as any[]).filter((_: any, j: number) => j !== i))} />
                 ))}
-                <button onClick={() => setVal('pcGoals', [...(get('pcGoals', []) as any[]), { text: '', timeframe: 'short', success: '', failure: '', linked: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                <button onClick={() => setVal('pcGoals', [...(get('pcGoals', []) as any[]), { text: '', timeframe: 'short', success: '', failure: '', linked: '' }])} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
                   <Plus size={12} /> Add Goal
                 </button>
               </Section>
@@ -2580,7 +2580,7 @@ export default function CampaignEditor({
                   target={tgt('scenes')}
                 />
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Inspire:</span>
                   <Inspire tableId="sideQuests" label="Side Quest" onPick={(e) => {
                     setVal('scenes', [...(get('scenes', []) as string[]), e]);
                   }} />
@@ -2603,7 +2603,7 @@ export default function CampaignEditor({
                   target={tgt('secrets')}
                 />
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Inspire:</span>
                   <Inspire tableId="villainSchemes" label="Scheme" onPick={(e) => {
                     setVal('secrets', [...(get('secrets', []) as string[]), e]);
                   }} />
@@ -2633,10 +2633,10 @@ export default function CampaignEditor({
                         key={originalIndex}
                         id={`entity-${entityId}`}
                         data-cp-anchor={`location:${originalIndex}`}
-                        className={`transition-shadow rounded ${
+                        className={`rounded transition-shadow ${
                           highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''
                         } ${
-                          isShared ? 'ring-1 ring-moss/30 bg-moss/5 border border-moss/20' : ''
+                          isShared ? 'border border-moss/20 bg-moss/5 ring-1 ring-moss/30' : ''
                         }`}
                       >
                         <LocationCard
@@ -2663,11 +2663,11 @@ export default function CampaignEditor({
                       </div>
                     );
                   })}
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex flex-wrap items-center gap-2">
                   <button onClick={() => {
                     setVal('locations', [...(get('locations', []) as any[]), { id: makeEntityId(), name: '', type: '', aspects: ['', '', ''], factions: '' }]);
                     trackEvent('location_added', 'Added a new location');
-                  }} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                  }} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
                     <Plus size={12} /> Add Location
                   </button>
                   {SECTION_GENERATORS.locations.length > 0 && (() => {
@@ -2702,10 +2702,10 @@ export default function CampaignEditor({
                         key={originalIndex}
                         id={`entity-${entityId}`}
                         data-cp-anchor={`npc:${originalIndex}`}
-                        className={`transition-shadow rounded ${
+                        className={`rounded transition-shadow ${
                           highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''
                         } ${
-                          isShared ? 'ring-1 ring-moss/30 bg-moss/5 border border-moss/20' : ''
+                          isShared ? 'border border-moss/20 bg-moss/5 ring-1 ring-moss/30' : ''
                         }`}
                       >
                         <NPCCard
@@ -2733,7 +2733,7 @@ export default function CampaignEditor({
                     );
                   })}
                 <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add new NPC seeded by:</span>
+                  <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Add new NPC seeded by:</span>
                   <Inspire tableId="villainArchetypes" label="Villain" onPick={(e) => {
                     setVal('npcs', [...(get('npcs', []) as any[]), { id: makeEntityId(), name: '', type: 'Villain', faction: '', archetype: e, goal: '', method: '' }]);
                   }} />
@@ -2744,14 +2744,14 @@ export default function CampaignEditor({
                     setVal('npcs', [...(get('npcs', []) as any[]), { id: makeEntityId(), name: '', type: '', faction: '', archetype: e, goal: '', method: '' }]);
                   }} />
                 </InspireGroup>
-                <p className="text-[10px] text-ink-mute italic font-serif -mt-1">
+                <p className="-mt-1 font-serif text-[10px] italic text-ink-mute">
                   Trait inspirations (mannerism, talent, ideal, bond, etc.) live inside each NPC card under &quot;Show Details&quot;.
                 </p>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex flex-wrap items-center gap-2">
                   <button onClick={() => {
                     setVal('npcs', [...(get('npcs', []) as any[]), { id: makeEntityId(), name: '', type: '', faction: '', archetype: '', goal: '', method: '' }]);
                     trackEvent('npc_added', 'Added a new NPC');
-                  }} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                  }} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
                     <Plus size={12} /> Add NPC
                   </button>
                   {SECTION_GENERATORS.npcs.length > 0 && (() => {
@@ -2895,9 +2895,9 @@ export default function CampaignEditor({
                     </div>
                   );
                 })()}
-                <div className="pt-3 border-t border-rule/60">
-                  <p className="text-xs text-brass-deep font-display uppercase tracking-wider mb-1.5">Treasure</p>
-                  <p className="text-[11px] text-ink-mute italic font-serif mb-1.5">
+                <div className="border-t border-rule/60 pt-3">
+                  <p className="mb-1.5 font-display text-xs uppercase tracking-wider text-brass-deep">Treasure</p>
+                  <p className="mb-1.5 font-serif text-[11px] italic text-ink-mute">
                     Coins, gems, art, trinkets, and other rewards — generated entries land here.
                   </p>
                   <ListField
@@ -2932,8 +2932,8 @@ export default function CampaignEditor({
             {mode === 'prep' && subview === 'clocks' && (
               <Phase n="4" title="Between Sessions · Faction Clocks" sub="Update Faction Progress" methods={['ccd']} audience="solo" icon={Target} expanded={phaseOpen.p4} onToggle={() => togglePhase('p4')}>
                 <BookQuote source="CCD ch. 6">Glance at faction clocks once per session.</BookQuote>
-                <div className="rounded border border-rule bg-parchment-deep/40 p-3 text-sm font-serif">
-                  <p className="text-ink font-display uppercase tracking-wider text-xs mb-1.5">Clock Sizes</p>
+                <div className="rounded border border-rule bg-parchment-deep/40 p-3 font-serif text-sm">
+                  <p className="mb-1.5 font-display text-xs uppercase tracking-wider text-ink">Clock Sizes</p>
                   <div className="grid grid-cols-2 gap-1 text-ink-soft">
                     <p>4 — quick task</p><p>6 — short-term goal</p>
                     <p>8 — multi-session</p><p>12 — long project</p>
@@ -2960,7 +2960,7 @@ export default function CampaignEditor({
                     }
                   }} onRemove={() => setVal('clocks', (get('clocks', []) as any[]).filter((_: any, j: number) => j !== i))} />
                 ))}
-                <button onClick={() => setVal('clocks', [...(get('clocks', []) as any[]), { text: '', faction: '', max: 6, filled: 0 }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                <button onClick={() => setVal('clocks', [...(get('clocks', []) as any[]), { text: '', faction: '', max: 6, filled: 0 }])} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
                   <Plus size={12} /> Add Clock
                 </button>
               </Phase>
@@ -2989,7 +2989,7 @@ export default function CampaignEditor({
                 <Section id="end-collect" title="Collect Every Thread" methods={['ccd']} done={done['end-collect']} onToggle={toggleDone} open={open['end-collect']} onToggleOpen={toggleOpen}>
                   <Field value={get('endThreads', '')} onChange={(v) => setVal('endThreads', v)} placeholder="Active threads list" rows={6} />
                   <InspireGroup>
-                    <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                    <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Inspire:</span>
                     <Inspire tableId="climaxes" label="Climax" onPick={(e) => {
                       const cur = get('endThreads', '') as string;
                       setVal('endThreads', cur ? `${cur}\n• ${e}` : `• ${e}`);
@@ -3010,25 +3010,25 @@ export default function CampaignEditor({
         {mode === 'plan' && subview === 'worldbuild' && (
           <div className="space-y-3 text-sm">
             <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-              <h2 className="font-display text-lg tracking-wide text-ink mb-2">The Three Methodologies</h2>
-              <div className="space-y-3 text-sm text-ink-soft font-serif">
+              <h2 className="mb-2 font-display text-lg tracking-wide text-ink">The Three Methodologies</h2>
+              <div className="space-y-3 font-serif text-sm text-ink-soft">
                 <div>
-                  <div className="flex items-center gap-2 mb-1"><Tag m="shea" /><span className="font-display tracking-wide text-ink">Return of the Lazy Dungeon Master</span> <span className="text-ink-mute italic">· Shea</span></div>
+                  <div className="mb-1 flex items-center gap-2"><Tag m="shea" /><span className="font-display tracking-wide text-ink">Return of the Lazy Dungeon Master</span> <span className="italic text-ink-mute">· Shea</span></div>
                   <p>8-step per-session checklist. Strong start, secrets & clues, fantastic locations.</p>
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 mb-1"><Tag m="ccd" /><span className="font-display tracking-wide text-ink">Collaborative Campaign Design</span> <span className="text-ink-mute italic">· Fishel</span></div>
+                  <div className="mb-1 flex items-center gap-2"><Tag m="ccd" /><span className="font-display tracking-wide text-ink">Collaborative Campaign Design</span> <span className="italic text-ink-mute">· Fishel</span></div>
                   <p>Session −1 worldbuilding before character creation. Faction clocks.</p>
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 mb-1"><Tag m="pr" /><span className="font-display tracking-wide text-ink">Proactive Roleplaying</span> <span className="text-ink-mute italic">· Fishel</span></div>
+                  <div className="mb-1 flex items-center gap-2"><Tag m="pr" /><span className="font-display tracking-wide text-ink">Proactive Roleplaying</span> <span className="italic text-ink-mute">· Fishel</span></div>
                   <p>5 Rules of Proactive Fun. "+1" reward principle.</p>
                 </div>
               </div>
             </div>
             <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-              <h2 className="font-display text-lg tracking-wide text-ink mb-2">Five Rules of Proactive Fun</h2>
-              <ol className="space-y-2 text-sm text-ink-soft font-serif list-decimal list-inside">
+              <h2 className="mb-2 font-display text-lg tracking-wide text-ink">Five Rules of Proactive Fun</h2>
+              <ol className="list-inside list-decimal space-y-2 font-serif text-sm text-ink-soft">
                 <li><span className="font-semibold text-ink">Multiple Goals.</span> 3-4 concurrent.</li>
                 <li><span className="font-semibold text-ink">Varying Timeframes.</span> Short / Mid / Long.</li>
                 <li><span className="font-semibold text-ink">Achievable.</span> Measurable success state.</li>
@@ -3037,24 +3037,24 @@ export default function CampaignEditor({
               </ol>
             </div>
             <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-              <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="mb-2 flex items-center justify-between gap-2">
                 <h2 className="font-display text-lg tracking-wide text-ink">Campaign Events Between Sessions</h2>
                 <Inspire tableId="campaignEvents" label="Roll Event" onPick={(e) => {
                   const log = (get('campaignEventLog', []) as string[]) || [];
                   setVal('campaignEventLog', [...log, e]);
                 }} />
               </div>
-              <p className="text-sm text-ink-soft font-serif mb-2">
+              <p className="mb-2 font-serif text-sm text-ink-soft">
                 Quick &quot;while the party was away&quot; events for solo or sandbox play.
               </p>
               {((get('campaignEventLog', []) as string[]) || []).length === 0 ? (
-                <p className="text-sm text-ink-mute italic font-serif">No events logged yet. Click &quot;Roll Event&quot; to add one.</p>
+                <p className="font-serif text-sm italic text-ink-mute">No events logged yet. Click &quot;Roll Event&quot; to add one.</p>
               ) : (
-                <ol className="space-y-1 text-sm text-ink-soft font-serif">
+                <ol className="space-y-1 font-serif text-sm text-ink-soft">
                   {((get('campaignEventLog', []) as string[]) || []).map((evt, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <span className="flex-1">
-                        <span className="font-display text-xs text-brass-deep mr-1">{i + 1}.</span>
+                        <span className="mr-1 font-display text-xs text-brass-deep">{i + 1}.</span>
                         {evt}
                       </span>
                       <button
@@ -3073,21 +3073,21 @@ export default function CampaignEditor({
               )}
             </div>
             <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-              <h2 className="font-display text-lg tracking-wide text-ink mb-2">The 10-Sentence NPC</h2>
-              <p className="text-sm text-ink-soft font-serif">
+              <h2 className="mb-2 font-display text-lg tracking-wide text-ink">The 10-Sentence NPC</h2>
+              <p className="font-serif text-sm text-ink-soft">
                 Detailed NPCs benefit from a roughly ten-sentence sketch: occupation and history,
                 appearance, abilities, talent, mannerism, interactions, useful knowledge, ideal, bond,
                 and flaw or secret. Click &quot;Show Details&quot; on any NPC card to expand the full set.
               </p>
             </div>
             <div className="rounded border border-wine/40 bg-wine/5 p-4 shadow-card">
-              <h2 className="font-display text-lg tracking-wide text-ink mb-2 flex items-center gap-2"><User size={16} className="text-wine" /> Solo Play Adaptations</h2>
-              <div className="text-sm text-ink-soft font-serif space-y-2">
-                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Session −1 · </span>2-person conversation.</p>
-                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Goals · </span>Rule 4 matters more.</p>
-                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Combat · </span>Solo level-1 ~8-12 HP. Narrative outs always.</p>
-                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Strong Start · </span>Action without losable fight.</p>
-                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Pacing · </span>2-3 scenes/hour instead of 1-2.</p>
+              <h2 className="mb-2 flex items-center gap-2 font-display text-lg tracking-wide text-ink"><User size={16} className="text-wine" /> Solo Play Adaptations</h2>
+              <div className="space-y-2 font-serif text-sm text-ink-soft">
+                <p><span className="font-display text-xs uppercase tracking-wider text-wine">Session −1 · </span>2-person conversation.</p>
+                <p><span className="font-display text-xs uppercase tracking-wider text-wine">Goals · </span>Rule 4 matters more.</p>
+                <p><span className="font-display text-xs uppercase tracking-wider text-wine">Combat · </span>Solo level-1 ~8-12 HP. Narrative outs always.</p>
+                <p><span className="font-display text-xs uppercase tracking-wider text-wine">Strong Start · </span>Action without losable fight.</p>
+                <p><span className="font-display text-xs uppercase tracking-wider text-wine">Pacing · </span>2-3 scenes/hour instead of 1-2.</p>
               </div>
             </div>
           </div>
@@ -3096,10 +3096,10 @@ export default function CampaignEditor({
         {mode === 'prep' && subview === 'arc' && (
           <div className="space-y-3 text-sm">
             <div className="rounded border border-rule bg-parchment p-3 shadow-card">
-              <h3 className="font-display tracking-wide text-ink mb-2">Revealed Secrets</h3>
+              <h3 className="mb-2 font-display tracking-wide text-ink">Revealed Secrets</h3>
               <div className="space-y-1">
                 {(get('secrets', []) as string[]).map((s: string, i: number) => (
-                  <label key={i} className="flex items-start gap-2 text-sm cursor-pointer font-serif">
+                  <label key={i} className="flex cursor-pointer items-start gap-2 font-serif text-sm">
                     <input type="checkbox" checked={(get('revSec', {}) as Record<number, boolean>)[i] || false} onChange={(e) => {
                       const wasRevealed = !!(get('revSec', {}) as Record<number, boolean>)[i];
                       const r = { ...(get('revSec', {}) as Record<number, boolean>) }; r[i] = e.target.checked; setVal('revSec', r);
@@ -3108,16 +3108,16 @@ export default function CampaignEditor({
                     <span className={((get('revSec', {}) as Record<number, boolean>)[i]) ? 'text-ink-mute line-through' : 'text-ink-soft'}>{s}</span>
                   </label>
                 ))}
-                {(get('secrets', []) as string[]).length === 0 && <p className="text-sm text-ink-mute italic font-serif">Add secrets in Phase 3 step 4.</p>}
+                {(get('secrets', []) as string[]).length === 0 && <p className="font-serif text-sm italic text-ink-mute">Add secrets in Phase 3 step 4.</p>}
               </div>
             </div>
             <div className="rounded border border-rule bg-parchment p-3 shadow-card">
-              <h3 className="font-display tracking-wide text-ink mb-2">Goal Progress</h3>
+              <h3 className="mb-2 font-display tracking-wide text-ink">Goal Progress</h3>
               <div className="space-y-2">
                 {(get('pcGoals', []) as any[]).map((g: any, i: number) => (
-                  <div key={i} className="rounded border border-rule bg-parchment-soft p-2.5 text-sm font-serif">
+                  <div key={i} className="rounded border border-rule bg-parchment-soft p-2.5 font-serif text-sm">
                     <p className="text-ink-soft">{g.text}</p>
-                    <div className="flex gap-1 mt-1.5">
+                    <div className="mt-1.5 flex gap-1">
                       {['Active', 'Progressed', 'Completed', 'Failed'].map(s => (
                         <button key={s} onClick={() => {
                           const from = g.status || 'Active';
@@ -3126,12 +3126,12 @@ export default function CampaignEditor({
                           next[i] = { ...g, status: s };
                           setVal('pcGoals', next);
                           trackEvent('goal_status', `${g.text || `Goal ${i + 1}`}: ${from} → ${s}`, from, s);
-                        }} className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider ${g.status === s ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-mute'}`}>{s}</button>
+                        }} className={`rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${g.status === s ? 'border-crimson bg-crimson text-parchment' : 'border-rule text-ink-mute'}`}>{s}</button>
                       ))}
                     </div>
                   </div>
                 ))}
-                {(get('pcGoals', []) as any[]).length === 0 && <p className="text-sm text-ink-mute italic font-serif">Add goals in Phase 2.</p>}
+                {(get('pcGoals', []) as any[]).length === 0 && <p className="font-serif text-sm italic text-ink-mute">Add goals in Phase 2.</p>}
               </div>
             </div>
           </div>
@@ -3140,7 +3140,7 @@ export default function CampaignEditor({
         {mode === 'prep' && subview === 'ending' && (
           <div className="space-y-3 text-sm">
             <div className="rounded border border-rule bg-parchment p-3 shadow-card">
-              <h3 className="font-display tracking-wide text-ink mb-2">Dropped Threads</h3>
+              <h3 className="mb-2 font-display tracking-wide text-ink">Dropped Threads</h3>
               <ListField items={get('dropped', [])} onChange={(v) => setVal('dropped', v)} placeholder="A thread to follow up" />
             </div>
           </div>
@@ -3183,14 +3183,14 @@ export default function CampaignEditor({
           return (
             <div className="space-y-3 text-sm">
               <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-                <p className="text-ink-soft font-serif">
+                <p className="font-serif text-ink-soft">
                   Downtime activities take place between adventures. Each activity has a cost, a duration,
                   and consequences. Track them here so the time between sessions feels lived-in rather than skipped.
                 </p>
               </div>
 
-              <div className="rounded border border-rule bg-parchment p-3 shadow-card flex items-center gap-2 flex-wrap">
-                <label className="text-xs text-ink-soft font-display uppercase tracking-wider">Add Downtime Activity</label>
+              <div className="flex flex-wrap items-center gap-2 rounded border border-rule bg-parchment p-3 shadow-card">
+                <label className="font-display text-xs uppercase tracking-wider text-ink-soft">Add Downtime Activity</label>
                 <select
                   value=""
                   onChange={(e) => {
@@ -3199,7 +3199,7 @@ export default function CampaignEditor({
                       e.target.value = '';
                     }
                   }}
-                  className="bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+                  className="rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink"
                 >
                   <option value="">— Choose Activity —</option>
                   {DOWNTIME_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
@@ -3207,12 +3207,12 @@ export default function CampaignEditor({
               </div>
 
               {active.length === 0 && (
-                <p className="text-sm text-ink-mute italic font-serif">No active downtime activities yet.</p>
+                <p className="font-serif text-sm italic text-ink-mute">No active downtime activities yet.</p>
               )}
 
               {groupedActive.map(({ type, entries }) => (
                 <div key={type.id} className="space-y-2">
-                  <h3 className="font-display tracking-wide text-ink text-sm">{type.label}</h3>
+                  <h3 className="font-display text-sm tracking-wide text-ink">{type.label}</h3>
                   {entries.map(entry => (
                     <DowntimeCard
                       key={entry.id}
@@ -3229,15 +3229,15 @@ export default function CampaignEditor({
               <div className="rounded border border-rule bg-parchment p-3 shadow-card">
                 <button
                   onClick={() => setArchivedOpen(!archivedOpen)}
-                  className="flex items-center gap-1.5 font-display tracking-wide text-ink text-sm hover:text-crimson"
+                  className="flex items-center gap-1.5 font-display text-sm tracking-wide text-ink hover:text-crimson"
                 >
                   {archivedOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   Archived ({archived.length})
                 </button>
                 {archivedOpen && (
-                  <div className="space-y-2 mt-3">
+                  <div className="mt-3 space-y-2">
                     {archived.length === 0 && (
-                      <p className="text-sm text-ink-mute italic font-serif">No archived downtime activities yet.</p>
+                      <p className="font-serif text-sm italic text-ink-mute">No archived downtime activities yet.</p>
                     )}
                     {archived.map(entry => (
                       <DowntimeCard
@@ -3267,8 +3267,8 @@ export default function CampaignEditor({
           return (
             <div className="space-y-3">
               <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-                <h2 className="font-display text-lg tracking-wide text-ink mb-1">Prep Wizard</h2>
-                <p className="text-sm text-ink-soft font-serif mb-3">
+                <h2 className="mb-1 font-display text-lg tracking-wide text-ink">Prep Wizard</h2>
+                <p className="mb-3 font-serif text-sm text-ink-soft">
                   An 8-step guided walkthrough of Lazy DM's per-session prep — Review, Strong
                   Start, Scenes, Secrets, Locations, NPCs, Monsters, Magic Items.
                 </p>
@@ -3277,25 +3277,25 @@ export default function CampaignEditor({
                   onClick={launch}
                   disabled={sessionOpen}
                   title={sessionOpen ? 'Finish your current session first' : 'Walk through the 8-step prep'}
-                  className="text-xs px-3 py-1.5 rounded border border-moss/60 bg-moss/10 text-moss hover:bg-moss hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 rounded border border-moss/60 bg-moss/10 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-moss hover:bg-moss hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <ClipboardList size={12} /> Start Wizard
                 </button>
               </div>
               <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-                <h3 className="font-display tracking-wide text-ink mb-2 text-sm">Past Runs</h3>
+                <h3 className="mb-2 font-display text-sm tracking-wide text-ink">Past Runs</h3>
                 {sortedRuns.length === 0 ? (
-                  <p className="text-xs text-ink-mute italic font-serif">No wizard runs yet.</p>
+                  <p className="font-serif text-xs italic text-ink-mute">No wizard runs yet.</p>
                 ) : (
                   <ul className="space-y-1.5">
                     {sortedRuns.slice(0, 8).map(r => (
-                      <li key={r.id} className="text-xs font-serif text-ink-soft flex items-center gap-2">
-                        <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider w-16">
+                      <li key={r.id} className="flex items-center gap-2 font-serif text-xs text-ink-soft">
+                        <span className="w-16 font-display text-[10px] uppercase tracking-wider text-brass-deep">
                           {(r.stepsCompleted || []).length}/8
                         </span>
                         <span className="flex-1">
                           Session {r.forSessionNumber}
-                          {r.completedAt && <span className="text-ink-mute italic ml-2">{new Date(r.completedAt).toLocaleDateString()}</span>}
+                          {r.completedAt && <span className="ml-2 italic text-ink-mute">{new Date(r.completedAt).toLocaleDateString()}</span>}
                         </span>
                       </li>
                     ))}
@@ -3626,10 +3626,10 @@ export default function CampaignEditor({
         )}
         </div>
 
-        <footer className="pt-3 mt-4 border-t border-rule text-xs text-ink-mute italic font-serif text-center">
+        <footer className="mt-4 border-t border-rule pt-3 text-center font-serif text-xs italic text-ink-mute">
           {userEmail}
           {isPro && (
-            <span className="not-italic ml-1.5 px-1.5 py-0.5 rounded-sm border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider text-[10px]">
+            <span className="ml-1.5 rounded-sm border border-crimson/60 bg-crimson/10 px-1.5 py-0.5 font-display text-[10px] uppercase not-italic tracking-wider text-crimson">
               Pro
             </span>
           )}
@@ -3641,7 +3641,7 @@ export default function CampaignEditor({
       {get('__runSessionOpen', false) && !get('__initiativeOpen', false) && (
         <button
           onClick={() => setVal('__initiativeOpen', true)}
-          className="fixed bottom-[88px] right-4 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full border border-crimson/60 bg-parchment shadow-page text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider text-xs"
+          className="fixed bottom-[88px] right-4 z-20 flex items-center gap-1.5 rounded-full border border-crimson/60 bg-parchment px-3 py-2 font-display text-xs uppercase tracking-wider text-crimson shadow-page hover:bg-crimson hover:text-parchment"
           title="Open initiative tracker"
         >
           <Swords size={14} /> Initiative
@@ -3693,7 +3693,7 @@ export default function CampaignEditor({
           data-oracle-button
           onClick={() => setOracleOpen((o) => !o)}
           title="Open Wells Oracle"
-          className={`fixed right-4 z-40 w-10 h-10 rounded-full border border-pink-500/30 bg-pink-950/20 text-pink-400 hover:bg-pink-900/35 hover:text-pink-300 flex items-center justify-center shadow-page transition-all ${
+          className={`fixed right-4 z-40 flex size-10 items-center justify-center rounded-full border border-pink-500/30 bg-pink-950/20 text-pink-400 shadow-page transition-all hover:bg-pink-900/35 hover:text-pink-300 ${
             get('__runSessionOpen', false) ? 'bottom-[88px]' : 'bottom-4'
           }`}
         >
@@ -3704,18 +3704,18 @@ export default function CampaignEditor({
       {playMode === 'solo' && oracleOpen && (
         <div
           data-oracle-floating
-          className={`fixed right-4 z-40 w-[380px] max-w-[calc(100vw-2rem)] max-h-[500px] overflow-y-auto rounded-lg border border-rule bg-parchment shadow-page flex flex-col ${
+          className={`fixed right-4 z-40 flex max-h-[500px] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-y-auto rounded-lg border border-rule bg-parchment shadow-page ${
             get('__runSessionOpen', false) ? 'bottom-[148px]' : 'bottom-16'
           }`}
         >
-          <div className="flex items-center justify-between border-b border-rule px-3 py-2 bg-parchment-deep">
-            <span className="font-display text-xs uppercase tracking-wider text-pink-500 font-bold flex items-center gap-1.5">
+          <div className="flex items-center justify-between border-b border-rule bg-parchment-deep px-3 py-2">
+            <span className="flex items-center gap-1.5 font-display text-xs font-bold uppercase tracking-wider text-pink-500">
               <Sparkles size={12} /> Wells Oracle
             </span>
             <button
               type="button"
               onClick={() => setOracleOpen(false)}
-              className="text-ink-mute hover:text-crimson transition-colors"
+              className="text-ink-mute transition-colors hover:text-crimson"
             >
               <X size={14} />
             </button>
@@ -3737,7 +3737,7 @@ export default function CampaignEditor({
         onClick={() => setShortcutsOpen(true)}
         title="Keyboard shortcuts (press ?)"
         aria-label="Keyboard shortcuts"
-        className={`fixed left-4 z-30 w-8 h-8 rounded-full border border-rule bg-parchment-soft text-brass-deep hover:bg-brass hover:text-parchment shadow-page font-display text-sm leading-none flex items-center justify-center transition-all ${
+        className={`fixed left-4 z-30 flex size-8 items-center justify-center rounded-full border border-rule bg-parchment-soft font-display text-sm leading-none text-brass-deep shadow-page transition-all hover:bg-brass hover:text-parchment ${
           get('__runSessionOpen', false) ? 'bottom-[88px]' : 'bottom-4'
         }`}
       >
@@ -3749,7 +3749,7 @@ export default function CampaignEditor({
       {undoToast && (
         <div
           role="status"
-          className={`fixed left-16 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 gm-toast transition-all ${
+          className={`gm-toast fixed left-16 z-40 flex items-center gap-2 rounded-full border border-brass-deep/70 bg-parchment px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep shadow-page transition-all ${
             get('__runSessionOpen', false) ? 'bottom-[88px]' : 'bottom-4'
           }`}
         >
@@ -3764,7 +3764,7 @@ export default function CampaignEditor({
             scrollToEntity(summonToast.primaryEntityId);
             flashHighlight(summonToast.primaryEntityId);
           }}
-          className={`fixed left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 hover:bg-brass hover:text-parchment transition-all ${
+          className={`fixed left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full border border-brass-deep/70 bg-parchment px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep shadow-page transition-all hover:bg-brass hover:text-parchment ${
             get('__runSessionOpen', false) ? 'bottom-[88px]' : 'bottom-4'
           }`}
           title="Click to re-scroll"

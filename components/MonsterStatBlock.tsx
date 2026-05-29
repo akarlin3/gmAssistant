@@ -34,7 +34,7 @@ function ActionList({ title, actions }: { title: string; actions: HomebrewMonste
   if (!actions || actions.length === 0) return null;
   return (
     <section className="space-y-1.5">
-      <h3 className="font-display text-[11px] uppercase tracking-wider text-crimson border-b border-rule pb-1">
+      <h3 className="border-b border-rule pb-1 font-display text-[11px] uppercase tracking-wider text-crimson">
         {title}
       </h3>
       <ul className="space-y-1.5">
@@ -65,7 +65,7 @@ export default function MonsterStatBlock({ monster: m, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
         className="my-8 w-full max-w-2xl rounded-lg border-2 border-brass-deep bg-parchment shadow-page"
       >
-        <div className="flex items-start justify-between gap-3 border-b-2 border-brass-deep px-4 py-3 bg-parchment-soft rounded-t-lg">
+        <div className="flex items-start justify-between gap-3 rounded-t-lg border-b-2 border-brass-deep bg-parchment-soft px-4 py-3">
           <div className="min-w-0">
             <h2 className="font-display text-xl tracking-wide text-crimson sm:text-2xl">{m.name}</h2>
             <p className="font-serif text-xs italic text-ink-soft">
@@ -89,7 +89,7 @@ export default function MonsterStatBlock({ monster: m, onClose }: Props) {
                 <Shield size={12} className="text-brass-deep" />
                 <span className="font-display text-[11px] uppercase tracking-wider text-brass-deep">AC</span>
                 <span className="text-ink">{m.armor_class}</span>
-                {m.armor_desc && <span className="text-ink-mute text-xs">({m.armor_desc})</span>}
+                {m.armor_desc && <span className="text-xs text-ink-mute">({m.armor_desc})</span>}
               </span>
             )}
             {typeof m.hit_points === 'number' && (
@@ -97,7 +97,7 @@ export default function MonsterStatBlock({ monster: m, onClose }: Props) {
                 <Heart size={12} className="text-crimson" />
                 <span className="font-display text-[11px] uppercase tracking-wider text-brass-deep">HP</span>
                 <span className="text-ink">{m.hit_points}</span>
-                {m.hit_dice && <span className="text-ink-mute text-xs">({m.hit_dice})</span>}
+                {m.hit_dice && <span className="text-xs text-ink-mute">({m.hit_dice})</span>}
               </span>
             )}
             <span className="flex items-center gap-1">
@@ -113,7 +113,7 @@ export default function MonsterStatBlock({ monster: m, onClose }: Props) {
             )}
           </div>
 
-          <div className="grid grid-cols-6 gap-1 rounded border border-rule bg-parchment-soft px-2 py-2 text-center">
+          <div className="grid grid-cols-6 gap-1 rounded border border-rule bg-parchment-soft p-2 text-center">
             {ABILITIES.map(({ key, label }) => {
               const v = m[key] as number;
               return (
@@ -157,7 +157,7 @@ export default function MonsterStatBlock({ monster: m, onClose }: Props) {
 
           {m.desc && (
             <section className="space-y-1 border-t border-rule pt-2">
-              <p className="font-serif text-[12px] italic text-ink-soft whitespace-pre-wrap">{m.desc}</p>
+              <p className="whitespace-pre-wrap font-serif text-[12px] italic text-ink-soft">{m.desc}</p>
             </section>
           )}
         </div>

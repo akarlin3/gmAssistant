@@ -17,7 +17,7 @@ const AudienceBadge = ({ audience }: { audience: 'solo' | 'together' }) => {
   if (audience === 'together') {
     return (
       <span
-        className="text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider border-moss/50 bg-moss/10 text-moss inline-flex items-center gap-1"
+        className="inline-flex items-center gap-1 rounded-sm border border-moss/50 bg-moss/10 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-moss"
         title="Done collaboratively with the players at the table"
       >
         <Users size={9} /> With Players
@@ -26,7 +26,7 @@ const AudienceBadge = ({ audience }: { audience: 'solo' | 'together' }) => {
   }
   return (
     <span
-      className="text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider border-wine/50 bg-wine/10 text-wine inline-flex items-center gap-1"
+      className="inline-flex items-center gap-1 rounded-sm border border-wine/50 bg-wine/10 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-wine"
       title="DM-only homework — done without the players"
     >
       <User size={9} /> DM Solo
@@ -35,19 +35,19 @@ const AudienceBadge = ({ audience }: { audience: 'solo' | 'together' }) => {
 };
 
 export const Phase = ({ n, title, sub, methods, audience, children, icon: Icon }: any) => (
-  <div className="border border-rule rounded-lg overflow-hidden bg-parchment-soft shadow-page">
-    <div className="w-full flex items-center gap-2.5 sm:gap-4 p-3 sm:p-4 text-left border-b border-rule bg-parchment-deep/20">
-      <div className="font-display text-3xl sm:text-4xl text-crimson w-8 sm:w-12 leading-none flex-shrink-0">{n}</div>
-      {Icon && <Icon size={20} className="text-brass-deep flex-shrink-0 hidden sm:block" />}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-display text-base sm:text-lg tracking-wide text-ink">{title}</span>
+  <div className="overflow-hidden rounded-lg border border-rule bg-parchment-soft shadow-page">
+    <div className="flex w-full items-center gap-2.5 border-b border-rule bg-parchment-deep/20 p-3 text-left sm:gap-4 sm:p-4">
+      <div className="w-8 flex-shrink-0 font-display text-3xl leading-none text-crimson sm:w-12 sm:text-4xl">{n}</div>
+      {Icon && <Icon size={20} className="hidden flex-shrink-0 text-brass-deep sm:block" />}
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-display text-base tracking-wide text-ink sm:text-lg">{title}</span>
           {audience && <AudienceBadge audience={audience} />}
           <span className="flex flex-wrap gap-1">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
         </div>
-        <div className="text-xs sm:text-sm text-ink-soft italic font-serif mt-0.5">{sub}</div>
+        <div className="mt-0.5 font-serif text-xs italic text-ink-soft sm:text-sm">{sub}</div>
       </div>
     </div>
-    <div className="p-3 pt-3 space-y-4 bg-parchment/40">{children}</div>
+    <div className="space-y-4 bg-parchment/40 p-3">{children}</div>
   </div>
 );

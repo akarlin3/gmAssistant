@@ -94,7 +94,7 @@ export default function PlayPage({ params }: { params: Promise<{ shareToken: str
                 onClick={() => pick(s.slotId)}
                 className="flex w-full items-center gap-3 rounded border border-rule bg-parchment px-4 py-3 text-left font-display tracking-wide text-ink transition-colors hover:border-brass-deep hover:bg-brass/5"
               >
-                <span className="h-4 w-4 flex-shrink-0 rounded-full border border-rule" style={{ backgroundColor: s.color || '#8a6d3b' }} />
+                <span className="size-4 flex-shrink-0 rounded-full border border-rule" style={{ backgroundColor: s.color || '#8a6d3b' }} />
                 {s.displayName}
               </button>
             ))}

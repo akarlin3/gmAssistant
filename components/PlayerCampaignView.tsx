@@ -77,9 +77,9 @@ export default function PlayerCampaignView({
         )}
 
         {alertMessage && (
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded relative font-serif text-sm flex items-center justify-between shadow-card" role="alert">
+          <div className="relative flex items-center justify-between rounded border border-red-200 bg-red-50 px-4 py-3 font-serif text-sm text-red-800 shadow-card" role="alert">
             <span>{alertMessage}</span>
-            <button onClick={() => setAlertMessage(null)} className="text-red-500 hover:text-red-700 font-bold px-2 py-1 text-base">&times;</button>
+            <button onClick={() => setAlertMessage(null)} className="px-2 py-1 text-base font-bold text-red-500 hover:text-red-700">&times;</button>
           </div>
         )}
 
@@ -145,10 +145,10 @@ export default function PlayerCampaignView({
                   {[...(projection.items ?? [])]
                     .sort((a, b) => a.name.localeCompare(b.name))
                     .map((it) => (
-                      <div key={it.id} className="rounded border border-rule bg-parchment p-3 shadow-card space-y-1.5 font-serif text-sm">
-                        <div className="text-ink text-base">{it.name}</div>
+                      <div key={it.id} className="space-y-1.5 rounded border border-rule bg-parchment p-3 font-serif text-sm shadow-card">
+                        <div className="text-base text-ink">{it.name}</div>
                         {it.description && (
-                          <p className="text-ink-soft whitespace-pre-wrap leading-relaxed">
+                          <p className="whitespace-pre-wrap leading-relaxed text-ink-soft">
                             {it.description}
                           </p>
                         )}

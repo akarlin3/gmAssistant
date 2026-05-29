@@ -75,7 +75,7 @@ export default function FactionEngineTab({ campaignId, world, onChange }: Props)
         </p>
       </header>
 
-      <section className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2.5">
+      <section className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
         <div className="flex flex-wrap items-end gap-2">
           <label className="flex flex-col gap-1">
             <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Advance</span>
@@ -132,7 +132,7 @@ function FactionsSection({
   };
 
   return (
-    <section className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2.5">
+    <section className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-1.5 font-display text-sm uppercase tracking-wide text-ink">
           <Crown size={14} /> Factions
@@ -149,13 +149,13 @@ function FactionsSection({
       )}
       <div className="space-y-2">
         {world.factions.map(f => (
-          <div key={f.id} className="rounded border border-rule bg-parchment-soft p-2.5 space-y-2">
+          <div key={f.id} className="space-y-2 rounded border border-rule bg-parchment-soft p-2.5">
             <div className="flex items-center gap-2">
               <input
                 type="color"
                 value={f.color ?? '#9a1d2e'}
                 onChange={(e) => update(f.id, { color: e.target.value })}
-                className="h-6 w-6 cursor-pointer rounded border border-rule"
+                className="size-6 cursor-pointer rounded border border-rule"
               />
               <input
                 value={f.name}
@@ -271,7 +271,7 @@ function TerritoriesSection({
   };
 
   return (
-    <section className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2.5">
+    <section className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex items-center justify-between">
         <h3 className="font-display text-sm uppercase tracking-wide text-ink">Territories</h3>
         <button
@@ -288,10 +288,10 @@ function TerritoriesSection({
         {world.territories.map(t => {
           const controller = world.factions.find(f => f.id === t.controllerId);
           return (
-            <div key={t.id} className="rounded border border-rule bg-parchment-soft p-2.5 space-y-1.5">
+            <div key={t.id} className="space-y-1.5 rounded border border-rule bg-parchment-soft p-2.5">
               <div className="flex items-center gap-2">
                 <span
-                  className="inline-block h-3 w-3 rounded-sm border border-rule"
+                  className="inline-block size-3 rounded-sm border border-rule"
                   style={{ background: controller?.color ?? 'transparent' }}
                 />
                 <input
@@ -351,7 +351,7 @@ function RelationshipsSection({
   const facs = world.factions;
   if (facs.length < 2) return null;
   return (
-    <section className="rounded border border-rule bg-parchment p-3 shadow-card space-y-2.5">
+    <section className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <h3 className="flex items-center gap-1.5 font-display text-sm uppercase tracking-wide text-ink">
         <Handshake size={14} /> Relationships
       </h3>
@@ -363,9 +363,9 @@ function RelationshipsSection({
           const rel = getRelationship(world.relationships, a.id, b.id);
           return (
             <div key={`${a.id}-${b.id}`} className="flex items-center gap-2 rounded border border-rule bg-parchment-soft p-1.5">
-              <span className="font-serif text-xs text-ink truncate" style={{ minWidth: 100 }}>{a.name}</span>
+              <span className="truncate font-serif text-xs text-ink" style={{ minWidth: 100 }}>{a.name}</span>
               <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">↔</span>
-              <span className="font-serif text-xs text-ink truncate" style={{ minWidth: 100 }}>{b.name}</span>
+              <span className="truncate font-serif text-xs text-ink" style={{ minWidth: 100 }}>{b.name}</span>
               <input
                 type="range" min={-10} max={10}
                 value={rel.stance}
@@ -414,7 +414,7 @@ function LogSection({
         </h3>
       </button>
       {expanded && (
-        <div className="mt-2 space-y-1.5 max-h-96 overflow-y-auto">
+        <div className="mt-2 max-h-96 space-y-1.5 overflow-y-auto">
           {byTick.length === 0 && (
             <p className="font-serif text-xs italic text-ink-mute">No history yet. Configure factions and press &ldquo;Run tick&rdquo;.</p>
           )}
@@ -424,7 +424,7 @@ function LogSection({
               <ul className="mt-1 space-y-0.5">
                 {events.map((e, i) => (
                   <li key={i} className="font-serif text-xs text-ink">
-                    <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute mr-1">
+                    <span className="mr-1 font-display text-[10px] uppercase tracking-wider text-ink-mute">
                       [{e.kind}]
                     </span>
                     {e.summary}

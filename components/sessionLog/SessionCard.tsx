@@ -179,9 +179,9 @@ export function SessionCard({
                         const newDurationMs = (h * 60 + m) * 60000;
                         onChange({ endedAt: entry.startedAt + newDurationMs });
                       }}
-                      className="w-12 rounded border border-rule bg-parchment-soft px-1 py-0.5 font-serif text-sm text-ink text-center"
+                      className="w-12 rounded border border-rule bg-parchment-soft px-1 py-0.5 text-center font-serif text-sm text-ink"
                     />
-                    <span className="text-[11px] font-serif text-ink-mute">h</span>
+                    <span className="font-serif text-[11px] text-ink-mute">h</span>
                     <input
                       type="number"
                       min={0}
@@ -194,9 +194,9 @@ export function SessionCard({
                         const newDurationMs = (h * 60 + m) * 60000;
                         onChange({ endedAt: entry.startedAt + newDurationMs });
                       }}
-                      className="w-12 rounded border border-rule bg-parchment-soft px-1 py-0.5 font-serif text-sm text-ink text-center"
+                      className="w-12 rounded border border-rule bg-parchment-soft px-1 py-0.5 text-center font-serif text-sm text-ink"
                     />
-                    <span className="text-[11px] font-serif text-ink-mute">m</span>
+                    <span className="font-serif text-[11px] text-ink-mute">m</span>
                   </div>
                 </label>
               </div>
@@ -225,10 +225,10 @@ export function SessionCard({
 
               {/* Strong Start checkable */}
               {(entry.strongStart || campaignStrongStart.trim()) && (
-                <div className="rounded border border-rule bg-parchment-soft p-3.5 space-y-1.5 shadow-sm mt-3">
-                  <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep block mb-1">Strong Start</span>
+                <div className="mt-3 space-y-1.5 rounded border border-rule bg-parchment-soft p-3.5 shadow-sm">
+                  <span className="mb-1 block font-display text-[10px] uppercase tracking-wider text-brass-deep">Strong Start</span>
                   {entry.strongStart ? (
-                    <label className="flex items-start gap-2.5 text-xs cursor-pointer font-serif py-1 rounded">
+                    <label className="flex cursor-pointer items-start gap-2.5 rounded py-1 font-serif text-xs">
                       <input
                         type="checkbox"
                         checked={true}
@@ -240,15 +240,15 @@ export function SessionCard({
                         }}
                         className="mt-0.5 accent-crimson"
                       />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-ink font-semibold flex items-center gap-1">
+                      <div className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1 font-semibold text-ink">
                           <Zap size={12} className="text-crimson" /> Strong Start Delivered:
                         </span>
-                        <p className="text-ink-soft mt-0.5 whitespace-pre-wrap italic">"{entry.strongStart}"</p>
+                        <p className="mt-0.5 whitespace-pre-wrap italic text-ink-soft">"{entry.strongStart}"</p>
                       </div>
                     </label>
                   ) : (
-                    <label className="flex items-start gap-2.5 text-xs cursor-pointer font-serif py-1 rounded">
+                    <label className="flex cursor-pointer items-start gap-2.5 rounded py-1 font-serif text-xs">
                       <input
                         type="checkbox"
                         checked={false}
@@ -260,28 +260,28 @@ export function SessionCard({
                         }}
                         className="mt-0.5 accent-crimson"
                       />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-ink-mute flex items-center gap-1">
+                      <div className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1 text-ink-mute">
                           <Zap size={12} className="text-ink-mute" /> Deliver prepped Strong Start:
                         </span>
-                        <p className="text-ink-mute mt-0.5 whitespace-pre-wrap italic">"{campaignStrongStart}"</p>
+                        <p className="mt-0.5 whitespace-pre-wrap italic text-ink-mute">"{campaignStrongStart}"</p>
                       </div>
                     </label>
                   )}
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                <div className="rounded border border-rule bg-parchment-soft p-3 space-y-1.5 shadow-sm">
-                  <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep block mb-1">Secrets Revealed</span>
+              <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-1.5 rounded border border-rule bg-parchment-soft p-3 shadow-sm">
+                  <span className="mb-1 block font-display text-[10px] uppercase tracking-wider text-brass-deep">Secrets Revealed</span>
                   {allSecrets.length === 0 ? (
-                    <p className="text-xs text-ink-mute italic font-serif">No secrets prepped in campaign.</p>
+                    <p className="font-serif text-xs italic text-ink-mute">No secrets prepped in campaign.</p>
                   ) : (
-                    <div className="max-h-48 overflow-y-auto space-y-1 border border-rule/50 rounded bg-parchment p-2">
+                    <div className="max-h-48 space-y-1 overflow-y-auto rounded border border-rule/50 bg-parchment p-2">
                       {allSecrets.map((s, i) => {
                         const isRevealed = entry.secretsRevealed?.includes(s);
                         return (
-                          <label key={i} className="flex items-start gap-2 text-xs cursor-pointer font-serif py-0.5 hover:bg-parchment-deep/20 rounded px-1">
+                          <label key={i} className="flex cursor-pointer items-start gap-2 rounded px-1 py-0.5 font-serif text-xs hover:bg-parchment-deep/20">
                             <input
                               type="checkbox"
                               checked={isRevealed}
@@ -293,23 +293,23 @@ export function SessionCard({
                               }}
                               className="mt-0.5 accent-crimson"
                             />
-                            <span className={isRevealed ? 'text-ink font-semibold' : 'text-ink-soft'}>{s}</span>
+                            <span className={isRevealed ? 'font-semibold text-ink' : 'text-ink-soft'}>{s}</span>
                           </label>
                         );
                       })}
                     </div>
                   )}
                 </div>
-                <div className="rounded border border-rule bg-parchment-soft p-3 space-y-1.5 shadow-sm">
-                  <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep block mb-1">Scenes Used</span>
+                <div className="space-y-1.5 rounded border border-rule bg-parchment-soft p-3 shadow-sm">
+                  <span className="mb-1 block font-display text-[10px] uppercase tracking-wider text-brass-deep">Scenes Used</span>
                   {allScenes.length === 0 ? (
-                    <p className="text-xs text-ink-mute italic font-serif">No scenes prepped in campaign.</p>
+                    <p className="font-serif text-xs italic text-ink-mute">No scenes prepped in campaign.</p>
                   ) : (
-                    <div className="max-h-48 overflow-y-auto space-y-1 border border-rule/50 rounded bg-parchment p-2">
+                    <div className="max-h-48 space-y-1 overflow-y-auto rounded border border-rule/50 bg-parchment p-2">
                       {allScenes.map((s, i) => {
                         const isUsed = entry.scenesUsed?.includes(s);
                         return (
-                          <label key={i} className="flex items-start gap-2 text-xs cursor-pointer font-serif py-0.5 hover:bg-parchment-deep/20 rounded px-1">
+                          <label key={i} className="flex cursor-pointer items-start gap-2 rounded px-1 py-0.5 font-serif text-xs hover:bg-parchment-deep/20">
                             <input
                               type="checkbox"
                               checked={isUsed}
@@ -321,7 +321,7 @@ export function SessionCard({
                               }}
                               className="mt-0.5 accent-crimson"
                             />
-                            <span className={isUsed ? 'text-ink font-semibold' : 'text-ink-soft'}>{s}</span>
+                            <span className={isUsed ? 'font-semibold text-ink' : 'text-ink-soft'}>{s}</span>
                           </label>
                         );
                       })}
@@ -331,29 +331,29 @@ export function SessionCard({
               </div>
 
               {/* Prep Utilization Ledger Edit Section */}
-              <div className="rounded border border-rule bg-parchment-soft p-3.5 space-y-3 shadow-sm mt-3">
-                <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep block border-b border-rule/40 pb-1">Prep Utilization & Party State Ledger</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="mt-3 space-y-3 rounded border border-rule bg-parchment-soft p-3.5 shadow-sm">
+                <span className="block border-b border-rule/40 pb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">Prep Utilization & Party State Ledger</span>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
                   {/* NPCs utilization */}
                   <div className="space-y-2">
-                    <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block">NPCs Utilized</span>
+                    <span className="block font-display text-[9px] uppercase tracking-wider text-ink-mute">NPCs Utilized</span>
                     <ul className="space-y-1">
                       {linkedItems.filter(i => i.type === 'npc').map(item => {
                         const ghost = isGhostItem(item);
                         return (
-                          <li key={item.id} className="flex items-center justify-between gap-1.5 px-2 py-1 rounded bg-parchment border border-rule/40 text-xs font-serif">
-                            <span className={ghost ? "text-ink-mute italic flex items-center gap-1" : "text-ink"}>
-                              {ghost && <span className="inline-block px-1 py-0.2 text-[8px] bg-wine/10 text-wine rounded font-display uppercase tracking-wider scale-90">Ghost</span>}
+                          <li key={item.id} className="flex items-center justify-between gap-1.5 rounded border border-rule/40 bg-parchment px-2 py-1 font-serif text-xs">
+                            <span className={ghost ? "flex items-center gap-1 italic text-ink-mute" : "text-ink"}>
+                              {ghost && <span className="py-0.2 inline-block scale-90 rounded bg-wine/10 px-1 font-display text-[8px] uppercase tracking-wider text-wine">Ghost</span>}
                               {item.snapshotName}
                             </span>
-                            <button type="button" onClick={() => handleRemoveLink('npc', item.id)} className="text-ink-mute hover:text-crimson transition-colors">
+                            <button type="button" onClick={() => handleRemoveLink('npc', item.id)} className="text-ink-mute transition-colors hover:text-crimson">
                               <X size={12} />
                             </button>
                           </li>
                         );
                       })}
                       {linkedItems.filter(i => i.type === 'npc').length === 0 && (
-                        <li className="text-[11px] text-ink-mute italic font-serif">No NPCs linked</li>
+                        <li className="font-serif text-[11px] italic text-ink-mute">No NPCs linked</li>
                       )}
                     </ul>
                     <select
@@ -364,7 +364,7 @@ export function SessionCard({
                         const npc = npcs.find(n => n.id === val);
                         if (npc) handleAddLink('npc', val, npc.name || 'Unnamed NPC');
                       }}
-                      className="w-full bg-parchment border border-rule/50 rounded px-2 py-0.5 text-xs text-ink-soft font-serif cursor-pointer hover:border-brass transition-colors focus:outline-none"
+                      className="w-full cursor-pointer rounded border border-rule/50 bg-parchment px-2 py-0.5 font-serif text-xs text-ink-soft transition-colors hover:border-brass focus:outline-none"
                     >
                       <option value="">+ Link NPC</option>
                       {npcs.filter(n => !linkedItems.some(i => i.type === 'npc' && i.id === n.id)).map(n => (
@@ -375,24 +375,24 @@ export function SessionCard({
 
                   {/* Locations utilization */}
                   <div className="space-y-2">
-                    <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block">Locations Utilized</span>
+                    <span className="block font-display text-[9px] uppercase tracking-wider text-ink-mute">Locations Utilized</span>
                     <ul className="space-y-1">
                       {linkedItems.filter(i => i.type === 'location').map(item => {
                         const ghost = isGhostItem(item);
                         return (
-                          <li key={item.id} className="flex items-center justify-between gap-1.5 px-2 py-1 rounded bg-parchment border border-rule/40 text-xs font-serif">
-                            <span className={ghost ? "text-ink-mute italic flex items-center gap-1" : "text-ink"}>
-                              {ghost && <span className="inline-block px-1 py-0.2 text-[8px] bg-wine/10 text-wine rounded font-display uppercase tracking-wider scale-90">Ghost</span>}
+                          <li key={item.id} className="flex items-center justify-between gap-1.5 rounded border border-rule/40 bg-parchment px-2 py-1 font-serif text-xs">
+                            <span className={ghost ? "flex items-center gap-1 italic text-ink-mute" : "text-ink"}>
+                              {ghost && <span className="py-0.2 inline-block scale-90 rounded bg-wine/10 px-1 font-display text-[8px] uppercase tracking-wider text-wine">Ghost</span>}
                               {item.snapshotName}
                             </span>
-                            <button type="button" onClick={() => handleRemoveLink('location', item.id)} className="text-ink-mute hover:text-crimson transition-colors">
+                            <button type="button" onClick={() => handleRemoveLink('location', item.id)} className="text-ink-mute transition-colors hover:text-crimson">
                               <X size={12} />
                             </button>
                           </li>
                         );
                       })}
                       {linkedItems.filter(i => i.type === 'location').length === 0 && (
-                        <li className="text-[11px] text-ink-mute italic font-serif">No locations linked</li>
+                        <li className="font-serif text-[11px] italic text-ink-mute">No locations linked</li>
                       )}
                     </ul>
                     <select
@@ -403,7 +403,7 @@ export function SessionCard({
                         const loc = locations.find(l => l.id === val || l.name === val);
                         if (loc) handleAddLink('location', val, loc.name);
                       }}
-                      className="w-full bg-parchment border border-rule/50 rounded px-2 py-0.5 text-xs text-ink-soft font-serif cursor-pointer hover:border-brass transition-colors focus:outline-none"
+                      className="w-full cursor-pointer rounded border border-rule/50 bg-parchment px-2 py-0.5 font-serif text-xs text-ink-soft transition-colors hover:border-brass focus:outline-none"
                     >
                       <option value="">+ Link Location</option>
                       {locations.filter(l => !linkedItems.some(i => i.type === 'location' && (i.id === l.id || i.snapshotName === l.name))).map((l, idx) => (
@@ -414,36 +414,36 @@ export function SessionCard({
 
                   {/* Encounters utilization */}
                   <div className="space-y-2">
-                    <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block">Encounters Utilized</span>
+                    <span className="block font-display text-[9px] uppercase tracking-wider text-ink-mute">Encounters Utilized</span>
                     <ul className="space-y-1.5">
                       {linkedItems.filter(i => i.type === 'encounter').map(item => {
                         const ghost = isGhostItem(item);
                         return (
-                          <li key={item.id} className="space-y-1 px-2 py-1.5 rounded bg-parchment border border-rule/40 text-xs font-serif">
+                          <li key={item.id} className="space-y-1 rounded border border-rule/40 bg-parchment px-2 py-1.5 font-serif text-xs">
                             <div className="flex items-center justify-between gap-1.5">
-                              <span className={ghost ? "text-ink-mute italic flex items-center gap-1" : "text-ink font-semibold"}>
-                                {ghost && <span className="inline-block px-1 py-0.2 text-[8px] bg-wine/10 text-wine rounded font-display uppercase tracking-wider scale-90">Ghost</span>}
+                              <span className={ghost ? "flex items-center gap-1 italic text-ink-mute" : "font-semibold text-ink"}>
+                                {ghost && <span className="py-0.2 inline-block scale-90 rounded bg-wine/10 px-1 font-display text-[8px] uppercase tracking-wider text-wine">Ghost</span>}
                                 {item.snapshotName}
                               </span>
-                              <button type="button" onClick={() => handleRemoveLink('encounter', item.id)} className="text-ink-mute hover:text-crimson transition-colors">
+                              <button type="button" onClick={() => handleRemoveLink('encounter', item.id)} className="text-ink-mute transition-colors hover:text-crimson">
                                 <X size={12} />
                               </button>
                             </div>
                             <div className="flex items-center gap-1 pt-0.5">
-                              <span className="text-[10px] font-display uppercase text-brass-deep">XP:</span>
+                              <span className="font-display text-[10px] uppercase text-brass-deep">XP:</span>
                               <input
                                 type="number"
                                 min={0}
                                 value={item.snapshotXP || 0}
                                 onChange={(e) => handleUpdateXP(item.id, parseInt(e.target.value || '0', 10))}
-                                className="w-16 bg-parchment-soft border border-rule/60 rounded px-1 text-[11px] text-ink text-center focus:outline-none"
+                                className="w-16 rounded border border-rule/60 bg-parchment-soft px-1 text-center text-[11px] text-ink focus:outline-none"
                               />
                             </div>
                           </li>
                         );
                       })}
                       {linkedItems.filter(i => i.type === 'encounter').length === 0 && (
-                        <li className="text-[11px] text-ink-mute italic font-serif">No encounters linked</li>
+                        <li className="font-serif text-[11px] italic text-ink-mute">No encounters linked</li>
                       )}
                     </ul>
                     <select
@@ -455,7 +455,7 @@ export function SessionCard({
                         const xp = parseMonsterXP(val);
                         handleAddLink('encounter', val, name, { xp });
                       }}
-                      className="w-full bg-parchment border border-rule/50 rounded px-2 py-0.5 text-xs text-ink-soft font-serif cursor-pointer hover:border-brass transition-colors focus:outline-none"
+                      className="w-full cursor-pointer rounded border border-rule/50 bg-parchment px-2 py-0.5 font-serif text-xs text-ink-soft transition-colors hover:border-brass focus:outline-none"
                     >
                       <option value="">+ Link Encounter</option>
                       {monsters.filter(m => !linkedItems.some(i => i.type === 'encounter' && i.id === m)).map((m, idx) => (
@@ -466,24 +466,24 @@ export function SessionCard({
 
                   {/* Loot utilization */}
                   <div className="space-y-2">
-                    <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block">Loot Awarded</span>
+                    <span className="block font-display text-[9px] uppercase tracking-wider text-ink-mute">Loot Awarded</span>
                     <ul className="space-y-1">
                       {linkedItems.filter(i => i.type === 'loot').map(item => {
                         const ghost = isGhostItem(item);
                         return (
-                          <li key={item.id} className="flex items-center justify-between gap-1.5 px-2 py-1 rounded bg-parchment border border-rule/40 text-xs font-serif" title={item.snapshotLoot}>
-                            <span className={ghost ? "text-ink-mute italic flex items-center gap-1 truncate max-w-[80%]" : "text-ink truncate max-w-[80%]"}>
-                              {ghost && <span className="inline-block px-1 py-0.2 text-[8px] bg-wine/10 text-wine rounded font-display uppercase tracking-wider scale-90 flex-shrink-0">Ghost</span>}
+                          <li key={item.id} className="flex items-center justify-between gap-1.5 rounded border border-rule/40 bg-parchment px-2 py-1 font-serif text-xs" title={item.snapshotLoot}>
+                            <span className={ghost ? "flex max-w-[80%] items-center gap-1 truncate italic text-ink-mute" : "max-w-[80%] truncate text-ink"}>
+                              {ghost && <span className="py-0.2 inline-block flex-shrink-0 scale-90 rounded bg-wine/10 px-1 font-display text-[8px] uppercase tracking-wider text-wine">Ghost</span>}
                               {item.snapshotName}
                             </span>
-                            <button type="button" onClick={() => handleRemoveLink('loot', item.id)} className="text-ink-mute hover:text-crimson transition-colors flex-shrink-0">
+                            <button type="button" onClick={() => handleRemoveLink('loot', item.id)} className="flex-shrink-0 text-ink-mute transition-colors hover:text-crimson">
                               <X size={12} />
                             </button>
                           </li>
                         );
                       })}
                       {linkedItems.filter(i => i.type === 'loot').length === 0 && (
-                        <li className="text-[11px] text-ink-mute italic font-serif">No loot linked</li>
+                        <li className="font-serif text-[11px] italic text-ink-mute">No loot linked</li>
                       )}
                     </ul>
                     <select
@@ -498,7 +498,7 @@ export function SessionCard({
                           handleAddLink('loot', val, val, { loot: val });
                         }
                       }}
-                      className="w-full bg-parchment border border-rule/50 rounded px-2 py-0.5 text-xs text-ink-soft font-serif cursor-pointer hover:border-brass transition-colors focus:outline-none"
+                      className="w-full cursor-pointer rounded border border-rule/50 bg-parchment px-2 py-0.5 font-serif text-xs text-ink-soft transition-colors hover:border-brass focus:outline-none"
                     >
                       <option value="">+ Link Loot</option>
                       {(items as RawItem[]).map((it, idx) => normalizeItem(it, idx))
@@ -533,11 +533,11 @@ export function SessionCard({
               )}
 
               {entry.strongStart && (
-                <div className="mt-3 rounded border border-crimson/30 bg-crimson/5 p-3 flex items-start gap-2.5 shadow-sm max-w-2xl">
-                  <Zap size={14} className="text-crimson mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <span className="font-display text-[10px] uppercase tracking-wider text-crimson block font-semibold">Strong Start Delivered</span>
-                    <p className="mt-0.5 text-sm font-serif text-ink-soft whitespace-pre-wrap italic">
+                <div className="mt-3 flex max-w-2xl items-start gap-2.5 rounded border border-crimson/30 bg-crimson/5 p-3 shadow-sm">
+                  <Zap size={14} className="mt-0.5 flex-shrink-0 text-crimson" />
+                  <div className="min-w-0 flex-1">
+                    <span className="block font-display text-[10px] font-semibold uppercase tracking-wider text-crimson">Strong Start Delivered</span>
+                    <p className="mt-0.5 whitespace-pre-wrap font-serif text-sm italic text-ink-soft">
                       "{entry.strongStart}"
                     </p>
                   </div>
@@ -604,23 +604,23 @@ export function SessionCard({
 
               {/* Prep Utilized in Session Display Section */}
               {linkedItems.length > 0 && (
-                <div className="rounded border border-rule bg-parchment-soft/40 p-3 space-y-2 mt-2">
-                  <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep border-b border-rule/30 pb-0.5">Prep Utilized in Session</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs font-serif text-ink-soft">
+                <div className="mt-2 space-y-2 rounded border border-rule bg-parchment-soft/40 p-3">
+                  <div className="border-b border-rule/30 pb-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep">Prep Utilized in Session</div>
+                  <div className="grid grid-cols-1 gap-3 font-serif text-xs text-ink-soft sm:grid-cols-2 md:grid-cols-4">
                     {/* NPCs */}
                     <div>
-                      <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block mb-1">NPCs</span>
+                      <span className="mb-1 block font-display text-[9px] uppercase tracking-wider text-ink-mute">NPCs</span>
                       {linkedItems.filter(i => i.type === 'npc').length === 0 ? (
-                        <span className="text-[10px] text-ink-mute italic">None</span>
+                        <span className="text-[10px] italic text-ink-mute">None</span>
                       ) : (
-                        <ul className="space-y-0.5 list-disc pl-3">
+                        <ul className="list-disc space-y-0.5 pl-3">
                           {linkedItems.filter(i => i.type === 'npc').map(item => {
                             const ghost = isGhostItem(item);
                             return (
                               <li key={item.id}>
-                                <span className={ghost ? "text-ink-mute italic" : "text-ink"}>
+                                <span className={ghost ? "italic text-ink-mute" : "text-ink"}>
                                   {item.snapshotName}
-                                  {ghost && <span className="inline-block ml-1 text-[8px] bg-wine/10 text-wine px-0.5 rounded uppercase tracking-wider font-display scale-90">Ghost</span>}
+                                  {ghost && <span className="ml-1 inline-block scale-90 rounded bg-wine/10 px-0.5 font-display text-[8px] uppercase tracking-wider text-wine">Ghost</span>}
                                 </span>
                               </li>
                             );
@@ -631,18 +631,18 @@ export function SessionCard({
 
                     {/* Locations */}
                     <div>
-                      <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block mb-1">Locations</span>
+                      <span className="mb-1 block font-display text-[9px] uppercase tracking-wider text-ink-mute">Locations</span>
                       {linkedItems.filter(i => i.type === 'location').length === 0 ? (
-                        <span className="text-[10px] text-ink-mute italic">None</span>
+                        <span className="text-[10px] italic text-ink-mute">None</span>
                       ) : (
-                        <ul className="space-y-0.5 list-disc pl-3">
+                        <ul className="list-disc space-y-0.5 pl-3">
                           {linkedItems.filter(i => i.type === 'location').map(item => {
                             const ghost = isGhostItem(item);
                             return (
                               <li key={item.id}>
-                                <span className={ghost ? "text-ink-mute italic" : "text-ink"}>
+                                <span className={ghost ? "italic text-ink-mute" : "text-ink"}>
                                   {item.snapshotName}
-                                  {ghost && <span className="inline-block ml-1 text-[8px] bg-wine/10 text-wine px-0.5 rounded uppercase tracking-wider font-display scale-90">Ghost</span>}
+                                  {ghost && <span className="ml-1 inline-block scale-90 rounded bg-wine/10 px-0.5 font-display text-[8px] uppercase tracking-wider text-wine">Ghost</span>}
                                 </span>
                               </li>
                             );
@@ -653,19 +653,19 @@ export function SessionCard({
 
                     {/* Encounters */}
                     <div>
-                      <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block mb-1">Encounters</span>
+                      <span className="mb-1 block font-display text-[9px] uppercase tracking-wider text-ink-mute">Encounters</span>
                       {linkedItems.filter(i => i.type === 'encounter').length === 0 ? (
-                        <span className="text-[10px] text-ink-mute italic">None</span>
+                        <span className="text-[10px] italic text-ink-mute">None</span>
                       ) : (
-                        <ul className="space-y-0.5 list-disc pl-3">
+                        <ul className="list-disc space-y-0.5 pl-3">
                           {linkedItems.filter(i => i.type === 'encounter').map(item => {
                             const ghost = isGhostItem(item);
                             return (
                               <li key={item.id}>
-                                <span className={ghost ? "text-ink-mute italic" : "text-ink font-semibold"}>
+                                <span className={ghost ? "italic text-ink-mute" : "font-semibold text-ink"}>
                                   {item.snapshotName}
                                   {item.snapshotXP ? ` (${item.snapshotXP} XP)` : ''}
-                                  {ghost && <span className="inline-block ml-1 text-[8px] bg-wine/10 text-wine px-0.5 rounded uppercase tracking-wider font-display scale-90">Ghost</span>}
+                                  {ghost && <span className="ml-1 inline-block scale-90 rounded bg-wine/10 px-0.5 font-display text-[8px] uppercase tracking-wider text-wine">Ghost</span>}
                                 </span>
                               </li>
                             );
@@ -676,18 +676,18 @@ export function SessionCard({
 
                     {/* Loot */}
                     <div>
-                      <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block mb-1">Loot</span>
+                      <span className="mb-1 block font-display text-[9px] uppercase tracking-wider text-ink-mute">Loot</span>
                       {linkedItems.filter(i => i.type === 'loot').length === 0 ? (
-                        <span className="text-[10px] text-ink-mute italic">None</span>
+                        <span className="text-[10px] italic text-ink-mute">None</span>
                       ) : (
-                        <ul className="space-y-0.5 list-disc pl-3">
+                        <ul className="list-disc space-y-0.5 pl-3">
                           {linkedItems.filter(i => i.type === 'loot').map(item => {
                             const ghost = isGhostItem(item);
                             return (
                               <li key={item.id} title={item.snapshotLoot}>
-                                <span className={ghost ? "text-ink-mute italic" : "text-ink"}>
+                                <span className={ghost ? "italic text-ink-mute" : "text-ink"}>
                                   {item.snapshotName}
-                                  {ghost && <span className="inline-block ml-1 text-[8px] bg-wine/10 text-wine px-0.5 rounded uppercase tracking-wider font-display scale-90 font-sans">Ghost</span>}
+                                  {ghost && <span className="ml-1 inline-block scale-90 rounded bg-wine/10 px-0.5 font-display font-sans text-[8px] uppercase tracking-wider text-wine">Ghost</span>}
                                 </span>
                               </li>
                             );
