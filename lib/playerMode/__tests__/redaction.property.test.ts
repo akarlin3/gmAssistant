@@ -140,7 +140,7 @@ describe('redaction invariant (property-based)', () => {
           }
         }
 
-        const rels = (camp.data.relationships ?? []) as Array<Record<string, any>>;
+        const rels = (camp.data.relationships ?? []) as unknown as Array<Record<string, any>>;
         for (const edge of proj.edges ?? []) {
           // I5: only the whitelisted keys survive.
           for (const k of Object.keys(edge)) expect(ALLOWED_EDGE_KEYS).toContain(k);
