@@ -15,36 +15,8 @@
 
 import { collection, onSnapshot, writeBatch } from 'firebase/firestore';
 import { getDb } from '@/lib/firebase/client';
-import { validatePlayerField } from '@/lib/player/allowlist';
 import { type PlayerCharacter } from '@/lib/pc/types';
-
-/**
- * Utility helper to safely set a deeply-nested property value inside a PC object.
- * Adheres strictly to immutable state patterns. It shallow-clones the parent object and
- * each sequential nested dictionary/array down the path to avoid direct state mutation,
- * ensuring React re-renders are triggered correctly.
- * 
- * @param pc The target PlayerCharacter object to clone and modify
- * @param fieldPath The dot-separated nested path (e.g., 'hp.current', 'deathSaves.successes')
- * @param value The value to apply at the target path
- * @returns {PlayerCharacter} A deeply copied, updated copy of the PlayerCharacter object
- */
-function setNestedField(pc: PlayerCharacter, fieldPath: string, value: any): PlayerCharacter {
-  const next = { ...pc };
-  const parts = fieldPath.split('.');
-  let cur: any = next;
-
-  // Traverse the path, cloning each intermediate nested layer to preserve immutability
-  for (let i = 0; i < parts.length - 1; i++) {
-    const part = parts[i];
-    cur[part] = Array.isArray(cur[part]) ? [...cur[part]] : { ...cur[part] };
-    cur = cur[part];
-  }
-
-  // Set the final value on the deep path target
-  cur[parts[parts.length - 1]] = value;
-  return next;
-}
+import { mergePcWritebacks, type StagedWriteback } from '@/lib/crdt/writeback-merge';
 
 /**
  * Initializes a real-time Firestore listener on the `pcWritebacks` subcollection.
@@ -72,52 +44,42 @@ export function startWritebackReconciler(
       // Exit early if there are no pending writebacks to reconcile
       if (snap.empty) return;
 
-      const currentPcs = getCurrentPcs();
-      let updatedPcs = [...currentPcs];
-      let changed = false;
+      // Collect EVERY pending writeback and resolve them in a single
+      // deterministic pass (lib/crdt/writeback-merge). Doing this per-doc with a
+      // fresh read was the old lost-update bug: two near-simultaneous events
+      // each read a stale snapshot and the second clobbered the first. The
+      // authored merge also enforces the ownership guard (a slot may only edit
+      // its own PC) and the field-authority policy (player-editable fields win;
+      // everything else is GM-owned and dropped) — neither of which Firestore
+      // rules can express.
+      const staged: StagedWriteback[] = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          slotId: typeof data.slotId === 'string' ? data.slotId : d.id,
+          pcId: data.pcId,
+          updates: data.updates || {},
+          updatedAtMs: typeof data.updatedAt === 'number' ? data.updatedAt : 0,
+        };
+      });
 
-      // Batch the writeback deletions so cleanup of multiple slots commits atomically.
-      const batch = writeBatch(db);
+      const result = mergePcWritebacks(getCurrentPcs(), staged);
 
-      // Loop through all pending writeback snapshots
-      for (const changeDoc of snap.docs) {
-        const data = changeDoc.data();
-        const pcId = data.pcId;
-        const updates = data.updates || {};
-
-        // Locate the target character in our array
-        const pcIndex = updatedPcs.findIndex((p) => p.id === pcId);
-        if (pcIndex !== -1) {
-          let pc = updatedPcs[pcIndex];
-
-          // Apply each field update staged by the player. Re-validate against
-          // the allowlist as defense in depth — firestore.rules already locks
-          // the keys, but value-type ranges aren't expressible there.
-          for (const [field, value] of Object.entries(updates)) {
-            if (!validatePlayerField(field, value)) {
-              console.warn('Rejecting player writeback with invalid field/value', { field });
-              continue;
-            }
-            pc = setNestedField(pc, field, value);
-            changed = true;
-          }
-          updatedPcs[pcIndex] = pc;
-        }
-
-        // Delete the staged writeback once we've copied its contents into
-        // local state. The CRDT-aware autosave path in CampaignEditor (driven
-        // by the setState below) is responsible for persisting the change —
-        // we deliberately do NOT write `data.pcs` to Firestore here, since
-        // campaign content is owned by the Y.Doc per CLAUDE.md.
-        batch.delete(changeDoc.ref);
+      for (const r of result.rejected) {
+        console.warn('Rejecting player writeback', { ...r });
       }
 
-      if (changed) {
+      if (result.changed) {
         // Local React state update — feeds the existing debounced autosave
-        // which routes through the Y.Doc / CRDT update log.
-        onPcsUpdate(updatedPcs);
+        // which routes through the Y.Doc / CRDT update log. We deliberately do
+        // NOT write `data.pcs` to Firestore here; campaign content is owned by
+        // the Y.Doc per CLAUDE.md.
+        onPcsUpdate(result.pcs);
       }
 
+      // Delete the staged writebacks now that they've been folded into local
+      // state (or rejected). Batch so multi-slot cleanup commits atomically.
+      const batch = writeBatch(db);
+      for (const changeDoc of snap.docs) batch.delete(changeDoc.ref);
       try {
         await batch.commit();
       } catch (err) {

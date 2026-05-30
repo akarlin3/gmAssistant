@@ -20,24 +20,33 @@ import { z } from 'zod';
  * Exposes a strict list of fields that the player view is permitted to modify on their designated character sheet.
  * Any property path not explicitly declared in this enum will be immediately rejected with a 403 Forbidden.
  */
+// The single source of truth for which PC fields a player may write back. These
+// are the *player-authoritative* fields: live self-tracked sheet state during
+// play. firestore.rules `isValidPlayerWriteback` mirrors this list, and the
+// authored CRDT merge (lib/crdt/writeback-merge.ts) treats exactly these fields
+// as player-wins on conflict — every other field is GM-authoritative.
+export const PLAYER_EDITABLE_FIELDS = [
+  'hp.current',          // Current hit points (non-negative integer)
+  'hp.temp',             // Temporary hit points (non-negative integer)
+  'conditions',          // Active status conditions (string array matching SRD values)
+  'exhaustion',          // Exhaustion level (integer in [0, 6])
+  'deathSaves.successes',// Death save successes (integer in [0, 3])
+  'deathSaves.failures', // Death save failures (integer in [0, 3])
+  'notes',               // Freeform player session notes (string)
+  'goals',               // Player-defined character goals (string array)
+  'bonds',               // Player character bonds (string array)
+  'ideals',              // Player character ideals (string array)
+  'flaws',               // Player character flaws (string array)
+] as const;
+
+export type PlayerEditableField = (typeof PLAYER_EDITABLE_FIELDS)[number];
+
 export const PlayerUpdatePayloadSchema = z.object({
   // The unique stable identifier of the PC being modified
   pcId: z.string(),
-  
+
   // The dot-separated property path to write back to the target PC object
-  field: z.enum([
-    'hp.current',          // Current hit points (non-negative integer)
-    'hp.temp',             // Temporary hit points (non-negative integer)
-    'conditions',          // Active status conditions (string array matching SRD values)
-    'exhaustion',          // Exhaustion level (integer in [0, 6])
-    'deathSaves.successes',// Death save successes (integer in [0, 3])
-    'deathSaves.failures', // Death save failures (integer in [0, 3])
-    'notes',               // Freeform player session notes (string)
-    'goals',               // Player-defined character goals (string array)
-    'bonds',               // Player character bonds (string array)
-    'ideals',              // Player character ideals (string array)
-    'flaws',               // Player character flaws (string array)
-  ]),
+  field: z.enum(PLAYER_EDITABLE_FIELDS),
   
   // The unvalidated raw value payload. This is typed as 'any' at this level
   // and is strictly validated on a field-by-field basis via `validatePlayerField`.

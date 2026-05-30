@@ -50,6 +50,8 @@ Beyond worldbuilding, the **Run** tab includes table-side helpers for actually r
 
 Share a **read-only, real-time view** of a campaign with your players via a link — no player accounts. Players pick their name from a GM-defined roster and see only what you reveal: party-wide by default, with per-player and per-field overrides. Reveal entities with a Private/Party/Custom toggle, or just `@`-mention them in the session-log narration feed (mentions auto-reveal, and reveals are sticky). The GM's browser publishes redacted, per-player projections to public-read Firestore docs that players read live; the unguessable share-link token is the capability. It's a **free** feature. See [docs/player-mode.md](./docs/player-mode.md) for the schema and security model.
 
+The redaction that makes those public-read docs safe is the system's security boundary, so it's **proven, not trusted**: a `fast-check` property suite runs the real projection over arbitrary adversarial campaign state and asserts no GM-hidden entity, field, edge, or map layer ever survives into a player's view. Players can edit a safe slice of their *own* sheet (HP, conditions, notes…) via staged write-backs; an [authored CRDT merge](./ARCHITECTURE.md#5-player-write-back-and-the-authored-merge) enforces an ownership guard (a slot may only edit the PC it owns) and a field-authority policy on top of Yjs's generic merge. See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design, tradeoffs, and a data/visibility flow diagram.
+
 ## Pro features (LLM-powered)
 
 A few features call paid inference APIs and will be gated behind a **$3.99/month** Pro subscription at launch. Pro is currently **waitlist-only** — signed-in users can join from the account page and get emailed when it opens:
