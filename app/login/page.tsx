@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/firebase/auth-context';
+import { AveryCorpEmblem } from '@/components/AveryCorpEmblem';
 
 export default function LoginPage() {
   const { user, loading, signInWithGoogle } = useAuth();
@@ -28,7 +29,13 @@ export default function LoginPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center space-y-4 bg-parchment text-ink">
-        <div className="gm-spinner" />
+        <AveryCorpEmblem
+          size={56}
+          variant="image"
+          cropMode="mark-only"
+          isTimerActive
+          ariaLabel="AveryCorp Institute Emblem"
+        />
         <div className="animate-pulse font-display text-xs uppercase tracking-[0.2em] text-brass-deep">
           Consulting the archives…
         </div>
@@ -40,6 +47,15 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center p-5">
       <div className="w-full max-w-sm space-y-6 rounded-lg border border-rule bg-parchment-soft p-8 shadow-page">
         <div className="space-y-3 text-center">
+          <div className="flex justify-center pb-1">
+            <AveryCorpEmblem
+              size={64}
+              variant="image"
+              cropMode="mark-only"
+              showPreviewPopover
+              ariaLabel="AveryCorp Institute Seal"
+            />
+          </div>
           <div className="font-display text-xs uppercase tracking-[0.3em] text-brass-deep">
             Gamemaster Assistant
           </div>

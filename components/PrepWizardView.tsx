@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { X, ArrowLeft, ArrowRight, SkipForward, Check, Flag } from 'lucide-react';
+import { AveryCorpEmblem } from './AveryCorpEmblem';
 import type { SessionLogEntry } from '@/lib/sessionLog';
 import { nextSessionNumber } from '@/lib/sessionLog';
 import {
@@ -140,6 +141,13 @@ export default function PrepWizardView({
         <header className="space-y-3 border-b border-rule pb-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-3">
+              <AveryCorpEmblem
+                size={34}
+                variant="image"
+                cropMode="mark-only"
+                showPreviewPopover
+                ariaLabel="AveryCorp Prep Session Seal"
+              />
               <h1 className="font-display text-lg tracking-wide text-ink sm:text-xl">
                 Prep Session {sessionNumber}
               </h1>

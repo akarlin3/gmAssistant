@@ -10,6 +10,7 @@ import {
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { getDb, getFirebaseAuth } from '@/lib/firebase/client';
+import { AveryCorpEmblem } from '@/components/AveryCorpEmblem';
 import {
   authorizeGoogleDrive,
   findOrCreateBackupFolder,
@@ -282,8 +283,20 @@ function AccountPageBody() {
                 <ArrowLeft size={12} /> Campaigns
               </Link>
             </div>
-            <h1 className="font-display text-2xl tracking-wide text-crimson sm:text-3xl">Account</h1>
-            <p className="mt-1 break-all font-serif text-sm italic text-ink-soft">{user.email}</p>
+            <div className="flex items-center gap-3.5">
+              <AveryCorpEmblem
+                size={40}
+                variant="image"
+                cropMode="mark-only"
+                architectUnlocked={isPro}
+                showPreviewPopover
+                ariaLabel="AveryCorp Institute Account Seal"
+              />
+              <div className="min-w-0">
+                <h1 className="font-display text-2xl tracking-wide text-crimson sm:text-3xl">Account</h1>
+                <p className="mt-1 break-all font-serif text-sm italic text-ink-soft">{user.email}</p>
+              </div>
+            </div>
           </header>
 
           {checkoutFlag === 'success' && (

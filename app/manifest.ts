@@ -11,15 +11,28 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: '#b1201e',
     icons: [
       {
-        src: '/icons/base-icon.svg',
-        sizes: 'any',
-        type: 'image/svg+xml',
+        src: '/averycorp-emblem.jpeg',
+        sizes: '192x192',
+        type: 'image/jpeg',
+        purpose: 'any',
       },
       {
-        src: '/icons/base-icon.svg',
+        src: '/averycorp-emblem.jpeg',
         sizes: '512x512',
-        type: 'image/svg+xml',
+        type: 'image/jpeg',
+        purpose: 'maskable',
+      },
+      {
+        src: '/averycorp-emblem-192.png',
+        sizes: '192x192',
+        type: 'image/png',
         purpose: 'any',
+      },
+      {
+        src: '/averycorp-emblem-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
       },
     ],
   };

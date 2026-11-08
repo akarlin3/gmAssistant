@@ -11,6 +11,7 @@ import {
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { getDb, getFirebaseAuth } from '@/lib/firebase/client';
+import { AveryCorpEmblem } from './AveryCorpEmblem';
 
 const PRO_PRICE_LABEL = '$3.99 / month';
 const GITHUB_URL = 'https://github.com/akarlin3/campaign-prep';
@@ -345,7 +346,16 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-2">
-              <h2 className="font-display text-lg tracking-wide text-ink">Gamemaster Assistant</h2>
+              <div className="flex items-center gap-3">
+                <AveryCorpEmblem
+                  size={40}
+                  variant="image"
+                  cropMode="mark-only"
+                  architectUnlocked={isPro}
+                  ariaLabel="AveryCorp Institute Seal"
+                />
+                <h2 className="font-display text-lg tracking-wide text-ink">Gamemaster Assistant</h2>
+              </div>
               <button
                 type="button"
                 onClick={() => setAboutOpen(false)}

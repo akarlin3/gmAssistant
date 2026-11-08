@@ -24,9 +24,13 @@ export const metadata: Metadata = {
   title: 'Gamemaster Assistant',
   description: 'TTRPG campaign prep — Lazy DM · CCD · Proactive Roleplaying',
   icons: {
-    icon: '/icons/base-icon.svg',
-    shortcut: '/icons/base-icon.svg',
-    apple: '/icons/base-icon.svg',
+    icon: [
+      { url: '/averycorp-emblem.jpeg', type: 'image/jpeg' },
+      { url: '/averycorp-emblem-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/averycorp-emblem-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    shortcut: '/averycorp-emblem.jpeg',
+    apple: '/averycorp-emblem.jpeg',
   },
   appleWebApp: {
     capable: true,

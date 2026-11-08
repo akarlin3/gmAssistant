@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, X, Sparkles, User, Users, Plus, Trash2 } from 'lucide-react';
 import type { WizardPatch } from '@/lib/session0';
+import { AveryCorpEmblem } from './AveryCorpEmblem';
 
 const TRUTH_PLACEHOLDERS = [
   'A terrible power lurks beneath the village.',
@@ -138,8 +139,14 @@ export default function Session0Wizard({
     <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-parchment-soft">
       {/* Top bar */}
       <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-rule bg-parchment-soft px-4 py-3 sm:px-8">
-        <div className="flex min-w-0 items-center gap-2">
-          <Sparkles size={14} className="flex-shrink-0 text-brass-deep" />
+        <div className="flex min-w-0 items-center gap-2.5">
+          <AveryCorpEmblem
+            size={32}
+            variant="image"
+            cropMode="mark-only"
+            showPreviewPopover
+            ariaLabel="AveryCorp Institute Onboarding Seal"
+          />
           <span className="font-display text-xs uppercase tracking-wider text-brass-deep">
             Setup
             {step <= TOTAL_STEPS && <span className="text-ink-mute"> — Step {step} of {TOTAL_STEPS}</span>}

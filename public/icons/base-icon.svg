@@ -1,121 +1,149 @@
-<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 200 200" width="512" height="512" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Metallic Silver Gradient -->
-    <linearGradient id="silverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" />
-      <stop offset="20%" stop-color="#dddddd" />
-      <stop offset="40%" stop-color="#b8b8b8" />
-      <stop offset="60%" stop-color="#f2f2f2" />
-      <stop offset="80%" stop-color="#9e9e9e" />
-      <stop offset="100%" stop-color="#ffffff" />
+    <radialGradient id="averyNavyBg" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#1b2842" />
+      <stop offset="100%" stop-color="#121b2d" />
+    </radialGradient>
+    <linearGradient id="averyGoldPolished" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="35%" stop-color="#eab308" />
+      <stop offset="70%" stop-color="#ca8a04" />
+      <stop offset="100%" stop-color="#fde047" />
     </linearGradient>
-    
-    <!-- Rich Charcoal/Black Gradient -->
-    <linearGradient id="blackRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#333333" />
-      <stop offset="30%" stop-color="#1a1a1a" />
-      <stop offset="70%" stop-color="#0a0a0a" />
-      <stop offset="100%" stop-color="#151515" />
+    <linearGradient id="averyGunmetalLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#94a3b8" />
+      <stop offset="45%" stop-color="#475569" />
+      <stop offset="80%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#64748b" />
     </linearGradient>
-    
-    <!-- Light Gleam Overlay -->
-    <linearGradient id="gleamGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4" />
-      <stop offset="30%" stop-color="#ffffff" stop-opacity="0" />
-      <stop offset="70%" stop-color="#ffffff" stop-opacity="0" />
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.3" />
+    <linearGradient id="averyGunmetalRight" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#cbd5e1" />
+      <stop offset="50%" stop-color="#334155" />
+      <stop offset="100%" stop-color="#0f172a" />
     </linearGradient>
-    
-    <!-- Premium 3D Golden Gradients -->
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFEFA6" />
-      <stop offset="20%" stop-color="#F5D061" />
-      <stop offset="40%" stop-color="#DFAC2C" />
-      <stop offset="60%" stop-color="#C28E15" />
-      <stop offset="80%" stop-color="#F5D061" />
-      <stop offset="100%" stop-color="#8A5A00" />
-    </linearGradient>
-    
-    <linearGradient id="goldGleam" x1="100%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.8" />
-      <stop offset="30%" stop-color="#FFEFA6" stop-opacity="0.3" />
-      <stop offset="70%" stop-color="#DFAC2C" stop-opacity="0" />
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.5" />
-    </linearGradient>
-    
-    <!-- Drop Shadow for depth -->
-    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000000" flood-opacity="0.5" />
-    </filter>
   </defs>
 
-  <!-- 1. BACK CHAIN LINKS (Behind the ring) -->
-  <g filter="url(#dropShadow)">
-    <!-- Link 0 (Flat) at (88, 88) -->
-    <g transform="translate(88, 88) rotate(45)">
-      <rect x="-25" y="-52" width="50" height="104" rx="25" fill="none" stroke="#8A5A00" stroke-width="16" />
-      <rect x="-25" y="-52" width="50" height="104" rx="25" fill="none" stroke="url(#goldGrad)" stroke-width="12" />
-      <rect x="-25" y="-52" width="50" height="104" rx="25" fill="none" stroke="url(#goldGleam)" stroke-width="4" />
-    </g>
+  <!-- Deep Navy Circle Base -->
+  <circle cx="100" cy="100" r="96" fill="url(#averyNavyBg)" />
 
-    <!-- Link 1 (Side-on) at (144, 144) -->
-    <g transform="translate(144, 144) rotate(45)">
-      <rect x="-16" y="-52" width="32" height="104" rx="16" fill="none" stroke="#8A5A00" stroke-width="16" />
-      <rect x="-16" y="-52" width="32" height="104" rx="16" fill="none" stroke="url(#goldGrad)" stroke-width="12" />
-      <rect x="-16" y="-52" width="32" height="104" rx="16" fill="none" stroke="url(#goldGleam)" stroke-width="4" />
-    </g>
-
-    <!-- Link 2 (Flat) at (200, 200) -->
-    <g transform="translate(200, 200) rotate(45)">
-      <rect x="-25" y="-52" width="50" height="104" rx="25" fill="none" stroke="#8A5A00" stroke-width="16" />
-      <rect x="-25" y="-52" width="50" height="104" rx="25" fill="none" stroke="url(#goldGrad)" stroke-width="12" />
-      <rect x="-25" y="-52" width="50" height="104" rx="25" fill="none" stroke="url(#goldGleam)" stroke-width="4" />
-    </g>
+  <!-- Outer Gold Chain-Link Perimeter -->
+  <g>
+    <circle
+      cx="100"
+      cy="100"
+      r="91"
+      stroke="#d4af37"
+      stroke-width="3.2"
+      stroke-dasharray="6 3.5"
+      stroke-linecap="round"
+      opacity="0.92"
+    />
+    <circle
+      cx="100"
+      cy="100"
+      r="88.5"
+      stroke="#fef08a"
+      stroke-width="1"
+      stroke-dasharray="3 6.5"
+      stroke-linecap="round"
+      opacity="0.65"
+    />
   </g>
 
-  <!-- 2. MAIN HOLLOW RING (Silver & Black) -->
-  <g filter="url(#dropShadow)">
-    <!-- Outer/Inner Silver base ring -->
-    <path fill="url(#silverGrad)" fill-rule="evenodd" clip-rule="evenodd" 
-          d="M 256,72 A 184,184 0 1,0 256,440 A 184,184 0 1,0 256,72 Z M 256,160 A 96,96 0 1,1 256,352 A 96,96 0 1,1 256,160 Z" />
-    
-    <!-- Inner Black ring body -->
-    <path fill="url(#blackRingGrad)" fill-rule="evenodd" clip-rule="evenodd" 
-          d="M 256,80 A 176,176 0 1,0 256,432 A 176,176 0 1,0 256,80 Z M 256,152 A 104,104 0 1,1 256,360 A 104,104 0 1,1 256,152 Z" />
-          
-    <!-- Gleam overlay for premium metallic reflection -->
-    <path fill="url(#gleamGrad)" fill-rule="evenodd" clip-rule="evenodd" 
-          d="M 256,72 A 184,184 0 1,0 256,440 A 184,184 0 1,0 256,72 Z M 256,160 A 96,96 0 1,1 256,352 A 96,96 0 1,1 256,160 Z" />
+  <!-- Two Crossed Gold Chain Ellipses -->
+  <g transform="rotate(-34 100 94)">
+    <ellipse
+      cx="100"
+      cy="94"
+      rx="68"
+      ry="34"
+      stroke="url(#averyGoldPolished)"
+      stroke-width="6"
+      stroke-dasharray="8 4.5"
+      stroke-linecap="round"
+    />
+  </g>
+  <g transform="rotate(34 100 94)">
+    <ellipse
+      cx="100"
+      cy="94"
+      rx="68"
+      ry="34"
+      stroke="url(#averyGoldPolished)"
+      stroke-width="6"
+      stroke-dasharray="8 4.5"
+      stroke-linecap="round"
+    />
   </g>
 
-  <!-- 3. FRONT CHAIN LINKS (In front of the ring) -->
-  <g filter="url(#dropShadow)">
-    <!-- Link 3 (Side-on, Center) at (256, 256) -->
-    <g transform="translate(256, 256) rotate(45)">
-      <rect x="-16" y="-52" width="32" height="104" rx="16" fill="none" stroke="#8A5A00" stroke-width="16" />
-      <rect x="-16" y="-52" width="32" height="104" rx="16" fill="none" stroke="url(#goldGrad)" stroke-width="12" />
-      <rect x="-16" y="-52" width="32" height="104" rx="16" fill="none" stroke="url(#goldGleam)" stroke-width="4" />
-    </g>
+  <!-- Two Interlocked Brushed-Gunmetal Mobius Bands -->
+  <g transform="rotate(-18 88 92)">
+    <ellipse
+      cx="88"
+      cy="92"
+      rx="28"
+      ry="48"
+      stroke="url(#averyGunmetalLeft)"
+      stroke-width="13"
+    />
+    <ellipse
+      cx="88"
+      cy="92"
+      rx="28"
+      ry="48"
+      stroke="#cbd5e1"
+      stroke-width="1.5"
+      opacity="0.45"
+    />
+  </g>
 
-    <!-- Link 4 (Flat) at (312, 312) -->
-    <g transform="translate(312, 312) rotate(45)">
-      <rect x="-25" y="-52" width="50" height="104" rx="25" fill="none" stroke="#8A5A00" stroke-width="16" />
-      <rect x="-25" y="-52" width="50" height="104" rx="25" fill="none" stroke="url(#goldGrad)" stroke-width="12" />
-      <rect x="-25" y="-52" width="50" height="104" rx="25" fill="none" stroke="url(#goldGleam)" stroke-width="4" />
-    </g>
+  <g transform="rotate(18 112 92)">
+    <ellipse
+      cx="112"
+      cy="92"
+      rx="28"
+      ry="48"
+      stroke="url(#averyGunmetalRight)"
+      stroke-width="13"
+    />
+    <ellipse
+      cx="112"
+      cy="92"
+      rx="28"
+      ry="48"
+      stroke="#94a3b8"
+      stroke-width="1.5"
+      opacity="0.4"
+    />
+  </g>
 
-    <!-- Link 5 (Side-on) at (368, 368) -->
-    <g transform="translate(368, 368) rotate(45)">
-      <rect x="-16" y="-52" width="32" height="104" rx="16" fill="none" stroke="#8A5A00" stroke-width="16" />
-      <rect x="-16" y="-52" width="32" height="104" rx="16" fill="none" stroke="url(#goldGrad)" stroke-width="12" />
-      <rect x="-16" y="-52" width="32" height="104" rx="16" fill="none" stroke="url(#goldGleam)" stroke-width="4" />
-    </g>
-
-    <!-- Link 6 (Flat) at (424, 424) -->
-    <g transform="translate(424, 424) rotate(45)">
-      <rect x="-25" y="-52" width="50" height="104" rx="25" fill="none" stroke="#8A5A00" stroke-width="16" />
-      <rect x="-25" y="-52" width="50" height="104" rx="25" fill="none" stroke="url(#goldGrad)" stroke-width="12" />
-      <rect x="-25" y="-52" width="50" height="104" rx="25" fill="none" stroke="url(#goldGleam)" stroke-width="4" />
-    </g>
+  <!-- Foreground Polished Gold Ring -->
+  <g transform="rotate(-24 108 106)">
+    <ellipse
+      cx="108"
+      cy="106"
+      rx="32"
+      ry="44"
+      stroke="#090d16"
+      stroke-width="14.5"
+      opacity="0.55"
+    />
+    <ellipse
+      cx="108"
+      cy="106"
+      rx="32"
+      ry="44"
+      stroke="url(#averyGoldPolished)"
+      stroke-width="11.5"
+    />
+    <ellipse
+      cx="108"
+      cy="106"
+      rx="32"
+      ry="44"
+      stroke="#fef9c3"
+      stroke-width="1.4"
+      opacity="0.7"
+    />
   </g>
 </svg>

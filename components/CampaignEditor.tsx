@@ -14,6 +14,7 @@ import type { InitiativeState } from '@/lib/initiative';
 import { applySession0Patch } from '@/lib/session0';
 import { WhileYouWereAway } from './world/WhileYouWereAway';
 import { AccountMenu } from './AccountMenu';
+import { AveryCorpEmblem } from './AveryCorpEmblem';
 import PlayersManager from './PlayersManager';
 import CommandPalette from './CommandPalette';
 import KeyboardShortcuts from './KeyboardShortcuts';
@@ -221,8 +222,17 @@ export default function CampaignEditor(props: CampaignEditorProps) {
                 />
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <ScrollText size={20} className="flex-shrink-0 text-crimson" />
+            <div className="flex flex-wrap items-center gap-2.5">
+              <AveryCorpEmblem
+                id="header-brand-emblem"
+                size={34}
+                variant="image"
+                cropMode="mark-only"
+                isTimerActive={!!get('__activeSessionId', '')}
+                architectUnlocked={isPro}
+                showPreviewPopover
+                ariaLabel="AveryCorp Institute Campaign Header Emblem"
+              />
               <textarea rows={1} value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign Name"
                 className="min-w-48 flex-1 resize-none whitespace-pre-wrap break-words border-b border-rule bg-transparent pb-1 font-display text-xl tracking-wide text-ink [field-sizing:content] placeholder:text-ink-faint focus:border-crimson focus:outline-none sm:text-2xl" />
               {isArchived && (

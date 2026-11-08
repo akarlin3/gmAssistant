@@ -1,6 +1,7 @@
 'use client';
 
-import { ArrowLeft, Flag, Swords, BookOpen } from 'lucide-react';
+import { ArrowLeft, Flag, BookOpen } from 'lucide-react';
+import { AveryCorpEmblem } from '@/components/AveryCorpEmblem';
 
 type PublishState = 'idle' | 'publishing' | 'done' | 'error';
 
@@ -38,8 +39,16 @@ export function SessionHeader({
         >
           <BookOpen size={12} /> Library
         </button>
-        <h1 className="flex items-center gap-2 font-display text-lg tracking-wide text-ink sm:text-xl">
-          <Swords size={18} className="text-crimson" /> Run Session
+        <h1 className="flex items-center gap-2.5 font-display text-lg tracking-wide text-ink sm:text-xl">
+          <AveryCorpEmblem
+            size={32}
+            variant="image"
+            cropMode="mark-only"
+            isTimerActive
+            showPreviewPopover
+            ariaLabel="AveryCorp Live Session Seal"
+          />
+          Run Session
         </h1>
         <span className="font-serif text-xs italic text-ink-mute">
           Started {new Date(sessionStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

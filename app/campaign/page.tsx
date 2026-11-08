@@ -13,6 +13,7 @@ import {
 import { subscribeToUserWorlds, deleteWorld, type World } from '@/lib/firebase/worlds';
 import { Plus, ScrollText, Pin, Archive, ArchiveRestore, Trash2, ChevronDown, ChevronRight, MoreHorizontal, ExternalLink, Copy, Cloud, X } from 'lucide-react';
 import { AccountMenu } from '@/components/AccountMenu';
+import { AveryCorpEmblem } from '@/components/AveryCorpEmblem';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { relativeTime } from '@/lib/relativeTime';
 import { lastSessionDate, lastOpenedDate } from '@/lib/lastPlayed';
@@ -329,11 +330,21 @@ export default function CampaignListPage() {
       <div className="mx-auto max-w-3xl">
         <div className="space-y-4 rounded-lg border border-rule bg-parchment-soft p-3 shadow-page sm:p-5 md:p-8">
           <header className="flex items-start justify-between gap-3 border-b border-rule pb-4">
-            <div className="min-w-0">
-              <div className="font-display text-xs uppercase tracking-[0.3em] text-brass-deep">
-                Gamemaster Assistant
+            <div className="flex min-w-0 items-center gap-3.5">
+              <AveryCorpEmblem
+                id="header-brand-emblem"
+                size={42}
+                variant="image"
+                cropMode="mark-only"
+                showPreviewPopover
+                ariaLabel="AveryCorp Institute Header Emblem"
+              />
+              <div className="min-w-0">
+                <div className="font-display text-xs uppercase tracking-[0.3em] text-brass-deep">
+                  Gamemaster Assistant
+                </div>
+                <h1 className="mt-1 font-display text-2xl tracking-wide text-crimson sm:text-3xl">Your Campaigns</h1>
               </div>
-              <h1 className="mt-1 font-display text-2xl tracking-wide text-crimson sm:text-3xl">Your Campaigns</h1>
             </div>
             <div className="flex items-center gap-3">
               <Link

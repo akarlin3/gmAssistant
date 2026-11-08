@@ -103,8 +103,8 @@ export default function E2ESandboxPage() {
         </header>
 
         {/* State readout & controller */}
-        <section className="rounded-md border border-rule bg-parchment-soft p-4 shadow-sm space-y-4">
-          <div className="flex justify-between items-center">
+        <section className="space-y-4 rounded-md border border-rule bg-parchment-soft p-4 shadow-sm">
+          <div className="flex items-center justify-between">
             <h2 className="font-display text-sm uppercase tracking-wider text-brass-deep">Simulated State</h2>
             <div className="flex gap-2">
               <button
@@ -117,7 +117,7 @@ export default function E2ESandboxPage() {
               <button
                 type="button"
                 onClick={resetSandbox}
-                className="rounded border border-crimson/50 text-crimson bg-parchment px-3 py-1 text-xs hover:bg-crimson/10"
+                className="rounded border border-crimson/50 bg-parchment px-3 py-1 text-xs text-crimson hover:bg-crimson/10"
               >
                 Reset Sandbox
               </button>
@@ -127,14 +127,14 @@ export default function E2ESandboxPage() {
           <div className="grid grid-cols-2 gap-4">
             {/* NPC */}
             <div className="rounded border border-rule bg-parchment p-3">
-              <div className="text-[10px] uppercase tracking-wider text-ink-mute font-display">NPC Status</div>
-              <div className="text-lg font-display text-ink mt-1 flex justify-between items-center">
-                <span data-testid="npc-name-status">{inka?.name}: <span className={inka?.status === 'Dead' ? 'text-crimson font-bold' : 'text-emerald-700'}>{inka?.status}</span></span>
+              <div className="font-display text-[10px] uppercase tracking-wider text-ink-mute">NPC Status</div>
+              <div className="mt-1 flex items-center justify-between font-display text-lg text-ink">
+                <span data-testid="npc-name-status">{inka?.name}: <span className={inka?.status === 'Dead' ? 'font-bold text-crimson' : 'text-emerald-700'}>{inka?.status}</span></span>
                 <button
                   type="button"
                   data-testid="toggle-dead-btn"
                   onClick={toggleNpcDead}
-                  className="rounded border border-brass-deep/60 bg-brass-deep/10 px-2 py-1 text-xs text-brass-deep hover:bg-brass-deep hover:text-parchment font-display uppercase tracking-wider"
+                  className="rounded border border-brass-deep/60 bg-brass-deep/10 px-2 py-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:bg-brass-deep hover:text-parchment"
                 >
                   Toggle Dead
                 </button>
@@ -143,11 +143,11 @@ export default function E2ESandboxPage() {
 
             {/* Relationship */}
             <div className="rounded border border-rule bg-parchment p-3">
-              <div className="text-[10px] uppercase tracking-wider text-ink-mute font-display">Relationship Edge</div>
-              <div className="text-sm font-mono mt-1 text-ink-soft">
+              <div className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Relationship Edge</div>
+              <div className="mt-1 font-mono text-sm text-ink-soft">
                 Inka —allyOf→ Garrick
               </div>
-              <div className="text-xl font-display text-ink mt-1">
+              <div className="mt-1 font-display text-xl text-ink">
                 Weight: <span data-testid="edge-weight" className="font-mono">{edge?.weight.toFixed(2)}</span>
               </div>
             </div>

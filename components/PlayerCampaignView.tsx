@@ -13,6 +13,7 @@
 
 import React, { useState } from 'react';
 import { Calendar, Map, UserCircle } from 'lucide-react';
+import { AveryCorpEmblem } from './AveryCorpEmblem';
 import PlayerMapView from '@/components/maps/PlayerMapView';
 import CharacterCard from './CharacterCard';
 import { MusicPlayer } from './RunSessionView';
@@ -56,9 +57,18 @@ export default function PlayerCampaignView({
     <main className="min-h-screen bg-parchment p-3 sm:p-5">
       <div className="mx-auto max-w-3xl space-y-4">
         <header className="flex items-center justify-between gap-3 rounded-lg border border-rule bg-parchment-soft p-4 shadow-page">
-          <div className="min-w-0">
-            <div className="font-display text-[10px] uppercase tracking-[0.3em] text-brass-deep">Player View</div>
-            <h1 className="truncate font-display text-xl tracking-wide text-ink sm:text-2xl">{campaignName}</h1>
+          <div className="flex min-w-0 items-center gap-3">
+            <AveryCorpEmblem
+              size={36}
+              variant="image"
+              cropMode="mark-only"
+              showPreviewPopover
+              ariaLabel="AveryCorp Institute Player View Seal"
+            />
+            <div className="min-w-0">
+              <div className="font-display text-[10px] uppercase tracking-[0.3em] text-brass-deep">Player View</div>
+              <h1 className="truncate font-display text-xl tracking-wide text-ink sm:text-2xl">{campaignName}</h1>
+            </div>
           </div>
           <div className="flex flex-shrink-0 flex-col items-end">
             <span className="font-serif text-sm text-ink-soft">{displayName}</span>
