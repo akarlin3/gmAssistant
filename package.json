@@ -9,9 +9,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:cf": "opennextjs-cloudflare build",
     "start": "next start -p ${PORT:-3000} -H 0.0.0.0",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "deploy:cf": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "preview:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
