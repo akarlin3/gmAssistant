@@ -41,9 +41,9 @@ export function SessionHeader({
         </button>
         <h1 className="flex items-center gap-2.5 font-display text-lg tracking-wide text-ink sm:text-xl">
           <AveryCorpEmblem
-            size={32}
+            size={28}
             variant="image"
-            cropMode="mark-only"
+            cropMode="full-seal"
             isTimerActive
             showPreviewPopover
             ariaLabel="AveryCorp Live Session Seal"

@@ -285,9 +285,9 @@ function AccountPageBody() {
             </div>
             <div className="flex items-center gap-3.5">
               <AveryCorpEmblem
-                size={40}
+                size={34}
                 variant="image"
-                cropMode="mark-only"
+                cropMode="full-seal"
                 architectUnlocked={isPro}
                 showPreviewPopover
                 ariaLabel="AveryCorp Institute Account Seal"

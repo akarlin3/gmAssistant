@@ -225,9 +225,9 @@ export default function CampaignEditor(props: CampaignEditorProps) {
             <div className="flex flex-wrap items-center gap-2.5">
               <AveryCorpEmblem
                 id="header-brand-emblem"
-                size={34}
+                size={28}
                 variant="image"
-                cropMode="mark-only"
+                cropMode="full-seal"
                 isTimerActive={!!get('__activeSessionId', '')}
                 architectUnlocked={isPro}
                 showPreviewPopover

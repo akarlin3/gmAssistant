@@ -30,9 +30,9 @@ export default function LoginPage() {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center space-y-4 bg-parchment text-ink">
         <AveryCorpEmblem
-          size={56}
+          size={48}
           variant="image"
-          cropMode="mark-only"
+          cropMode="full-seal"
           isTimerActive
           ariaLabel="AveryCorp Institute Emblem"
         />
@@ -49,9 +49,9 @@ export default function LoginPage() {
         <div className="space-y-3 text-center">
           <div className="flex justify-center pb-1">
             <AveryCorpEmblem
-              size={64}
+              size={56}
               variant="image"
-              cropMode="mark-only"
+              cropMode="full-seal"
               showPreviewPopover
               ariaLabel="AveryCorp Institute Seal"
             />

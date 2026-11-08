@@ -333,9 +333,9 @@ export default function CampaignListPage() {
             <div className="flex min-w-0 items-center gap-3.5">
               <AveryCorpEmblem
                 id="header-brand-emblem"
-                size={42}
+                size={36}
                 variant="image"
-                cropMode="mark-only"
+                cropMode="full-seal"
                 showPreviewPopover
                 ariaLabel="AveryCorp Institute Header Emblem"
               />

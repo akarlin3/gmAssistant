@@ -141,9 +141,9 @@ export default function Session0Wizard({
       <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-rule bg-parchment-soft px-4 py-3 sm:px-8">
         <div className="flex min-w-0 items-center gap-2.5">
           <AveryCorpEmblem
-            size={32}
+            size={28}
             variant="image"
-            cropMode="mark-only"
+            cropMode="full-seal"
             showPreviewPopover
             ariaLabel="AveryCorp Institute Onboarding Seal"
           />

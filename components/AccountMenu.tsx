@@ -348,9 +348,9 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-3">
                 <AveryCorpEmblem
-                  size={40}
+                  size={34}
                   variant="image"
-                  cropMode="mark-only"
+                  cropMode="full-seal"
                   architectUnlocked={isPro}
                   ariaLabel="AveryCorp Institute Seal"
                 />

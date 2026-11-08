@@ -142,9 +142,9 @@ export default function PrepWizardView({
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-3">
               <AveryCorpEmblem
-                size={34}
+                size={28}
                 variant="image"
-                cropMode="mark-only"
+                cropMode="full-seal"
                 showPreviewPopover
                 ariaLabel="AveryCorp Prep Session Seal"
               />

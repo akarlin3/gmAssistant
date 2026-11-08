@@ -59,9 +59,9 @@ export default function PlayerCampaignView({
         <header className="flex items-center justify-between gap-3 rounded-lg border border-rule bg-parchment-soft p-4 shadow-page">
           <div className="flex min-w-0 items-center gap-3">
             <AveryCorpEmblem
-              size={36}
+              size={32}
               variant="image"
-              cropMode="mark-only"
+              cropMode="full-seal"
               showPreviewPopover
               ariaLabel="AveryCorp Institute Player View Seal"
             />

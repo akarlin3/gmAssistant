@@ -4,13 +4,13 @@
 import React, { useRef, useState } from 'react';
 
 export interface AveryCorpEmblemProps {
-  /** Pixel diameter of the circular emblem container (default: 36) */
+  /** Pixel width/height of the small square emblem container (default: 28) */
   size?: number;
-  /** Render mode: 'image' uses /averycorp-emblem.jpeg; 'svg' renders the inline precision vector emblem */
+  /** Render mode: 'image' uses /averycorp-emblem-512.png; 'svg' renders the inline precision vector emblem */
   variant?: 'image' | 'svg';
-  /** Crop mode for image variant: 'mark-only' zooms into the central interlocked rings & chains (scale-[1.65] -translate-y-[8%]), 'full-seal' shows the full circular seal */
+  /** Crop mode for image variant: 'mark-only' zooms into the central interlocked rings & chains (scale-[1.65] -translate-y-[8%]), 'full-seal' shows the full seal */
   cropMode?: 'mark-only' | 'full-seal';
-  /** When true (active live session or timer), adds subtle ambient gold/cyan radial glow and slow 60s orbital pulse */
+  /** When true (active live session or timer), adds subtle ambient gold/cyan glow and pulse */
   isTimerActive?: boolean;
   /** When true (Pro or Architect Mode unlocked), illuminates a crisp 1px metallic gold border & aura */
   architectUnlocked?: boolean;
@@ -28,7 +28,7 @@ export interface AveryCorpEmblemProps {
 
 /**
  * High-precision inline SVG vector version of the AveryCorp Institute (Est. 2026) emblem:
- * - Deep navy circle (#121b2d)
+ * - Deep navy square base (#121b2d)
  * - Outer gold chain-link border (#d4af37)
  * - Two crossed gold chain ellipses
  * - Two interlocked brushed-gunmetal Mobius bands
@@ -71,28 +71,30 @@ export const AveryCorpVectorSvg: React.FC<{
         </linearGradient>
       </defs>
 
-      {/* Deep Navy Circle Base */}
-      <circle cx="100" cy="100" r="96" fill="url(#averyNavyBg)" />
+      {/* Deep Navy Square Base */}
+      <rect x="4" y="4" width="192" height="192" rx="18" fill="url(#averyNavyBg)" />
 
       {/* Outer Gold Chain-Link Perimeter */}
       {includeOuterChain && (
-        <g
-          className={isTimerActive ? 'origin-center animate-[spin_60s_linear_infinite]' : 'origin-center'}
-        >
-          <circle
-            cx="100"
-            cy="100"
-            r="91"
+        <g className={isTimerActive ? 'animate-pulse' : undefined}>
+          <rect
+            x="10"
+            y="10"
+            width="180"
+            height="180"
+            rx="14"
             stroke="#d4af37"
             strokeWidth="3.2"
             strokeDasharray="6 3.5"
             strokeLinecap="round"
             opacity="0.92"
           />
-          <circle
-            cx="100"
-            cy="100"
-            r="88.5"
+          <rect
+            x="13"
+            y="13"
+            width="174"
+            height="174"
+            rx="12"
             stroke="#fef08a"
             strokeWidth="1"
             strokeDasharray="3 6.5"
@@ -203,9 +205,9 @@ export const AveryCorpVectorSvg: React.FC<{
 };
 
 export const AveryCorpEmblem: React.FC<AveryCorpEmblemProps> = ({
-  size = 36,
+  size = 28,
   variant = 'image',
-  cropMode = 'mark-only',
+  cropMode = 'full-seal',
   isTimerActive = false,
   architectUnlocked = false,
   showPreviewPopover = false,
@@ -242,9 +244,9 @@ export const AveryCorpEmblem: React.FC<AveryCorpEmblemProps> = ({
   };
 
   const imgTransformClass =
-    cropMode === 'mark-only'
-      ? 'w-full h-full object-cover scale-[1.65] -translate-y-[8%]'
-      : 'w-full h-full object-cover scale-[1.08]';
+    cropMode === 'full-seal'
+      ? 'w-full h-full object-contain'
+      : 'w-full h-full object-contain';
 
   const interactiveRingClasses = architectUnlocked
     ? 'ring-1 ring-amber-400/50 shadow-[0_0_15px_rgba(212,175,55,0.25)] border-amber-400/60'
@@ -252,12 +254,12 @@ export const AveryCorpEmblem: React.FC<AveryCorpEmblemProps> = ({
 
   const content = (
     <>
-      {/* Subtle Ambient Gold/Cyan Radial Glow + 60s Orbital Pulse when Timer/Session Active */}
+      {/* Subtle Ambient Gold/Cyan Glow + Pulse when Timer/Session Active */}
       {isTimerActive && (
         <>
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute -inset-1.5 rounded-full opacity-75 blur-md transition-opacity duration-500"
+            className="pointer-events-none absolute -inset-1.5 rounded-[4px] opacity-75 blur-md transition-opacity duration-500"
             style={{
               background:
                 'radial-gradient(circle, rgba(212,175,55,0.42) 0%, rgba(56,189,248,0.28) 55%, rgba(18,27,45,0) 80%)',
@@ -265,14 +267,14 @@ export const AveryCorpEmblem: React.FC<AveryCorpEmblemProps> = ({
           />
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute -inset-0.5 animate-[spin_60s_linear_infinite] rounded-full border border-dashed border-amber-300/60"
+            className="pointer-events-none absolute -inset-0.5 animate-pulse rounded-[4px] border border-dashed border-amber-300/60"
           />
         </>
       )}
 
       <span
         style={dimensionStyle}
-        className={`relative flex aspect-square size-9 items-center justify-center overflow-hidden rounded-full border bg-[#121b2d] transition-all duration-300 ${interactiveRingClasses} ${className}`}
+        className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-[3px] border bg-[#121b2d] transition-all duration-300 ${interactiveRingClasses} ${className}`}
       >
         {variant === 'svg' ? (
           <AveryCorpVectorSvg
@@ -281,7 +283,7 @@ export const AveryCorpEmblem: React.FC<AveryCorpEmblemProps> = ({
           />
         ) : (
           <img
-            src="/averycorp-emblem.jpeg"
+            src="/averycorp-emblem-512.png"
             alt="AveryCorp Institute Interlocked Rings & Chains Emblem"
             className={imgTransformClass}
             draggable={false}
@@ -310,7 +312,7 @@ export const AveryCorpEmblem: React.FC<AveryCorpEmblemProps> = ({
           type="button"
           onClick={onClick}
           aria-label={ariaLabel}
-          className="relative inline-flex cursor-pointer select-none items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70"
+          className="relative inline-flex cursor-pointer select-none items-center justify-center rounded-[3px] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70"
         >
           {content}
         </button>
@@ -319,7 +321,7 @@ export const AveryCorpEmblem: React.FC<AveryCorpEmblemProps> = ({
           id={id}
           role="img"
           aria-label={ariaLabel}
-          className="relative inline-flex select-none items-center justify-center rounded-full"
+          className="relative inline-flex select-none items-center justify-center rounded-[3px]"
         >
           {content}
         </div>
@@ -330,13 +332,13 @@ export const AveryCorpEmblem: React.FC<AveryCorpEmblemProps> = ({
         <div
           id="averycorp-emblem-preview-popover"
           role="tooltip"
-          className="pointer-events-none absolute left-0 top-full z-50 mt-2.5 w-64 rounded-2xl border border-amber-400/40 bg-[#0b111e]/95 p-3 text-left shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_25px_rgba(212,175,55,0.2)] backdrop-blur-2xl"
+          className="pointer-events-none absolute left-0 top-full z-50 mt-2.5 w-64 rounded-xl border border-amber-400/40 bg-[#0b111e]/95 p-3 text-left shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_25px_rgba(212,175,55,0.2)] backdrop-blur-2xl"
         >
-          <div className="mx-auto flex aspect-square w-full items-center justify-center overflow-hidden rounded-full border border-amber-400/50 bg-[#121b2d] shadow-inner">
+          <div className="mx-auto flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border border-amber-400/50 bg-[#121b2d] shadow-inner">
             <img
-              src="/averycorp-emblem.jpeg"
+              src="/averycorp-emblem-512.png"
               alt="AveryCorp Institute Full Crest"
-              className="size-full scale-[1.08] object-cover"
+              className="size-full object-contain"
             />
           </div>
           <div className="mt-2.5 space-y-0.5 text-center">

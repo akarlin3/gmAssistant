@@ -17,9 +17,9 @@ export default function HomePage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center space-y-4 bg-parchment text-ink">
       <AveryCorpEmblem
-        size={56}
+        size={48}
         variant="image"
-        cropMode="mark-only"
+        cropMode="full-seal"
         isTimerActive
         ariaLabel="AveryCorp Institute Emblem"
       />
