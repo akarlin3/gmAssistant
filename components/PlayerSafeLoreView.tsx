@@ -219,7 +219,7 @@ export default function PlayerSafeLoreView({
                     onClick={() => setSelectedKey(key)}
                     className={`flex flex-col items-start rounded-lg border p-3 text-left transition-all ${
                       isSelected
-                        ? 'border-moss bg-moss/10 ring-1 ring-moss/40 shadow-card'
+                        ? 'border-moss bg-moss/10 shadow-card ring-1 ring-moss/40'
                         : 'border-rule bg-parchment hover:border-brass-deep hover:bg-parchment-soft'
                     }`}
                   >

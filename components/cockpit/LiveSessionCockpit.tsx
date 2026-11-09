@@ -1591,7 +1591,7 @@ export default function LiveSessionCockpit({
 
                         {c.triggerNote && (
                           <div className="font-serif text-[11px] italic text-ink-soft">
-                            <span className="font-display text-[9px] not-italic uppercase tracking-wider text-crimson">
+                            <span className="font-display text-[9px] uppercase not-italic tracking-wider text-crimson">
                               Trigger:{' '}
                             </span>
                             <MentionText

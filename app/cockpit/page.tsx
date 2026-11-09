@@ -202,7 +202,7 @@ export default function CockpitRootPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-4">
+      <main className="mx-auto max-w-7xl p-4">
         <LiveSessionCockpit
           campaignId={activeCampaign?.id}
           campaignName={effectiveName}
