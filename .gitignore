@@ -15,10 +15,7 @@ firebase-config.json
 /blob-report
 /playwright/.cache
 
-# next-pwa generated service worker artifacts — emitted fresh by `next build`
-# (B-05). Committing them ships a stale precache manifest, so let each build
-# regenerate them in public/.
-public/sw.js
+# Legacy workbox artifacts (public/sw.js is now tracked directly)
 public/sw.js.map
 public/workbox-*.js
 public/workbox-*.js.map

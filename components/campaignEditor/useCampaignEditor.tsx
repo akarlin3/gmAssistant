@@ -75,7 +75,16 @@ export function useCampaignEditor(props: CampaignEditorProps) {
   const [pcUploadError, setPcUploadError] = useState<string>('');
   const pcFileInputRef = useRef<HTMLInputElement>(null);
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const initialModeState = useMemo(() => resolveInitialMode(initialMigration.initialState), [initialMigration.initialState]);
+  const initialModeState = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam === 'run' || tabParam === 'prep') {
+        return { mode: tabParam as Mode, subview: defaultSubview(tabParam as Mode) };
+      }
+    }
+    return resolveInitialMode(initialMigration.initialState);
+  }, [initialMigration.initialState]);
   const [mode, setMode] = useState<Mode>(initialModeState.mode);
   const [subview, setSubview] = useState<string>(initialModeState.subview);
   const [paletteOpen, setPaletteOpen] = useState(false);

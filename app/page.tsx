@@ -11,7 +11,8 @@ export default function HomePage() {
 
   useEffect(() => {
     if (loading) return;
-    router.replace(user ? '/campaign' : '/login');
+    const search = typeof window !== 'undefined' ? window.location.search : '';
+    router.replace(user ? `/campaign${search}` : '/login');
   }, [user, loading, router]);
 
   return (
