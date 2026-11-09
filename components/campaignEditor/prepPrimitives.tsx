@@ -366,6 +366,7 @@ export const CardLabel = ({ children }: { children: React.ReactNode }) => (
 
 export const GoalCard = ({ data, onChange, onRemove }: any) => {
   const playMode = useContext(CampaignPlayModeContext);
+  const playerVisible = Boolean(data.player_visible ?? data.isPublic);
   return (
     <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex justify-between gap-2">
@@ -374,18 +375,18 @@ export const GoalCard = ({ data, onChange, onRemove }: any) => {
           {playMode !== 'solo' && (
             <button
               type="button"
-              onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
-              aria-label={data.isPublic ? 'Hide from players' : 'Share with players'}
-              aria-pressed={!!data.isPublic}
+              onClick={() => onChange({ ...data, isPublic: !playerVisible, player_visible: !playerVisible })}
+              aria-label={playerVisible ? 'Hide from players' : 'Share with players'}
+              aria-pressed={playerVisible}
               className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
-                data.isPublic
+                playerVisible
                   ? 'border-moss bg-moss text-parchment hover:bg-moss/90'
                   : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
               }`}
-              title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
+              title={playerVisible ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
             >
-              {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
-              {data.isPublic ? 'Shared' : 'Private'}
+              {playerVisible ? <Eye size={10} /> : <EyeOff size={10} />}
+              {playerVisible ? 'Shared' : 'Private'}
             </button>
           )}
           <button onClick={onRemove} aria-label="Remove" className="text-ink-mute hover:text-crimson"><X size={14} /></button>
@@ -442,10 +443,12 @@ export const NPCFieldRow = ({
 
 export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) => {
   const playMode = useContext(CampaignPlayModeContext);
+  const playerVisible = Boolean(data.player_visible ?? data.isPublic);
   const [showDetails, setShowDetails] = useState<boolean>(
     defaultDetailsOpen ||
     !!(data.appearance || data.abilities || data.talent || data.mannerism ||
-       data.interactions || data.knowledge || data.ideal || data.bond || data.flaw)
+       data.interactions || data.knowledge || data.ideal || data.bond || data.flaw ||
+       data.stl_link || data.print_status)
   );
   const archetypeInspire = (tableId: string) => (e: string) => {
     if (data.archetype && data.archetype.trim() && !confirm('Replace current archetype?')) return;
@@ -459,16 +462,16 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
           {playMode !== 'solo' && (
             <button
               type="button"
-              onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
+              onClick={() => onChange({ ...data, isPublic: !playerVisible, player_visible: !playerVisible })}
               className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
-                data.isPublic
+                playerVisible
                   ? 'border-moss bg-moss text-parchment hover:bg-moss/90'
                   : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
               }`}
-              title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
+              title={playerVisible ? 'player_visible: true (Shared with Players)' : 'player_visible: false (Hidden from Players)'}
             >
-              {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
-              {data.isPublic ? 'Shared' : 'Private'}
+              {playerVisible ? <Eye size={10} /> : <EyeOff size={10} />}
+              {playerVisible ? 'Shared' : 'Private'}
             </button>
           )}
           <button onClick={onRemove} aria-label="Remove" className="text-ink-mute hover:text-crimson"><X size={14} /></button>
@@ -481,7 +484,7 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
             <option>Ally</option><option>Villain</option><option>Patron</option><option>Rival</option><option>Neutral / Colour</option>
           </select></div>
         <div><CardLabel>Faction</CardLabel>
-          <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="..." /></div>
+          <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="e.g. @Iron Syndicate" /></div>
       </div>
       <div>
         <div className="mb-0.5 flex flex-wrap items-center justify-between gap-2">
@@ -492,7 +495,7 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
             <Inspire tableId="raceCharacterNotes" compact label="Species" onPick={archetypeInspire('raceCharacterNotes')} />
           </div>
         </div>
-        <Field value={data.archetype} onChange={(v) => onChange({ ...data, archetype: v })} placeholder='e.g. "Han Solo"' />
+        <Field value={data.archetype} onChange={(v) => onChange({ ...data, archetype: v })} placeholder='e.g. "Han Solo" (supports ||GM spoilers|| & @Entity links)' />
       </div>
       <div><CardLabel>Active Goal</CardLabel>
         <Field value={data.goal} onChange={(v) => onChange({ ...data, goal: v })} placeholder="What are they pursuing?" rows={2} /></div>
@@ -503,7 +506,7 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
         className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
       >
         {showDetails ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        {showDetails ? 'Hide Details' : 'Show Details'}
+        {showDetails ? 'Hide Details & K1C Print' : 'Show Details & K1C Print'}
       </button>
       {showDetails && (
         <div className="space-y-2 border-t border-rule pt-1">
@@ -515,7 +518,46 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
           <NPCFieldRow label="Knowledge" value={data.knowledge || ''} onChange={(v) => onChange({ ...data, knowledge: v })} placeholder="Something useful they know" rows={2} />
           <NPCFieldRow label="Ideal" value={data.ideal || ''} onChange={(v) => onChange({ ...data, ideal: v })} placeholder="What drives them" tableId="npcIdeals" />
           <NPCFieldRow label="Bond" value={data.bond || ''} onChange={(v) => onChange({ ...data, bond: v })} placeholder="Who or what they're tied to" tableId="npcBonds" />
-          <NPCFieldRow label="Flaw / Secret" value={data.flaw || ''} onChange={(v) => onChange({ ...data, flaw: v })} placeholder="Flaw or secret that could undermine them" tableId="npcFlawsSecrets" />
+          <NPCFieldRow label="Flaw / Secret (GM-only)" value={data.flaw || ''} onChange={(v) => onChange({ ...data, flaw: v })} placeholder="Flaw or secret that could undermine them" tableId="npcFlawsSecrets" />
+
+          {/* Module 5: Creality K1C Hardware Bridge */}
+          <div className="rounded border border-brass/40 bg-parchment-soft/70 p-2">
+            <div className="mb-1 flex items-center justify-between">
+              <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Creality K1C Print Queue</span>
+              <label className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-ink-soft">
+                <input
+                  type="checkbox"
+                  checked={Boolean(data.is_boss)}
+                  onChange={(e) => onChange({ ...data, is_boss: e.target.checked })}
+                />
+                Boss Token
+              </label>
+            </div>
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+              <div className="sm:col-span-2">
+                <Field
+                  value={data.stl_link || ''}
+                  onChange={(v) => onChange({ ...data, stl_link: v })}
+                  placeholder=".stl URL or file path (e.g. https://.../npc_mini.stl)"
+                />
+              </div>
+              <select
+                value={data.print_status || ''}
+                onChange={(e) =>
+                  onChange({
+                    ...data,
+                    print_status: (e.target.value || undefined) as 'queued' | 'sliced' | 'printed' | undefined,
+                  })
+                }
+                className="rounded border border-rule bg-parchment px-2 py-1 font-display text-[10px] uppercase tracking-wider text-ink"
+              >
+                <option value="">Not in Queue</option>
+                <option value="queued">Queued</option>
+                <option value="sliced">Sliced</option>
+                <option value="printed">Printed</option>
+              </select>
+            </div>
+          </div>
         </div>
       )}
       <RelationshipsSection entityType="npc" entityId={data.id} entityName={data.name} />
@@ -525,6 +567,13 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
 
 export const LocationCard = ({ data, onChange, onRemove }: any) => {
   const playMode = useContext(CampaignPlayModeContext);
+  const playerVisible = Boolean(data.player_visible ?? data.isPublic);
+  const terrainTagsStr = Array.isArray(data.terrainTags)
+    ? data.terrainTags.join(', ')
+    : typeof data.terrainTags === 'string'
+      ? data.terrainTags
+      : '';
+
   return (
     <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex justify-between gap-2">
@@ -533,27 +582,41 @@ export const LocationCard = ({ data, onChange, onRemove }: any) => {
           {playMode !== 'solo' && (
             <button
               type="button"
-              onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
+              onClick={() => onChange({ ...data, isPublic: !playerVisible, player_visible: !playerVisible })}
               className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
-                data.isPublic
+                playerVisible
                   ? 'border-moss bg-moss text-parchment hover:bg-moss/90'
                   : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
               }`}
-              title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
+              title={playerVisible ? 'player_visible: true (Shared with Players)' : 'player_visible: false (Hidden from Players)'}
             >
-              {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
-              {data.isPublic ? 'Shared' : 'Private'}
+              {playerVisible ? <Eye size={10} /> : <EyeOff size={10} />}
+              {playerVisible ? 'Shared' : 'Private'}
             </button>
           )}
           <button onClick={onRemove} aria-label="Remove" className="text-ink-mute hover:text-crimson"><X size={14} /></button>
         </div>
       </div>
-      <div><CardLabel>Type</CardLabel>
-        <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink">
-          <option value="">— Choose —</option>
-          <option>Player Base</option><option>Faction Stronghold</option><option>Wilderness Landmark</option>
-          <option>Dungeon Room / Area</option><option>Settlement</option><option>Travel Waypoint</option><option>Other</option>
-        </select></div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div><CardLabel>Type</CardLabel>
+          <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink">
+            <option value="">— Choose —</option>
+            <option>Player Base</option><option>Faction Stronghold</option><option>Wilderness Landmark</option>
+            <option>Dungeon Room / Area</option><option>Settlement</option><option>Travel Waypoint</option><option>Other</option>
+          </select></div>
+        <div><CardLabel>Lighting</CardLabel>
+          <select value={data.lighting || ''} onChange={(e) => onChange({ ...data, lighting: e.target.value })} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink">
+            <option value="">— Lighting —</option>
+            <option value="Bright Light">Bright Light</option>
+            <option value="Dim / Torchlight">Dim / Torchlight</option>
+            <option value="Darkness">Darkness</option>
+            <option value="Magical Darkness / Gloom">Magical Darkness / Gloom</option>
+            <option value="Flickering Bioluminescence">Flickering Bioluminescence</option>
+          </select></div>
+      </div>
+      <div><CardLabel>Description (supports @Entity & ||GM spoilers||)</CardLabel>
+        <Field value={data.description || ''} onChange={(v) => onChange({ ...data, description: v })} placeholder="Sensory description, atmosphere, and ||hidden GM trap/secret||" rows={2} />
+      </div>
       <div><CardLabel>3 Aspects</CardLabel>
         <div className="space-y-1">
           {[0, 1, 2].map(i => (
@@ -562,8 +625,56 @@ export const LocationCard = ({ data, onChange, onRemove }: any) => {
             }} placeholder={`Aspect ${i + 1}`} />
           ))}
         </div></div>
-      <div><CardLabel>Factions Present</CardLabel>
-        <Field value={data.factions} onChange={(v) => onChange({ ...data, factions: v })} placeholder="..." /></div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div><CardLabel>Terrain & Hazard Tags</CardLabel>
+          <Field
+            value={terrainTagsStr}
+            onChange={(v) =>
+              onChange({
+                ...data,
+                terrainTags: v
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              })
+            }
+            placeholder="Difficult Terrain, Cover, Chasm..."
+          /></div>
+        <div><CardLabel>Factions Present</CardLabel>
+          <Field value={data.factions} onChange={(v) => onChange({ ...data, factions: v })} placeholder="e.g. @Iron Syndicate" /></div>
+      </div>
+
+      {/* Module 5: Creality K1C Terrain Print Queue */}
+      <div className="rounded border border-brass/40 bg-parchment-soft/70 p-2">
+        <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
+          Creality K1C Terrain Print Queue
+        </div>
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+          <div className="sm:col-span-2">
+            <Field
+              value={data.stl_link || ''}
+              onChange={(v) => onChange({ ...data, stl_link: v })}
+              placeholder="Terrain .stl URL or path (e.g. https://.../ruined_arch.stl)"
+            />
+          </div>
+          <select
+            value={data.print_status || ''}
+            onChange={(e) =>
+              onChange({
+                ...data,
+                print_status: (e.target.value || undefined) as 'queued' | 'sliced' | 'printed' | undefined,
+              })
+            }
+            className="rounded border border-rule bg-parchment px-2 py-1 font-display text-[10px] uppercase tracking-wider text-ink"
+          >
+            <option value="">Not in Queue</option>
+            <option value="queued">Queued</option>
+            <option value="sliced">Sliced</option>
+            <option value="printed">Printed</option>
+          </select>
+        </div>
+      </div>
+
       <RelationshipsSection entityType="location" entityId={data.id} entityName={data.name} />
     </div>
   );

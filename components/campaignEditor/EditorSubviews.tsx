@@ -33,6 +33,10 @@ import { RunSessionInline } from './runSessionInline';
 import { WorldbuildView } from './editorSubviews/WorldbuildView';
 import { PrepWizardView } from './editorSubviews/PrepWizardView';
 import { PrepArcView, PrepEndingView } from './editorSubviews/PrepArcAndEndingView';
+import LiveSessionCockpit from '../cockpit/LiveSessionCockpit';
+import LoreRagAssistant from '../LoreRagAssistant';
+import K1CPrintQueuePanel from '../printQueue/K1CPrintQueuePanel';
+import PlayerSafeLoreView from '../PlayerSafeLoreView';
 const SpellsTab = dynamic(() => import('../SpellsTab'));
 const DMRefTab = dynamic(() => import('../DMRefTab'));
 const NamesTab = dynamic(() => import('../NamesTab'));
@@ -91,6 +95,33 @@ export function EditorSubviews({ ed }: { ed: CampaignEditorModel }) {
         {mode === 'prep' && subview === 'ending' && <PrepEndingView ed={ed} />}
 
         {mode === 'prep' && subview === 'wizard' && <PrepWizardView ed={ed} />}
+
+        {mode === 'prep' && subview === 'lorerag' && (
+          <LoreRagAssistant state={state} setState={setState} />
+        )}
+
+        {mode === 'prep' && subview === 'printqueue' && (
+          <K1CPrintQueuePanel state={state} setState={setState} />
+        )}
+
+        {mode === 'organize' && subview === 'playerview' && (
+          <PlayerSafeLoreView
+            campaignName={name}
+            campaignData={state}
+            campaignId={campaign.id}
+            embedded
+          />
+        )}
+
+        {mode === 'run' && subview === 'cockpit' && (
+          <LiveSessionCockpit
+            campaignId={campaign.id}
+            campaignName={name}
+            state={state}
+            setState={setState}
+            characters={characters}
+          />
+        )}
 
         {mode === 'run' && subview === 'session' && (
           <RunSessionInline
@@ -196,6 +227,10 @@ export function EditorSubviews({ ed }: { ed: CampaignEditorModel }) {
             revealedSecrets={get('revSec', {}) as Record<number, boolean>}
             roster={roster}
             playerConfig={playerConfig}
+            campaignId={campaign.id}
+            campaignName={name}
+            campaignData={state}
+            onDataChange={setState}
           />;
         })()}
 
@@ -390,6 +425,8 @@ export function EditorSubviews({ ed }: { ed: CampaignEditorModel }) {
             isPro={isPro}
             soloMode={soloMode}
             campaignName={name}
+            state={state}
+            setState={setState}
           />
         )}
 

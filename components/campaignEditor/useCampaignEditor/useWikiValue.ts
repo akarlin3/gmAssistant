@@ -45,6 +45,22 @@ export function useWikiValue(
       setTimeout(() => scrollToAnchor(`pc:${id}`), 80);
       return;
     }
+    if (type === 'factionClock') {
+      navigateTo({ mode: 'prep', subview: 'clocks' });
+      setTimeout(() => {
+        const el = document.getElementById(`entity-${id}`) || document.getElementById('section-clocks');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 80);
+      return;
+    }
+    if (type === 'npc' || type === 'location' || type === 'magicItem' || type === 'secret' || type === 'monster') {
+      navigateTo({ mode: 'prep', subview: 'flow' });
+      setTimeout(() => {
+        const el = document.getElementById(`entity-${id}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 80);
+      return;
+    }
     navigateTo({ mode: 'plan', subview: 'worldbuild' });
     setTimeout(() => {
       const el = document.getElementById(`entity-${id}`);
@@ -68,6 +84,36 @@ export function useWikiValue(
           if (t && typeof t.pcAction === 'string') sources.push(t.pcAction);
           if (t && typeof t.outcome === 'string') sources.push(t.outcome);
           if (t?.response && typeof t.response.sensory === 'string') sources.push(t.response.sensory);
+        }
+      }
+      // Also scan @tag mentions inside NPCs, Locations, Factions, Clocks, and Custom Items
+      for (const n of (Array.isArray(s.npcs) ? s.npcs : [])) {
+        if (!n || typeof n !== 'object' || !n.name) continue;
+        const fields = [n.goal, n.method, n.knowledge, n.bond, n.flaw, n.notes, n.description]
+          .filter((x) => typeof x === 'string' && x.includes('@'));
+        if (fields.length > 0) sources.push(`@"${n.name}" ${fields.join(' ')}`);
+      }
+      for (const l of (Array.isArray(s.locations) ? s.locations : [])) {
+        if (!l || typeof l !== 'object' || !l.name) continue;
+        const fields = [...(Array.isArray(l.aspects) ? l.aspects : []), l.description, l.factions, l.notes]
+          .filter((x) => typeof x === 'string' && x.includes('@'));
+        if (fields.length > 0) sources.push(`@"${l.name}" ${fields.join(' ')}`);
+      }
+      for (const f of (Array.isArray(s.factions) ? s.factions : [])) {
+        if (!f || typeof f !== 'object' || !f.name) continue;
+        const fields = [f.identity, f.ideology, f.area, f.longGoal, ...(Array.isArray(f.shortGoals) ? f.shortGoals : [])]
+          .filter((x) => typeof x === 'string' && x.includes('@'));
+        if (fields.length > 0) sources.push(`@"${f.name}" ${fields.join(' ')}`);
+      }
+      for (const c of (Array.isArray(s.clocks) ? s.clocks : [])) {
+        if (!c || typeof c !== 'object' || !c.text) continue;
+        const fields = [c.notes, c.triggerNote, c.faction]
+          .filter((x) => typeof x === 'string' && x.includes('@'));
+        if (fields.length > 0) sources.push(`@"${c.text}" ${fields.join(' ')}`);
+      }
+      for (const it of (Array.isArray(s.items) ? s.items : [])) {
+        if (it && typeof it === 'object' && it.name && typeof it.description === 'string' && it.description.includes('@')) {
+          sources.push(`@"${it.name}" ${it.description}`);
         }
       }
       const idx = buildEntityIndex(s);

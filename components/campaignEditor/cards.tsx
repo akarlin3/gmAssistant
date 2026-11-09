@@ -4,12 +4,15 @@
 // receives everything via props — no dependency on the CampaignEditor closure.
 'use client';
 
-import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, X } from 'lucide-react';
+import React, { useState, useContext } from 'react';
+import { ChevronDown, ChevronRight, X, Eye, EyeOff, Flame, Zap } from 'lucide-react';
 import type { SessionLog } from '@/lib/campaign/migrations';
 import { Field, ListField, CardLabel } from './prepPrimitives';
 import RelationshipsSection from '../wiki/RelationshipsSection';
 import type { DowntimeEntry } from './prepTypes';
+import { CampaignPlayModeContext } from '../CampaignPlayModeContext';
+import { isEntityPlayerVisible } from '@/lib/playerMode/spoilers';
+import { CLOCK_STATUS_LABELS, CLOCK_STATUS_STYLES, deriveClockStatus, type ClockStatus } from '@/lib/world/sessionDelta';
 
 const RENOWN_RANKS: Array<{ min: number; label: string }> = [
   { min: 50,  label: 'Legend' },
@@ -40,13 +43,36 @@ export function renownRank(value: number, custom?: string[]): string {
 }
 
 export const FactionCard = ({ data, onChange, onRemove }: any) => {
+  const playMode = useContext(CampaignPlayModeContext);
   const renown = typeof data.renown === 'number' ? data.renown : 0;
+  const heat = typeof data.heat === 'number' ? data.heat : 0;
   const rank = renownRank(renown, data.rankLabels);
+  const playerVisible = isEntityPlayerVisible(data);
+
   return (
     <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
       <div className="flex items-center justify-between gap-2">
         <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Faction Name" />
-        <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+        <div className="flex flex-shrink-0 items-center gap-1.5">
+          {playMode !== 'solo' && (
+            <button
+              type="button"
+              onClick={() => onChange({ ...data, player_visible: !playerVisible, isPublic: !playerVisible })}
+              aria-label={playerVisible ? 'Hide from players' : 'Share with players'}
+              aria-pressed={playerVisible}
+              className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+                playerVisible
+                  ? 'border-moss bg-moss text-parchment hover:bg-moss/90'
+                  : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+              }`}
+              title={playerVisible ? 'player_visible: true (Shared with Players)' : 'player_visible: false (Hidden from Players)'}
+            >
+              {playerVisible ? <Eye size={10} /> : <EyeOff size={10} />}
+              {playerVisible ? 'Shared' : 'Private'}
+            </button>
+          )}
+          <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+        </div>
       </div>
       <div><CardLabel>Archetype</CardLabel>
         <select value={data.archetype || ''} onChange={(e) => onChange({ ...data, archetype: e.target.value })} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink">
@@ -56,10 +82,10 @@ export const FactionCard = ({ data, onChange, onRemove }: any) => {
           <option>Military</option><option>Cult</option><option>Scholarly</option>
           <option>Revolutionary</option><option>Other</option>
         </select></div>
-      <div><CardLabel>Identity</CardLabel>
-        <Field value={data.identity} onChange={(v) => onChange({ ...data, identity: v })} placeholder="One sentence" rows={2} /></div>
+      <div><CardLabel>Identity (supports @Entity & ||GM spoilers||)</CardLabel>
+        <Field value={data.identity} onChange={(v) => onChange({ ...data, identity: v })} placeholder="One sentence (use @Name to link, ||secret|| for spoilers)" rows={2} /></div>
       <div><CardLabel>Area of Operation</CardLabel>
-        <Field value={data.area} onChange={(v) => onChange({ ...data, area: v })} placeholder="Where active" /></div>
+        <Field value={data.area} onChange={(v) => onChange({ ...data, area: v })} placeholder="Where active (e.g. @Old Docks)" /></div>
       <div><CardLabel>Power Level</CardLabel>
         <Field value={data.power} onChange={(v) => onChange({ ...data, power: v })} placeholder="Resources" /></div>
       <div><CardLabel>Ideology</CardLabel>
@@ -70,35 +96,59 @@ export const FactionCard = ({ data, onChange, onRemove }: any) => {
         <ListField items={data.midGoals || []} onChange={(v) => onChange({ ...data, midGoals: v })} placeholder="A mid-term goal" /></div>
       <div><CardLabel>Long-Term Goal</CardLabel>
         <Field value={data.longGoal} onChange={(v) => onChange({ ...data, longGoal: v })} placeholder="The one big thing" /></div>
-      <div>
-        <CardLabel>Renown</CardLabel>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => onChange({ ...data, renown: renown - 1 })}
-            className="size-7 rounded border border-rule font-display text-ink-soft hover:bg-parchment-deep"
-            title="Decrease renown"
-          >
-            −
-          </button>
-          <input
-            type="number"
-            value={renown}
-            onChange={(e) => {
-              const v = parseInt(e.target.value || '0', 10);
-              onChange({ ...data, renown: isNaN(v) ? 0 : v });
-            }}
-            className="w-16 rounded border border-rule bg-parchment-soft px-2 py-1 text-center font-serif text-sm text-ink"
-          />
-          <button
-            onClick={() => onChange({ ...data, renown: renown + 1 })}
-            className="size-7 rounded border border-rule font-display text-ink-soft hover:bg-parchment-deep"
-            title="Increase renown"
-          >
-            +
-          </button>
-          <span className="rounded-sm border border-wine/40 bg-wine/5 px-2 py-0.5 font-display text-xs uppercase tracking-wider text-wine">
-            {rank}
-          </span>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div>
+          <CardLabel>Renown</CardLabel>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              onClick={() => onChange({ ...data, renown: renown - 1 })}
+              className="size-7 rounded border border-rule font-display text-ink-soft hover:bg-parchment-deep"
+              title="Decrease renown"
+            >
+              −
+            </button>
+            <input
+              type="number"
+              value={renown}
+              onChange={(e) => {
+                const v = parseInt(e.target.value || '0', 10);
+                onChange({ ...data, renown: isNaN(v) ? 0 : v });
+              }}
+              className="w-14 rounded border border-rule bg-parchment-soft px-2 py-1 text-center font-serif text-sm text-ink"
+            />
+            <button
+              onClick={() => onChange({ ...data, renown: renown + 1 })}
+              className="size-7 rounded border border-rule font-display text-ink-soft hover:bg-parchment-deep"
+              title="Increase renown"
+            >
+              +
+            </button>
+            <span className="rounded-sm border border-wine/40 bg-wine/5 px-2 py-0.5 font-display text-xs uppercase tracking-wider text-wine">
+              {rank}
+            </span>
+          </div>
+        </div>
+        <div>
+          <CardLabel>Faction Heat (0–10)</CardLabel>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              onClick={() => onChange({ ...data, heat: Math.max(0, heat - 1) })}
+              className="size-7 rounded border border-rule font-display text-ink-soft hover:bg-parchment-deep"
+              title="Decrease faction heat"
+            >
+              −
+            </button>
+            <span className="inline-flex items-center gap-1 rounded border border-crimson/40 bg-crimson/5 px-2.5 py-1 font-display text-xs text-crimson">
+              <Flame size={12} /> {heat}/10
+            </span>
+            <button
+              onClick={() => onChange({ ...data, heat: Math.min(10, heat + 1) })}
+              className="size-7 rounded border border-rule font-display text-ink-soft hover:bg-parchment-deep"
+              title="Increase faction heat"
+            >
+              +
+            </button>
+          </div>
         </div>
       </div>
       <RelationshipsSection entityType="faction" entityId={data.id} entityName={data.name} />
@@ -150,28 +200,115 @@ export const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }:
 );
 
 export const ClockCard = ({ data, onChange, onRemove }: any) => {
-  const max = data.max || 6;
-  const filled = data.filled || 0;
+  const playMode = useContext(CampaignPlayModeContext);
+  const max = Number(data.max) || 6;
+  const filled = Math.max(0, Math.min(max, Number(data.filled) || 0));
   const notes: string = data.notes || '';
-  const [notesOpen, setNotesOpen] = useState(notes.trim().length > 0);
+  const triggerNote: string = data.triggerNote || '';
+  const status: ClockStatus = deriveClockStatus(data);
+  const playerVisible = isEntityPlayerVisible(data);
+  const [notesOpen, setNotesOpen] = useState(notes.trim().length > 0 || triggerNote.trim().length > 0);
+
+  const handleSegmentClick = (index: number) => {
+    const nextFilled = index + 1 === filled ? index : index + 1;
+    const nextStatus: ClockStatus =
+      nextFilled >= max
+        ? 'triggered'
+        : data.status === 'triggered'
+          ? 'active'
+          : status;
+    onChange({ ...data, filled: nextFilled, status: nextStatus });
+  };
+
   return (
-    <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
-      <div className="flex justify-between gap-2">
+    <div className={`space-y-2.5 rounded border p-3 shadow-card transition-colors ${
+      filled >= max ? 'border-crimson bg-crimson/5' : 'border-rule bg-parchment'
+    }`}>
+      <div className="flex items-start justify-between gap-2">
         <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="What is this faction trying to do?" />
-        <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+        <div className="flex flex-shrink-0 items-center gap-1.5">
+          {playMode !== 'solo' && (
+            <button
+              type="button"
+              onClick={() => onChange({ ...data, player_visible: !playerVisible, isPublic: !playerVisible })}
+              aria-label={playerVisible ? 'Hide clock from players' : 'Share clock with players'}
+              aria-pressed={playerVisible}
+              className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+                playerVisible
+                  ? 'border-moss bg-moss text-parchment hover:bg-moss/90'
+                  : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+              }`}
+              title={playerVisible ? 'player_visible: true' : 'player_visible: false'}
+            >
+              {playerVisible ? <Eye size={10} /> : <EyeOff size={10} />}
+              {playerVisible ? 'Shared' : 'Private'}
+            </button>
+          )}
+          <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+        </div>
       </div>
-      <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="Faction" />
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="Faction or @Location" />
+        <div className="flex items-center gap-1.5">
+          <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Status</span>
+          <select
+            value={status}
+            onChange={(e) => onChange({ ...data, status: e.target.value as ClockStatus })}
+            className={`flex-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${CLOCK_STATUS_STYLES[status]}`}
+          >
+            {(Object.keys(CLOCK_STATUS_LABELS) as ClockStatus[]).map((st) => (
+              <option key={st} value={st}>{CLOCK_STATUS_LABELS[st]}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
-        <select value={max} onChange={(e) => onChange({ ...data, max: Number(e.target.value) })} className="flex-shrink-0 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink">
+        <select
+          value={max}
+          onChange={(e) => {
+            const nextMax = Number(e.target.value);
+            onChange({ ...data, max: nextMax, filled: Math.min(filled, nextMax) });
+          }}
+          className="flex-shrink-0 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink"
+        >
           {[4, 6, 8, 12, 16].map(n => <option key={n} value={n}>{n} segments</option>)}
         </select>
         <div className="flex min-w-32 flex-1 gap-0.5 rounded-sm border border-brass-deep bg-parchment-deep p-0.5">
           {Array.from({ length: max }).map((_, i) => (
-            <button key={i} onClick={() => onChange({ ...data, filled: i + 1 === filled ? i : i + 1 })} className={`h-5 min-w-[14px] flex-1 rounded-sm transition-colors ${i < filled ? 'bg-crimson' : 'bg-parchment hover:bg-parchment-deep'}`} />
+            <button
+              key={i}
+              type="button"
+              onClick={() => handleSegmentClick(i)}
+              aria-label={`Segment ${i + 1} of ${max}`}
+              className={`h-5 min-w-[14px] flex-1 rounded-sm transition-colors ${
+                i < filled ? 'bg-crimson hover:bg-crimson/80' : 'bg-parchment hover:bg-parchment-deep'
+              }`}
+              title={`Click to set ${i + 1 === filled ? i : i + 1}/${max} segments`}
+            />
           ))}
         </div>
         <span className="flex-shrink-0 font-display text-xs text-brass-deep">{filled}/{max}</span>
       </div>
+
+      {/* Trigger Note — always visible if clock is triggered or has a trigger note */}
+      <div className={`rounded border px-2.5 py-1.5 ${
+        filled >= max
+          ? 'border-crimson bg-crimson/10 text-crimson'
+          : 'border-rule/70 bg-parchment-soft/70 text-ink-soft'
+      }`}>
+        <div className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider">
+          <Zap size={11} className={filled >= max ? 'text-crimson' : 'text-brass-deep'} />
+          <span>{filled >= max ? 'Clock Triggered — Consequence:' : 'Completion Trigger Note'}</span>
+        </div>
+        <Field
+          value={triggerNote}
+          onChange={(v) => onChange({ ...data, triggerNote: v })}
+          placeholder="What happens when all segments fill? (e.g. @Iron Syndicate locks down @Old Docks)"
+        />
+      </div>
+
       <div className="border-t border-rule/60 pt-1">
         <button
           type="button"
@@ -185,12 +322,20 @@ export const ClockCard = ({ data, onChange, onRemove }: any) => {
           <textarea
             value={notes}
             onChange={(e) => onChange({ ...data, notes: e.target.value })}
-            placeholder="Front notes — what this faction is doing, why it matters, what advances it"
+            placeholder="Front notes — what this faction is doing, why it matters, what advances it (use @Entity or ||spoiler||)"
             rows={3}
             className="mt-1.5 w-full resize-y rounded border border-rule bg-parchment-soft px-2 py-1.5 font-serif text-sm text-ink [field-sizing:content] placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
           />
         )}
       </div>
+
+      {data.id && (
+        <RelationshipsSection
+          entityType="factionClock"
+          entityId={data.id}
+          entityName={data.text || data.name || 'Clock'}
+        />
+      )}
     </div>
   );
 };

@@ -5,6 +5,7 @@
 
 import { DEFAULT_FIELD_VISIBILITY } from './fieldDefaults';
 import { resolveVisibility } from './resolveVisibility';
+import { redactSpoilers } from './spoilers';
 import { edgeVisibleToSlot, effectiveWeight } from '@/lib/wiki/edges';
 import type { EntityType, Relationship } from '@/lib/wiki/types';
 import { projectPlayerMaps } from '@/lib/maps/playerProjection';
@@ -262,13 +263,13 @@ export function buildSlotProjection(
     if (normalized.playerVisibility === 'full') {
       projectedItems.push({
         id: normalized.id,
-        name: normalized.name,
-        description: normalized.description,
+        name: redactSpoilers(normalized.name),
+        description: normalized.description ? redactSpoilers(normalized.description) : undefined,
       });
     } else {
       projectedItems.push({
         id: normalized.id,
-        name: normalized.name,
+        name: redactSpoilers(normalized.name),
       });
     }
   }

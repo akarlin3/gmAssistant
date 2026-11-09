@@ -6,6 +6,8 @@
  * code that treats it as a plain record.
  */
 
+export type PrintStatus = 'queued' | 'sliced' | 'printed';
+
 export interface NpcEntity {
   id: string;
   name: string;
@@ -14,6 +16,12 @@ export interface NpcEntity {
   status?: string;
   notes?: string;
   relationship?: string;
+  player_visible?: boolean;
+  isPublic?: boolean;
+  gmSpoiler?: string;
+  stl_link?: string;
+  print_status?: PrintStatus;
+  is_boss?: boolean;
 }
 
 export interface LocationEntity {
@@ -23,6 +31,14 @@ export interface LocationEntity {
   type?: string;
   connections?: string[];
   notes?: string;
+  aspects?: string[];
+  lighting?: string;
+  terrainTags?: string[];
+  player_visible?: boolean;
+  isPublic?: boolean;
+  gmSpoiler?: string;
+  stl_link?: string;
+  print_status?: PrintStatus;
 }
 
 export interface MonsterEntry {
@@ -32,6 +48,10 @@ export interface MonsterEntry {
   hp?: string;
   ac?: string;
   notes?: string;
+  player_visible?: boolean;
+  stl_link?: string;
+  print_status?: PrintStatus;
+  is_boss?: boolean;
 }
 
 export interface FactionEntry {
@@ -40,6 +60,11 @@ export interface FactionEntry {
   attitude?: string;
   description?: string;
   notes?: string;
+  heat?: number;
+  renown?: number;
+  player_visible?: boolean;
+  isPublic?: boolean;
+  gmSpoiler?: string;
 }
 
 export interface SessionLogEntry {
@@ -52,14 +77,22 @@ export interface SessionLogEntry {
 }
 
 export interface PlayerCharacter {
-  id: string;
+  id?: string;
   name: string;
   player?: string;
   race?: string;
   class?: string;
-  level?: number;
+  level?: number | string;
   notes?: string;
+  hpMax?: number | string;
+  maxHp?: number | string;
+  ac?: number | string;
+  isSidekick?: boolean;
+  type?: string;
+  [key: string]: any;
 }
+
+export type Character = PlayerCharacter;
 
 /**
  * Typed view of a campaign's `data` field.

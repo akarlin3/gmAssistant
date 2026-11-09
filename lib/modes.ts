@@ -50,7 +50,9 @@ export const MODES: Record<Mode, ModeDef> = {
     subviews: [
       { id: 'flow',   label: 'Flow',   description: 'The 8-step prep checklist' },
       { id: 'wizard', label: 'Wizard', description: 'Guided prep walkthrough' },
-      { id: 'clocks', label: 'Clocks',        description: 'Faction clocks & tracking', audience: 'solo' },
+      { id: 'clocks', label: 'Clocks',        description: 'Faction clocks & Session Delta Log', audience: 'solo' },
+      { id: 'lorerag', label: 'Lore RAG',     description: 'Lore-Grounded RAG Prep & Stat-Block Assistant (Modules 2 & 3)', audience: 'solo' },
+      { id: 'printqueue', label: 'Print Queue', description: 'Creality K1C Hardware Bridge — miniatures, boss tokens, and terrain print queue', audience: 'solo' },
       { id: 'arc',    label: 'Arc Planning',  description: 'Mid-campaign audits & PC goals', audience: 'solo' },
       { id: 'ending', label: 'Ending',        description: 'Threads & campaign wrap checklist', audience: 'solo' },
     ],
@@ -61,6 +63,7 @@ export const MODES: Record<Mode, ModeDef> = {
     emphasis: 'primary',
     subviews: [
       { id: 'players', label: 'Players',   description: 'Share a read-only view with your players',             audience: 'solo' },
+      { id: 'playerview', label: 'Player View', description: 'Read-only player-safe lore view (/player-view) with GM secrets redacted', audience: 'solo' },
       { id: 'log',     label: 'Sessions', description: 'Session log archive' },
     ],
   },
@@ -69,6 +72,7 @@ export const MODES: Record<Mode, ModeDef> = {
     description: 'Table-side tools and session capture',
     emphasis: 'primary',
     subviews: [
+      { id: 'cockpit', label: 'Cockpit',  description: 'Unified Single-Screen Command View — Initiative, HP Delta & Concentration, Pinned Scene Card, and 1-Click Improv Panic Bar' },
       { id: 'session', label: 'Session',  description: 'Active session — prep cards, scratchpad, initiative' },
       { id: 'scene',   label: 'Scene Mode', description: 'Run a location turn-by-turn with AI-driven NPCs (Pro)' },
       { id: 'assistant', label: 'Assistant', description: 'Persistent AI agent that reads your whole campaign and proposes content you approve (Pro)' },

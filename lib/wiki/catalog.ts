@@ -37,7 +37,7 @@ export const RELATIONSHIP_CATALOG: RelationshipRule[] = [
     label: 'Located at',
     inverseLabel: 'Home to',
     symmetric: false,
-    validFrom: ['npc', 'faction', 'pc', 'magicItem'],
+    validFrom: ['npc', 'faction', 'pc', 'magicItem', 'factionClock', 'monster'],
     validTo: ['location', 'fantasticLocation'],
   },
   {
@@ -110,7 +110,7 @@ export const RELATIONSHIP_CATALOG: RelationshipRule[] = [
     inverseLabel: 'Protected by',
     symmetric: false,
     validFrom: ['npc', 'faction'],
-    validTo: ['npc', 'location', 'magicItem', 'pc'],
+    validTo: ['npc', 'location', 'magicItem', 'pc', 'factionClock'],
   },
   {
     kind: 'wants',
@@ -118,7 +118,7 @@ export const RELATIONSHIP_CATALOG: RelationshipRule[] = [
     inverseLabel: 'Wanted by',
     symmetric: false,
     validFrom: ['npc', 'faction'],
-    validTo: ['npc', 'faction', 'location', 'secret', 'magicItem', 'pc'],
+    validTo: ['npc', 'faction', 'location', 'secret', 'magicItem', 'pc', 'factionClock'],
   },
   {
     kind: 'fears',
@@ -126,7 +126,7 @@ export const RELATIONSHIP_CATALOG: RelationshipRule[] = [
     inverseLabel: 'Feared by',
     symmetric: false,
     validFrom: ['npc', 'faction'],
-    validTo: ['npc', 'faction', 'secret'],
+    validTo: ['npc', 'faction', 'secret', 'factionClock'],
   },
   {
     kind: 'parentOf',
@@ -149,7 +149,7 @@ export const RELATIONSHIP_CATALOG: RelationshipRule[] = [
     label: 'Created by',
     inverseLabel: 'Created',
     symmetric: false,
-    validFrom: ['magicItem', 'location', 'secret', 'fantasticLocation'],
+    validFrom: ['magicItem', 'location', 'secret', 'fantasticLocation', 'factionClock'],
     validTo: ['npc', 'faction'],
   },
   {
@@ -175,4 +175,15 @@ export function validTargets(fromType: EntityType, kind: RelationshipKind): Enti
 
 export function validKinds(fromType: EntityType): RelationshipKind[] {
   return RELATIONSHIP_CATALOG.filter((r) => r.validFrom.includes(fromType)).map((r) => r.kind);
+}
+
+export function allowedRelationships(
+  fromType: EntityType,
+  toType: EntityType,
+): RelationshipRule[] {
+  return RELATIONSHIP_CATALOG.filter(
+    (r) =>
+      (r.validFrom.includes(fromType) && r.validTo.includes(toType)) ||
+      (r.validFrom.includes(toType) && r.validTo.includes(fromType)),
+  );
 }

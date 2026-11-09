@@ -16,6 +16,7 @@ import { TickRulesSection } from './livingWorld/TickRulesSection';
 import { AgendasSection } from './livingWorld/AgendasSection';
 import { PreviewModal } from './livingWorld/PreviewModal';
 import WorldEventsReview from './WorldEventsReview';
+import SessionDeltaLogPanel from './SessionDeltaLogPanel';
 import type { GetFn, SetFn } from './livingWorld/types';
 
 type Props = {
@@ -24,9 +25,11 @@ type Props = {
   isPro: boolean;
   soloMode: boolean;
   campaignName: string;
+  state?: Record<string, any>;
+  setState?: React.Dispatch<React.SetStateAction<Record<string, any>>>;
 };
 
-export default function LivingWorldTab({ get, setVal, isPro, soloMode, campaignName }: Props) {
+export default function LivingWorldTab({ get, setVal, isPro, soloMode, campaignName, state, setState }: Props) {
   const {
     clocks,
     downtime,
@@ -104,6 +107,11 @@ export default function LivingWorldTab({ get, setVal, isPro, soloMode, campaignN
           </button>
         </div>
       </section>
+
+      {/* Module 3: Session Delta Log */}
+      {state && setState && (
+        <SessionDeltaLogPanel state={state} setState={setState} />
+      )}
 
       {!soloMode && (
         <div className="rounded border border-brass/40 bg-brass/5 p-3 font-serif text-sm text-ink-soft">

@@ -143,12 +143,18 @@ export type CampaignItem = {
   description?: string;
   assignedPlayerId?: string; // roster slotId
   playerVisibility?: 'name-only' | 'full';
+  player_visible?: boolean;
+  isPublic?: boolean;
+  gmSpoiler?: string;
+  mechanic?: string;
+  rarity?: string;
 };
 
 // A redactable game entity: a stable string id plus arbitrary content fields.
 // Field-level redaction (resolveVisibility) decides which fields reach players.
 export type PlayerEntity = {
   id: string;
+  player_visible?: boolean;
   [field: string]: unknown;
 };
 
@@ -192,15 +198,26 @@ export function normalizeItem(it: string | Record<string, any>, index: number): 
       id: `item_${index}`,
       name,
       description,
-      playerVisibility: 'full'
+      playerVisibility: 'full',
+      player_visible: false,
     };
   }
+  const playerVisible =
+    typeof it.player_visible === 'boolean'
+      ? it.player_visible
+      : it.isPublic === true || !!it.assignedPlayerId;
   return {
     id: it.id || `item_${index}`,
     name: it.name || '',
     description: it.description || '',
     assignedPlayerId: it.assignedPlayerId,
-    playerVisibility: it.playerVisibility || 'full'
+    playerVisibility: it.playerVisibility || 'full',
+    player_visible: playerVisible,
+    isPublic: it.isPublic,
+    gmSpoiler: it.gmSpoiler,
+    mechanic: it.mechanic,
+    rarity: it.rarity,
   };
 }
+
 

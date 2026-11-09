@@ -356,11 +356,40 @@ export function SessionPrepPhase({ ed }: SessionPrepPhaseProps) {
             <ListField
               items={visibleItems}
               onChange={(nextUnassigned) => setVal('items', [...assignedItems, ...nextUnassigned])}
-              placeholder="Item · what +1 hook it delivers"
+              placeholder="Item · what +1 hook it delivers (supports ||GM spoiler|| & @Entity)"
               rows={2}
               target={tgt('items')}
               rowIdFor={(i) => `items-${i}`}
               highlightId={highlightEntityId}
+              isShared={(i) => {
+                const it = visibleItems[i];
+                if (!it || typeof it !== 'object') return false;
+                return Boolean(it.player_visible ?? it.isPublic);
+              }}
+              onToggleShare={(i) => {
+                const nextVisible = [...visibleItems];
+                const raw = nextVisible[i];
+                if (!raw) return;
+                if (typeof raw === 'string') {
+                  const parts = raw.split(' — ');
+                  nextVisible[i] = {
+                    id: makeEntityId(),
+                    name: parts[0] || raw,
+                    description: parts.slice(1).join(' — ') || '',
+                    player_visible: true,
+                    isPublic: true,
+                  };
+                } else {
+                  const cur = Boolean(raw.player_visible ?? raw.isPublic);
+                  nextVisible[i] = {
+                    ...raw,
+                    id: raw.id || makeEntityId(),
+                    player_visible: !cur,
+                    isPublic: !cur,
+                  };
+                }
+                setVal('items', [...assignedItems, ...nextVisible]);
+              }}
             />
           );
         })()}

@@ -6,6 +6,8 @@ import { BookQuote, SoloNote, Pitfall, Section, Example, ListField, Field, Inspi
 import { Phase } from '../phase';
 import { FactionCard } from '../cards';
 import { TARGETS, countFilled } from '@/lib/prepTargets';
+import { makeEntityId } from '@/lib/playerMode/share';
+import { syncEntityPlayerVisibility } from '@/lib/playerMode/spoilers';
 import { type CampaignEditorModel } from '../useCampaignEditor';
 
 interface WorldbuildPhaseProps {
@@ -94,7 +96,11 @@ export function WorldbuildPhase({ ed }: WorldbuildPhaseProps) {
         {(get('factions', []) as any[]).map((f: any, i: number) => (
           <div key={i} id={f.id ? `entity-${f.id}` : undefined} data-cp-anchor={`faction:${i}`}>
             <FactionCard data={f} onChange={(v: any) => {
-              const next = [...(get('factions', []) as any[])]; next[i] = v; setVal('factions', next);
+              const fid = v.id || f.id || makeEntityId();
+              const updated = { ...v, id: fid };
+              const next = [...(get('factions', []) as any[])]; next[i] = updated; setVal('factions', next);
+              const curConfig = get('player', {});
+              setVal('player', syncEntityPlayerVisibility(curConfig, 'factions', fid, Boolean(updated.player_visible ?? updated.isPublic)));
               const fromR = typeof f.renown === 'number' ? f.renown : 0;
               const toR = typeof v.renown === 'number' ? v.renown : 0;
               if (fromR !== toR) {
@@ -110,16 +116,16 @@ export function WorldbuildPhase({ ed }: WorldbuildPhaseProps) {
         <InspireGroup>
           <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Add faction from:</span>
           <Inspire tableId="villainArchetypes" label="Villain" onPick={(e) => {
-            setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }]);
+            setVal('factions', [...(get('factions', []) as any[]), { id: makeEntityId(), name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '', heat: 0 }]);
           }} />
           <Inspire tableId="allyTypes" label="Ally" onPick={(e) => {
-            setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }]);
+            setVal('factions', [...(get('factions', []) as any[]), { id: makeEntityId(), name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '', heat: 0 }]);
           }} />
           <Inspire tableId="patronTypes" label="Patron" onPick={(e) => {
-            setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }]);
+            setVal('factions', [...(get('factions', []) as any[]), { id: makeEntityId(), name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '', heat: 0 }]);
           }} />
         </InspireGroup>
-        <button onClick={() => setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: '', area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }])} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
+        <button onClick={() => setVal('factions', [...(get('factions', []) as any[]), { id: makeEntityId(), name: '', archetype: '', identity: '', area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '', heat: 0 }])} className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson">
           <Plus size={12} /> Add Faction
         </button>
       </Section>

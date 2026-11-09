@@ -4,15 +4,32 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import {
-  ChevronDown, ChevronRight, Search, User, Users, Map, ScrollText, Gift, Globe, Eye, EyeOff,
+  ChevronDown, ChevronRight, Search, User, Users, Map, ScrollText, Gift, Globe, Eye, EyeOff, Network, ShieldCheck, ExternalLink,
 } from 'lucide-react';
 import { normalizeItem } from '@/lib/playerMode/types';
+import { isEntityPlayerVisible, isItemPlayerVisible, syncEntityPlayerVisibility } from '@/lib/playerMode/spoilers';
+import type { EntityType } from '@/lib/wiki/types';
+import MentionText from '@/components/wiki/MentionText';
+import LoreNodeInspector from '@/components/wiki/LoreNodeInspector';
+import PlayerSafeLoreView from '@/components/PlayerSafeLoreView';
 import { Detail } from './prepShared';
 import type { LookupKind, KnowledgeFilter } from './prepTypes';
 
 export function LookupView({
-  npcs, locations, secrets, factions, magicItems, revealedSecrets, roster, playerConfig
+  npcs,
+  locations,
+  secrets,
+  factions,
+  magicItems,
+  revealedSecrets,
+  roster,
+  playerConfig,
+  campaignId,
+  campaignName,
+  campaignData,
+  onDataChange,
 }: {
   npcs: any[];
   locations: any[];
@@ -22,11 +39,27 @@ export function LookupView({
   revealedSecrets: Record<number, boolean>;
   roster?: any[];
   playerConfig?: any;
+  campaignId?: string;
+  campaignName?: string;
+  campaignData?: Record<string, any>;
+  onDataChange?: React.Dispatch<React.SetStateAction<Record<string, any>>>;
 }) {
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<LookupKind>('all');
   const [knowledge, setKnowledge] = useState<KnowledgeFilter>('all');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [playerSafeMode, setPlayerSafeMode] = useState(false);
+  const [inspectedNode, setInspectedNode] = useState<{ type: EntityType; id: string } | null>(null);
+
+  const syntheticData: Record<string, any> = campaignData || {
+    npcs,
+    locations,
+    secrets,
+    factions,
+    items: magicItems,
+    revSec: revealedSecrets,
+    player: playerConfig,
+  };
 
   const q = query.trim().toLowerCase();
   const matches = (s: string) => !q || s.toLowerCase().includes(q);
@@ -37,31 +70,86 @@ export function LookupView({
   const showFactions = kind === 'all' || kind === 'factions';
   const showItems = kind === 'all' || kind === 'items';
 
-  const isNpcKnown = (n: any) => {
-    return n.isPublic === true ||
-      playerConfig?.entityVisibility?.npcs?.[n.id]?.mode === 'party' ||
-      playerConfig?.entityVisibility?.npcs?.[n.id]?.mode === 'custom';
+  const isNpcKnown = (n: any) => isEntityPlayerVisible(n, playerConfig, 'npcs');
+  const isLocKnown = (l: any) => isEntityPlayerVisible(l, playerConfig, 'locations');
+  const isSecretKnown = (i: number) =>
+    !!revealedSecrets[i] || Boolean(playerConfig?.planningVisibility?.secrets?.[i]);
+  const isFactionKnown = (f: any) => isEntityPlayerVisible(f, playerConfig, 'factions');
+  const isItemKnown = (m: any) => isItemPlayerVisible(m);
+
+  const handleToggleVisibility = (entityType: EntityType, entityId: string, nextVisible: boolean) => {
+    if (!onDataChange) return;
+    onDataChange((prev) => {
+      const next = { ...prev };
+      if (entityType === 'npc') {
+        next.npcs = (prev.npcs || []).map((n: any, idx: number) =>
+          (n.id || `npc-${idx}`) === entityId ? { ...n, player_visible: nextVisible, isPublic: nextVisible } : n
+        );
+        next.player = syncEntityPlayerVisibility(prev.player, 'npcs', entityId, nextVisible);
+      } else if (entityType === 'location') {
+        next.locations = (prev.locations || []).map((l: any, idx: number) =>
+          (l.id || `loc-${idx}`) === entityId ? { ...l, player_visible: nextVisible, isPublic: nextVisible } : l
+        );
+        next.player = syncEntityPlayerVisibility(prev.player, 'locations', entityId, nextVisible);
+      } else if (entityType === 'faction') {
+        next.factions = (prev.factions || []).map((f: any, idx: number) =>
+          (f.id || `fac-${idx}`) === entityId ? { ...f, player_visible: nextVisible, isPublic: nextVisible } : f
+        );
+        next.player = syncEntityPlayerVisibility(prev.player, 'factions', entityId, nextVisible);
+      } else if (entityType === 'factionClock') {
+        next.clocks = (prev.clocks || []).map((c: any, idx: number) =>
+          (c.id || `clock-${idx}`) === entityId ? { ...c, player_visible: nextVisible, isPublic: nextVisible } : c
+        );
+        next.player = syncEntityPlayerVisibility(prev.player, 'clocks', entityId, nextVisible);
+      } else if (entityType === 'magicItem') {
+        next.items = (prev.items || []).map((it: any, idx: number) => {
+          const norm = normalizeItem(it, idx);
+          if (norm.id !== entityId) return it;
+          if (typeof it === 'string') {
+            return { ...norm, player_visible: nextVisible, isPublic: nextVisible };
+          }
+          return { ...it, player_visible: nextVisible, isPublic: nextVisible };
+        });
+      }
+      return next;
+    });
   };
 
-  const isLocKnown = (l: any) => {
-    return l.isPublic === true ||
-      playerConfig?.entityVisibility?.locations?.[l.id]?.mode === 'party' ||
-      playerConfig?.entityVisibility?.locations?.[l.id]?.mode === 'custom';
-  };
-
-  const isSecretKnown = (i: number) => {
-    return !!revealedSecrets[i];
-  };
-
-  const isFactionKnown = (f: any) => {
-    return f.isPublic === true ||
-      playerConfig?.entityVisibility?.factions?.[f.id]?.mode === 'party' ||
-      playerConfig?.entityVisibility?.factions?.[f.id]?.mode === 'custom';
-  };
-
-  const isItemKnown = (m: any) => {
-    return !!m.assignedPlayerId;
-  };
+  if (playerSafeMode) {
+    return (
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-moss/40 bg-moss/10 px-3 py-2">
+          <div className="flex items-center gap-2 font-display text-xs uppercase tracking-wider text-moss">
+            <ShieldCheck size={14} />
+            Read-Only /player-view Filter Active (GM Secrets &amp; ||Spoilers|| Redacted)
+          </div>
+          <div className="flex items-center gap-2">
+            {campaignId && (
+              <Link
+                href={`/campaign/${campaignId}/player-view`}
+                className="inline-flex items-center gap-1 rounded border border-moss/50 bg-parchment px-2 py-1 font-display text-[10px] uppercase tracking-wider text-moss hover:bg-moss hover:text-parchment"
+              >
+                Open /player-view Route <ExternalLink size={10} />
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => setPlayerSafeMode(false)}
+              className="rounded border border-rule bg-parchment px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-ink hover:bg-parchment-deep"
+            >
+              Exit /player-view Mode
+            </button>
+          </div>
+        </div>
+        <PlayerSafeLoreView
+          campaignName={campaignName || 'Campaign'}
+          campaignData={syntheticData}
+          campaignId={campaignId}
+          embedded
+        />
+      </div>
+    );
+  }
 
   const filteredNpcs = npcs.map((n, i) => ({ n, i })).filter(({ n }) => {
     const searchMatch = matches(n.name || '') || matches(n.archetype || '') || matches(n.faction || '') ||
@@ -110,15 +198,34 @@ export function LookupView({
   return (
     <div className="space-y-3">
       <div className="space-y-2 rounded border border-rule bg-parchment p-3 shadow-card">
-        <div className="flex items-center gap-2">
-          <Search size={14} className="flex-shrink-0 text-brass-deep" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search NPCs, locations, secrets, factions, items…"
-            className="flex-1 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none"
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-w-48 flex-1 items-center gap-2">
+            <Search size={14} className="flex-shrink-0 text-brass-deep" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search NPCs, locations, secrets, factions, items…"
+              className="flex-1 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setPlayerSafeMode(true)}
+            className="inline-flex items-center gap-1.5 rounded border border-moss/50 bg-moss/10 px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-moss hover:bg-moss hover:text-parchment"
+            title="Preview read-only /player-view mode with GM secrets redacted"
+          >
+            <ShieldCheck size={12} /> /player-view Mode
+          </button>
+          {campaignId && (
+            <Link
+              href={`/campaign/${campaignId}/player-view`}
+              className="inline-flex items-center gap-1 rounded border border-rule bg-parchment-soft px-2 py-1 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:border-brass-deep hover:text-ink"
+              title="Open standalone /player-view route"
+            >
+              Route <ExternalLink size={10} />
+            </Link>
+          )}
         </div>
         <div className="flex flex-wrap gap-1">
           {([
@@ -145,7 +252,7 @@ export function LookupView({
           <span className="font-display text-[10px] uppercase tracking-wider text-ink-soft">Visibility:</span>
           {([
             ['all', 'All Info', Globe],
-            ['known', 'Known to Players', Eye],
+            ['known', 'Known to Players (player_visible)', Eye],
             ['unknown', 'GM Private', EyeOff],
           ] as [KnowledgeFilter, string, any][]).map(([id, label, Icon]) => (
             <button
@@ -162,20 +269,49 @@ export function LookupView({
           ))}
         </div>
         <div className="font-serif text-[11px] italic text-ink-mute">
-          {totalCount === 0 && q ? 'No matches.' : totalCount === 0 ? 'Nothing prepped yet.' : `${totalCount} match${totalCount === 1 ? '' : 'es'}`}
+          {totalCount === 0 && q ? 'No matches.' : totalCount === 0 ? 'Nothing prepped yet.' : `${totalCount} match${totalCount === 1 ? '' : 'es'} · Click any entity or @tag to inspect connected lore nodes`}
         </div>
       </div>
+
+      {inspectedNode && (
+        <LoreNodeInspector
+          entityType={inspectedNode.type}
+          entityId={inspectedNode.id}
+          campaignData={syntheticData}
+          playerSafe={knowledge === 'known'}
+          onSelectNode={(type, id) => setInspectedNode({ type, id })}
+          onTogglePlayerVisible={onDataChange ? handleToggleVisibility : undefined}
+          onClose={() => setInspectedNode(null)}
+        />
+      )}
 
       {showNpcs && filteredNpcs.length > 0 && (
         <LookupGroup title="NPCs" icon={User}>
           {filteredNpcs.map(({ n, i }) => {
             const id = `npc-${i}`;
+            const entityId = n.id || id;
             const open = openId === id;
             const label = (n.name || '').trim() || (n.archetype || '').trim() || `NPC ${i + 1}`;
             return (
-              <LookupCard key={id} label={label} tag={[n.type, n.faction].filter(Boolean).join(' · ')} open={open} onToggle={() => setOpenId(open ? null : id)} isShared={isNpcKnown(n)}>
-                {n.archetype && <Detail label="Archetype">{n.archetype}</Detail>}
-                {n.goal && <Detail label="Goal">{n.goal}</Detail>}
+              <LookupCard
+                key={id}
+                label={label}
+                tag={[n.type, n.faction].filter(Boolean).join(' · ')}
+                open={open}
+                onToggle={() => setOpenId(open ? null : id)}
+                isShared={isNpcKnown(n)}
+                onInspectGraph={() => setInspectedNode({ type: 'npc', id: entityId })}
+              >
+                {n.archetype && (
+                  <Detail label="Archetype">
+                    <MentionText text={n.archetype} campaignData={syntheticData} playerSafe={knowledge === 'known'} onNavigate={(t, eid) => setInspectedNode({ type: t, id: eid })} />
+                  </Detail>
+                )}
+                {n.goal && (
+                  <Detail label="Goal">
+                    <MentionText text={n.goal} campaignData={syntheticData} playerSafe={knowledge === 'known'} onNavigate={(t, eid) => setInspectedNode({ type: t, id: eid })} />
+                  </Detail>
+                )}
                 {n.method && <Detail label="Method">{n.method}</Detail>}
                 {n.mannerism && <Detail label="Mannerism">{n.mannerism}</Detail>}
                 {n.appearance && <Detail label="Appearance">{n.appearance}</Detail>}
@@ -189,16 +325,38 @@ export function LookupView({
         <LookupGroup title="Locations" icon={Map}>
           {filteredLocs.map(({ l, i }) => {
             const id = `loc-${i}`;
+            const entityId = l.id || id;
             const open = openId === id;
             const label = (l.name || '').trim() || `Location ${i + 1}`;
             return (
-              <LookupCard key={id} label={label} tag={l.type || ''} open={open} onToggle={() => setOpenId(open ? null : id)} isShared={isLocKnown(l)}>
+              <LookupCard
+                key={id}
+                label={label}
+                tag={[l.type, l.lighting].filter(Boolean).join(' · ')}
+                open={open}
+                onToggle={() => setOpenId(open ? null : id)}
+                isShared={isLocKnown(l)}
+                onInspectGraph={() => setInspectedNode({ type: 'location', id: entityId })}
+              >
+                {l.description && (
+                  <Detail label="Description">
+                    <MentionText text={l.description} campaignData={syntheticData} playerSafe={knowledge === 'known'} onNavigate={(t, eid) => setInspectedNode({ type: t, id: eid })} />
+                  </Detail>
+                )}
                 {Array.isArray(l.aspects) && l.aspects.filter(Boolean).length > 0 && (
                   <ul className="ml-3 list-disc text-[12px] italic text-ink-soft">
-                    {l.aspects.filter(Boolean).map((a: string, j: number) => <li key={j}>{a}</li>)}
+                    {l.aspects.filter(Boolean).map((a: string, j: number) => (
+                      <li key={j}>
+                        <MentionText text={a} campaignData={syntheticData} playerSafe={knowledge === 'known'} onNavigate={(t, eid) => setInspectedNode({ type: t, id: eid })} />
+                      </li>
+                    ))}
                   </ul>
                 )}
-                {l.factions && <Detail label="Factions">{l.factions}</Detail>}
+                {l.factions && (
+                  <Detail label="Factions">
+                    <MentionText text={l.factions} campaignData={syntheticData} playerSafe={knowledge === 'known'} onNavigate={(t, eid) => setInspectedNode({ type: t, id: eid })} />
+                  </Detail>
+                )}
               </LookupCard>
             );
           })}
@@ -208,7 +366,7 @@ export function LookupView({
       {showSecrets && filteredSecrets.length > 0 && (
         <LookupGroup title="Secrets" icon={ScrollText}>
           {filteredSecrets.map(({ s, i }) => {
-            const revealed = !!revealedSecrets[i];
+            const revealed = isSecretKnown(i);
             return (
               <div
                 key={`sec-${i}`}
@@ -220,7 +378,9 @@ export function LookupView({
                   <span title="Hidden from Players"><EyeOff size={11} className="flex-shrink-0 text-ink-mute/50" /></span>
                 )}
                 <span className="mr-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">{revealed ? 'Revealed' : 'Hidden'}</span>
-                <span className="flex-1">{s}</span>
+                <span className="flex-1">
+                  <MentionText text={s} campaignData={syntheticData} playerSafe={knowledge === 'known'} onNavigate={(t, eid) => setInspectedNode({ type: t, id: eid })} />
+                </span>
               </div>
             );
           })}
@@ -231,12 +391,29 @@ export function LookupView({
         <LookupGroup title="Factions" icon={Users}>
           {filteredFactions.map(({ f, i }) => {
             const id = `fac-${i}`;
+            const entityId = f.id || id;
             const open = openId === id;
             const label = (f.name || '').trim() || (f.identity || '').trim() || `Faction ${i + 1}`;
             return (
-              <LookupCard key={id} label={label} tag={f.archetype || f.area || ''} open={open} onToggle={() => setOpenId(open ? null : id)} isShared={isFactionKnown(f)}>
-                {f.identity && <Detail label="Identity">{f.identity}</Detail>}
-                {f.area && <Detail label="Area">{f.area}</Detail>}
+              <LookupCard
+                key={id}
+                label={label}
+                tag={f.archetype || f.area || ''}
+                open={open}
+                onToggle={() => setOpenId(open ? null : id)}
+                isShared={isFactionKnown(f)}
+                onInspectGraph={() => setInspectedNode({ type: 'faction', id: entityId })}
+              >
+                {f.identity && (
+                  <Detail label="Identity">
+                    <MentionText text={f.identity} campaignData={syntheticData} playerSafe={knowledge === 'known'} onNavigate={(t, eid) => setInspectedNode({ type: t, id: eid })} />
+                  </Detail>
+                )}
+                {f.area && (
+                  <Detail label="Area">
+                    <MentionText text={f.area} campaignData={syntheticData} playerSafe={knowledge === 'known'} onNavigate={(t, eid) => setInspectedNode({ type: t, id: eid })} />
+                  </Detail>
+                )}
                 {f.power && <Detail label="Power">{f.power}</Detail>}
                 {f.ideology && <Detail label="Ideology">{f.ideology}</Detail>}
                 {f.longGoal && <Detail label="Long-term goal">{f.longGoal}</Detail>}
@@ -247,20 +424,41 @@ export function LookupView({
       )}
 
       {showItems && filteredItems.length > 0 && (
-        <LookupGroup title="Magic Items" icon={Gift}>
+        <LookupGroup title="Magic Items & Artifacts" icon={Gift}>
           {filteredItems.map(({ m, i }) => {
             const player = roster?.find(r => r.slotId === m.assignedPlayerId);
+            const shared = isItemKnown(m);
             return (
               <div key={`item-${i}`} className="space-y-1 rounded border border-rule bg-parchment px-3 py-2 font-serif text-sm text-ink-soft shadow-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-ink">{m.name}</div>
-                  {player ? (
-                    <span title="Carried by a player (Known)"><Eye size={11} className="text-moss/70" /></span>
-                  ) : (
-                    <span title="Not assigned (GM Private)"><EyeOff size={11} className="text-ink-mute/50" /></span>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setInspectedNode({ type: 'magicItem', id: m.id })}
+                    className="text-left font-medium text-ink hover:text-crimson"
+                  >
+                    {m.name}
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setInspectedNode({ type: 'magicItem', id: m.id })}
+                      className="inline-flex items-center gap-1 rounded border border-rule px-1.5 py-0.5 font-display text-[9px] uppercase tracking-wider text-brass-deep hover:border-brass-deep"
+                      title="Inspect connected lore nodes"
+                    >
+                      <Network size={10} /> Graph
+                    </button>
+                    {shared ? (
+                      <span title="player_visible: true (Known to Players)"><Eye size={11} className="text-moss/70" /></span>
+                    ) : (
+                      <span title="player_visible: false (GM Private)"><EyeOff size={11} className="text-ink-mute/50" /></span>
+                    )}
+                  </div>
                 </div>
-                {m.description && <div className="text-xs italic text-ink-soft/80">{m.description}</div>}
+                {m.description && (
+                  <div className="text-xs italic text-ink-soft/80">
+                    <MentionText text={m.description} campaignData={syntheticData} playerSafe={knowledge === 'known'} onNavigate={(t, eid) => setInspectedNode({ type: t, id: eid })} />
+                  </div>
+                )}
                 {player && <div className="mt-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep">Carried by: {player.displayName}</div>}
               </div>
             );
@@ -286,14 +484,34 @@ function LookupGroup({
 }
 
 function LookupCard({
-  label, tag, open, onToggle, isShared, children,
-}: { label: string; tag?: string; open: boolean; onToggle: () => void; isShared?: boolean; children?: React.ReactNode }) {
+  label, tag, open, onToggle, isShared, onInspectGraph, children,
+}: {
+  label: string;
+  tag?: string;
+  open: boolean;
+  onToggle: () => void;
+  isShared?: boolean;
+  onInspectGraph?: () => void;
+  children?: React.ReactNode;
+}) {
   return (
     <div className="rounded border border-rule bg-parchment font-serif text-sm">
-      <button onClick={onToggle} className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-parchment-deep/30">
-        {open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />}
-        <span className="flex-1 truncate text-ink">{label}</span>
-        {tag && <span className="mr-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">{tag}</span>}
+      <div className="flex w-full items-center gap-2 px-2 py-1.5 hover:bg-parchment-deep/30">
+        <button onClick={onToggle} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+          {open ? <ChevronDown size={12} className="text-ink-mute" /> : <ChevronRight size={12} className="text-ink-mute" />}
+          <span className="flex-1 truncate text-ink">{label}</span>
+          {tag && <span className="mr-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">{tag}</span>}
+        </button>
+        {onInspectGraph && (
+          <button
+            type="button"
+            onClick={onInspectGraph}
+            className="inline-flex items-center gap-1 rounded border border-rule bg-parchment-soft px-1.5 py-0.5 font-display text-[9px] uppercase tracking-wider text-brass-deep hover:border-brass-deep"
+            title="Inspect connected lore nodes"
+          >
+            <Network size={10} /> Graph
+          </button>
+        )}
         {isShared !== undefined && (
           isShared ? (
             <span title="Visible/Known to Players"><Eye size={11} className="flex-shrink-0 text-moss/70" /></span>
@@ -301,7 +519,7 @@ function LookupCard({
             <span title="GM Private / Hidden from Players"><EyeOff size={11} className="flex-shrink-0 text-ink-mute/50" /></span>
           )
         )}
-      </button>
+      </div>
       {open && children && (
         <div className="space-y-0.5 border-t border-rule px-3 pb-2 pt-1 text-[12px] text-ink-soft">
           {children}

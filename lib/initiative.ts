@@ -18,6 +18,7 @@ export type Combatant = {
   refPcId?: string;
   exhaustion?: number;
   notes?: string;
+  concentrationSpell?: string;
 };
 
 export type InitiativeLogEntry = {
@@ -53,6 +54,8 @@ export function sortInitiative(combatants: Combatant[]): Combatant[] {
   });
 }
 
+export const sortCombatants = sortInitiative;
+
 export function rollInitiative(modifier = 0): number {
   return Math.floor(Math.random() * 20) + 1 + modifier;
 }
@@ -87,6 +90,8 @@ export function nextTurn(state: InitiativeState): InitiativeState {
   return { ...state, activeIndex: state.activeIndex + 1 };
 }
 
+export const advanceTurn = nextTurn;
+
 export function prevTurn(state: InitiativeState): InitiativeState {
   if (state.combatants.length === 0) return state;
   if (state.activeIndex - 1 < 0) {
@@ -99,6 +104,41 @@ export function prevTurn(state: InitiativeState): InitiativeState {
     };
   }
   return { ...state, activeIndex: state.activeIndex - 1 };
+}
+
+export const retreatTurn = prevTurn;
+
+export function applyHpDelta(combatant: Combatant, delta: number): Combatant {
+  const max = combatant.hp?.max ?? 1;
+  const cur = combatant.hp?.current ?? 0;
+  const nextCurrent = Math.max(0, Math.min(max, cur + delta));
+  return {
+    ...combatant,
+    hp: {
+      ...combatant.hp,
+      current: nextCurrent,
+      max,
+    },
+  };
+}
+
+export function toggleCondition(combatant: Combatant, condition: string): Combatant {
+  const has = combatant.conditions.includes(condition);
+  return {
+    ...combatant,
+    conditions: has
+      ? combatant.conditions.filter((c) => c !== condition)
+      : [...combatant.conditions, condition],
+  };
+}
+
+export function resetTurnOrder(state: InitiativeState): InitiativeState {
+  return {
+    ...state,
+    round: 1,
+    activeIndex: 0,
+    combatants: sortInitiative(state.combatants),
+  };
 }
 
 export function abilityMod(score: number | undefined | null): number {

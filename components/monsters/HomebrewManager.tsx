@@ -513,6 +513,48 @@ function HomebrewEditor({
         />
       </div>
 
+      {/* Module 5: Creality K1C Hardware Bridge */}
+      <div className="rounded-sm border border-brass/40 bg-parchment p-2.5">
+        <div className="mb-1.5 flex items-center justify-between">
+          <FieldLabel>Creality K1C Print Queue (Miniature / Boss Token)</FieldLabel>
+          <label className="flex items-center gap-1.5 font-display text-[10px] uppercase tracking-wider text-ink-soft">
+            <input
+              type="checkbox"
+              checked={Boolean(monster.is_boss)}
+              onChange={(e) => onChange({ is_boss: e.target.checked })}
+            />
+            Boss Token
+          </label>
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="sm:col-span-2">
+            <input
+              type="text"
+              value={monster.stl_link ?? ''}
+              onChange={(e) => onChange({ stl_link: e.target.value })}
+              placeholder=".stl URL or file path (e.g. https://.../boss_mini.stl)"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <select
+              value={monster.print_status ?? ''}
+              onChange={(e) =>
+                onChange({
+                  print_status: (e.target.value || undefined) as 'queued' | 'sliced' | 'printed' | undefined,
+                })
+              }
+              className={inputClass}
+            >
+              <option value="">Not in Queue</option>
+              <option value="queued">Queued</option>
+              <option value="sliced">Sliced</option>
+              <option value="printed">Printed</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-end pt-1">
         <button
           type="button"

@@ -49,6 +49,10 @@ export type Monster = {
   desc: string;
   source: string;
   homebrew?: boolean;
+  stl_link?: string;
+  print_status?: 'queued' | 'sliced' | 'printed';
+  is_boss?: boolean;
+  player_visible?: boolean;
 };
 
 export type HomebrewMonster = Monster;
