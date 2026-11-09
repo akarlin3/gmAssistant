@@ -24,6 +24,8 @@ import { removeSlotFromConfig } from '@/lib/playerMode/roster';
 import {
   applyNarrationReveal, makeLogEntryId, type Mention, type PlayerLogEntry,
 } from '@/lib/playerMode/sessionLog';
+import { normalizePcs } from '@/lib/pc/factory';
+import PlayerSharedQuestsNotesPanel from './PlayerSharedQuestsNotesPanel';
 
 type AnyData = Record<string, any>;
 type Confirm = (o: { title: string; message: string; confirmText?: string; cancelText?: string; isDestructive?: boolean }) => Promise<boolean>;
@@ -356,6 +358,9 @@ export default function PlayerModePanel({
       <SectionCard title="Preview as player" icon={<Eye size={16} />}>
         <PreviewAsPlayer data={data} config={config} campaignName={campaignName} previewSlot={previewSlot} setPreviewSlot={setPreviewSlot} />
       </SectionCard>
+
+      {/* Player-Shared Quests & Notes */}
+      <PlayerSharedQuestsNotesPanel pcs={normalizePcs(data.pcs ?? [])} />
 
       <div className="flex items-center justify-between px-1 text-xs text-ink-mute">
         <span className="font-serif italic">

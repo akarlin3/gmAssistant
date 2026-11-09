@@ -3,7 +3,7 @@
 import React from 'react';
 import { type Campaign } from '@/lib/firebase/campaigns';
 import { type World } from '@/lib/firebase/worlds';
-import { ChevronDown, Check, X, User, Users, Swords, ScrollText, ArrowLeft, Sparkles, Play, Search, ClipboardList, Globe } from 'lucide-react';
+import { ChevronDown, Check, X, User, Users, Swords, ScrollText, ArrowLeft, Sparkles, Play, Search, ClipboardList, Globe, Compass } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import type { HomebrewMonster } from './MonstersTab';
 import SummonModal from './SummonModal';
@@ -27,6 +27,7 @@ import { TOURS, markTourAsSeen } from '@/lib/tutorials/mode-tours';
 import ModeNav from './ModeNav';
 import { type Mode } from '@/lib/modes';
 import { WikiProvider } from './wiki/WikiContext';
+import PlayerCompanionWorkspace, { type PlayerCompanionTabId } from './PlayerCompanionWorkspace';
 const RunSessionView = dynamic(() => import('./RunSessionView'));
 const PrepWizardView = dynamic(() => import('./PrepWizardView'));
 const Session0Wizard = dynamic(() => import('./Session0Wizard'));
@@ -40,12 +41,14 @@ import { useReactiveWorldEvents } from '@/lib/world/useReactiveWorldEvents';
 
 export default function CampaignEditor(props: CampaignEditorProps) {
   const ed = useCampaignEditor(props);
+  const [companionTab, setCompanionTab] = React.useState<PlayerCompanionTabId>('sheet');
   const {
     PREP_GROUPS,
     SyncIndicator,
     SyncPill,
     ToolBtn,
     activeTourMode,
+    addPc,
     campaign,
     characters,
     closePrepWizard,
@@ -75,15 +78,19 @@ export default function CampaignEditor(props: CampaignEditorProps) {
     nextUp,
     onSummonSave,
     open,
+    openPcs,
     oracleOpen,
     paletteItems,
     paletteOpen,
+    pcFileInputRef,
+    pcUploadError,
     pcs,
     playMode,
     prepTargetOverrides,
     prepTargetsOpen,
     progressMenuRef,
     progressOpen,
+    removePc,
     router,
     scrollToEntity,
     session0Open,
@@ -93,6 +100,7 @@ export default function CampaignEditor(props: CampaignEditorProps) {
     setMode,
     setModeSwitcherOpen,
     setName,
+    setOpenPcs,
     setOracleOpen,
     setPaletteOpen,
     setPlayMode,
@@ -115,6 +123,9 @@ export default function CampaignEditor(props: CampaignEditorProps) {
     totalPrepSteps,
     tourUid,
     undoToast,
+    updatePc,
+    uploadPcSheet,
+    uploadingPc,
     userEmail,
     wikiValue,
     world,
@@ -271,6 +282,8 @@ export default function CampaignEditor(props: CampaignEditorProps) {
                     ? 'border-pink-500/30 bg-pink-950/20 text-pink-400'
                     : playMode === 'duet'
                     ? 'border-teal-500/30 bg-teal-950/20 text-teal-400'
+                    : playMode === 'player'
+                    ? 'border-indigo-500/30 bg-indigo-950/20 text-indigo-400'
                     : 'border-amber-500/30 bg-amber-950/20 text-amber-400'
                 }`}
                 title="Click to change campaign play mode"
@@ -278,9 +291,10 @@ export default function CampaignEditor(props: CampaignEditorProps) {
                 {playMode === 'solo' && <Sparkles size={10} />}
                 {playMode === 'duet' && <User size={10} />}
                 {playMode === 'standard' && <Users size={10} />}
+                {playMode === 'player' && <Compass size={10} />}
                 {playMode} Mode
               </button>
-              {playMode !== 'solo' && (
+              {playMode !== 'solo' && playMode !== 'player' && (
                 <PlayersManager campaign={campaign} />
               )}
             </div>
@@ -292,42 +306,47 @@ export default function CampaignEditor(props: CampaignEditorProps) {
                   <Search size={12} /> Search
                   <kbd className="ml-1 rounded border border-rule px-1 py-px font-display text-[10px] uppercase tracking-wider text-ink-mute">⌘K</kbd>
                 </ToolBtn>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVal('__prepWizardOpen', true);
-                    setVal('__prepWizardStep', 1);
-                  }}
-                  disabled={!!get('__activeSessionId', '')}
-                  className="flex items-center gap-1.5 rounded border border-moss/60 bg-moss/10 px-3 py-1 font-display text-xs uppercase tracking-wider text-moss shadow-sm hover:bg-moss hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-moss/10 disabled:hover:text-moss"
-                  title={get('__activeSessionId', '') ? 'Finish your current session first' : 'Walk through Lazy DM\'s 8-step prep'}
-                >
-                  <ClipboardList size={12} /> Prep Next Session
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (nextUp) {
-                      if (!window.confirm(`You have unfinished prep targets (e.g. ${nextUp.label}). Are you sure you want to start the session anyway?`)) {
-                        return;
-                      }
-                    }
-                    const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-                    setState(s => ({
-                      ...s,
-                      __activeSessionId: sessionId,
-                      __sessionStartedAt: Date.now(),
-                      __sessionChangeEvents: [],
-                      __sessionUsedScenes: [],
-                      __runSessionOpen: true,
-                    }));
-                  }}
-                  className="flex items-center gap-1.5 rounded border border-crimson/60 bg-crimson/10 px-3 py-1 font-display text-xs uppercase tracking-wider text-crimson shadow-sm hover:bg-crimson hover:text-parchment"
-                  title="Enter Run Session mode for live play"
-                >
-                  <Play size={12} /> Run Session
-                </button>
+                {playMode !== 'player' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVal('__prepWizardOpen', true);
+                        setVal('__prepWizardStep', 1);
+                      }}
+                      disabled={!!get('__activeSessionId', '')}
+                      className="flex items-center gap-1.5 rounded border border-moss/60 bg-moss/10 px-3 py-1 font-display text-xs uppercase tracking-wider text-moss shadow-sm hover:bg-moss hover:text-parchment disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-moss/10 disabled:hover:text-moss"
+                      title={get('__activeSessionId', '') ? 'Finish your current session first' : 'Walk through Lazy DM\'s 8-step prep'}
+                    >
+                      <ClipboardList size={12} /> Prep Next Session
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (nextUp) {
+                          if (!window.confirm(`You have unfinished prep targets (e.g. ${nextUp.label}). Are you sure you want to start the session anyway?`)) {
+                            return;
+                          }
+                        }
+                        const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                        setState(s => ({
+                          ...s,
+                          __activeSessionId: sessionId,
+                          __sessionStartedAt: Date.now(),
+                          __sessionChangeEvents: [],
+                          __sessionUsedScenes: [],
+                          __runSessionOpen: true,
+                        }));
+                      }}
+                      className="flex items-center gap-1.5 rounded border border-crimson/60 bg-crimson/10 px-3 py-1 font-display text-xs uppercase tracking-wider text-crimson shadow-sm hover:bg-crimson hover:text-parchment"
+                      title="Enter Run Session mode for live play"
+                    >
+                      <Play size={12} /> Run Session
+                    </button>
+                  </>
+                )}
               </div>
+              {playMode !== 'player' && (
               <div className="relative" ref={progressMenuRef}>
                 <button
                   type="button"
@@ -371,24 +390,55 @@ export default function CampaignEditor(props: CampaignEditorProps) {
                   </div>
                 )}
               </div>
+              )}
             </div>
           </header>
 
-          <ModeNav
-            mode={mode}
-            subview={subview}
-            onModeChange={handleModeChange}
-            onSubviewChange={handleSubviewChange}
-            worldOnlyMode={worldOnlyMode}
-            playMode={playMode}
-          />
+          {playMode === 'player' ? (
+            <div key={`player:${companionTab}`} className="gm-tab-enter space-y-4">
+              <PlayerCompanionWorkspace
+                activeTab={companionTab}
+                onSelectTab={setCompanionTab}
+                pcs={pcs}
+                openPcMap={openPcs}
+                isPro={isPro}
+                uploadingChar={uploadingPc}
+                uploadError={pcUploadError}
+                onTogglePcOpen={(id) => setOpenPcs(o => ({ ...o, [id]: !o[id] }))}
+                onAddPc={addPc}
+                onUpdatePc={updatePc}
+                onRemovePc={removePc}
+                onUploadClick={() => pcFileInputRef.current?.click()}
+                get={get}
+                setVal={setVal}
+              />
+              <input
+                ref={pcFileInputRef}
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.md,.json,application/pdf,image/png,image/jpeg,image/webp,image/gif,text/plain,application/json,text/markdown"
+                onChange={uploadPcSheet}
+                className="hidden"
+              />
+            </div>
+          ) : (
+            <>
+              <ModeNav
+                mode={mode}
+                subview={subview}
+                onModeChange={handleModeChange}
+                onSubviewChange={handleSubviewChange}
+                worldOnlyMode={worldOnlyMode}
+                playMode={playMode}
+              />
 
-        <div key={`${mode}:${subview}`} className="gm-tab-enter space-y-4">
-          <div className="space-y-3">
-            <PlanPrepView ed={ed} />
-          </div>
-          <EditorSubviews ed={ed} />
-        </div>
+              <div key={`${mode}:${subview}`} className="gm-tab-enter space-y-4">
+                <div className="space-y-3">
+                  <PlanPrepView ed={ed} />
+                </div>
+                <EditorSubviews ed={ed} />
+              </div>
+            </>
+          )}
 
         <footer className="mt-4 border-t border-rule pt-3 text-center font-serif text-xs italic text-ink-mute">
           {userEmail}

@@ -105,7 +105,7 @@ export interface CampaignData {
   factions?: FactionEntry[];
   sessionLog?: SessionLogEntry[];
   players?: PlayerCharacter[];
-  mode?: 'solo' | 'duet' | 'standard';
+  mode?: 'solo' | 'duet' | 'standard' | 'player';
   modeMigratedAt?: number;
   legacySoloMode?: boolean;
   [key: string]: unknown;

@@ -19,6 +19,7 @@ import { normalizeItem } from '@/lib/playerMode/types';
 import { Empty, Detail } from '../prepShared';
 import { formatElapsed } from './helpers';
 import { ActivePrepGroup, CompactCard, ExpandableCard } from './cards';
+import PlayerSharedQuestsNotesPanel from '../../PlayerSharedQuestsNotesPanel';
 
 export function InlineNoteSeed({ trackEvent }: { trackEvent: (kind: ChangeEventKind, summary: string) => void }) {
   const [text, setText] = useState('');
@@ -537,6 +538,8 @@ export function RunSessionInlineActive({
               </ul>
             )}
           </ActivePrepGroup>
+
+          <PlayerSharedQuestsNotesPanel pcs={party} />
 
           <ActivePrepGroup title="Faction Clocks" icon={ScrollText} count={clocks.length}>
             {clocks.length === 0 ? <Empty>No clocks prepped.</Empty> : (

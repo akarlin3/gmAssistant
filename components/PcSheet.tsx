@@ -23,6 +23,7 @@ import {
 import { CONDITIONS } from '@/lib/initiative';
 import { Label, SectionTitle, inputCls, chipBtn } from './pcSheet/primitives';
 import { TextInput, NumInput, Bubbles, ListEditor } from './pcSheet/fields';
+import PlayerSharedQuestsNotesPanel from './PlayerSharedQuestsNotesPanel';
 
 type Props = {
   pc: PlayerCharacter;
@@ -635,6 +636,11 @@ export default function PcSheet({
           <div className="border-t border-rule pt-2.5">
             <Label>Notes</Label>
             <textarea value={pc.notes} onChange={(e) => patch({ notes: e.target.value })} placeholder="Freeform notes…" rows={2} className={`${inputCls} resize-none [field-sizing:content]`} />
+          </div>
+
+          {/* Player-Shared Quests & Notes */}
+          <div className="border-t border-rule pt-2.5">
+            <PlayerSharedQuestsNotesPanel pcs={[pc]} />
           </div>
         </div>
       )}

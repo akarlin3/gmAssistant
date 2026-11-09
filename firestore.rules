@@ -158,9 +158,16 @@ service cloud.firestore {
         && request.resource.data.updatedAt is number
         && request.resource.data.updates is map
         && request.resource.data.updates.keys().hasOnly([
-          'hp.current', 'hp.temp', 'conditions', 'exhaustion',
-          'deathSaves.successes', 'deathSaves.failures', 'notes',
-          'goals', 'bonds', 'ideals', 'flaws'
+          'hp.current', 'hp.max', 'hp.temp',
+          'hitDice', 'hitDice.dieSize', 'hitDice.max', 'hitDice.used',
+          'conditions', 'exhaustion',
+          'deathSaves', 'deathSaves.successes', 'deathSaves.failures',
+          'inspiration', 'ac', 'speed', 'initiativeMod',
+          'spellSlots', 'pactSlots', 'resourcePools', 'features',
+          'inventory', 'attunedCount', 'currency', 'partyLoot',
+          'notes', 'goals', 'bonds', 'ideals', 'flaws',
+          'sharedQuests', 'sharedAnnotations', 'sharedJournal', 'sharedTombstones',
+          'turnEconomy', 'concentrationSpell', 'downtimeDays', 'renown'
         ])
         && get(/databases/$(database)/documents/playerShares/$(request.resource.data.shareToken)).data.campaignId == campaignId
         && exists(/databases/$(database)/documents/playerShares/$(request.resource.data.shareToken)/slots/$(playerSlotId));

@@ -5,7 +5,7 @@ import type { PlayerCharacter } from './pc/types';
 export type WizardPatch = {
   name?: string;
   soloMode?: boolean; // legacy
-  mode?: 'solo' | 'duet' | 'standard'; // new mode
+  mode?: 'solo' | 'duet' | 'standard' | 'player'; // new mode
   pitch?: string;
   truths?: string[];
   pc?: { name: string; concept: string; goal: string };
@@ -55,7 +55,7 @@ export function applySession0Patch(
     next.gWorld = [...existing, ...patch.truths];
   }
 
-  const isSoloOrDuet = finalMode === 'solo' || finalMode === 'duet';
+  const isSoloOrDuet = finalMode === 'solo' || finalMode === 'duet' || finalMode === 'player';
   if (isSoloOrDuet) {
     if (patch.pc) {
       const existingPcs = Array.isArray(base.pcs) ? (base.pcs as PlayerCharacter[]) : [];

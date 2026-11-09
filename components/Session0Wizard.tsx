@@ -41,10 +41,10 @@ export default function Session0Wizard({
 
   // Screen 1: Name and Mode
   const [name, setName] = useState(initialName || 'New Campaign');
-  const [wizardPlayMode, setWizardPlayMode] = useState<'solo' | 'duet' | 'standard'>(
+  const [wizardPlayMode, setWizardPlayMode] = useState<'solo' | 'duet' | 'standard' | 'player'>(
     initialSoloMode ? 'duet' : 'standard'
   );
-  const wizardSoloMode = wizardPlayMode === 'solo' || wizardPlayMode === 'duet';
+  const wizardSoloMode = wizardPlayMode === 'solo' || wizardPlayMode === 'duet' || wizardPlayMode === 'player';
 
   // Screen 2: Pitch
   const [pitch, setPitch] = useState('');
@@ -57,7 +57,7 @@ export default function Session0Wizard({
 
   // Sync truthsMode when wizardPlayMode changes
   useEffect(() => {
-    setTruthsMode(wizardPlayMode === 'solo' ? 'three' : 'six');
+    setTruthsMode(wizardPlayMode === 'solo' || wizardPlayMode === 'player' ? 'three' : 'six');
   }, [wizardPlayMode]);
 
   // Screen 4: Solo Character
@@ -199,7 +199,43 @@ export default function Session0Wizard({
 
                 <div className="space-y-2">
                   <div className="font-display text-xs uppercase tracking-wider text-brass-deep">Choose Campaign Type</div>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {/* Player Companion Card */}
+                    <button
+                      type="button"
+                      onClick={() => setWizardPlayMode('player')}
+                      className={`flex flex-col justify-between rounded border p-4 text-left transition-all duration-200 hover:shadow-md ${
+                        wizardPlayMode === 'player'
+                          ? 'border-indigo-500 bg-indigo-500/5 shadow-sm ring-1 ring-indigo-500/30'
+                          : 'border-rule bg-parchment hover:border-indigo-500/60'
+                      }`}
+                    >
+                      <div>
+                        <div className="mb-2 flex items-center gap-2">
+                          <div className={`rounded p-1.5 ${wizardPlayMode === 'player' ? 'bg-indigo-500/15 text-indigo-500' : 'bg-parchment-deep text-ink-soft'}`}>
+                            <Sparkles size={18} />
+                          </div>
+                          <span className="font-display font-semibold tracking-wide text-ink">Player Companion</span>
+                        </div>
+                        <p className="mb-3 font-serif text-xs italic leading-relaxed text-ink-soft">
+                          Standalone Adventurer&apos;s Notebook &amp; Table HUD for playing a character in any campaign.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1 pl-1 font-sans text-[11px] text-ink-soft">
+                          <li><strong>Sheet, Quests, World, Gear &amp; Play HUD</strong></li>
+                          <li><strong>1</strong> Primary Adventurer Sheet + Parser</li>
+                          <li>Indigo aesthetic theme</li>
+                          <li>Turn action economy &amp; rest tracker</li>
+                        </ul>
+                      </div>
+                      <div className="mt-4 flex items-center gap-1.5 self-end">
+                        <span className={`rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
+                          wizardPlayMode === 'player' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-500' : 'border-rule text-ink-mute'
+                        }`}>
+                          {wizardPlayMode === 'player' ? 'Selected' : 'Select'}
+                        </span>
+                      </div>
+                    </button>
+
                     {/* Solo Card */}
                     <button
                       type="button"

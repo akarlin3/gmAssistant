@@ -12,7 +12,7 @@ export type PrepTargetKey =
   | 'strongStart' | 'scenes' | 'secrets' | 'locations' | 'npcs' | 'monsters' | 'items'
   | 'clocks';
 
-export type CampaignPlayMode = 'solo' | 'duet' | 'standard';
+export type CampaignPlayMode = 'solo' | 'duet' | 'standard' | 'player';
 
 export type PrepTargetSpec = {
   standard: number;
@@ -53,7 +53,7 @@ export const TARGETS: Record<PrepTargetKey, PrepTargetSpec> = {
 
 export const ALL_TARGET_KEYS: PrepTargetKey[] = Object.keys(TARGETS) as PrepTargetKey[];
 
-export type PrepTargetOverride = { standard?: number; duet?: number; solo?: number };
+export type PrepTargetOverride = { standard?: number; duet?: number; solo?: number; player?: number };
 export type PrepTargetOverrides = Partial<Record<PrepTargetKey, PrepTargetOverride>>;
 
 export const OVERRIDES_STATE_KEY = '__prepTargetOverrides';
@@ -76,9 +76,10 @@ export function resolveTarget(
 ): number {
   const spec = TARGETS[key];
   if (!spec) return 0;
-  const override = overrides?.[key]?.[mode];
+  const effectiveMode: 'standard' | 'duet' | 'solo' = mode === 'player' ? 'solo' : mode;
+  const override = overrides?.[key]?.[effectiveMode];
   const clamped = clampCount(override);
-  return clamped ?? spec[mode];
+  return clamped ?? spec[effectiveMode];
 }
 
 export function getTarget(

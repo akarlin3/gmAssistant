@@ -23,7 +23,7 @@ type Draft = Record<PrepTargetKey, DraftRow>;
 const MIN = 0;
 const MAX = 99;
 
-function bookDefault(key: PrepTargetKey, mode: CampaignPlayMode): number {
+function bookDefault(key: PrepTargetKey, mode: 'standard' | 'duet' | 'solo'): number {
   return TARGETS[key][mode];
 }
 
@@ -93,7 +93,7 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
 
   if (!open) return null;
 
-  const updateCell = (key: PrepTargetKey, mode: CampaignPlayMode, value: string) => {
+  const updateCell = (key: PrepTargetKey, mode: 'standard' | 'duet' | 'solo', value: string) => {
     setDraft((d) => ({ ...d, [key]: { ...d[key], [mode]: value } }));
   };
   const resetRow = (key: PrepTargetKey) => {

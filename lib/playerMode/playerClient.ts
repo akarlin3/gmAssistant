@@ -6,6 +6,7 @@
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { getDb } from '@/lib/firebase/client';
 import { validatePlayerField } from '@/lib/player/allowlist';
+import { sanitizeOutboundWritebackUpdates } from './playerTrackerStorage';
 import type { ShareMeta, SlotProjection } from './types';
 
 export function subscribeShareMeta(
@@ -32,6 +33,10 @@ export function subscribeShareMeta(
 // writeback reconciler picks the doc up, merges the change into the campaign
 // CRDT state, and deletes it. We use merge:true so multiple field updates
 // across separate calls coalesce into a single staged doc.
+//
+// All updates pass through `sanitizeOutboundWritebackUpdates` before leaving
+// the browser so unshared quests, annotations, and journal entries (where
+// sharedWithGm !== true) NEVER leave the player's device or touch Firestore.
 export async function submitPlayerUpdate(opts: {
   campaignId: string;
   shareToken: string;
@@ -40,7 +45,9 @@ export async function submitPlayerUpdate(opts: {
   field: string;
   value: unknown;
 }): Promise<void> {
-  if (!validatePlayerField(opts.field, opts.value)) {
+  const sanitized = sanitizeOutboundWritebackUpdates({ [opts.field]: opts.value });
+  const sanitizedValue = sanitized[opts.field];
+  if (!validatePlayerField(opts.field, sanitizedValue)) {
     throw new Error(`Invalid field update: ${opts.field}`);
   }
   await setDoc(
@@ -49,7 +56,36 @@ export async function submitPlayerUpdate(opts: {
       shareToken: opts.shareToken,
       pcId: opts.pcId,
       slotId: opts.slotId,
-      updates: { [opts.field]: opts.value },
+      updates: { [opts.field]: sanitizedValue },
+      updatedAt: Date.now(),
+    },
+    { merge: true },
+  );
+}
+
+export async function submitPlayerBatchUpdate(opts: {
+  campaignId: string;
+  shareToken: string;
+  slotId: string;
+  pcId: string;
+  updates: Record<string, unknown>;
+}): Promise<void> {
+  const sanitized = sanitizeOutboundWritebackUpdates(opts.updates);
+  const validatedUpdates: Record<string, unknown> = {};
+  for (const [field, val] of Object.entries(sanitized)) {
+    if (!validatePlayerField(field, val)) {
+      throw new Error(`Invalid field update in batch: ${field}`);
+    }
+    validatedUpdates[field] = val;
+  }
+  if (Object.keys(validatedUpdates).length === 0) return;
+  await setDoc(
+    doc(getDb(), 'campaigns', opts.campaignId, 'pcWritebacks', opts.slotId),
+    {
+      shareToken: opts.shareToken,
+      pcId: opts.pcId,
+      slotId: opts.slotId,
+      updates: validatedUpdates,
       updatedAt: Date.now(),
     },
     { merge: true },

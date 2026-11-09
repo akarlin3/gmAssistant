@@ -13,7 +13,7 @@ import type { PlayerCharacter } from '@/lib/pc/types';
 export function usePlayerWriteback(
   campaignId: string,
   campaignUserId: string,
-  playMode: 'solo' | 'duet' | 'standard',
+  playMode: 'solo' | 'duet' | 'standard' | 'player',
   worldOnlyMode: boolean,
   pcs: PlayerCharacter[],
   writePcs: (next: PlayerCharacter[]) => void,
@@ -23,10 +23,10 @@ export function usePlayerWriteback(
     pcsRef.current = pcs;
   }, [pcs]);
 
-  // Reconciler is inactive in world-only modes, stub campaigns, or Solo
-  // campaigns (where there are no players).
+  // Reconciler is inactive in world-only modes, stub campaigns, or Solo/Player
+  // campaigns (where there are no remote players writing back to a GM).
   useEffect(() => {
-    if (worldOnlyMode || campaignId === 'world-stub' || playMode === 'solo') return;
+    if (worldOnlyMode || campaignId === 'world-stub' || playMode === 'solo' || playMode === 'player') return;
 
     let unsubscribe: (() => void) | null = null;
     let retryCount = 0;

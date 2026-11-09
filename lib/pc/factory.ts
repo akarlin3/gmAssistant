@@ -9,16 +9,27 @@ import {
   SPELL_SLOT_LEVELS,
   type AbilityName,
   type Attack,
+  type AttitudeTag,
+  type CoinPurse,
   type DeathSaveCount,
   type ExhaustionLevel,
   type FeatureEntry,
   type InventoryItem,
+  type PactMagicSlots,
   type PcClass,
+  type PcResourcePool,
   type PlayerCharacter,
   type PcOwnership,
+  type PlayerJournalEntry,
+  type PlayerLoreAnnotation,
+  type PlayerQuest,
+  type PlayerQuestCategory,
+  type PlayerQuestStatus,
+  type RechargeTiming,
   type SkillName,
   type SpellSlot,
   type SpellSlotLevel,
+  type TurnActionEconomy,
 } from './types';
 import { SKILL_ABILITIES } from './skills';
 
@@ -129,8 +140,128 @@ function normInventory(v: unknown): InventoryItem[] {
       ...(o.weight !== undefined ? { weight: asNum(o.weight) } : {}),
       ...(o.description !== undefined ? { description: asStr(o.description) } : {}),
       equipped: o.equipped === true,
+      ...(o.attuned !== undefined ? { attuned: o.attuned === true } : {}),
+      ...(o.notes !== undefined ? { notes: asStr(o.notes) } : {}),
+      ...(typeof o.sharedWithGm === 'boolean' ? { sharedWithGm: o.sharedWithGm } : {}),
     };
   });
+}
+
+function normResourcePools(v: unknown): PcResourcePool[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v.map((p) => {
+    const o = (p as Record<string, unknown>) || {};
+    const r = asStr(o.rechargeOn);
+    const rechargeOn: RechargeTiming =
+      r === 'short' || r === 'long' || r === 'dawn' || r === 'manual' ? r : 'long';
+    const max = clampInt(o.max, 0, 9999, 1);
+    return {
+      id: asStr(o.id) || makePcId(),
+      name: asStr(o.name),
+      current: clampInt(o.current, 0, 9999, max),
+      max,
+      rechargeOn,
+    };
+  });
+}
+
+function normPactSlots(v: unknown): PactMagicSlots | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  return {
+    level: clampInt(o.level, 1, 9, 1) as SpellSlotLevel,
+    max: clampInt(o.max, 0, 99, 0),
+    used: clampInt(o.used, 0, 99, 0),
+  };
+}
+
+function normCurrency(v: unknown): CoinPurse | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  return {
+    cp: clampInt(o.cp, 0, 9999999, 0),
+    sp: clampInt(o.sp, 0, 9999999, 0),
+    ep: clampInt(o.ep, 0, 9999999, 0),
+    gp: clampInt(o.gp, 0, 9999999, 0),
+    pp: clampInt(o.pp, 0, 9999999, 0),
+  };
+}
+
+function normSharedQuests(v: unknown): PlayerQuest[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v
+    .filter((q) => q && typeof q === 'object' && (q as Record<string, unknown>).sharedWithGm === true)
+    .map((q) => {
+      const o = q as Record<string, unknown>;
+      const st = asStr(o.status);
+      const status: PlayerQuestStatus =
+        st === 'active' || st === 'completed' || st === 'failed' ? st : 'active';
+      const cat = asStr(o.category);
+      const category: PlayerQuestCategory | undefined =
+        cat === 'quest' || cat === 'goal' || cat === 'rumor' ? cat : undefined;
+      return {
+        id: asStr(o.id) || makePcId(),
+        title: asStr(o.title),
+        status,
+        notes: asStr(o.notes),
+        linkedEntityIds: asStrArr(o.linkedEntityIds),
+        sharedWithGm: true,
+        ...(category ? { category } : {}),
+      };
+    });
+}
+
+function normSharedAnnotations(v: unknown): PlayerLoreAnnotation[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v
+    .filter((a) => a && typeof a === 'object' && (a as Record<string, unknown>).sharedWithGm === true)
+    .map((a) => {
+      const o = a as Record<string, unknown>;
+      const tag = asStr(o.attitudeTag);
+      const attitudeTag: AttitudeTag | undefined =
+        tag === 'friendly' || tag === 'neutral' || tag === 'suspicious' || tag === 'hostile'
+          ? tag
+          : undefined;
+      return {
+        id: asStr(o.id) || makePcId(),
+        entityId: asStr(o.entityId),
+        ...(o.entityType ? { entityType: asStr(o.entityType) } : {}),
+        ...(o.entityName ? { entityName: asStr(o.entityName) } : {}),
+        ...(attitudeTag ? { attitudeTag } : {}),
+        privateNotes: asStr(o.privateNotes),
+        ...(o.sharedNotes !== undefined ? { sharedNotes: asStr(o.sharedNotes) } : {}),
+        sharedWithGm: true,
+      };
+    });
+}
+
+function normSharedJournal(v: unknown): PlayerJournalEntry[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v
+    .filter((j) => j && typeof j === 'object' && (j as Record<string, unknown>).sharedWithGm === true)
+    .map((j) => {
+      const o = j as Record<string, unknown>;
+      return {
+        id: asStr(o.id) || makePcId(),
+        sessionNumber: clampInt(o.sessionNumber, 0, 9999, 1),
+        date: asStr(o.date),
+        title: asStr(o.title),
+        content: asStr(o.content),
+        sharedWithGm: true,
+      };
+    });
+}
+
+function normTurnEconomy(v: unknown): TurnActionEconomy | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  return {
+    action: o.action === true,
+    bonusAction: o.bonusAction === true,
+    movement: o.movement === true,
+    reaction: o.reaction === true,
+    freeInteraction: o.freeInteraction === true,
+  };
 }
 
 function normAttacks(v: unknown): Attack[] {
@@ -220,6 +351,13 @@ export function normalizePc(input: unknown): PlayerCharacter {
   ) as SkillName[];
 
   const spellcastingAbility = asStr(o.spellcastingAbility);
+  const resourcePools = normResourcePools(o.resourcePools);
+  const pactSlots = normPactSlots(o.pactSlots);
+  const currency = normCurrency(o.currency);
+  const sharedQuests = normSharedQuests(o.sharedQuests);
+  const sharedAnnotations = normSharedAnnotations(o.sharedAnnotations);
+  const sharedJournal = normSharedJournal(o.sharedJournal);
+  const turnEconomy = normTurnEconomy(o.turnEconomy);
 
   return {
     id: asStr(o.id) || base.id,
@@ -252,6 +390,7 @@ export function normalizePc(input: unknown): PlayerCharacter {
     ac: clampInt(o.ac, 0, 99, 10),
     initiativeMod: Math.round(asNum(o.initiativeMod)),
     speed: clampInt(o.speed, 0, 999, 30),
+    ...(typeof o.inspiration === 'boolean' ? { inspiration: o.inspiration } : {}),
     conditions: asStrArr(o.conditions),
     exhaustion: clampInt(o.exhaustion, 0, 6, 0) as ExhaustionLevel,
     deathSaves: {
@@ -259,11 +398,16 @@ export function normalizePc(input: unknown): PlayerCharacter {
       failures: clampInt(ds.failures, 0, 3, 0) as DeathSaveCount,
     },
     ...(normSpellSlots(o.spellSlots) ? { spellSlots: normSpellSlots(o.spellSlots) } : {}),
+    ...(pactSlots ? { pactSlots } : {}),
     ...(Array.isArray(o.spellsKnown) ? { spellsKnown: asStrArr(o.spellsKnown) } : {}),
     ...(VALID_ABILITIES.has(spellcastingAbility)
       ? { spellcastingAbility: spellcastingAbility as AbilityName }
       : {}),
+    ...(resourcePools ? { resourcePools } : {}),
     inventory: normInventory(o.inventory),
+    ...(o.attunedCount !== undefined ? { attunedCount: clampInt(o.attunedCount, 0, 3, 0) } : {}),
+    ...(currency ? { currency } : {}),
+    ...(typeof o.partyLoot === 'string' ? { partyLoot: o.partyLoot } : {}),
     attacks: normAttacks(o.attacks),
     features: normFeatures(o.features),
     notes: asStr(o.notes),
@@ -271,6 +415,13 @@ export function normalizePc(input: unknown): PlayerCharacter {
     bonds: asStrArr(o.bonds),
     ideals: asStrArr(o.ideals),
     flaws: asStrArr(o.flaws),
+    ...(sharedQuests ? { sharedQuests } : {}),
+    ...(sharedAnnotations ? { sharedAnnotations } : {}),
+    ...(sharedJournal ? { sharedJournal } : {}),
+    ...(turnEconomy ? { turnEconomy } : {}),
+    ...(typeof o.concentrationSpell === 'string' ? { concentrationSpell: o.concentrationSpell } : {}),
+    ...(typeof o.downtimeDays === 'number' ? { downtimeDays: clampInt(o.downtimeDays, 0, 99999, 0) } : {}),
+    ...(o.renown && typeof o.renown === 'object' ? { renown: o.renown as Record<string, number> } : {}),
     ownership: normOwnership(o.ownership),
   };
 }

@@ -19,6 +19,18 @@ export type PcOwnership = {
   playerSlotId?: string;
 };
 
+import type {
+  CoinPurse,
+  InventoryItem,
+  PactMagicSlots,
+  PcFeature,
+  PcResourcePool,
+  PlayerJournalEntry,
+  PlayerLoreAnnotation,
+  PlayerQuest,
+  SpellSlotGroup,
+} from '@/lib/pc/types';
+
 // A projected player-character sheet. Modeled loosely (most fields optional and
 // best-effort typed) because the projection emits a redacted subset and the UI
 // reads many fields defensively with fallbacks.
@@ -29,20 +41,34 @@ export type PlayerPc = {
   level?: number;
   ac?: number;
   speed?: number;
+  initiativeMod?: number;
+  inspiration?: boolean;
   notes?: string;
   exhaustion?: number;
   conditions?: string[];
   proficiencyBonus?: number;
   ownership?: PcOwnership;
   hp?: { current?: number; max?: number; temp?: number };
+  hitDice?: { dieSize?: 4 | 6 | 8 | 10 | 12; max?: number; used?: number };
   deathSaves?: { successes?: number; failures?: number };
   abilities?: Record<string, number>;
   proficiencies?: { savingThrows?: string[]; skills?: string[] };
   classes?: Array<{ name?: string; level?: number }>;
+  spellSlots?: SpellSlotGroup[];
+  pactSlots?: PactMagicSlots | null;
+  resourcePools?: PcResourcePool[];
+  features?: PcFeature[];
+  inventory?: InventoryItem[];
+  attunedCount?: number;
+  currency?: CoinPurse;
+  partyLoot?: string;
   goals?: string[];
   bonds?: string[];
   ideals?: string[];
   flaws?: string[];
+  sharedQuests?: PlayerQuest[];
+  sharedAnnotations?: PlayerLoreAnnotation[];
+  sharedJournal?: PlayerJournalEntry[];
   [field: string]: unknown;
 };
 

@@ -57,8 +57,8 @@ describe('mergePcWritebacks — ownership guard', () => {
 
 describe('mergePcWritebacks — field-authority policy', () => {
   it('drops fields outside the player-editable allowlist (GM-authoritative)', () => {
-    const pcs = [pc('p1', { ownerType: 'player', playerSlotId: 'slot-a' }, { ac: 12 })];
-    const res = mergePcWritebacks(pcs, [wb('slot-a', 'p1', { ac: 99, name: 'Hacked' } as any)]);
+    const pcs = [pc('p1', { ownerType: 'player', playerSlotId: 'slot-a' }, { level: 3 })];
+    const res = mergePcWritebacks(pcs, [wb('slot-a', 'p1', { level: 20, name: 'Hacked' } as any)]);
     expect(res.changed).toBe(false);
     expect(res.rejected.map((r) => r.reason).sort()).toEqual(['field-not-allowed', 'field-not-allowed']);
   });
@@ -73,8 +73,64 @@ describe('mergePcWritebacks — field-authority policy', () => {
   it('applies a player-authoritative field over the current GM value', () => {
     const pcs = [pc('p1', { ownerType: 'player', playerSlotId: 'slot-a' })];
     pcs[0] = { ...(pcs[0] as any), hp: { current: 10, max: 10, temp: 0 } } as PlayerCharacter;
-    const res = mergePcWritebacks(pcs, [wb('slot-a', 'p1', { 'hp.current': 4 })]);
+    const res = mergePcWritebacks(pcs, [wb('slot-a', 'p1', { 'hp.current': 4, ac: 17, inspiration: true })]);
     expect((res.pcs[0] as any).hp.current).toBe(4);
+    expect((res.pcs[0] as any).ac).toBe(17);
+    expect((res.pcs[0] as any).inspiration).toBe(true);
+  });
+
+  it('strictly filters out unshared quests, annotations, and journal entries (sharedWithGm !== true)', () => {
+    const pcs = [pc('p1', { ownerType: 'player', playerSlotId: 'slot-a' })];
+    const res = mergePcWritebacks(pcs, [
+      wb('slot-a', 'p1', {
+        sharedQuests: [
+          { id: 'q-public', title: 'Public Quest', status: 'active', notes: 'Tell the GM', linkedEntityIds: [], sharedWithGm: true },
+          { id: 'q-secret', title: 'Secret Betrayal', status: 'active', notes: 'Steal the crown', linkedEntityIds: [], sharedWithGm: false },
+        ],
+        sharedAnnotations: [
+          { id: 'a-public', entityId: 'npc-1', attitudeTag: 'suspicious', privateNotes: 'He lied to us', sharedWithGm: true },
+          { id: 'a-secret', entityId: 'npc-2', attitudeTag: 'hostile', privateNotes: 'My secret target', sharedWithGm: false },
+        ],
+        sharedJournal: [
+          { id: 'j-public', sessionNumber: 1, date: '2026-01-01', title: 'Session 1', content: 'We met at the tavern', sharedWithGm: true },
+          { id: 'j-secret', sessionNumber: 2, date: '2026-01-08', title: 'Private Diary', content: 'My secret plot', sharedWithGm: false },
+        ],
+      }),
+    ]);
+
+    expect(res.changed).toBe(true);
+    expect(res.pcs[0].sharedQuests).toHaveLength(1);
+    expect(res.pcs[0].sharedQuests?.[0].id).toBe('q-public');
+    expect(res.pcs[0].sharedAnnotations).toHaveLength(1);
+    expect(res.pcs[0].sharedAnnotations?.[0].id).toBe('a-public');
+    expect(res.pcs[0].sharedJournal).toHaveLength(1);
+    expect(res.pcs[0].sharedJournal?.[0].id).toBe('j-public');
+    const serialized = JSON.stringify(res.pcs);
+    expect(serialized).not.toContain('Secret Betrayal');
+    expect(serialized).not.toContain('Steal the crown');
+    expect(serialized).not.toContain('My secret target');
+    expect(serialized).not.toContain('My secret plot');
+  });
+
+  it('removes previously shared items when a tombstone is emitted on toggle OFF', () => {
+    const pcs = [
+      pc('p1', { ownerType: 'player', playerSlotId: 'slot-a' }, {
+        sharedQuests: [
+          { id: 'q-1', title: 'Previously Shared', status: 'active', notes: 'Was public', linkedEntityIds: [], sharedWithGm: true },
+          { id: 'q-2', title: 'Still Shared', status: 'active', notes: 'Keep public', linkedEntityIds: [], sharedWithGm: true },
+        ],
+      }),
+    ];
+    const res = mergePcWritebacks(pcs, [
+      wb('slot-a', 'p1', {
+        sharedTombstones: [{ id: 'q-1', kind: 'quest', deletedAt: 500 }],
+      }),
+    ]);
+
+    expect(res.changed).toBe(true);
+    expect(res.pcs[0].sharedQuests).toHaveLength(1);
+    expect(res.pcs[0].sharedQuests?.[0].id).toBe('q-2');
+    expect(JSON.stringify(res.pcs[0])).not.toContain('Previously Shared');
   });
 });
 

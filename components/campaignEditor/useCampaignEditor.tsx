@@ -99,7 +99,7 @@ export function useCampaignEditor(props: CampaignEditorProps) {
     });
     window.scrollTo(0, 0);
   }, [mode, subview]);
-  const [playMode, setPlayMode] = useState<'solo' | 'duet' | 'standard'>(() => {
+  const [playMode, setPlayMode] = useState<'solo' | 'duet' | 'standard' | 'player'>(() => {
     return campaign.data?.mode ?? (campaign.data?.__soloMode === true ? 'duet' : 'standard');
   });
   const roster = state.player?.roster || [];

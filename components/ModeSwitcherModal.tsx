@@ -1,17 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Sparkles, User, Users, Info } from 'lucide-react';
+import { X, Sparkles, User, Users, Compass, Info } from 'lucide-react';
+
+type PlayModeOption = 'solo' | 'duet' | 'standard' | 'player';
 
 type Props = {
   open: boolean;
-  currentMode: 'solo' | 'duet' | 'standard';
+  currentMode: PlayModeOption;
   onClose: () => void;
-  onSave: (mode: 'solo' | 'duet' | 'standard') => void;
+  onSave: (mode: PlayModeOption) => void;
 };
 
 export default function ModeSwitcherModal({ open, currentMode, onClose, onSave }: Props) {
-  const [selectedMode, setSelectedMode] = useState<'solo' | 'duet' | 'standard'>(currentMode);
+  const [selectedMode, setSelectedMode] = useState<PlayModeOption>(currentMode);
 
   useEffect(() => {
     if (open) {
@@ -70,11 +72,43 @@ export default function ModeSwitcherModal({ open, currentMode, onClose, onSave }
           <div className="flex items-start gap-2.5 rounded border border-brass-deep/20 bg-brass/5 p-3 text-xs leading-relaxed text-brass-deep">
             <Info size={16} className="mt-0.5 flex-shrink-0" />
             <p>
-              Changing the campaign's play mode adjusts the visual layout, prep target scales, and active tools (such as Player Mode or the Wells Oracle). <strong>No data will be deleted or altered</strong> in your database.
+              Changing the campaign&apos;s play mode adjusts the visual layout, prep target scales, and active tools (such as Player Companion Mode or the Wells Oracle). <strong>No data will be deleted or altered</strong> in your database.
             </p>
           </div>
 
           <div className="space-y-3">
+            {/* Player Companion Mode Card */}
+            <button
+              type="button"
+              onClick={() => setSelectedMode('player')}
+              className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-all ${
+                selectedMode === 'player'
+                  ? 'border-indigo-500 bg-indigo-950/5 text-ink'
+                  : 'border-rule bg-transparent text-ink-soft hover:border-indigo-500/50'
+              }`}
+            >
+              <div
+                className={`rounded-md p-2 ${
+                  selectedMode === 'player' ? 'bg-indigo-500/15 text-indigo-500' : 'bg-parchment-deep text-ink-soft'
+                }`}
+              >
+                <Compass size={18} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-sm font-semibold tracking-wide">Player Mode (Adventurer Companion)</span>
+                  {selectedMode === 'player' && (
+                    <span className="py-0.2 rounded border border-indigo-500/30 bg-indigo-500/15 px-1.5 font-display text-[10px] font-semibold uppercase tracking-wider text-indigo-500">
+                      Selected
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 font-serif text-[11px] leading-relaxed text-ink-mute">
+                  Standalone Adventurer&apos;s Notebook &amp; Table HUD for playing in any campaign (even if your DM doesn&apos;t use gmAssistant). Adapts workspace tabs to Sheet, Quests &amp; Clues, World &amp; Journal, Gear &amp; Loot, and Play (Table HUD).
+                </p>
+              </div>
+            </button>
+
             {/* Solo Card */}
             <button
               type="button"
@@ -194,3 +228,4 @@ export default function ModeSwitcherModal({ open, currentMode, onClose, onSave }
     </div>
   );
 }
+

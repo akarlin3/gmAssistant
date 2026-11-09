@@ -19,7 +19,7 @@ type Props = {
   onModeChange: (mode: Mode) => void;
   onSubviewChange: (subview: string) => void;
   worldOnlyMode?: boolean;
-  playMode?: 'solo' | 'duet' | 'standard';
+  playMode?: 'solo' | 'duet' | 'standard' | 'player';
 };
 
 export default function ModeNav({ mode, subview, onModeChange, onSubviewChange, worldOnlyMode, playMode }: Props) {
