@@ -212,7 +212,88 @@ export type PlayerCharacter = {
   renown?: number | Record<string, number>;
   updatedAt?: number;
 
+  // Derived & evaluated mechanical fields
+  abilityModifiers?: Record<AbilityName, number>;
+  passivePerception?: number;
+  passiveInvestigation?: number;
+  passiveInsight?: number;
+  spellSaveDc?: number;
+  spellAttackBonus?: number;
+  carryingCapacity?: number;
+  senses?: string[];
+  resistances?: string[];
+  immunities?: string[];
+  skillExpertise?: SkillName[];
+  evaluation?: CharacterEvaluation;
+
   ownership?: PcOwnership;
+};
+
+export type PartyRole =
+  | 'Frontline'
+  | 'Striker'
+  | 'Controller'
+  | 'Support'
+  | 'Utility'
+  | 'Face';
+
+export const PARTY_ROLES: readonly PartyRole[] = [
+  'Frontline',
+  'Striker',
+  'Controller',
+  'Support',
+  'Utility',
+  'Face',
+];
+
+export type DefensiveSaveEntry = {
+  ability: AbilityName;
+  bonus: number;
+};
+
+export type DefensiveProfile = {
+  ac: number;
+  acSummary: string;
+  strongestSaves: DefensiveSaveEntry[];
+  weakestSaves: DefensiveSaveEntry[];
+  resistances: string[];
+  immunities: string[];
+  senses: string[];
+};
+
+export type CharacterAuditCategory =
+  | 'attunement'
+  | 'ability-math'
+  | 'ac-math'
+  | 'concentration'
+  | 'level-up'
+  | 'general';
+
+export type CharacterAuditNote = {
+  id: string;
+  severity: 'info' | 'warning';
+  category: CharacterAuditCategory;
+  message: string;
+};
+
+export type CharacterDerivedStats = {
+  abilityModifiers: Record<AbilityName, number>;
+  proficiencyBonus: number;
+  passivePerception: number;
+  passiveInvestigation: number;
+  passiveInsight: number;
+  spellSaveDc: number | null;
+  spellAttackBonus: number | null;
+  initiativeBonus: number;
+  carryingCapacity: number;
+};
+
+export type CharacterEvaluation = {
+  partyRoles: PartyRole[];
+  defensiveProfile: DefensiveProfile;
+  auditNotes: CharacterAuditNote[];
+  derivedStats?: CharacterDerivedStats;
+  evaluatedAt?: number;
 };
 
 export type PcOwnership = {
@@ -221,4 +302,5 @@ export type PcOwnership = {
 };
 
 export const PC_CAP = 6;
+
 

@@ -13,6 +13,7 @@ interface PartyPhaseProps {
     | 'addPc' | 'done' | 'get' | 'isPro' | 'open' | 'openPcs' | 'pcFileInputRef' | 'pcUploadError'
     | 'pcs' | 'phaseOpen' | 'removePc' | 'roster' | 'setOpenPcs' | 'setVal'
     | 'toggleDone' | 'toggleOpen' | 'togglePhase' | 'tgt' | 'updatePc' | 'uploadPcSheet' | 'uploadingPc'
+    | 'writePcs'
   >;
 }
 
@@ -21,6 +22,7 @@ export function PartyPhase({ ed }: PartyPhaseProps) {
     addPc, done, get, isPro, open, openPcs, pcFileInputRef, pcUploadError,
     pcs, phaseOpen, removePc, roster, setOpenPcs, setVal,
     toggleDone, toggleOpen, togglePhase, tgt, updatePc, uploadPcSheet, uploadingPc,
+    writePcs,
   } = ed;
   return (
     <Phase n="2" title="Session 0 — Party & Goals" sub="PCs Created After the World Exists" methods={['pr', 'shea']} audience="together" icon={Users} expanded={phaseOpen.p2} onToggle={() => togglePhase('p2')}>
@@ -39,11 +41,13 @@ export function PartyPhase({ ed }: PartyPhaseProps) {
             onUpdate={updatePc}
             onRemove={removePc}
             onUploadClick={() => pcFileInputRef.current?.click()}
+            onWritePcs={writePcs}
             roster={roster}
           />
           <input
             ref={pcFileInputRef}
             type="file"
+            multiple
             accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.md,.json,application/pdf,image/png,image/jpeg,image/webp,image/gif,text/plain,application/json,text/markdown"
             onChange={uploadPcSheet}
             className="hidden"

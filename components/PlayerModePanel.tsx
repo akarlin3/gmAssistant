@@ -25,7 +25,9 @@ import {
   applyNarrationReveal, makeLogEntryId, type Mention, type PlayerLogEntry,
 } from '@/lib/playerMode/sessionLog';
 import { normalizePcs } from '@/lib/pc/factory';
+import type { PlayerCharacter } from '@/lib/pc/types';
 import PlayerSharedQuestsNotesPanel from './PlayerSharedQuestsNotesPanel';
+import { PartyRosterRunTracker } from './pcSheet/EvaluationToastAndReport';
 
 type AnyData = Record<string, any>;
 type Confirm = (o: { title: string; message: string; confirmText?: string; cancelText?: string; isDestructive?: boolean }) => Promise<boolean>;
@@ -54,7 +56,7 @@ const SectionCard = ({ title, icon, children, defaultOpen = false }: { title: st
 };
 
 export default function PlayerModePanel({
-  campaignId, campaignName, data, config, onConfigChange, confirm, playerLog, onPlayerLogChange,
+  campaignId, campaignName, data, config, onConfigChange, confirm, playerLog, onPlayerLogChange, onPcsChange,
 }: {
   campaignId: string;
   campaignName: string;
@@ -64,6 +66,7 @@ export default function PlayerModePanel({
   confirm: Confirm;
   playerLog: PlayerLogEntry[];
   onPlayerLogChange: (entries: PlayerLogEntry[]) => void;
+  onPcsChange?: (pcs: PlayerCharacter[]) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'done' | 'error'>('idle');
@@ -255,6 +258,14 @@ export default function PlayerModePanel({
             <Plus size={14} /> Add slot
           </button>
         </div>
+      </SectionCard>
+
+      {/* Party Character Sheets (Batch Upload & Roster) */}
+      <SectionCard title={`Party Character Sheets (${normalizePcs(data.pcs ?? []).length})`} icon={<Users size={16} />} defaultOpen>
+        <PartyRosterRunTracker
+          pcs={normalizePcs(data.pcs ?? [])}
+          onPcsChange={onPcsChange}
+        />
       </SectionCard>
 
       {/* Field defaults */}

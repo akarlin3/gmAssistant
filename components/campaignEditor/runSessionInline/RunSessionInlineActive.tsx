@@ -20,6 +20,7 @@ import { Empty, Detail } from '../prepShared';
 import { formatElapsed } from './helpers';
 import { ActivePrepGroup, CompactCard, ExpandableCard } from './cards';
 import PlayerSharedQuestsNotesPanel from '../../PlayerSharedQuestsNotesPanel';
+import { PartyRosterRunTracker } from '../../pcSheet/EvaluationToastAndReport';
 
 export function InlineNoteSeed({ trackEvent }: { trackEvent: (kind: ChangeEventKind, summary: string) => void }) {
   const [text, setText] = useState('');
@@ -591,6 +592,14 @@ export function RunSessionInlineActive({
         </div>
 
         <div className="space-y-3 lg:sticky lg:top-3 lg:self-start">
+          <PanelShell title={`Party Roster & Defenses (${party.length})`} icon={Users} open={true} onToggle={() => {}}>
+            <PartyRosterRunTracker
+              pcs={party}
+              onPcsChange={(nextPcs) => setVal('pcs', nextPcs)}
+              compact
+            />
+          </PanelShell>
+
           <PanelShell title="Initiative" icon={Swords} open={initiativeOpen} onToggle={() => setInitiativeOpen(o => !o)}>
             {initiativeOpen ? (
               <InitiativePanel

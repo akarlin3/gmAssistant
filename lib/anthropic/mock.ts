@@ -31,6 +31,67 @@ function lastUserText(options: MessageCreateOptions): string {
 }
 
 export function getMockResponse(options: MessageCreateOptions): MessageResponse {
+  const outputConfig = (options as unknown as { output_config?: { format?: { type?: string } } }).output_config;
+  if (outputConfig?.format?.type === 'json_schema') {
+    const mockSheet = {
+      name: 'Lyra Silverhand',
+      player: '',
+      race: 'High Elf',
+      classLevel: 'Wizard 5 (Evocation)',
+      gestalt: false,
+      classLevel2: '',
+      background: 'Sage',
+      alignment: 'Neutral Good',
+      experience: '6500',
+      abilities: {
+        str: '8 (-1)',
+        dex: '14 (+2)',
+        con: '14 (+2)',
+        int: '18 (+4)',
+        wis: '12 (+1)',
+        cha: '10 (+0)',
+      },
+      saves: 'INT +7, WIS +4',
+      ac: '15',
+      hp: '32',
+      hpMax: '32',
+      initiative: '+2',
+      speed: '30',
+      profBonus: '+3',
+      hitDice: '5d6',
+      skills: 'Arcana +7, History +7, Investigation +7, Perception +4',
+      passivePerception: '14',
+      languages: 'Common, Elvish, Draconic, Celestial',
+      proficiencies: 'Daggers, darts, slings, quarterstaffs, light crossbows',
+      attacks: [
+        { name: 'Fire Bolt', bonus: '+7', damage: '2d10 fire', notes: '120 ft.' },
+        { name: 'Quarterstaff', bonus: '+2', damage: '1d6-1 bludgeoning', notes: 'Versatile (1d8)' },
+      ],
+      equipment: 'Spellbook\nArcane Focus\nScholar\'s Pack\nCloak of Protection',
+      currency: { cp: '0', sp: '15', ep: '0', gp: '120', pp: '2' },
+      features: 'Arcane Recovery. Recover spell slots on a short rest. (Wizard 1)\nSculpt Spells. Protect allies from evocation spells. (Wizard 2)',
+      personality: 'Curious and methodical.',
+      ideals: 'Knowledge is the path to enlightenment.',
+      bonds: 'I guard an ancient tome of Netherese lore.',
+      flaws: 'I overlook obvious danger when ancient magic is involved.',
+      appearance: 'Silver hair and starlight-blue robes.',
+      backstory: 'Trained at the Blackstaff Tower.',
+      spellcasting: {
+        ability: 'INT',
+        saveDC: '15',
+        attackBonus: '+7',
+        slots: 'L1: 4, L2: 3, L3: 2',
+      },
+      spells: 'Cantrip — Fire Bolt\nLvl 1 — Mage Armor\nLvl 1 — Shield\nLvl 2 — Hold Person\nLvl 2 — Misty Step\nLvl 3 — Fireball\nLvl 3 — Counterspell',
+      notes: 'Darkvision 60 ft.',
+    };
+    return buildMessageResponse(
+      MOCK_MODEL,
+      [{ type: 'text', text: JSON.stringify(mockSheet) }],
+      newMessageId,
+    );
+  }
+
   const content: ResponseContentBlock[] = [];
   const userText = lastUserText(options);
 

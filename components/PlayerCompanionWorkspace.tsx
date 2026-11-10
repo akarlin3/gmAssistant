@@ -30,6 +30,12 @@ import {
 import PcSheet from './PcSheet';
 import { QuickDice } from './RunSessionView';
 import { shortRest, longRest } from '@/lib/pc/rest';
+import {
+  SheetUploadDropzone,
+  SheetUploadToast,
+  type SheetUploadBannerState,
+} from './pcSheet/EvaluationToastAndReport';
+import { uploadAndMergePcFiles } from './campaignEditor/useCampaignEditor/useSheetUpload';
 import type {
   CoinPurse,
   InventoryItem,
@@ -146,6 +152,44 @@ export default function PlayerCompanionWorkspace({
   const [newPoolName, setNewPoolName] = useState('');
   const [newPoolMax, setNewPoolMax] = useState(3);
   const [newPoolRecharge, setNewPoolRecharge] = useState<RechargeTiming>('short');
+  const [localUploading, setLocalUploading] = useState(false);
+  const [localUploadError, setLocalUploadError] = useState<string | null>(null);
+  const [uploadBanner, setUploadBanner] = useState<SheetUploadBannerState | null>(null);
+
+  const handleCompanionFilesSelected = async (files: File[]) => {
+    if (files.length === 0) return;
+    setLocalUploading(true);
+    setLocalUploadError(null);
+    const snapshot = pcs.map((p) => ({ ...p }));
+    try {
+      const targetPcId =
+        files.length === 1 && activePc && (!activePc.name || activePc.name === 'New Character' || pcs.length === 1)
+          ? activePc.id
+          : undefined;
+      const { nextPcs, evaluatedPcs } = await uploadAndMergePcFiles(
+        files,
+        pcs,
+        {},
+        (next) => setVal('pcs', next),
+        undefined,
+        { targetPcId },
+      );
+      if (evaluatedPcs.length === 1 && activePc && evaluatedPcs[0].id === activePc.id) {
+        onUpdatePc(evaluatedPcs[0]);
+      } else {
+        setVal('pcs', nextPcs);
+      }
+      setUploadBanner({
+        message: 'Character Evaluated & Saved (Active HP & Spent Resources Preserved)',
+        pcs: evaluatedPcs,
+        onUndo: () => setVal('pcs', snapshot),
+      });
+    } catch (err: any) {
+      setLocalUploadError(err?.message || 'Failed to parse character sheet');
+    } finally {
+      setLocalUploading(false);
+    }
+  };
 
   // --- Quests & Clues Form State ---
   const [questCategoryFilter, setQuestCategoryFilter] = useState<'all' | 'quest' | 'goal' | 'rumor' | 'mystery'>('all');
@@ -363,19 +407,27 @@ export default function PlayerCompanionWorkspace({
                 Character Sheet &amp; Resource Dashboard
               </h2>
               <p className="font-serif text-xs text-ink-soft">
-                Import a character sheet PDF/JSON or edit vitals, spell slots, class resources, and rest recovery manually.
+                Drop or select a character sheet (.pdf, .json, or image) to auto-evaluate &amp; delta-merge while preserving active HP, spent resources, quests, and journal notes.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <SheetUploadDropzone
+                onFilesSelected={handleCompanionFilesSelected}
+                uploading={Boolean(uploadingChar || localUploading)}
+                multiple={true}
+                compact
+                buttonLabel="Upload / Drop Sheet"
+                label="Drop .pdf, .json, or image sheet to evaluate & save"
+              />
               {onUploadClick && (
                 <button
                   type="button"
                   onClick={onUploadClick}
-                  disabled={uploadingChar}
+                  disabled={uploadingChar || localUploading}
                   className="inline-flex items-center gap-1.5 rounded border border-brass-deep bg-brass/15 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment disabled:opacity-50"
                 >
                   <FileUp size={13} />
-                  {uploadingChar ? 'Parsing Sheet…' : 'Import Character Sheet'}
+                  {uploadingChar || localUploading ? 'Parsing Sheet…' : 'Import Character Sheet'}
                 </button>
               )}
               <button
@@ -388,9 +440,14 @@ export default function PlayerCompanionWorkspace({
             </div>
           </div>
 
-          {uploadError && (
+          <SheetUploadToast
+            banner={uploadBanner}
+            onDismiss={() => setUploadBanner(null)}
+          />
+
+          {(uploadError || localUploadError) && (
             <div className="rounded border border-crimson/40 bg-crimson/10 px-3 py-2 font-serif text-xs text-crimson">
-              {uploadError}
+              {localUploadError || uploadError}
             </div>
           )}
 

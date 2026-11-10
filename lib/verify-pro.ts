@@ -54,6 +54,30 @@ export async function verifyPro(idToken: string): Promise<VerifyProResult> {
   return { ok: true, email, uid };
 }
 
+export async function verifyFirebaseUser(idToken: string): Promise<VerifyProResult> {
+  const projectId = getProjectId();
+  if (!projectId) {
+    return { ok: false, status: 500, message: 'Server misconfigured' };
+  }
+
+  let payload: JWTPayload;
+  try {
+    const verified = await jwtVerify(idToken, getJwks(), {
+      issuer: `https://securetoken.google.com/${projectId}`,
+      audience: projectId,
+    });
+    payload = verified.payload;
+  } catch (e) {
+    console.error('[verifyFirebaseUser] jwtVerify failed:', e);
+    return { ok: false, status: 401, message: 'Invalid auth token' };
+  }
+
+  const uid = typeof payload.sub === 'string' ? payload.sub : '';
+  const email = (typeof payload.email === 'string' ? payload.email : '').toLowerCase();
+  if (!uid) return { ok: false, status: 401, message: 'Could not resolve uid from token' };
+  return { ok: true, email, uid };
+}
+
 async function fetchUserDoc(
   projectId: string,
   uid: string,

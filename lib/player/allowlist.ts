@@ -74,6 +74,7 @@ export const PLAYER_EDITABLE_FIELDS = [
   'concentrationSpell',  // Active concentration spell name (string)
   'downtimeDays',        // Tracked downtime days (non-negative integer)
   'renown',              // Tracked renown score (integer)
+  'evaluation',          // Tactical & mechanical sheet evaluation summary
 ] as const;
 
 export type PlayerEditableField = (typeof PLAYER_EDITABLE_FIELDS)[number];
@@ -107,7 +108,19 @@ const SpellSlotSchema = z.object({
   level: z.number().int().min(1).max(9),
   max: z.number().int().min(0).max(20),
   used: z.number().int().min(0).max(20),
+  current: z.number().int().min(0).max(20).optional(),
 });
+
+const SpellSlotRecordValueSchema = z.object({
+  max: z.number().int().min(0).max(20),
+  used: z.number().int().min(0).max(20),
+  current: z.number().int().min(0).max(20).optional(),
+});
+
+const SpellSlotRecordSchema = z.record(
+  z.enum(['1', '2', '3', '4', '5', '6', '7', '8', '9']),
+  SpellSlotRecordValueSchema,
+);
 
 const ResourcePoolSchema = z.object({
   id: z.string().min(1),
@@ -118,12 +131,20 @@ const ResourcePoolSchema = z.object({
 });
 
 const FeatureSchema = z.object({
+  id: z.string().optional(),
   name: z.string(),
   source: z.string().optional(),
   description: z.string().optional(),
   usesMax: z.number().int().min(0).optional(),
   usesRemaining: z.number().int().min(0).optional(),
   recharge: z.enum(['short', 'long', 'dawn', 'other']).optional(),
+  uses: z
+    .object({
+      max: z.number().int().min(0),
+      used: z.number().int().min(0),
+      refresh: z.enum(['short', 'long']),
+    })
+    .optional(),
 });
 
 const InventoryItemSchema = z.object({
@@ -133,6 +154,7 @@ const InventoryItemSchema = z.object({
   equipped: z.boolean().optional(),
   attuned: z.boolean().optional(),
   weight: z.number().min(0).optional(),
+  description: z.string().optional(),
   notes: z.string().optional(),
   sharedWithGm: z.boolean().optional(),
 });
@@ -182,7 +204,8 @@ const PlayerJournalEntrySchema = z.object({
 const TombstoneSchema = z.object({
   id: z.string().min(1),
   kind: z.enum(['quest', 'annotation', 'journal']),
-  deletedAt: z.number(),
+  deletedAt: z.number().optional(),
+  removedAtMs: z.number().optional(),
 });
 
 const TurnEconomySchema = z.object({
@@ -191,6 +214,53 @@ const TurnEconomySchema = z.object({
   movementUsed: z.boolean(),
   reactionUsed: z.boolean(),
   freeInteractionUsed: z.boolean(),
+});
+
+const AbilitySaveEntrySchema = z.object({
+  ability: z.enum(['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']),
+  bonus: z.number().int().min(-20).max(30),
+});
+
+const EvaluationSchema = z.object({
+  partyRoles: z.array(z.enum(['Frontline', 'Striker', 'Controller', 'Support', 'Utility', 'Face'])),
+  defensiveProfile: z.object({
+    ac: z.number().int().min(0).max(50),
+    acSummary: z.string(),
+    strongestSaves: z.array(AbilitySaveEntrySchema),
+    weakestSaves: z.array(AbilitySaveEntrySchema),
+    resistances: z.array(z.string()),
+    immunities: z.array(z.string()),
+    senses: z.array(z.string()),
+  }),
+  auditNotes: z.array(
+    z.object({
+      id: z.string(),
+      severity: z.enum(['info', 'warning']),
+      category: z.enum([
+        'attunement',
+        'ability-math',
+        'ac-math',
+        'concentration',
+        'level-up',
+        'general',
+      ]),
+      message: z.string(),
+    }),
+  ),
+  derivedStats: z
+    .object({
+      abilityModifiers: z.record(z.string(), z.number().int().min(-10).max(20)),
+      proficiencyBonus: z.number().int().min(1).max(10),
+      passivePerception: z.number().int().min(0).max(50),
+      passiveInvestigation: z.number().int().min(0).max(50),
+      passiveInsight: z.number().int().min(0).max(50),
+      spellSaveDc: z.number().int().min(0).max(40).nullable(),
+      spellAttackBonus: z.number().int().min(-10).max(30).nullable(),
+      initiativeBonus: z.number().int().min(-20).max(30),
+      carryingCapacity: z.number().min(0).max(99999),
+    })
+    .optional(),
+  evaluatedAt: z.number().optional(),
 });
 
 /**
@@ -246,7 +316,7 @@ export function validatePlayerField(field: string, value: unknown): boolean {
       return z.number().int().min(-20).max(30).safeParse(value).success;
 
     case 'spellSlots':
-      return z.array(SpellSlotSchema).safeParse(value).success;
+      return z.union([z.array(SpellSlotSchema), SpellSlotRecordSchema]).safeParse(value).success;
 
     case 'pactSlots':
       return z.union([SpellSlotSchema, z.null()]).safeParse(value).success;
@@ -297,6 +367,9 @@ export function validatePlayerField(field: string, value: unknown): boolean {
 
     case 'renown':
       return z.number().int().min(-999).max(9999).safeParse(value).success;
+
+    case 'evaluation':
+      return EvaluationSchema.safeParse(value).success;
 
     default:
       // Fail-closed for any path that falls outside our switch statement mapping

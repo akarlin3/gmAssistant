@@ -1,6 +1,6 @@
 'use client';
 
-import { Dice5, Sparkles, Swords, Music } from 'lucide-react';
+import { Dice5, Sparkles, Swords, Music, Users } from 'lucide-react';
 import InitiativePanel from '../../InitiativePanel';
 import { MusicPlayer } from '../MusicPlayer';
 import { PanelShell } from '../sections';
@@ -12,6 +12,7 @@ import type { CampaignContext } from '@/lib/generators/types';
 import type { ChangeEvent } from '@/lib/sessionEvents';
 import type { Get, SetVal } from '../types';
 import type { SessionSyncAnchor } from './types';
+import { PartyRosterRunTracker } from '../../pcSheet/EvaluationToastAndReport';
 
 type Props = {
   get: Get;
@@ -43,6 +44,14 @@ export function ToolsPanel({
 }: Props) {
   return (
     <>
+      <PanelShell title={`Party Roster & Defenses (${party.length})`} icon={Users} open={true} onToggle={() => {}}>
+        <PartyRosterRunTracker
+          pcs={party}
+          onPcsChange={(nextPcs) => setVal('pcs', nextPcs)}
+          compact
+        />
+      </PanelShell>
+
       <PanelShell title="Initiative" icon={Swords} open={initiativeOpen} onToggle={() => setInitiativeOpen(!initiativeOpen)}>
         {initiativeOpen ? (
           <InitiativePanel

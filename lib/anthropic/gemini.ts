@@ -57,11 +57,19 @@ export function toGeminiSchema(schema: JsonSchema | undefined): JsonSchema | und
   return copy;
 }
 
+type GeminiRequestPart =
+  | { text: string }
+  | { inlineData: { mimeType: string; data: string } };
+
 interface GeminiPayload {
-  contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }>;
+  contents: Array<{ role: 'user' | 'model'; parts: GeminiRequestPart[] }>;
   systemInstruction: { parts: Array<{ text: string }> } | undefined;
   tools: Array<{ functionDeclarations: Array<{ name: string; description?: string; parameters?: JsonSchema }> }> | undefined;
-  generationConfig: { maxOutputTokens?: number; temperature?: number };
+  generationConfig: {
+    maxOutputTokens?: number;
+    temperature?: number;
+    responseMimeType?: string;
+  };
 }
 
 export function mapAnthropicToGemini(options: MessageCreateOptions): GeminiPayload {
@@ -80,13 +88,23 @@ export function mapAnthropicToGemini(options: MessageCreateOptions): GeminiPaylo
 
   const contents = options.messages.map((msg) => {
     const role: 'user' | 'model' = msg.role === 'assistant' ? 'model' : 'user';
-    let parts: Array<{ text: string }> = [];
+    let parts: GeminiRequestPart[] = [];
     if (typeof msg.content === 'string') {
       parts = [{ text: msg.content }];
     } else if (Array.isArray(msg.content)) {
       parts = msg.content.map((block) => {
         if (block.type === 'text') {
           return { text: (block as { text: string }).text };
+        } else if (block.type === 'image' || block.type === 'document') {
+          const src = (block as { source?: { type?: string; media_type?: string; data?: string } }).source;
+          if (src && src.type === 'base64' && src.media_type && src.data) {
+            return {
+              inlineData: {
+                mimeType: src.media_type,
+                data: src.data,
+              },
+            };
+          }
         } else if (block.type === 'tool_use') {
           const b = block as { name: string; input: unknown };
           return { text: `[Tool call proposed: name=${b.name}, input=${JSON.stringify(b.input)}]` };
@@ -115,6 +133,10 @@ export function mapAnthropicToGemini(options: MessageCreateOptions): GeminiPaylo
   }
   if (options.temperature !== undefined) {
     generationConfig.temperature = options.temperature;
+  }
+  const outputConfig = (options as unknown as { output_config?: { format?: { type?: string } } }).output_config;
+  if (outputConfig?.format?.type === 'json_schema') {
+    generationConfig.responseMimeType = 'application/json';
   }
 
   return { contents, systemInstruction, tools: geminiTools, generationConfig };

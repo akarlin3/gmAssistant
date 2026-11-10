@@ -9,7 +9,16 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { X, Plus, Heart, Sparkles, Shield, Zap, Footprints, Moon, Sun, Flame, Dice5 } from 'lucide-react';
 import { submitPlayerUpdate, submitPlayerBatchUpdate } from '@/lib/playerMode/playerClient';
-import type { PactMagicSlots, PcResourcePool, RechargeTiming, SpellSlotGroup } from '@/lib/pc/types';
+import { parseCharacterSheetFile } from '@/lib/characterSheetParser';
+import { mergeUploadedCharacterSheet, buildPlayerWritebackFromMergedPc } from '@/lib/characterMerge';
+import { normalizePc } from '@/lib/pc/factory';
+import {
+  SheetUploadDropzone,
+  SheetUploadToast,
+  DefensiveProfileInlineBadge,
+  type SheetUploadBannerState,
+} from '../pcSheet/EvaluationToastAndReport';
+import type { CharacterEvaluation, PactMagicSlots, PcResourcePool, PlayerCharacter, RechargeTiming, SpellSlotGroup } from '@/lib/pc/types';
 import {
   ABILITY_KEYS,
   CONDITION_OPTIONS,
@@ -125,6 +134,14 @@ export default function PlayerPcSheetCard({
   const [localSpellSlots, setLocalSpellSlots] = useState<SpellSlotGroup[]>(() => getInitialValue('spellSlots', pc.spellSlots ?? []));
   const [localPactSlots, setLocalPactSlots] = useState<PactMagicSlots | null>(() => getInitialValue('pactSlots', pc.pactSlots ?? null));
   const [localResourcePools, setLocalResourcePools] = useState<PcResourcePool[]>(() => getInitialValue('resourcePools', pc.resourcePools ?? []));
+  const [localEvaluation, setLocalEvaluation] = useState<CharacterEvaluation | undefined>(() =>
+    getInitialValue('evaluation', pc.evaluation),
+  );
+
+  // Sheet upload state
+  const [uploadingSheet, setUploadingSheet] = useState(false);
+  const [sheetUploadError, setSheetUploadError] = useState<string | null>(null);
+  const [uploadBanner, setUploadBanner] = useState<SheetUploadBannerState | null>(null);
 
   // New resource pool inline form state
   const [newPoolName, setNewPoolName] = useState('');
@@ -563,6 +580,95 @@ export default function PlayerPcSheetCard({
     sendUpdate(field, current);
   };
 
+  const applyMergedPcToLocalState = (target: PlayerCharacter) => {
+    setLocalHp(target.hp.current);
+    setLocalMaxHp(target.hp.max);
+    setLocalTempHp(target.hp.temp);
+    setLocalHitDice({
+      dieSize: ([4, 6, 8, 10, 12].includes(target.hitDice.dieSize) ? target.hitDice.dieSize : 8) as 4 | 6 | 8 | 10 | 12,
+      max: target.hitDice.max,
+      used: target.hitDice.used,
+    });
+    setLocalAc(target.ac);
+    setLocalSpeed(target.speed);
+    setLocalInitMod(target.initiativeMod);
+    setLocalInspiration(Boolean(target.inspiration));
+    setLocalNotes(target.notes ?? '');
+    setLocalExhaustion(target.exhaustion ?? 0);
+    setLocalDeathSaves(target.deathSaves);
+    setLocalConditions(target.conditions ?? []);
+    const slotGroups: SpellSlotGroup[] = Array.isArray(target.spellSlots)
+      ? target.spellSlots
+      : target.spellSlots
+      ? Object.entries(target.spellSlots)
+          .filter(([, s]) => s && s.max > 0)
+          .map(([lvl, s]) => ({
+            level: Number(lvl) as SpellSlotGroup['level'],
+            max: s.max,
+            used: s.used,
+          }))
+          .sort((a, b) => a.level - b.level)
+      : [];
+    setLocalSpellSlots(slotGroups);
+    setLocalPactSlots(target.pactSlots ?? null);
+    setLocalResourcePools(target.resourcePools ?? []);
+    setLocalEvaluation(target.evaluation);
+
+    const listFields: PcListField[] = ['goals', 'bonds', 'ideals', 'flaws'];
+    for (const f of listFields) {
+      const val = target[f];
+      if (Array.isArray(val)) {
+        saveStagedEdit(campaignId, pc.id, f, val);
+      }
+    }
+
+    const writebackUpdates = buildPlayerWritebackFromMergedPc(target);
+    void sendBatchUpdate(writebackUpdates);
+  };
+
+  const handlePlayerSheetFilesSelected = async (files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+    setUploadingSheet(true);
+    setSheetUploadError(null);
+
+    const currentPcSnapshot = normalizePc({
+      ...pc,
+      hp: { current: localHp, max: localMaxHp, temp: localTempHp },
+      hitDice: localHitDice,
+      ac: localAc,
+      speed: localSpeed,
+      initiativeMod: localInitMod,
+      inspiration: localInspiration,
+      notes: localNotes,
+      exhaustion: localExhaustion,
+      deathSaves: localDeathSaves,
+      conditions: localConditions,
+      spellSlots: localSpellSlots,
+      pactSlots: localPactSlots,
+      resourcePools: localResourcePools,
+      evaluation: localEvaluation,
+      ownership: { ownerType: 'player', playerSlotId: slotId },
+    });
+
+    try {
+      const parsed = await parseCharacterSheetFile(file, { shareToken: token });
+      const merged = mergeUploadedCharacterSheet(currentPcSnapshot, parsed.pc, {
+        isFullStateBackup: parsed.isFullStateBackup,
+      });
+      applyMergedPcToLocalState(merged);
+      setUploadBanner({
+        message: 'Character Evaluated & Saved (Active HP & Spent Resources Preserved)',
+        pcs: [merged],
+        onUndo: () => applyMergedPcToLocalState(currentPcSnapshot),
+      });
+    } catch (err: any) {
+      setSheetUploadError(err?.message || 'Failed to parse character sheet');
+    } finally {
+      setUploadingSheet(false);
+    }
+  };
+
   const classesLabel = pc.classes?.length
     ? pc.classes.map((c) => `${c.name} ${c.level}`).join(' / ')
     : `Level ${pc.level ?? 1}`;
@@ -595,10 +701,19 @@ export default function PlayerPcSheetCard({
           <p className="font-serif text-xs italic text-ink-mute">
             {[pc.race, classesLabel].filter(Boolean).join(' · ')}
           </p>
+          <DefensiveProfileInlineBadge evaluation={localEvaluation ?? pc.evaluation} compact />
         </div>
 
-        {/* 1-Tap Short Rest & Long Rest Recovery Buttons */}
+        {/* Sheet Upload + 1-Tap Short Rest & Long Rest Recovery Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          <SheetUploadDropzone
+            onFilesSelected={handlePlayerSheetFilesSelected}
+            uploading={uploadingSheet}
+            multiple={false}
+            compact
+            buttonLabel="Upload / Update Sheet"
+            label="Drop .pdf, .json, or image character sheet to auto-evaluate & sync"
+          />
           <button
             type="button"
             onClick={handleShortRest}
@@ -617,6 +732,17 @@ export default function PlayerPcSheetCard({
           </button>
         </div>
       </div>
+
+      <SheetUploadToast
+        banner={uploadBanner}
+        onDismiss={() => setUploadBanner(null)}
+      />
+
+      {sheetUploadError && (
+        <div className="rounded border border-crimson/40 bg-crimson/10 px-3 py-1.5 font-serif text-xs text-crimson">
+          {sheetUploadError}
+        </div>
+      )}
 
       {restFeedback && (
         <div className="rounded border border-forest/40 bg-forest/10 px-3 py-1.5 font-serif text-xs text-forest">

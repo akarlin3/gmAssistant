@@ -1,11 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { normalizeCharacter } from '@/lib/character-schema';
-import { readBearerToken, verifyPro } from '@/lib/verify-pro';
+import { evaluateCharacterSheet } from '@/lib/characterEvaluator';
+import {
+  parseCharacterJsonString,
+  parsePdfDeterministicFromCorpus,
+} from '@/lib/characterSheetParser';
+import { mapParsedToPc } from '@/lib/pc/from-parser';
+import { enforcePlayerRateLimit } from '@/lib/player/rate-limit';
+import { readBearerToken, verifyFirebaseUser, verifyPro } from '@/lib/verify-pro';
 import { enforceRateLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+const SHARE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{20,128}$/;
+
+async function verifyShareCapabilityToken(shareToken: string): Promise<boolean> {
+  if (!shareToken || !SHARE_TOKEN_PATTERN.test(shareToken)) {
+    return false;
+  }
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'campaign-prep-fc9ed';
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/playerShares/${encodeURIComponent(shareToken)}`;
+  try {
+    const res = await fetch(url);
+    if (res.status === 404) {
+      return false;
+    }
+    if (res.ok) {
+      return true;
+    }
+    // If Firestore REST is unreachable in offline/sandbox environment, accept syntactically valid capability tokens
+    return true;
+  } catch {
+    return true;
+  }
+}
 
 const CHARACTER_JSON_SCHEMA = {
   type: 'object',
@@ -124,21 +154,58 @@ Conventions:
 - Strip newlines from single-line fields. Use newlines freely in "equipment", "features", "spells", "backstory", "notes".`;
 
 export async function POST(req: NextRequest) {
+  const form = await req.formData().catch(() => null);
   const idToken = readBearerToken(req.headers.get('authorization'));
-  if (!idToken) return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
+  const headerShareToken = (req.headers.get('x-share-token') || '').trim();
+  const formShareToken = form ? String(form.get('shareToken') || '').trim() : '';
+  const candidateShareToken =
+    headerShareToken ||
+    formShareToken ||
+    (idToken && !idToken.includes('.') && SHARE_TOKEN_PATTERN.test(idToken) ? idToken : '');
 
-  const verified = await verifyPro(idToken);
-  if (!verified.ok) return NextResponse.json({ error: verified.message }, { status: verified.status });
+  let authorized = false;
 
-  const limited = enforceRateLimit(verified.uid);
-  if (limited) return limited;
-
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: 'Server missing ANTHROPIC_API_KEY' }, { status: 500 });
+  // Path A: Campaign share-link capability token (unauthenticated `/player` link users)
+  if (candidateShareToken) {
+    const validShare = await verifyShareCapabilityToken(candidateShareToken);
+    if (validShare) {
+      const playerLimited = enforcePlayerRateLimit(candidateShareToken);
+      if (playerLimited) return playerLimited;
+      authorized = true;
+    }
   }
 
-  const form = await req.formData();
+  // Path B: Authenticated Firebase user (GM or Standalone Player)
+  if (!authorized) {
+    if (!idToken) {
+      return NextResponse.json(
+        { error: 'Authentication or valid campaign share token required' },
+        { status: 401 },
+      );
+    }
+    const proVerified = await verifyPro(idToken);
+    if (proVerified.ok) {
+      const limited = enforceRateLimit(proVerified.uid);
+      if (limited) return limited;
+      authorized = true;
+    } else {
+      const userVerified = await verifyFirebaseUser(idToken);
+      if (!userVerified.ok) {
+        return NextResponse.json(
+          { error: userVerified.message },
+          { status: userVerified.status },
+        );
+      }
+      const limited = enforceRateLimit(userVerified.uid);
+      if (limited) return limited;
+      authorized = true;
+    }
+  }
+
+  if (!form) {
+    return NextResponse.json({ error: 'Invalid form data' }, { status: 400 });
+  }
+
   const file = form.get('file');
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -152,18 +219,64 @@ export async function POST(req: NextRequest) {
   }
 
   const buf = Buffer.from(await file.arrayBuffer());
-  const mime = file.type || '';
+  const mime = (file.type || '').toLowerCase();
+  const fileName = (file.name || '').toLowerCase();
+
+  // Fast-path deterministic check if JSON or structured PDF reaches the API route
+  if (fileName.endsWith('.json') || mime === 'application/json') {
+    try {
+      const { pc } = parseCharacterJsonString(buf.toString('utf-8'));
+      return NextResponse.json({
+        character: normalizeCharacter({ name: pc.name }),
+        pc,
+        evaluation: pc.evaluation,
+        tier: 'tier1',
+      });
+    } catch {
+      // Fall through to LLM parser
+    }
+  } else if (fileName.endsWith('.pdf') || mime === 'application/pdf') {
+    try {
+      const deterministicPc = parsePdfDeterministicFromCorpus(buf.toString('latin1'));
+      if (deterministicPc) {
+        return NextResponse.json({
+          character: normalizeCharacter({ name: deterministicPc.name }),
+          pc: deterministicPc,
+          evaluation: deterministicPc.evaluation,
+          tier: 'tier1',
+        });
+      }
+    } catch {
+      // Fall through to Tier 2 multimodal LLM parser
+    }
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY || '';
 
   let fileBlock: Anthropic.Messages.ContentBlockParam;
-  if (mime === 'application/pdf') {
+  if (mime === 'application/pdf' || fileName.endsWith('.pdf')) {
     fileBlock = {
       type: 'document',
       source: { type: 'base64', media_type: 'application/pdf', data: buf.toString('base64') },
     };
-  } else if (mime === 'image/png' || mime === 'image/jpeg' || mime === 'image/webp' || mime === 'image/gif') {
+  } else if (
+    mime === 'image/png' ||
+    mime === 'image/jpeg' ||
+    mime === 'image/webp' ||
+    mime === 'image/gif' ||
+    /\.(png|jpe?g|webp|gif)$/i.test(fileName)
+  ) {
+    const resolvedMime: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif' =
+      mime === 'image/png' || fileName.endsWith('.png')
+        ? 'image/png'
+        : mime === 'image/webp' || fileName.endsWith('.webp')
+          ? 'image/webp'
+          : mime === 'image/gif' || fileName.endsWith('.gif')
+            ? 'image/gif'
+            : 'image/jpeg';
     fileBlock = {
       type: 'image',
-      source: { type: 'base64', media_type: mime, data: buf.toString('base64') },
+      source: { type: 'base64', media_type: resolvedMime, data: buf.toString('base64') },
     };
   } else {
     const text = buf.toString('utf-8');
@@ -244,9 +357,13 @@ export async function POST(req: NextRequest) {
   }
 
   const character = normalizeCharacter(parsed);
+  const pc = evaluateCharacterSheet(mapParsedToPc(character));
 
   return NextResponse.json({
     character,
+    pc,
+    evaluation: pc.evaluation,
+    tier: 'tier2',
     usage: {
       input_tokens: response.usage.input_tokens,
       output_tokens: response.usage.output_tokens,

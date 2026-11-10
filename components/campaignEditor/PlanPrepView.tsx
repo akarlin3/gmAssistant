@@ -81,6 +81,7 @@ export function PlanPrepView({ ed }: { ed: CampaignEditorModel }) {
           confirm={confirmModal}
           playerLog={get('playerLog', []) as PlayerLogEntry[]}
           onPlayerLogChange={(entries) => setVal('playerLog', entries)}
+          onPcsChange={(nextPcs) => setVal('pcs', nextPcs)}
         />
       )}
 

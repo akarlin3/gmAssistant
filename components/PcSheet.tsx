@@ -24,6 +24,10 @@ import { CONDITIONS } from '@/lib/initiative';
 import { Label, SectionTitle, inputCls, chipBtn } from './pcSheet/primitives';
 import { TextInput, NumInput, Bubbles, ListEditor } from './pcSheet/fields';
 import PlayerSharedQuestsNotesPanel from './PlayerSharedQuestsNotesPanel';
+import {
+  DefensiveProfileInlineBadge,
+  EvaluationReportCard,
+} from './pcSheet/EvaluationToastAndReport';
 
 type Props = {
   pc: PlayerCharacter;

@@ -3,9 +3,14 @@
 import { useState, useContext } from 'react';
 import { Plus, Users, FileUp } from 'lucide-react';
 import PcSheet from './PcSheet';
-import { LockedInline } from './LockedFeature';
 import { PC_CAP, type PlayerCharacter } from '@/lib/pc/types';
 import { CampaignPlayModeContext } from './CampaignPlayModeContext';
+import { uploadAndMergePcFiles } from './campaignEditor/useCampaignEditor/useSheetUpload';
+import {
+  SheetUploadDropzone,
+  SheetUploadToast,
+  type SheetUploadBannerState,
+} from './pcSheet/EvaluationToastAndReport';
 
 type Props = {
   pcs: PlayerCharacter[];
@@ -18,30 +23,82 @@ type Props = {
   onUpdate: (pc: PlayerCharacter) => void;
   onRemove: (id: string) => void;
   onUploadClick?: () => void;
+  onWritePcs?: (next: PlayerCharacter[]) => void;
   roster?: { slotId: string; displayName: string }[];
 };
 
 export default function PartyTab({
-  pcs, openMap, isPro, uploading, uploadError,
-  onToggleOpen, onAdd, onUpdate, onRemove, onUploadClick,
+  pcs, openMap, uploading, uploadError,
+  onToggleOpen, onAdd, onUpdate, onRemove, onUploadClick, onWritePcs,
   roster = [],
 }: Props) {
   const playMode = useContext(CampaignPlayModeContext);
   const [promptDismissed, setPromptDismissed] = useState(false);
+  const [localUploading, setLocalUploading] = useState(false);
+  const [localError, setLocalError] = useState('');
+  const [banner, setBanner] = useState<SheetUploadBannerState | null>(null);
   const atCap = pcs.length >= PC_CAP;
+
+  const isBusy = Boolean(uploading || localUploading);
+  const effectiveError = localError || uploadError;
+
+  const applyPcsList = (next: PlayerCharacter[]) => {
+    if (onWritePcs) {
+      onWritePcs(next);
+    } else {
+      next.forEach((p) => onUpdate(p));
+    }
+  };
+
+  const handleBatchFiles = async (files: File[]) => {
+    if (!files.length) return;
+    setLocalError('');
+    setLocalUploading(true);
+    try {
+      const outcome = await uploadAndMergePcFiles(
+        files,
+        pcs,
+        {},
+        (next) => applyPcsList(next),
+      );
+      outcome.evaluatedPcs.forEach((p) => {
+        if (!openMap[p.id]) onToggleOpen(p.id);
+      });
+      setBanner({
+        message: 'Character Evaluated & Saved (Active HP & Spent Resources Preserved)',
+        pcs: outcome.evaluatedPcs,
+        onUndo: () => applyPcsList(outcome.previousPcs),
+      });
+    } catch (err: any) {
+      setLocalError(err?.message || 'Upload failed');
+    } finally {
+      setLocalUploading(false);
+    }
+  };
 
   const showDuetPrompt = playMode === 'duet' && pcs.length === 1 && pcs[0].ownership?.ownerType !== 'player' && !promptDismissed;
   const singlePc = pcs[0];
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Users size={16} className="text-crimson" />
-        <h2 className="font-display tracking-wide text-ink">Party</h2>
-        <span className="font-serif text-xs italic text-ink-mute">
-          {pcs.length} / {PC_CAP} characters
-        </span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Users size={16} className="text-crimson" />
+          <h2 className="font-display tracking-wide text-ink">Party</h2>
+          <span className="font-serif text-xs italic text-ink-mute">
+            {pcs.length} / {PC_CAP} characters
+          </span>
+        </div>
+        <SheetUploadDropzone
+          onFilesSelected={handleBatchFiles}
+          uploading={isBusy}
+          multiple={true}
+          buttonLabel="Drop / Upload Sheets"
+          label="Drop 1 or more sheets (.pdf, .json, .png, .jpg, .webp) — auto-evaluates & preserves active state"
+        />
       </div>
+
+      <SheetUploadToast banner={banner} onDismiss={() => setBanner(null)} />
 
       <p className="font-serif text-sm italic text-ink-soft">
         First-class player characters with live HP, abilities, skills, attacks,
@@ -96,7 +153,7 @@ export default function PartyTab({
         ))}
         {pcs.length === 0 && (
           <p className="font-serif text-sm italic text-ink-mute">
-            No PCs yet. Click &quot;New PC&quot; to build a character sheet.
+            No PCs yet. Click &quot;New PC&quot; or drop character sheets above to build your party.
           </p>
         )}
       </div>
@@ -110,27 +167,26 @@ export default function PartyTab({
         >
           <Plus size={12} /> New PC
         </button>
-        {isPro ? (
+        {onUploadClick && (
           <button
             onClick={onUploadClick}
-            disabled={uploading || atCap}
+            disabled={isBusy}
             className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-crimson hover:text-wine disabled:cursor-wait disabled:opacity-50"
-            title="Upload a character sheet — parsed by Claude into a PC (pro only)"
+            title="Upload one or more character sheets (.pdf, .json, .png, .jpg, .webp)"
           >
-            <FileUp size={12} /> {uploading ? 'Parsing…' : 'Import Sheet as PC'}
+            <FileUp size={12} /> {isBusy ? 'Evaluating & Saving…' : 'Import Sheet as PC'}
           </button>
-        ) : (
-          <LockedInline label="Import Sheet as PC" />
         )}
-        {uploadError && (
-          <span className="text-xs italic text-crimson" title={uploadError}>{uploadError}</span>
+        {effectiveError && (
+          <span className="text-xs italic text-crimson" title={effectiveError}>{effectiveError}</span>
         )}
         {atCap && (
           <span className="font-serif text-xs italic text-ink-mute">
-            Party is full ({PC_CAP} max).
+            Party is full ({PC_CAP} max) — re-uploading an existing character merges in-place.
           </span>
         )}
       </div>
     </div>
   );
 }
+
