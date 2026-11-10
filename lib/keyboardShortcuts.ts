@@ -7,16 +7,19 @@ export type Shortcut = {
 };
 
 export const SHORTCUTS: Shortcut[] = [
-  { keys: '?',     description: 'Show this cheatsheet',         context: 'global' },
-  { keys: 'Esc',   description: 'Close any open modal or pill', context: 'global' },
-  { keys: '⌘/Ctrl + K', description: 'Open command palette / search', context: 'global' },
-  { keys: '←/→',   description: 'Previous / next tab',          context: 'editor' },
-  { keys: '↑/↓',   description: 'Move selection up / down',     context: 'palette' },
-  { keys: '↵',     description: 'Open selected item',           context: 'palette' },
+  { keys: '?',          description: 'Show this hotkey cheatsheet',                            context: 'global' },
+  { keys: '⌘/Ctrl + K', description: 'Open Spotlight search & inline /roll dice bar',          context: 'global' },
+  { keys: '[',          description: 'Toggle Left Reference Drawer (Spells, Oracle, Library)', context: 'global' },
+  { keys: 'Esc',        description: 'Close any open modal, Peek inspector, or drawer',        context: 'global' },
+  { keys: '←/→',        description: 'Previous / next workspace tab',                          context: 'editor' },
+  { keys: '⌘/Ctrl + Z', description: 'Undo last campaign change',                              context: 'editor' },
+  { keys: '↑/↓',        description: 'Move selection up / down',                               context: 'palette' },
+  { keys: '↵',          description: 'Execute selected action or reroll /roll formula',        context: 'palette' },
 ];
 
 export const CONTEXT_LABEL: Record<ShortcutContext, string> = {
-  global: 'Global',
-  editor: 'Editor',
-  palette: 'Command palette',
+  global: 'Global & Table Stage',
+  editor: 'Workspace Editor',
+  palette: 'Spotlight Command Palette',
 };
+

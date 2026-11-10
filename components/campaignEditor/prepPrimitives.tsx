@@ -364,45 +364,153 @@ export const CardLabel = ({ children }: { children: React.ReactNode }) => (
   <div className="mb-0.5 font-display text-xs uppercase tracking-wider text-brass-deep">{children}</div>
 );
 
-export const GoalCard = ({ data, onChange, onRemove }: any) => {
+export const GoalCard = ({ data, onChange, onRemove, defaultExpanded }: any) => {
   const playMode = useContext(CampaignPlayModeContext);
   const playerVisible = Boolean(data.player_visible ?? data.isPublic);
+  const isNew = !data.text?.trim();
+  const [expanded, setExpanded] = useState<boolean>(defaultExpanded ?? isNew);
+
+  const timeframeLabel =
+    data.timeframe === 'short'
+      ? 'Short-Term'
+      : data.timeframe === 'mid'
+        ? 'Mid-Term'
+        : data.timeframe === 'long'
+          ? 'Long-Term'
+          : 'Goal';
+
+  const summaryLine =
+    data.success?.trim() || data.linked?.trim() || 'Click to expand success state, failure consequence & faction links';
+
   return (
-    <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
-      <div className="flex justify-between gap-2">
-        <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="Goal Statement" rows={2} />
-        <div className="flex flex-shrink-0 items-center gap-2">
+    <div
+      className={`rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 shadow-card transition-all ${
+        playerVisible ? 'border-l-2 border-l-emerald-500/80' : ''
+      }`}
+    >
+      {/* Progressive Disclosure Header Row: Title + 1-line summary + max 2 badges */}
+      <div className="flex items-start justify-between gap-2.5">
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          className="flex min-w-0 flex-1 items-start gap-2 text-left"
+        >
+          <span className="mt-1 shrink-0 text-[var(--text-muted)]">
+            {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-display text-base font-semibold text-[var(--text-primary)]">
+              {data.text?.trim() || 'Untitled Party / PC Goal'}
+            </div>
+            <p className="mt-0.5 line-clamp-1 font-sans text-xs text-[var(--text-muted)]">
+              {summaryLine}
+            </p>
+          </div>
+        </button>
+
+        {/* Max 2 badges per card row: 1) Role/Timeframe chip, 2) Visibility badge */}
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-0.5 font-sans text-[11px] font-medium text-[var(--text-muted)]">
+            {timeframeLabel}
+          </span>
           {playMode !== 'solo' && (
             <button
               type="button"
-              onClick={() => onChange({ ...data, isPublic: !playerVisible, player_visible: !playerVisible })}
+              onClick={() =>
+                onChange({
+                  ...data,
+                  isPublic: !playerVisible,
+                  player_visible: !playerVisible,
+                  visibility: { scope: !playerVisible ? 'party' : 'private' },
+                })
+              }
               aria-label={playerVisible ? 'Hide from players' : 'Share with players'}
               aria-pressed={playerVisible}
-              className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-sans text-[11px] font-medium transition-colors ${
                 playerVisible
-                  ? 'border-moss bg-moss text-parchment hover:bg-moss/90'
-                  : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+                  ? 'border border-emerald-500/45 bg-emerald-500/15 text-emerald-500 dark:text-emerald-300'
+                  : 'border border-dashed border-slate-500/40 bg-slate-500/5 text-[var(--text-muted)] hover:text-[var(--text-primary)]'
               }`}
-              title={playerVisible ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
+              title={
+                playerVisible
+                  ? '👁️ Party — Visible in /player'
+                  : '🔒 Private — GM eyes only'
+              }
             >
-              {playerVisible ? <Eye size={10} /> : <EyeOff size={10} />}
-              {playerVisible ? 'Shared' : 'Private'}
+              <span>{playerVisible ? '👁️ Party' : '🔒 Private'}</span>
             </button>
           )}
-          <button onClick={onRemove} aria-label="Remove" className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label="Remove"
+            className="rounded p-1 text-[var(--text-muted)] hover:text-rose-400"
+          >
+            <X size={14} />
+          </button>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-1.5">
-        {[['short', 'Short-Term'], ['mid', 'Mid-Term'], ['long', 'Long-Term']].map(([t, label]) => (
-          <button key={t} onClick={() => onChange({ ...data, timeframe: t })} className={`rounded border py-1 font-display text-xs uppercase tracking-wider ${data.timeframe === t ? 'border-wine bg-wine/10 text-wine' : 'border-rule text-ink-mute'}`}>{label}</button>
-        ))}
+
+      {/* Expandable Details Accordion */}
+      <div className={`gm-collapse ${expanded ? 'gm-collapse-open' : ''}`}>
+        <div className="gm-collapse-content">
+          <div className="mt-3 space-y-2.5 border-t border-[var(--border-subtle)] pt-3">
+            <div>
+              <CardLabel>Goal Statement</CardLabel>
+              <Field
+                value={data.text}
+                onChange={(v) => onChange({ ...data, text: v })}
+                placeholder="Goal Statement"
+                rows={2}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                ['short', 'Short-Term'],
+                ['mid', 'Mid-Term'],
+                ['long', 'Long-Term'],
+              ].map(([t, label]) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => onChange({ ...data, timeframe: t })}
+                  className={`rounded border py-1 font-display text-xs uppercase tracking-wider ${
+                    data.timeframe === t
+                      ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]'
+                      : 'border-rule text-ink-mute'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div>
+              <CardLabel>Rule 3 — Success State</CardLabel>
+              <Field
+                value={data.success}
+                onChange={(v) => onChange({ ...data, success: v })}
+                placeholder="What signals completion?"
+              />
+            </div>
+            <div>
+              <CardLabel>Rule 4 — Failure Consequence</CardLabel>
+              <Field
+                value={data.failure}
+                onChange={(v) => onChange({ ...data, failure: v })}
+                placeholder="What changes if it fails?"
+              />
+            </div>
+            <div>
+              <CardLabel>Linked Factions / Conflicts</CardLabel>
+              <Field
+                value={data.linked}
+                onChange={(v) => onChange({ ...data, linked: v })}
+                placeholder="..."
+              />
+            </div>
+          </div>
+        </div>
       </div>
-      <div><CardLabel>Rule 3 — Success State</CardLabel>
-        <Field value={data.success} onChange={(v) => onChange({ ...data, success: v })} placeholder="What signals completion?" /></div>
-      <div><CardLabel>Rule 4 — Failure Consequence</CardLabel>
-        <Field value={data.failure} onChange={(v) => onChange({ ...data, failure: v })} placeholder="What changes if it fails?" /></div>
-      <div><CardLabel>Linked Factions / Conflicts</CardLabel>
-        <Field value={data.linked} onChange={(v) => onChange({ ...data, linked: v })} placeholder="..." /></div>
     </div>
   );
 };
@@ -443,239 +551,598 @@ export const NPCFieldRow = ({
 
 export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) => {
   const playMode = useContext(CampaignPlayModeContext);
-  const playerVisible = Boolean(data.player_visible ?? data.isPublic);
-  const [showDetails, setShowDetails] = useState<boolean>(
-    defaultDetailsOpen ||
-    !!(data.appearance || data.abilities || data.talent || data.mannerism ||
-       data.interactions || data.knowledge || data.ideal || data.bond || data.flaw ||
-       data.stl_link || data.print_status)
+  const playerVisible = Boolean(
+    data.visibility?.scope === 'party' || data.player_visible || data.isPublic,
   );
+  const isCustomSlots =
+    data.visibility?.scope === 'slots' && (data.visibility?.slotIds?.length ?? 0) > 0;
+  const isNew = !data.name?.trim();
+  const [expanded, setExpanded] = useState<boolean>(defaultDetailsOpen || isNew);
+  const [showDetails, setShowDetails] = useState<boolean>(defaultDetailsOpen);
+
   const archetypeInspire = (tableId: string) => (e: string) => {
     if (data.archetype && data.archetype.trim() && !confirm('Replace current archetype?')) return;
     onChange({ ...data, archetype: e });
   };
+
+  const summaryLine =
+    data.goal?.trim() ||
+    data.archetype?.trim() ||
+    data.faction?.trim() ||
+    'Click to expand archetype, goal, traits & relationships';
+
   return (
-    <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
-      <div className="flex justify-between gap-2">
-        <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
-        <div className="flex flex-shrink-0 items-center gap-2">
+    <div
+      className={`rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 shadow-card transition-all ${
+        playerVisible
+          ? 'border-l-2 border-l-emerald-500/80'
+          : isCustomSlots
+            ? 'border-l-2 border-l-amber-500/80'
+            : ''
+      }`}
+    >
+      {/* Collapsed Progressive Disclosure Header: Title + 1-line summary + max 2 badges */}
+      <div className="flex items-start justify-between gap-2.5">
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          className="flex min-w-0 flex-1 items-start gap-2 text-left"
+        >
+          <span className="mt-1 shrink-0 text-[var(--text-muted)]">
+            {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <h4 className="truncate font-display text-base font-semibold text-[var(--text-primary)]">
+              {data.name?.trim() || 'Unnamed NPC'}
+            </h4>
+            <p className="mt-0.5 line-clamp-1 font-sans text-xs text-[var(--text-muted)]">
+              {summaryLine}
+            </p>
+          </div>
+        </button>
+
+        {/* Strictly max 2 badges: 1) Primary Role/Attitude chip, 2) Visibility badge */}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {data.type && (
+            <span className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-0.5 font-sans text-[11px] font-medium text-[var(--text-muted)]">
+              {data.type}
+            </span>
+          )}
           {playMode !== 'solo' && (
             <button
               type="button"
-              onClick={() => onChange({ ...data, isPublic: !playerVisible, player_visible: !playerVisible })}
-              className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+              onClick={() =>
+                onChange({
+                  ...data,
+                  isPublic: !playerVisible,
+                  player_visible: !playerVisible,
+                  revealedToPlayers: !playerVisible,
+                  visibility: { scope: !playerVisible ? 'party' : 'private' },
+                })
+              }
+              aria-label={playerVisible ? 'Hide from players' : 'Share with players'}
+              aria-pressed={playerVisible}
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-sans text-[11px] font-medium transition-colors ${
                 playerVisible
-                  ? 'border-moss bg-moss text-parchment hover:bg-moss/90'
-                  : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+                  ? 'border border-emerald-500/45 bg-emerald-500/15 text-emerald-500 dark:text-emerald-300'
+                  : isCustomSlots
+                    ? 'border border-amber-500/45 bg-amber-500/15 text-amber-500'
+                    : 'border border-dashed border-slate-500/40 bg-slate-500/5 text-[var(--text-muted)] hover:text-[var(--text-primary)]'
               }`}
-              title={playerVisible ? 'player_visible: true (Shared with Players)' : 'player_visible: false (Hidden from Players)'}
+              title={
+                playerVisible
+                  ? '👁️ Party — Visible in /player'
+                  : isCustomSlots
+                    ? '🎯 Custom player slots'
+                    : '🔒 Private — GM eyes only'
+              }
             >
-              {playerVisible ? <Eye size={10} /> : <EyeOff size={10} />}
-              {playerVisible ? 'Shared' : 'Private'}
+              <span>
+                {playerVisible
+                  ? '👁️ Party'
+                  : isCustomSlots
+                    ? '🎯 Custom'
+                    : '🔒 Private'}
+              </span>
             </button>
           )}
-          <button onClick={onRemove} aria-label="Remove" className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label="Remove"
+            className="rounded p-1 text-[var(--text-muted)] hover:text-rose-400"
+          >
+            <X size={14} />
+          </button>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div><CardLabel>Type</CardLabel>
-          <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink">
-            <option value="">— Choose —</option>
-            <option>Ally</option><option>Villain</option><option>Patron</option><option>Rival</option><option>Neutral / Colour</option>
-          </select></div>
-        <div><CardLabel>Faction</CardLabel>
-          <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="e.g. @Iron Syndicate" /></div>
-      </div>
-      <div>
-        <div className="mb-0.5 flex flex-wrap items-center justify-between gap-2">
-          <CardLabel>Archetype</CardLabel>
-          <div className="flex flex-wrap gap-1">
-            <Inspire tableId="villainArchetypes" compact label="Villain" onPick={archetypeInspire('villainArchetypes')} />
-            <Inspire tableId="npcBackgroundConcepts" compact label="Background" onPick={archetypeInspire('npcBackgroundConcepts')} />
-            <Inspire tableId="raceCharacterNotes" compact label="Species" onPick={archetypeInspire('raceCharacterNotes')} />
-          </div>
-        </div>
-        <Field value={data.archetype} onChange={(v) => onChange({ ...data, archetype: v })} placeholder='e.g. "Han Solo" (supports ||GM spoilers|| & @Entity links)' />
-      </div>
-      <div><CardLabel>Active Goal</CardLabel>
-        <Field value={data.goal} onChange={(v) => onChange({ ...data, goal: v })} placeholder="What are they pursuing?" rows={2} /></div>
-      <div><CardLabel>Method of Pursuit</CardLabel>
-        <Field value={data.method} onChange={(v) => onChange({ ...data, method: v })} placeholder="Violence? Charm?" /></div>
-      <button
-        onClick={() => setShowDetails(s => !s)}
-        className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
-      >
-        {showDetails ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        {showDetails ? 'Hide Details & K1C Print' : 'Show Details & K1C Print'}
-      </button>
-      {showDetails && (
-        <div className="space-y-2 border-t border-rule pt-1">
-          <NPCFieldRow label="Appearance" value={data.appearance || ''} onChange={(v) => onChange({ ...data, appearance: v })} placeholder="Distinctive physical detail or two" />
-          <NPCFieldRow label="Abilities" value={data.abilities || ''} onChange={(v) => onChange({ ...data, abilities: v })} placeholder="High/low ability — strong, slow, perceptive..." />
-          <NPCFieldRow label="Talent" value={data.talent || ''} onChange={(v) => onChange({ ...data, talent: v })} placeholder="Something they can do that's distinctive" tableId="npcTalents" />
-          <NPCFieldRow label="Mannerism" value={data.mannerism || ''} onChange={(v) => onChange({ ...data, mannerism: v })} placeholder="Small habit that makes them memorable" tableId="npcMannerisms" />
-          <NPCFieldRow label="Interactions" value={data.interactions || ''} onChange={(v) => onChange({ ...data, interactions: v })} placeholder="Default conversational stance — curious, suspicious..." tableId="npcInteractionTraits" />
-          <NPCFieldRow label="Knowledge" value={data.knowledge || ''} onChange={(v) => onChange({ ...data, knowledge: v })} placeholder="Something useful they know" rows={2} />
-          <NPCFieldRow label="Ideal" value={data.ideal || ''} onChange={(v) => onChange({ ...data, ideal: v })} placeholder="What drives them" tableId="npcIdeals" />
-          <NPCFieldRow label="Bond" value={data.bond || ''} onChange={(v) => onChange({ ...data, bond: v })} placeholder="Who or what they're tied to" tableId="npcBonds" />
-          <NPCFieldRow label="Flaw / Secret (GM-only)" value={data.flaw || ''} onChange={(v) => onChange({ ...data, flaw: v })} placeholder="Flaw or secret that could undermine them" tableId="npcFlawsSecrets" />
 
-          {/* Module 5: Creality K1C Hardware Bridge */}
-          <div className="rounded border border-brass/40 bg-parchment-soft/70 p-2">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">Creality K1C Print Queue</span>
-              <label className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-ink-soft">
-                <input
-                  type="checkbox"
-                  checked={Boolean(data.is_boss)}
-                  onChange={(e) => onChange({ ...data, is_boss: e.target.checked })}
-                />
-                Boss Token
-              </label>
+      {/* Expandable Card Body */}
+      <div className={`gm-collapse ${expanded ? 'gm-collapse-open' : ''}`}>
+        <div className="gm-collapse-content">
+          <div className="mt-3 space-y-2.5 border-t border-[var(--border-subtle)] pt-3">
+            <div>
+              <CardLabel>NPC Name</CardLabel>
+              <Field
+                value={data.name}
+                onChange={(v) => onChange({ ...data, name: v })}
+                placeholder="NPC Name"
+              />
             </div>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
-              <div className="sm:col-span-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <CardLabel>Role / Attitude</CardLabel>
+                <select
+                  value={data.type || ''}
+                  onChange={(e) => onChange({ ...data, type: e.target.value })}
+                  className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink"
+                >
+                  <option value="">— Choose —</option>
+                  <option>Ally</option>
+                  <option>Villain</option>
+                  <option>Patron</option>
+                  <option>Rival</option>
+                  <option>Neutral / Colour</option>
+                </select>
+              </div>
+              <div>
+                <CardLabel>Faction</CardLabel>
                 <Field
-                  value={data.stl_link || ''}
-                  onChange={(v) => onChange({ ...data, stl_link: v })}
-                  placeholder=".stl URL or file path (e.g. https://.../npc_mini.stl)"
+                  value={data.faction}
+                  onChange={(v) => onChange({ ...data, faction: v })}
+                  placeholder="e.g. @Iron Syndicate"
                 />
               </div>
-              <select
-                value={data.print_status || ''}
-                onChange={(e) =>
-                  onChange({
-                    ...data,
-                    print_status: (e.target.value || undefined) as 'queued' | 'sliced' | 'printed' | undefined,
-                  })
-                }
-                className="rounded border border-rule bg-parchment px-2 py-1 font-display text-[10px] uppercase tracking-wider text-ink"
-              >
-                <option value="">Not in Queue</option>
-                <option value="queued">Queued</option>
-                <option value="sliced">Sliced</option>
-                <option value="printed">Printed</option>
-              </select>
             </div>
+            <div>
+              <div className="mb-0.5 flex flex-wrap items-center justify-between gap-2">
+                <CardLabel>Archetype / 1-Line Pitch</CardLabel>
+                <div className="flex flex-wrap gap-1">
+                  <Inspire
+                    tableId="villainArchetypes"
+                    compact
+                    label="Villain"
+                    onPick={archetypeInspire('villainArchetypes')}
+                  />
+                  <Inspire
+                    tableId="npcBackgroundConcepts"
+                    compact
+                    label="Background"
+                    onPick={archetypeInspire('npcBackgroundConcepts')}
+                  />
+                  <Inspire
+                    tableId="raceCharacterNotes"
+                    compact
+                    label="Species"
+                    onPick={archetypeInspire('raceCharacterNotes')}
+                  />
+                </div>
+              </div>
+              <Field
+                value={data.archetype}
+                onChange={(v) => onChange({ ...data, archetype: v })}
+                placeholder='e.g. "Han Solo" (supports ||GM spoilers|| & @Entity links)'
+              />
+            </div>
+            <div>
+              <CardLabel>Active Goal</CardLabel>
+              <Field
+                value={data.goal}
+                onChange={(v) => onChange({ ...data, goal: v })}
+                placeholder="What are they pursuing?"
+                rows={2}
+              />
+            </div>
+            <div>
+              <CardLabel>Method of Pursuit</CardLabel>
+              <Field
+                value={data.method}
+                onChange={(v) => onChange({ ...data, method: v })}
+                placeholder="Violence? Charm?"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowDetails((s) => !s)}
+              className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
+            >
+              {showDetails ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              {showDetails
+                ? 'Hide Deep Traits, Relationships & K1C Print'
+                : 'Show Deep Traits, Relationships & K1C Print'}
+            </button>
+            {showDetails && (
+              <div className="space-y-2 border-t border-rule pt-2">
+                <NPCFieldRow
+                  label="Appearance"
+                  value={data.appearance || ''}
+                  onChange={(v) => onChange({ ...data, appearance: v })}
+                  placeholder="Distinctive physical detail or two"
+                />
+                <NPCFieldRow
+                  label="Abilities"
+                  value={data.abilities || ''}
+                  onChange={(v) => onChange({ ...data, abilities: v })}
+                  placeholder="High/low ability — strong, slow, perceptive..."
+                />
+                <NPCFieldRow
+                  label="Talent"
+                  value={data.talent || ''}
+                  onChange={(v) => onChange({ ...data, talent: v })}
+                  placeholder="Something they can do that's distinctive"
+                  tableId="npcTalents"
+                />
+                <NPCFieldRow
+                  label="Mannerism"
+                  value={data.mannerism || ''}
+                  onChange={(v) => onChange({ ...data, mannerism: v })}
+                  placeholder="Small habit that makes them memorable"
+                  tableId="npcMannerisms"
+                />
+                <NPCFieldRow
+                  label="Interactions"
+                  value={data.interactions || ''}
+                  onChange={(v) => onChange({ ...data, interactions: v })}
+                  placeholder="Default conversational stance — curious, suspicious..."
+                  tableId="npcInteractionTraits"
+                />
+                <NPCFieldRow
+                  label="Knowledge"
+                  value={data.knowledge || ''}
+                  onChange={(v) => onChange({ ...data, knowledge: v })}
+                  placeholder="Something useful they know"
+                  rows={2}
+                />
+                <NPCFieldRow
+                  label="Ideal"
+                  value={data.ideal || ''}
+                  onChange={(v) => onChange({ ...data, ideal: v })}
+                  placeholder="What drives them"
+                  tableId="npcIdeals"
+                />
+                <NPCFieldRow
+                  label="Bond"
+                  value={data.bond || ''}
+                  onChange={(v) => onChange({ ...data, bond: v })}
+                  placeholder="Who or what they're tied to"
+                  tableId="npcBonds"
+                />
+                <NPCFieldRow
+                  label="Flaw / Secret (GM-only)"
+                  value={data.flaw || ''}
+                  onChange={(v) => onChange({ ...data, flaw: v })}
+                  placeholder="Flaw or secret that could undermine them"
+                  tableId="npcFlawsSecrets"
+                />
+
+                {/* Module 5: Creality K1C Hardware Bridge */}
+                <div className="rounded border border-brass/40 bg-parchment-soft/70 p-2">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
+                      Creality K1C Print Queue
+                    </span>
+                    <label className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-ink-soft">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(data.is_boss)}
+                        onChange={(e) =>
+                          onChange({ ...data, is_boss: e.target.checked })
+                        }
+                      />
+                      Boss Token
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                    <div className="sm:col-span-2">
+                      <Field
+                        value={data.stl_link || ''}
+                        onChange={(v) => onChange({ ...data, stl_link: v })}
+                        placeholder=".stl URL or file path (e.g. https://.../npc_mini.stl)"
+                      />
+                    </div>
+                    <select
+                      value={data.print_status || ''}
+                      onChange={(e) =>
+                        onChange({
+                          ...data,
+                          print_status: (e.target.value || undefined) as
+                            | 'queued'
+                            | 'sliced'
+                            | 'printed'
+                            | undefined,
+                        })
+                      }
+                      className="rounded border border-rule bg-parchment px-2 py-1 font-display text-[10px] uppercase tracking-wider text-ink"
+                    >
+                      <option value="">Not in Queue</option>
+                      <option value="queued">Queued</option>
+                      <option value="sliced">Sliced</option>
+                      <option value="printed">Printed</option>
+                    </select>
+                  </div>
+                </div>
+
+                <RelationshipsSection
+                  entityType="npc"
+                  entityId={data.id}
+                  entityName={data.name}
+                />
+              </div>
+            )}
           </div>
         </div>
-      )}
-      <RelationshipsSection entityType="npc" entityId={data.id} entityName={data.name} />
+      </div>
     </div>
   );
 };
 
-export const LocationCard = ({ data, onChange, onRemove }: any) => {
+export const LocationCard = ({ data, onChange, onRemove, defaultExpanded }: any) => {
   const playMode = useContext(CampaignPlayModeContext);
-  const playerVisible = Boolean(data.player_visible ?? data.isPublic);
+  const playerVisible = Boolean(
+    data.visibility?.scope === 'party' || data.player_visible || data.isPublic,
+  );
+  const isCustomSlots =
+    data.visibility?.scope === 'slots' && (data.visibility?.slotIds?.length ?? 0) > 0;
+  const isNew = !data.name?.trim();
+  const [expanded, setExpanded] = useState<boolean>(defaultExpanded ?? isNew);
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+
   const terrainTagsStr = Array.isArray(data.terrainTags)
     ? data.terrainTags.join(', ')
     : typeof data.terrainTags === 'string'
       ? data.terrainTags
       : '';
 
+  const summaryLine =
+    data.description?.trim() ||
+    (Array.isArray(data.aspects) && data.aspects.filter(Boolean).join(' · ')) ||
+    'Click to expand sensory description, 3 aspects & faction presence';
+
   return (
-    <div className="space-y-2.5 rounded border border-rule bg-parchment p-3 shadow-card">
-      <div className="flex justify-between gap-2">
-        <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Evocative Name" />
-        <div className="flex flex-shrink-0 items-center gap-2">
+    <div
+      className={`rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 shadow-card transition-all ${
+        playerVisible
+          ? 'border-l-2 border-l-emerald-500/80'
+          : isCustomSlots
+            ? 'border-l-2 border-l-amber-500/80'
+            : ''
+      }`}
+    >
+      {/* Collapsed Progressive Disclosure Header: Title + 1-line summary + max 2 badges */}
+      <div className="flex items-start justify-between gap-2.5">
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          className="flex min-w-0 flex-1 items-start gap-2 text-left"
+        >
+          <span className="mt-1 shrink-0 text-[var(--text-muted)]">
+            {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <h4 className="truncate font-display text-base font-semibold text-[var(--text-primary)]">
+              {data.name?.trim() || 'Unnamed Location'}
+            </h4>
+            <p className="mt-0.5 line-clamp-1 font-sans text-xs text-[var(--text-muted)]">
+              {summaryLine}
+            </p>
+          </div>
+        </button>
+
+        {/* Strictly max 2 badges: 1) Location Type chip, 2) Visibility badge */}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {data.type && (
+            <span className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-0.5 font-sans text-[11px] font-medium text-[var(--text-muted)]">
+              {data.type}
+            </span>
+          )}
           {playMode !== 'solo' && (
             <button
               type="button"
-              onClick={() => onChange({ ...data, isPublic: !playerVisible, player_visible: !playerVisible })}
-              className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+              onClick={() =>
+                onChange({
+                  ...data,
+                  isPublic: !playerVisible,
+                  player_visible: !playerVisible,
+                  revealedToPlayers: !playerVisible,
+                  visibility: { scope: !playerVisible ? 'party' : 'private' },
+                })
+              }
+              aria-label={playerVisible ? 'Hide from players' : 'Share with players'}
+              aria-pressed={playerVisible}
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-sans text-[11px] font-medium transition-colors ${
                 playerVisible
-                  ? 'border-moss bg-moss text-parchment hover:bg-moss/90'
-                  : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+                  ? 'border border-emerald-500/45 bg-emerald-500/15 text-emerald-500 dark:text-emerald-300'
+                  : isCustomSlots
+                    ? 'border border-amber-500/45 bg-amber-500/15 text-amber-500'
+                    : 'border border-dashed border-slate-500/40 bg-slate-500/5 text-[var(--text-muted)] hover:text-[var(--text-primary)]'
               }`}
-              title={playerVisible ? 'player_visible: true (Shared with Players)' : 'player_visible: false (Hidden from Players)'}
+              title={
+                playerVisible
+                  ? '👁️ Party — Visible in /player'
+                  : isCustomSlots
+                    ? '🎯 Custom player slots'
+                    : '🔒 Private — GM eyes only'
+              }
             >
-              {playerVisible ? <Eye size={10} /> : <EyeOff size={10} />}
-              {playerVisible ? 'Shared' : 'Private'}
+              <span>
+                {playerVisible
+                  ? '👁️ Party'
+                  : isCustomSlots
+                    ? '🎯 Custom'
+                    : '🔒 Private'}
+              </span>
             </button>
           )}
-          <button onClick={onRemove} aria-label="Remove" className="text-ink-mute hover:text-crimson"><X size={14} /></button>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <div><CardLabel>Type</CardLabel>
-          <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink">
-            <option value="">— Choose —</option>
-            <option>Player Base</option><option>Faction Stronghold</option><option>Wilderness Landmark</option>
-            <option>Dungeon Room / Area</option><option>Settlement</option><option>Travel Waypoint</option><option>Other</option>
-          </select></div>
-        <div><CardLabel>Lighting</CardLabel>
-          <select value={data.lighting || ''} onChange={(e) => onChange({ ...data, lighting: e.target.value })} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink">
-            <option value="">— Lighting —</option>
-            <option value="Bright Light">Bright Light</option>
-            <option value="Dim / Torchlight">Dim / Torchlight</option>
-            <option value="Darkness">Darkness</option>
-            <option value="Magical Darkness / Gloom">Magical Darkness / Gloom</option>
-            <option value="Flickering Bioluminescence">Flickering Bioluminescence</option>
-          </select></div>
-      </div>
-      <div><CardLabel>Description (supports @Entity & ||GM spoilers||)</CardLabel>
-        <Field value={data.description || ''} onChange={(v) => onChange({ ...data, description: v })} placeholder="Sensory description, atmosphere, and ||hidden GM trap/secret||" rows={2} />
-      </div>
-      <div><CardLabel>3 Aspects</CardLabel>
-        <div className="space-y-1">
-          {[0, 1, 2].map(i => (
-            <Field key={i} value={(data.aspects || [])[i] || ''} onChange={(v) => {
-              const aspects = [...(data.aspects || ['', '', ''])]; aspects[i] = v; onChange({ ...data, aspects });
-            }} placeholder={`Aspect ${i + 1}`} />
-          ))}
-        </div></div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <div><CardLabel>Terrain & Hazard Tags</CardLabel>
-          <Field
-            value={terrainTagsStr}
-            onChange={(v) =>
-              onChange({
-                ...data,
-                terrainTags: v
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean),
-              })
-            }
-            placeholder="Difficult Terrain, Cover, Chasm..."
-          /></div>
-        <div><CardLabel>Factions Present</CardLabel>
-          <Field value={data.factions} onChange={(v) => onChange({ ...data, factions: v })} placeholder="e.g. @Iron Syndicate" /></div>
-      </div>
-
-      {/* Module 5: Creality K1C Terrain Print Queue */}
-      <div className="rounded border border-brass/40 bg-parchment-soft/70 p-2">
-        <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
-          Creality K1C Terrain Print Queue
-        </div>
-        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
-          <div className="sm:col-span-2">
-            <Field
-              value={data.stl_link || ''}
-              onChange={(v) => onChange({ ...data, stl_link: v })}
-              placeholder="Terrain .stl URL or path (e.g. https://.../ruined_arch.stl)"
-            />
-          </div>
-          <select
-            value={data.print_status || ''}
-            onChange={(e) =>
-              onChange({
-                ...data,
-                print_status: (e.target.value || undefined) as 'queued' | 'sliced' | 'printed' | undefined,
-              })
-            }
-            className="rounded border border-rule bg-parchment px-2 py-1 font-display text-[10px] uppercase tracking-wider text-ink"
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label="Remove"
+            className="rounded p-1 text-[var(--text-muted)] hover:text-rose-400"
           >
-            <option value="">Not in Queue</option>
-            <option value="queued">Queued</option>
-            <option value="sliced">Sliced</option>
-            <option value="printed">Printed</option>
-          </select>
+            <X size={14} />
+          </button>
         </div>
       </div>
 
-      <RelationshipsSection entityType="location" entityId={data.id} entityName={data.name} />
+      {/* Expandable Card Body */}
+      <div className={`gm-collapse ${expanded ? 'gm-collapse-open' : ''}`}>
+        <div className="gm-collapse-content">
+          <div className="mt-3 space-y-2.5 border-t border-[var(--border-subtle)] pt-3">
+            <div>
+              <CardLabel>Location Name</CardLabel>
+              <Field
+                value={data.name}
+                onChange={(v) => onChange({ ...data, name: v })}
+                placeholder="Evocative Name"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div>
+                <CardLabel>Type</CardLabel>
+                <select
+                  value={data.type || ''}
+                  onChange={(e) => onChange({ ...data, type: e.target.value })}
+                  className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink"
+                >
+                  <option value="">— Choose —</option>
+                  <option>Player Base</option>
+                  <option>Faction Stronghold</option>
+                  <option>Wilderness Landmark</option>
+                  <option>Dungeon Room / Area</option>
+                  <option>Settlement</option>
+                  <option>Travel Waypoint</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div>
+                <CardLabel>Lighting</CardLabel>
+                <select
+                  value={data.lighting || ''}
+                  onChange={(e) => onChange({ ...data, lighting: e.target.value })}
+                  className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink"
+                >
+                  <option value="">— Lighting —</option>
+                  <option value="Bright Light">Bright Light</option>
+                  <option value="Dim / Torchlight">Dim / Torchlight</option>
+                  <option value="Darkness">Darkness</option>
+                  <option value="Magical Darkness / Gloom">
+                    Magical Darkness / Gloom
+                  </option>
+                  <option value="Flickering Bioluminescence">
+                    Flickering Bioluminescence
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <CardLabel>Description (supports @Entity &amp; ||GM spoilers||)</CardLabel>
+              <Field
+                value={data.description || ''}
+                onChange={(v) => onChange({ ...data, description: v })}
+                placeholder="Sensory description, atmosphere, and ||hidden GM trap/secret||"
+                rows={2}
+              />
+            </div>
+            <div>
+              <CardLabel>3 Aspects</CardLabel>
+              <div className="space-y-1">
+                {[0, 1, 2].map((i) => (
+                  <Field
+                    key={i}
+                    value={(data.aspects || [])[i] || ''}
+                    onChange={(v) => {
+                      const aspects = [...(data.aspects || ['', '', ''])];
+                      aspects[i] = v;
+                      onChange({ ...data, aspects });
+                    }}
+                    placeholder={`Aspect ${i + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div>
+                <CardLabel>Terrain &amp; Hazard Tags</CardLabel>
+                <Field
+                  value={terrainTagsStr}
+                  onChange={(v) =>
+                    onChange({
+                      ...data,
+                      terrainTags: v
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  placeholder="Difficult Terrain, Cover, Chasm..."
+                />
+              </div>
+              <div>
+                <CardLabel>Factions Present</CardLabel>
+                <Field
+                  value={data.factions}
+                  onChange={(v) => onChange({ ...data, factions: v })}
+                  placeholder="e.g. @Iron Syndicate"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((s) => !s)}
+              className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:text-crimson"
+            >
+              {showAdvanced ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              {showAdvanced
+                ? 'Hide Relationships & K1C Terrain Print'
+                : 'Show Relationships & K1C Terrain Print'}
+            </button>
+
+            {showAdvanced && (
+              <div className="space-y-2 border-t border-rule pt-2">
+                <div className="rounded border border-brass/40 bg-parchment-soft/70 p-2">
+                  <div className="mb-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
+                    Creality K1C Terrain Print Queue
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                    <div className="sm:col-span-2">
+                      <Field
+                        value={data.stl_link || ''}
+                        onChange={(v) => onChange({ ...data, stl_link: v })}
+                        placeholder="Terrain .stl URL or path (e.g. https://.../ruined_arch.stl)"
+                      />
+                    </div>
+                    <select
+                      value={data.print_status || ''}
+                      onChange={(e) =>
+                        onChange({
+                          ...data,
+                          print_status: (e.target.value || undefined) as
+                            | 'queued'
+                            | 'sliced'
+                            | 'printed'
+                            | undefined,
+                        })
+                      }
+                      className="rounded border border-rule bg-parchment px-2 py-1 font-display text-[10px] uppercase tracking-wider text-ink"
+                    >
+                      <option value="">Not in Queue</option>
+                      <option value="queued">Queued</option>
+                      <option value="sliced">Sliced</option>
+                      <option value="printed">Printed</option>
+                    </select>
+                  </div>
+                </div>
+                <RelationshipsSection
+                  entityType="location"
+                  entityId={data.id}
+                  entityName={data.name}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

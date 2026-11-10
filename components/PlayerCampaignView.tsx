@@ -12,7 +12,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Globe, UserCircle, Compass, ScrollText } from 'lucide-react';
-import { AveryCorpEmblem } from './AveryCorpEmblem';
 import PlayerMapView from '@/components/maps/PlayerMapView';
 import CharacterCard from './CharacterCard';
 import { MusicPlayer } from './RunSessionView';
@@ -38,6 +37,11 @@ import {
 import type { Character } from '@/lib/character-schema';
 import type { LoreAttitudeTag } from '@/lib/pc/types';
 import type { PlayerCampaignViewProps, ProjectionEntityKey } from './playerCampaign/types';
+import { TopHeaderBar, type PlayerPrimaryTab } from './TopHeaderBar';
+import { TableStageShell } from './tableStage/TableStageShell';
+import { EntityPeekProvider } from './ui/EntityPeekDrawer';
+import { GuidedEmptyState } from './ui/GuidedEmptyState';
+import { MentionText } from './wiki/MentionText';
 
 export type PlayerPrimarySubTab = 'world' | 'character' | 'tracker';
 
@@ -64,9 +68,24 @@ export default function PlayerCampaignView({
   } = usePlayerCampaign({ token, slotId, unredactedCharacters });
 
   const [primaryTab, setPrimaryTab] = useState<PlayerPrimarySubTab>('world');
+  const [headerTab, setHeaderTab] = useState<PlayerPrimaryTab>('play');
   const [selectedPcIdx, setSelectedPcIdx] = useState(0);
   const activePc = myPcs[selectedPcIdx] ?? myPcs[0];
   const trackerPcKey = activePc?.id ?? slotId ?? 'default';
+
+  const handleHeaderTabChange = (nextTab: PlayerPrimaryTab) => {
+    setHeaderTab(nextTab);
+    if (nextTab === 'sheet') setPrimaryTab('character');
+    else if (nextTab === 'quests' || nextTab === 'gear') setPrimaryTab('tracker');
+    else setPrimaryTab('world');
+  };
+
+  const handlePrimarySubTabChange = (nextSub: PlayerPrimarySubTab) => {
+    setPrimaryTab(nextSub);
+    if (nextSub === 'character') setHeaderTab('sheet');
+    else if (nextSub === 'tracker') setHeaderTab('quests');
+    else setHeaderTab('play');
+  };
 
   const [trackerState, setTrackerState] = useState<PlayerLocalTrackerState>(() =>
     loadLocalTrackerState(token, trackerPcKey),
@@ -204,350 +223,385 @@ export default function PlayerCampaignView({
     return worldFilterTabs[0]?.id ?? 'recaps';
   }, [active, worldFilterTabs]);
 
+  const peekCampaignData = useMemo(
+    () =>
+      projection?.entities
+        ? {
+            npcs: projection.entities.npcs,
+            locations: projection.entities.locations,
+            factions: projection.entities.factions,
+            clocks: projection.entities.clocks,
+            characters: projection.entities.characters,
+          }
+        : null,
+    [projection?.entities],
+  );
+
   return (
-    <main className="min-h-screen bg-parchment p-3 sm:p-5">
-      <div className="mx-auto max-w-4xl space-y-4">
-        <header className="flex items-center justify-between gap-3 rounded-lg border border-rule bg-parchment-soft p-4 shadow-page">
-          <div className="flex min-w-0 items-center gap-3">
-            <AveryCorpEmblem
-              size={32}
-              variant="image"
-              cropMode="full-seal"
-              showPreviewPopover
-              ariaLabel="AveryCorp Institute Player View Seal"
+    <EntityPeekProvider playerSafe campaignData={peekCampaignData}>
+      <main className="min-h-screen w-full max-w-none bg-[var(--bg-canvas)] text-[var(--text-primary)]">
+        <TopHeaderBar
+          isLivePlayerShareView
+          role="player"
+          campaignName={campaignName}
+          playerDisplayName={displayName}
+          onSwitchPlayerSlot={onSwitch}
+          playerActiveTab={headerTab}
+          onPlayerTabChange={handleHeaderTabChange}
+          onSyncCapsule={() => handleUpdateTrackerState(trackerState)}
+        />
+
+        <div className="w-full max-w-none space-y-3 px-3 py-2 sm:px-5">
+          {/* Live Session Music (Small Single Line Widget) */}
+          {activePlaylistUrl && (
+            <MusicPlayer
+              playlistUrl={activePlaylistUrl}
+              readOnly={true}
+              isPlayingProp={activePlaylistPlaying}
+              playlistIndexProp={activePlaylistIndex}
+              syncAnchor={activeSyncAnchor}
             />
-            <div className="min-w-0">
-              <div className="font-display text-[10px] uppercase tracking-[0.3em] text-brass-deep">
-                Player View &amp; Companion
-              </div>
-              <h1 className="truncate font-display text-xl tracking-wide text-ink sm:text-2xl">
-                {campaignName}
-              </h1>
-            </div>
-          </div>
-          <div className="flex flex-shrink-0 flex-col items-end">
-            <span className="font-serif text-sm text-ink-soft">{displayName}</span>
-            <button
-              onClick={onSwitch}
-              className="font-display text-[10px] uppercase tracking-wider text-crimson hover:text-wine"
-            >
-              Switch player
-            </button>
-          </div>
-        </header>
+          )}
 
-        {/* Live Session Music (Small Single Line Widget) */}
-        {activePlaylistUrl && (
-          <MusicPlayer
-            playlistUrl={activePlaylistUrl}
-            readOnly={true}
-            isPlayingProp={activePlaylistPlaying}
-            playlistIndexProp={activePlaylistIndex}
-            syncAnchor={activeSyncAnchor}
-          />
-        )}
-
-        {alertMessage && (
-          <div
-            className="relative flex items-center justify-between rounded border border-red-200 bg-red-50 px-4 py-3 font-serif text-sm text-red-800 shadow-card"
-            role="alert"
-          >
-            <span>{alertMessage}</span>
-            <button
-              onClick={() => setAlertMessage(null)}
-              className="px-2 py-1 text-base font-bold text-red-500 hover:text-red-700"
-            >
-              &times;
-            </button>
-          </div>
-        )}
-
-        {projection === undefined && (
-          <p className="py-10 text-center font-serif text-sm italic text-ink-mute">Loading…</p>
-        )}
-
-        {projection && (
-          <>
-            {/* Primary 3 Sub-Tabs Navigation */}
+          {alertMessage && (
             <div
-              role="tablist"
-              aria-label="Player Mode Sub-Tabs"
-              className="grid grid-cols-1 gap-2 rounded-lg border border-rule bg-parchment-soft p-1.5 shadow-sm sm:grid-cols-3"
+              className="relative flex items-center justify-between rounded border border-red-200 bg-red-50 px-4 py-3 font-serif text-sm text-red-800 shadow-card"
+              role="alert"
             >
+              <span>{alertMessage}</span>
               <button
-                type="button"
-                role="tab"
-                aria-selected={primaryTab === 'world'}
-                onClick={() => setPrimaryTab('world')}
-                className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 font-display text-xs uppercase tracking-wider transition-all ${
-                  primaryTab === 'world'
-                    ? 'border border-wax/40 bg-wax text-ivory shadow-sm'
-                    : 'text-ink-soft hover:bg-parchment hover:text-ink'
-                }`}
+                onClick={() => setAlertMessage(null)}
+                className="px-2 py-1 text-base font-bold text-red-500 hover:text-red-700"
               >
-                <Globe size={15} />
-                <span>Revealed World &amp; Feed</span>
-              </button>
-
-              <button
-                type="button"
-                role="tab"
-                aria-selected={primaryTab === 'character'}
-                onClick={() => setPrimaryTab('character')}
-                className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 font-display text-xs uppercase tracking-wider transition-all ${
-                  primaryTab === 'character'
-                    ? 'border border-wax/40 bg-wax text-ivory shadow-sm'
-                    : 'text-ink-soft hover:bg-parchment hover:text-ink'
-                }`}
-              >
-                <UserCircle size={15} />
-                <span>My Character &amp; Resources</span>
-              </button>
-
-              <button
-                type="button"
-                role="tab"
-                aria-selected={primaryTab === 'tracker'}
-                onClick={() => setPrimaryTab('tracker')}
-                className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 font-display text-xs uppercase tracking-wider transition-all ${
-                  primaryTab === 'tracker'
-                    ? 'border border-wax/40 bg-wax text-ivory shadow-sm'
-                    : 'text-ink-soft hover:bg-parchment hover:text-ink'
-                }`}
-              >
-                <Compass size={15} />
-                <span>My Quests, Gear &amp; Journal</span>
+                &times;
               </button>
             </div>
+          )}
 
-            {/* PC Selector when the slot owns multiple PCs */}
-            {myPcs.length > 1 && (primaryTab === 'character' || primaryTab === 'tracker') && (
-              <div className="flex flex-wrap items-center gap-2 rounded border border-rule bg-parchment-soft px-3 py-2">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">
-                  Active Character:
-                </span>
-                {myPcs.map((p, idx) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setSelectedPcIdx(idx)}
-                    className={`rounded border px-2.5 py-1 font-display text-xs ${
-                      selectedPcIdx === idx
-                        ? 'border-wax bg-wax/15 text-wax font-semibold'
-                        : 'border-rule bg-parchment text-ink-soft'
-                    }`}
-                  >
-                    {p.name || p.id}
-                  </button>
-                ))}
+          {projection === undefined && (
+            <p className="py-10 text-center font-serif text-sm italic text-ink-mute">Loading…</p>
+          )}
+
+          {projection && (
+            <>
+              {/* Primary 3 Sub-Tabs Navigation */}
+              <div
+                role="tablist"
+                aria-label="Player Mode Sub-Tabs"
+                className="grid grid-cols-1 gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-1.5 shadow-sm sm:grid-cols-3"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={primaryTab === 'world'}
+                  onClick={() => handlePrimarySubTabChange('world')}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 font-sans text-xs font-medium transition-all ${
+                    primaryTab === 'world'
+                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <Globe size={15} />
+                  <span>Revealed World &amp; Table Stage</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={primaryTab === 'character'}
+                  onClick={() => handlePrimarySubTabChange('character')}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 font-sans text-xs font-medium transition-all ${
+                    primaryTab === 'character'
+                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <UserCircle size={15} />
+                  <span>My Character &amp; Resources</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={primaryTab === 'tracker'}
+                  onClick={() => handlePrimarySubTabChange('tracker')}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 font-sans text-xs font-medium transition-all ${
+                    primaryTab === 'tracker'
+                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <Compass size={15} />
+                  <span>My Quests, Gear &amp; Journal</span>
+                </button>
               </div>
-            )}
 
-            {/* SUB-TAB 1: Revealed World & Feed */}
-            {primaryTab === 'world' && (
-              <div className="space-y-4">
-                {/* Real-Time Session Log Narration Feed */}
-                {projection.sessionLog && projection.sessionLog.length > 0 && (
-                  <section className="space-y-2 rounded-lg border border-rule bg-parchment p-4 shadow-card">
-                    <div className="flex items-center gap-2 border-b border-rule pb-2">
-                      <ScrollText size={16} className="text-wax" />
-                      <h2 className="font-display text-sm uppercase tracking-wider text-ink">
-                        Live Session Narration Feed
-                      </h2>
-                    </div>
-                    <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                      {projection.sessionLog.map((entry, idx) => (
-                        <div
-                          key={String(entry.id ?? idx)}
-                          className="rounded border border-rule/60 bg-parchment-soft px-3 py-2 font-serif text-xs text-ink"
-                        >
-                          <div className="flex items-center justify-between text-[10px] text-ink-faint">
-                            <span className="font-mono uppercase">Session Feed</span>
-                            {entry.at ? (
-                              <span className="font-mono">
-                                {new Date(String(entry.at)).toLocaleTimeString([], {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </span>
-                            ) : null}
-                          </div>
-                          <p className="mt-0.5 whitespace-pre-wrap leading-relaxed">{String(entry.text ?? '')}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
+              {/* PC Selector when the slot owns multiple PCs */}
+              {myPcs.length > 1 && (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+                    Active Character:
+                  </span>
+                  {myPcs.map((p, idx) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSelectedPcIdx(idx)}
+                      className={`rounded-md border px-2.5 py-1 font-display text-xs font-semibold ${
+                        selectedPcIdx === idx
+                          ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-muted)]'
+                      }`}
+                    >
+                      {p.name || p.id}
+                    </button>
+                  ))}
+                </div>
+              )}
 
-                {worldFilterTabs.length === 0 ? (
-                  <div className="rounded-lg border border-rule bg-parchment-soft p-8 text-center shadow-card">
-                    <p className="font-serif italic text-ink-soft">
-                      Your GM hasn’t revealed any entities or maps yet — check back during the session.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <nav className="flex flex-wrap gap-2 border-b border-rule pb-2">
-                      {worldFilterTabs.map((t) => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => setActive(t.id)}
-                          className={`flex items-center gap-1.5 rounded-t px-3 py-1.5 font-display text-sm tracking-wide ${
-                            effectiveWorldTab === t.id
-                              ? 'border-b-2 border-crimson bg-parchment-deep text-crimson'
-                              : 'text-ink-soft hover:text-ink'
-                          }`}
-                        >
-                          {t.icon} {t.label}
-                        </button>
-                      ))}
-                    </nav>
-
-                    <div className="space-y-3">
-                      {effectiveWorldTab === 'maps' ? (
-                        <PlayerMapView maps={projection.maps ?? []} />
-                      ) : effectiveWorldTab === 'connections' ? (
-                        <ConnectionsTab projection={projection} />
-                      ) : effectiveWorldTab === 'pcs' ? (
-                        <div className="space-y-4">
-                          {partyPcs.map((pc) => (
-                            <EntityCard
-                              key={pc.id}
-                              entity={pc as unknown as Record<string, unknown>}
-                              entityType="pcs"
-                              annotation={annotationByEntityId.get(pc.id)}
-                              onSaveAnnotation={handleSaveEntityAnnotation}
-                              onToggleAnnotationShare={handleToggleEntityAnnotationShare}
-                            />
-                          ))}
-                        </div>
-                      ) : effectiveWorldTab === 'handouts' ? (
-                        <div className="whitespace-pre-wrap rounded border border-rule bg-parchment p-4 font-serif text-sm leading-relaxed text-ink-soft shadow-card">
-                          {projection.handouts}
-                        </div>
-                      ) : effectiveWorldTab === 'planning' ? (
-                        <PlanningTab planning={projection.planning} />
-                      ) : effectiveWorldTab === 'items' ? (
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {[...(projection.items ?? [])]
-                            .sort((a, b) => a.name.localeCompare(b.name))
-                            .map((it) => (
-                              <div
-                                key={it.id}
-                                className="space-y-1.5 rounded border border-rule bg-parchment p-3 font-serif text-sm shadow-card"
-                              >
-                                <div className="text-base text-ink">{it.name}</div>
-                                {it.description && (
-                                  <p className="whitespace-pre-wrap leading-relaxed text-ink-soft">
-                                    {it.description}
+              {/* SUB-TAB 1: 3-Pane Table Stage (Revealed World & Live Narration Feed + Character HUD) */}
+              {primaryTab === 'world' && (
+                <div className="-mx-3 sm:-mx-5">
+                  <TableStageShell
+                    rightHudTitle="My Character HUD"
+                    campaignData={peekCampaignData ?? undefined}
+                    centerStage={
+                      <div className="space-y-4">
+                        {/* Real-Time Session Log Narration Feed with @-Mention Peek */}
+                        {projection.sessionLog && projection.sessionLog.length > 0 && (
+                          <section className="space-y-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-sm">
+                            <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-2">
+                              <ScrollText size={16} className="text-[var(--accent-primary)]" />
+                              <h2 className="font-display text-base font-semibold tracking-wide text-[var(--text-primary)]">
+                                Live Session Narration Feed
+                              </h2>
+                            </div>
+                            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                              {projection.sessionLog.map((entry, idx) => (
+                                <div
+                                  key={String(entry.id ?? idx)}
+                                  className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 py-2 font-sans text-xs text-[var(--text-primary)]"
+                                >
+                                  <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
+                                    <span className="font-mono uppercase">Session Feed</span>
+                                    {entry.at ? (
+                                      <span className="font-mono tabular-nums">
+                                        {new Date(String(entry.at)).toLocaleTimeString([], {
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        })}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <p className="mt-0.5 whitespace-pre-wrap leading-relaxed">
+                                    <MentionText
+                                      text={String(entry.text ?? '')}
+                                      campaignData={peekCampaignData}
+                                    />
                                   </p>
-                                )}
-                              </div>
-                            ))}
-                        </div>
-                      ) : effectiveWorldTab === 'goals' ? (
-                        <GoalsTab pcGoals={projection.pcGoals} />
-                      ) : effectiveWorldTab === 'characters' ? (
-                        <div className="space-y-4">
-                          {unredactedCharacters && unredactedCharacters.length > 0 ? (
-                            unredactedCharacters.map((c, i) => {
-                              const charKey = String((c.id as string | number) || i);
-                              return (
-                                <CharacterCard
-                                  key={charKey}
-                                  data={c as unknown as Character}
-                                  open={!!openCharIds[charKey]}
-                                  soloMode={false}
-                                  onToggleOpen={() => toggleChar(charKey)}
-                                  onChange={() => {}}
-                                  onRemove={() => {}}
-                                />
-                              );
-                            })
-                          ) : (
-                            (projection.entities.characters ?? []).map((e) => {
-                              const eid = (e.id as string) || '';
-                              return (
-                                <div key={eid} id={`entity-${eid}`}>
-                                  <EntityCard
-                                    entity={e}
-                                    entityType="characters"
-                                    annotation={annotationByEntityId.get(eid)}
-                                    onSaveAnnotation={handleSaveEntityAnnotation}
-                                    onToggleAnnotationShare={handleToggleEntityAnnotationShare}
-                                  />
                                 </div>
-                              );
-                            })
-                          )}
-                        </div>
-                      ) : effectiveWorldTab === 'recaps' ? (
-                        <SessionRecapsTab
-                          sessionRecaps={sessionRecaps}
-                          openSessionIds={openSessionIds}
-                          onToggleSession={toggleSession}
+                              ))}
+                            </div>
+                          </section>
+                        )}
+
+                        {worldFilterTabs.length === 0 ? (
+                          <GuidedEmptyState
+                            title="No World Entities Revealed Yet"
+                            description="Your GM hasn't revealed any NPCs, locations, or maps to your slot yet — check back during the session."
+                          />
+                        ) : (
+                          <>
+                            <nav className="flex flex-wrap gap-1.5 border-b border-[var(--border-subtle)] pb-2">
+                              {worldFilterTabs.map((t) => (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  onClick={() => setActive(t.id)}
+                                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-sans text-xs font-medium transition-colors ${
+                                    effectiveWorldTab === t.id
+                                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                                      : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                                  }`}
+                                >
+                                  {t.icon} {t.label}
+                                </button>
+                              ))}
+                            </nav>
+
+                            <div className="space-y-3">
+                              {effectiveWorldTab === 'maps' ? (
+                                <PlayerMapView maps={projection.maps ?? []} />
+                              ) : effectiveWorldTab === 'connections' ? (
+                                <ConnectionsTab projection={projection} />
+                              ) : effectiveWorldTab === 'pcs' ? (
+                                <div className="space-y-4">
+                                  {partyPcs.map((pc) => (
+                                    <EntityCard
+                                      key={pc.id}
+                                      entity={pc as unknown as Record<string, unknown>}
+                                      entityType="pcs"
+                                      annotation={annotationByEntityId.get(pc.id)}
+                                      onSaveAnnotation={handleSaveEntityAnnotation}
+                                      onToggleAnnotationShare={handleToggleEntityAnnotationShare}
+                                    />
+                                  ))}
+                                </div>
+                              ) : effectiveWorldTab === 'handouts' ? (
+                                <div className="whitespace-pre-wrap rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 font-sans text-sm leading-relaxed text-[var(--text-primary)] shadow-sm">
+                                  {projection.handouts}
+                                </div>
+                              ) : effectiveWorldTab === 'planning' ? (
+                                <PlanningTab planning={projection.planning} />
+                              ) : effectiveWorldTab === 'items' ? (
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  {[...(projection.items ?? [])]
+                                    .sort((a, b) => a.name.localeCompare(b.name))
+                                    .map((it) => (
+                                      <div
+                                        key={it.id}
+                                        className="space-y-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 font-sans text-sm shadow-sm"
+                                      >
+                                        <div className="font-display text-base font-semibold text-[var(--text-primary)]">{it.name}</div>
+                                        {it.description && (
+                                          <p className="whitespace-pre-wrap leading-relaxed text-[var(--text-muted)]">
+                                            {it.description}
+                                          </p>
+                                        )}
+                                      </div>
+                                    ))}
+                                </div>
+                              ) : effectiveWorldTab === 'goals' ? (
+                                <GoalsTab pcGoals={projection.pcGoals} />
+                              ) : effectiveWorldTab === 'characters' ? (
+                                <div className="space-y-4">
+                                  {unredactedCharacters && unredactedCharacters.length > 0 ? (
+                                    unredactedCharacters.map((c, i) => {
+                                      const charKey = String((c.id as string | number) || i);
+                                      return (
+                                        <CharacterCard
+                                          key={charKey}
+                                          data={c as unknown as Character}
+                                          open={!!openCharIds[charKey]}
+                                          soloMode={false}
+                                          onToggleOpen={() => toggleChar(charKey)}
+                                          onChange={() => {}}
+                                          onRemove={() => {}}
+                                        />
+                                      );
+                                    })
+                                  ) : (
+                                    (projection.entities.characters ?? []).map((e) => {
+                                      const eid = (e.id as string) || '';
+                                      return (
+                                        <div key={eid} id={`entity-${eid}`}>
+                                          <EntityCard
+                                            entity={e}
+                                            entityType="characters"
+                                            annotation={annotationByEntityId.get(eid)}
+                                            onSaveAnnotation={handleSaveEntityAnnotation}
+                                            onToggleAnnotationShare={handleToggleEntityAnnotationShare}
+                                          />
+                                        </div>
+                                      );
+                                    })
+                                  )}
+                                </div>
+                              ) : effectiveWorldTab === 'recaps' ? (
+                                <SessionRecapsTab
+                                  sessionRecaps={sessionRecaps}
+                                  openSessionIds={openSessionIds}
+                                  onToggleSession={toggleSession}
+                                />
+                              ) : (
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  {(projection.entities[effectiveWorldTab as ProjectionEntityKey] ?? []).map((e) => {
+                                    const eid = (e.id as string) || '';
+                                    return (
+                                      <div key={eid} id={`entity-${eid}`}>
+                                        <EntityCard
+                                          entity={e}
+                                          entityType={effectiveWorldTab}
+                                          annotation={annotationByEntityId.get(eid)}
+                                          onSaveAnnotation={handleSaveEntityAnnotation}
+                                          onToggleAnnotationShare={handleToggleEntityAnnotationShare}
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    }
+                    rightHudRail={
+                      myPcs.length === 0 ? (
+                        <GuidedEmptyState
+                          title="Claim Your Character Slot"
+                          description={`Your GM hasn't assigned a character sheet to your slot (${displayName}) yet.`}
+                          actions={
+                            onSwitch
+                              ? [{ label: 'Switch Player Slot', onClick: onSwitch, primary: true }]
+                              : []
+                          }
                         />
                       ) : (
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {(projection.entities[effectiveWorldTab as ProjectionEntityKey] ?? []).map((e) => {
-                            const eid = (e.id as string) || '';
-                            return (
-                              <div key={eid} id={`entity-${eid}`}>
-                                <EntityCard
-                                  entity={e}
-                                  entityType={effectiveWorldTab}
-                                  annotation={annotationByEntityId.get(eid)}
-                                  onSaveAnnotation={handleSaveEntityAnnotation}
-                                  onToggleAnnotationShare={handleToggleEntityAnnotationShare}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* SUB-TAB 2: My Character & Resources */}
-            {primaryTab === 'character' && (
-              <div className="space-y-4">
-                {myPcs.length === 0 ? (
-                  <div className="rounded-lg border border-rule bg-parchment-soft p-8 text-center shadow-card">
-                    <p className="font-serif italic text-ink-soft">
-                      Your GM hasn’t assigned a character sheet to your player slot ({displayName}) yet.
-                    </p>
-                  </div>
-                ) : (
-                  <PlayerPcSheetCard
-                    key={activePc.id}
-                    pc={activePc}
-                    token={token}
-                    slotId={slotId}
-                    campaignId={campaignId}
+                        <PlayerPcSheetCard
+                          key={activePc.id}
+                          pc={activePc}
+                          token={token}
+                          slotId={slotId}
+                          campaignId={campaignId}
+                        />
+                      )
+                    }
                   />
-                )}
-              </div>
-            )}
+                </div>
+              )}
 
-            {/* SUB-TAB 3: My Quests, Gear & Journal */}
-            {primaryTab === 'tracker' && (
-              <PlayerQuestsGearJournalTab
-                pc={activePc}
-                token={token}
-                slotId={slotId}
-                campaignId={campaignId}
-                trackerState={trackerState}
-                onUpdateTrackerState={handleUpdateTrackerState}
-                revealedEntities={revealedEntitiesList}
-              />
-            )}
-          </>
-        )}
-      </div>
-    </main>
+              {/* SUB-TAB 2: My Character & Resources */}
+              {primaryTab === 'character' && (
+                <div className="space-y-4">
+                  {myPcs.length === 0 ? (
+                    <GuidedEmptyState
+                      title="Claim Your Character Slot"
+                      description={`Your GM hasn't assigned a character sheet to your player slot (${displayName}) yet.`}
+                      actions={
+                        onSwitch
+                          ? [{ label: 'Switch Player Slot', onClick: onSwitch, primary: true }]
+                          : []
+                      }
+                    />
+                  ) : (
+                    <PlayerPcSheetCard
+                      key={activePc.id}
+                      pc={activePc}
+                      token={token}
+                      slotId={slotId}
+                      campaignId={campaignId}
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* SUB-TAB 3: My Quests, Gear & Journal */}
+              {primaryTab === 'tracker' && (
+                <PlayerQuestsGearJournalTab
+                  pc={activePc}
+                  token={token}
+                  slotId={slotId}
+                  campaignId={campaignId}
+                  trackerState={trackerState}
+                  onUpdateTrackerState={handleUpdateTrackerState}
+                  revealedEntities={revealedEntitiesList}
+                />
+              )}
+            </>
+          )}
+        </div>
+      </main>
+    </EntityPeekProvider>
   );
 }

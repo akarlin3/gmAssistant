@@ -223,67 +223,109 @@ export default function PcSheet({
     : '';
 
   return (
-    <div className="rounded border border-rule bg-parchment shadow-card">
-      {/* header */}
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-        <button onClick={onToggleOpen} className="text-ink-mute hover:text-ink" aria-label="Toggle">
-          {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        </button>
-        <button onClick={onToggleOpen} className="min-w-0 flex-1 text-left">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className="font-display tracking-wide text-ink">{pc.name || 'Unnamed PC'}</span>
-            {ownerLabel && (
-              <span className={`rounded border px-1.5 py-0.5 font-display text-[9px] font-semibold uppercase tracking-wider ${
-                playMode === 'duet'
-                  ? 'border-teal-500/30 bg-teal-950/20 text-teal-400'
-                  : 'border-amber-500/30 bg-amber-950/20 text-amber-400'
-              }`}>
-                {ownerLabel}
-              </span>
-            )}
-            <span className="font-serif text-xs italic text-ink-mute">
-              {[pc.race, classesLabel].filter(Boolean).join(' · ') || `Level ${pc.level}`}
-            </span>
-          </div>
-        </button>
-        <EvaluationReportBadge evaluation={evaluation} compact />
-        <span className="flex items-center gap-1 font-serif text-[11px] text-ink-soft">
-          <Heart size={11} className="text-crimson" /> {pc.hp.current}/{pc.hp.max}
-          <Shield size={11} className="ml-1.5 text-brass-deep" /> {pc.ac}
-        </span>
+    <div
+      className={`rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-card transition-all ${
+        isPlayerOwned ? 'border-l-2 border-l-emerald-500/80' : ''
+      }`}
+    >
+      {/* Progressive Disclosure Header: Title + 1-line pitch + max 2 badges */}
+      <div className="flex items-start justify-between gap-2.5 px-3.5 py-2.5">
         <button
           type="button"
-          onClick={() => singleUploadRef.current?.click()}
-          disabled={uploadingSingle}
-          className="gm-tooltip inline-flex items-center gap-1 rounded border border-rule px-1.5 py-0.5 text-[10px] font-semibold text-ink-soft hover:border-crimson hover:text-crimson"
-          title="Upload / Level-Up Sheet for this PC (Preserves Damage & Spent Slots)"
+          onClick={onToggleOpen}
+          className="flex min-w-0 flex-1 items-start gap-2 text-left"
+          aria-label="Toggle"
         >
-          <FileUp size={11} />
-          <span>{uploadingSingle ? 'Merging…' : 'Update Sheet'}</span>
+          <span className="mt-1 shrink-0 text-[var(--text-muted)]">
+            {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-display text-base font-semibold tracking-wide text-[var(--text-primary)]">
+              {pc.name || 'Unnamed PC'}
+            </div>
+            <div className="mt-0.5 flex flex-wrap items-center gap-2 font-sans text-xs text-[var(--text-muted)]">
+              <span>
+                {[pc.race, classesLabel].filter(Boolean).join(' · ') ||
+                  `Level ${pc.level}`}
+              </span>
+              <span className="font-mono text-[11px] tabular-nums text-[var(--text-primary)]">
+                HP {pc.hp.current}/{pc.hp.max} · AC {pc.ac}
+              </span>
+            </div>
+          </div>
         </button>
-        <input
-          ref={singleUploadRef}
-          type="file"
-          accept=".pdf,.json,.png,.jpg,.jpeg,.webp,application/pdf,application/json,image/png,image/jpeg,image/webp"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = '';
-            if (file) void handleSinglePcUpload(file);
-          }}
-          className="hidden"
-        />
-        <ExportSheetPdfButton pc={pc} mode="gm" compact />
-        <button onClick={exportMd} className="gm-tooltip text-ink-mute hover:text-brass-deep" data-tooltip="Export Markdown" title="Export Markdown" aria-label="Export Markdown">
-          <Download size={14} />
-        </button>
-        <button onClick={onRemove} className="gm-tooltip text-ink-mute hover:text-crimson" data-tooltip="Delete PC" title="Delete PC" aria-label="Delete PC">
-          <Trash2 size={14} />
-        </button>
+
+        {/* Strictly max 2 badges per card row: 1) Role/Class chip, 2) Visibility/Ownership badge */}
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-0.5 font-sans text-[11px] font-medium text-[var(--text-muted)]">
+            {classesLabel || `Lvl ${pc.level}`}
+          </span>
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-sans text-[11px] font-medium ${
+              isPlayerOwned
+                ? 'border border-emerald-500/45 bg-emerald-500/15 text-emerald-500 dark:text-emerald-300'
+                : 'border border-dashed border-slate-500/40 bg-slate-500/5 text-[var(--text-muted)]'
+            }`}
+          >
+            {isPlayerOwned ? `👁️ ${ownerLabel || 'Party'}` : '🔒 Private'}
+          </span>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="gm-tooltip rounded p-1 text-[var(--text-muted)] hover:text-rose-400"
+            data-tooltip="Delete PC"
+            title="Delete PC"
+            aria-label="Delete PC"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
 
-
       {!open ? null : (
-        <div className="space-y-3 border-t border-rule p-3">
+        <div className="space-y-3 border-t border-[var(--border-subtle)] p-3.5">
+          {/* Tucked Sheet Lifecycle & Mechanical Audit Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)]/60 px-3 py-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <EvaluationReportBadge evaluation={evaluation} compact />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => singleUploadRef.current?.click()}
+                disabled={uploadingSingle}
+                className="gm-tooltip inline-flex items-center gap-1 rounded border border-rule px-2 py-1 text-xs font-semibold text-ink-soft hover:border-crimson hover:text-crimson"
+                title="Upload / Level-Up Sheet for this PC (Preserves Damage & Spent Slots)"
+              >
+                <FileUp size={12} />
+                <span>{uploadingSingle ? 'Merging…' : 'Update Sheet'}</span>
+              </button>
+              <input
+                ref={singleUploadRef}
+                type="file"
+                accept=".pdf,.json,.png,.jpg,.jpeg,.webp,application/pdf,application/json,image/png,image/jpeg,image/webp"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) void handleSinglePcUpload(file);
+                }}
+                className="hidden"
+              />
+              <ExportSheetPdfButton pc={pc} mode="gm" compact />
+              <button
+                type="button"
+                onClick={exportMd}
+                className="gm-tooltip inline-flex items-center gap-1 rounded border border-rule px-2 py-1 text-xs text-ink-mute hover:text-brass-deep"
+                data-tooltip="Export Markdown"
+                title="Export Markdown"
+                aria-label="Export Markdown"
+              >
+                <Download size={12} />
+                <span>Markdown</span>
+              </button>
+            </div>
+          </div>
+
           {/* Identity */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <div className="col-span-2 sm:col-span-1">

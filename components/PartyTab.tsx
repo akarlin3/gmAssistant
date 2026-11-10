@@ -12,6 +12,7 @@ import {
   ExportAllPartyPdfsButton,
   type SheetUploadToastState,
 } from './CharacterSheetLifecycleControls';
+import { GuidedEmptyState } from './ui/GuidedEmptyState';
 
 type Props = {
   pcs: PlayerCharacter[];
@@ -207,9 +208,36 @@ export default function PartyTab({
           </div>
         ))}
         {pcs.length === 0 && (
-          <p className="font-serif text-sm italic text-ink-mute">
-            No PCs yet. Click &quot;New PC&quot; or drop `.pdf` / `.json` / image sheets to import.
-          </p>
+          <div
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const dropped = Array.from(e.dataTransfer.files || []);
+              if (dropped.length > 0) void handleBatchFiles(dropped);
+            }}
+          >
+            <GuidedEmptyState
+              icon={<Users size={20} />}
+              title="No Party Characters Yet"
+              description="Drop party .pdf, .json, or image character sheets here for automatic 5e mechanical evaluation and level-up merging, or create a character from scratch."
+              actions={[
+                {
+                  label: isBusy
+                    ? 'Evaluating Sheet(s)…'
+                    : 'Drop Party PDFs / JSONs to Auto-Evaluate',
+                  onClick: () => batchFileInputRef.current?.click(),
+                  variant: 'primary',
+                  icon: <FileUp size={14} />,
+                },
+                {
+                  label: 'Create Character',
+                  onClick: onAdd,
+                  variant: 'secondary',
+                  icon: <Plus size={14} />,
+                },
+              ]}
+            />
+          </div>
         )}
       </div>
 

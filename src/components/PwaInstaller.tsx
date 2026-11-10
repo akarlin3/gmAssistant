@@ -12,6 +12,26 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+let globalInstallPrompt: BeforeInstallPromptEvent | null = null;
+
+export async function triggerPwaInstallPrompt(): Promise<boolean> {
+  if (!globalInstallPrompt) return false;
+  try {
+    await globalInstallPrompt.prompt();
+    const { outcome } = await globalInstallPrompt.userChoice;
+    if (outcome === 'accepted') {
+      globalInstallPrompt = null;
+    }
+    return outcome === 'accepted';
+  } catch {
+    return false;
+  }
+}
+
+export function canTriggerPwaInstall(): boolean {
+  return globalInstallPrompt !== null;
+}
+
 export function PwaInstaller() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
@@ -48,6 +68,7 @@ export function PwaInstaller() {
     const handleDisplayModeChange = (e: MediaQueryListEvent) => {
       setIsStandalone(e.matches);
       if (e.matches) {
+        globalInstallPrompt = null;
         setDeferredPrompt(null);
       }
     };
@@ -60,11 +81,13 @@ export function PwaInstaller() {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       if (!window.matchMedia('(display-mode: standalone)').matches) {
+        globalInstallPrompt = e as BeforeInstallPromptEvent;
         setDeferredPrompt(e as BeforeInstallPromptEvent);
       }
     };
 
     const handleAppInstalled = () => {
+      globalInstallPrompt = null;
       setDeferredPrompt(null);
       setIsStandalone(true);
     };
@@ -79,7 +102,7 @@ export function PwaInstaller() {
       }
       window.removeEventListener(
         'beforeinstallprompt',
-        handleBeforeInstallPrompt
+        handleBeforeInstallPrompt,
       );
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
@@ -91,6 +114,7 @@ export function PwaInstaller() {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
+        globalInstallPrompt = null;
         setDeferredPrompt(null);
       }
     } catch (err) {
@@ -106,7 +130,7 @@ export function PwaInstaller() {
     <div
       role="region"
       aria-label="Install application"
-      className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-end px-3 pt-2 sm:px-5 sm:pt-3"
+      className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-end px-4"
     >
       <button
         type="button"

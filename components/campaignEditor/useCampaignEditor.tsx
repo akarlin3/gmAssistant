@@ -490,6 +490,7 @@ export function useCampaignEditor(props: CampaignEditorProps) {
     state, soloMode, sortedSessionLogs, pcs, generatorLogs,
     navigateTo, get, addPc, addSessionLog, exportJSON, fileInputRef,
     setModeSwitcherOpen, setPrepTargetsOpen, setPhaseOpen,
+    setState, pcFileInputRef,
   );
 
   // ── Prep wizard helpers ──────────────────────────────────────────────────
