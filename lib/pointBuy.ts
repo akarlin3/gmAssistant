@@ -111,3 +111,28 @@ export function normalizePointBuy(input: unknown): PointBuy {
     },
   };
 }
+
+export const POINT_BUY_MIN_SCORE = POINT_BUY_MIN;
+export const POINT_BUY_MAX_SCORE = POINT_BUY_MAX;
+
+export function computeRemainingPoints(scores: Record<string, number>): number {
+  let spent = 0;
+  for (const val of Object.values(scores)) {
+    spent += costForScore(val);
+  }
+  return POINT_BUY_BUDGET - spent;
+}
+
+export function canAdjustScore(
+  scores: Record<string, number>,
+  ability: string,
+  delta: 1 | -1
+): boolean {
+  const cur = scores[ability] ?? POINT_BUY_MIN;
+  const next = cur + delta;
+  if (next < POINT_BUY_MIN || next > POINT_BUY_MAX) return false;
+  if (delta < 0) return true;
+  const costDelta = costForScore(next) - costForScore(cur);
+  return computeRemainingPoints(scores) >= costDelta;
+}
+

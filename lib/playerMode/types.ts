@@ -76,6 +76,33 @@ export type ShareMeta = {
   roster: RosterSlot[];
 };
 
+export type PublicCombatStatusTag = 'Healthy' | 'Bloodied' | 'Down';
+
+export type ActiveEncounterHudEntry = {
+  id: string;
+  displayName: string;
+  initiative: number;
+  isPc: boolean;
+  pcId?: string;
+  publicStatusTag?: PublicCombatStatusTag;
+};
+
+export type ActiveEncounterHud = {
+  active: boolean;
+  round: number;
+  activeTurnId: string;
+  entries: ActiveEncounterHudEntry[];
+};
+
+export type RevealedProgressClock = {
+  id: string;
+  title: string;
+  segmentsTotal: number;
+  segmentsFilled: number;
+  category: string;
+  publicDescription?: string;
+};
+
 // The redacted payload at playerShares/{shareToken}/slots/{slotId}.
 export type SlotProjection = {
   campaignName: string;
@@ -88,6 +115,14 @@ export type SlotProjection = {
   sessionLog: Array<Record<string, unknown>>;
   updatedAtMs: number;
   items?: Array<{ id: string; name: string; description?: string }>;
+  // Redacted live initiative & turn HUD (never exposes hidden monsters, AC, HP, stat blocks, or GM notes)
+  activeEncounterHud?: ActiveEncounterHud;
+  // GM-revealed Party progress clocks (never exposes Private clocks or GM notes)
+  revealedClocks?: RevealedProgressClock[];
+  // Bounded public table roll feed (last 50 public rolls; secretRoll: true strictly excluded)
+  rollEvents?: import('@/lib/pc/types').RollEvent[];
+  // Claimable party loot & gold pool
+  partyLootItems?: import('@/lib/pc/types').PartyLootItem[];
   // Project redacted planning/worldbuilding data
   planning?: {
     pitch?: string | null;
@@ -179,6 +214,10 @@ export type PlayerModeData = Partial<Record<PlayerEntityType, PlayerEntity[]>> &
   items?: ReadonlyArray<string | CampaignItem>;
   pcGoals?: readonly any[];
   maps?: unknown;
+  __initiative?: unknown;
+  activeEncounter?: unknown;
+  rollEvents?: readonly import('@/lib/pc/types').RollEvent[];
+  partyLootItems?: readonly import('@/lib/pc/types').PartyLootItem[];
   __sessionPlaylist?: string;
   __sessionPlaylistPlaying?: boolean;
   __sessionPlaylistIndex?: number;

@@ -8,6 +8,7 @@ import {
   PC_CAP,
   SPELL_SLOT_LEVELS,
   type AbilityName,
+  type ActiveBuff,
   type Attack,
   type AttitudeTag,
   type CoinPurse,
@@ -16,6 +17,7 @@ import {
   type FeatureEntry,
   type InventoryItem,
   type PactMagicSlots,
+  type PartyLootItem,
   type PcClass,
   type PcResourcePool,
   type PlayerCharacter,
@@ -25,7 +27,10 @@ import {
   type PlayerQuest,
   type PlayerQuestCategory,
   type PlayerQuestStatus,
+  type PlayerStickyCard,
+  type PlayerTheoryLink,
   type RechargeTiming,
+  type RollEvent,
   type SkillName,
   type SpellSlot,
   type SpellSlotLevel,
@@ -260,6 +265,136 @@ function normSharedJournal(v: unknown): PlayerJournalEntry[] | undefined {
     });
 }
 
+function normSharedTheoryLinks(v: unknown): PlayerTheoryLink[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v
+    .filter((l) => l && typeof l === 'object' && (l as Record<string, unknown>).sharedWithGm === true)
+    .map((l) => {
+      const o = l as Record<string, unknown>;
+      return {
+        id: asStr(o.id) || makePcId(),
+        sourceId: asStr(o.sourceId),
+        targetId: asStr(o.targetId),
+        label: asStr(o.label),
+        color: asStr(o.color) || '#f59e0b',
+        sharedWithGm: true,
+        ...(typeof o.updatedAt === 'number' ? { updatedAt: o.updatedAt } : {}),
+      };
+    });
+}
+
+function normSharedStickyCards(v: unknown): PlayerStickyCard[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v
+    .filter((c) => c && typeof c === 'object' && (c as Record<string, unknown>).sharedWithGm === true)
+    .map((c) => {
+      const o = c as Record<string, unknown>;
+      return {
+        id: asStr(o.id) || makePcId(),
+        title: asStr(o.title),
+        content: asStr(o.content),
+        color: asStr(o.color) || '#fef08a',
+        ...(typeof o.x === 'number' ? { x: asNum(o.x) } : {}),
+        ...(typeof o.y === 'number' ? { y: asNum(o.y) } : {}),
+        ...(typeof o.linkedEntityId === 'string' && o.linkedEntityId
+          ? { linkedEntityId: o.linkedEntityId }
+          : {}),
+        sharedWithGm: true,
+        ...(typeof o.updatedAt === 'number' ? { updatedAt: o.updatedAt } : {}),
+      };
+    });
+}
+
+function normActiveBuffs(v: unknown): ActiveBuff[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v
+    .filter((b) => b && typeof b === 'object' && asStr((b as Record<string, unknown>).name).length > 0)
+    .map((b) => {
+      const o = b as Record<string, unknown>;
+      const exp = asStr(o.expiresOn);
+      const expiresOn =
+        exp === 'turn' || exp === 'round' || exp === 'shortRest' || exp === 'longRest' || exp === 'manual'
+          ? exp
+          : undefined;
+      const rm = asStr(o.rollModeOverride);
+      const rollModeOverride =
+        rm === 'advantage' || rm === 'disadvantage' || rm === 'normal' ? rm : undefined;
+      return {
+        id: asStr(o.id) || makePcId(),
+        ...(typeof o.presetKey === 'string' && o.presetKey ? { presetKey: o.presetKey } : {}),
+        name: asStr(o.name),
+        ...(typeof o.acBonus === 'number' ? { acBonus: clampInt(o.acBonus, -50, 50, 0) } : {}),
+        ...(typeof o.speedBonus === 'number' ? { speedBonus: clampInt(o.speedBonus, -500, 500, 0) } : {}),
+        ...(typeof o.speedMultiplier === 'number' ? { speedMultiplier: asNum(o.speedMultiplier, 1) } : {}),
+        ...(typeof o.saveBonusFormula === 'string' && o.saveBonusFormula ? { saveBonusFormula: o.saveBonusFormula } : {}),
+        ...(typeof o.attackBonusFormula === 'string' && o.attackBonusFormula ? { attackBonusFormula: o.attackBonusFormula } : {}),
+        ...(typeof o.checkBonusFormula === 'string' && o.checkBonusFormula ? { checkBonusFormula: o.checkBonusFormula } : {}),
+        ...(typeof o.damageBonusFormula === 'string' && o.damageBonusFormula ? { damageBonusFormula: o.damageBonusFormula } : {}),
+        ...(rollModeOverride ? { rollModeOverride } : {}),
+        ...(typeof o.affectsChecks === 'boolean' ? { affectsChecks: o.affectsChecks } : {}),
+        ...(typeof o.affectsAttacks === 'boolean' ? { affectsAttacks: o.affectsAttacks } : {}),
+        ...(o.affectsSaves === 'all'
+          ? { affectsSaves: 'all' as const }
+          : Array.isArray(o.affectsSaves)
+            ? {
+                affectsSaves: asStrArr(o.affectsSaves).filter((a) => VALID_ABILITIES.has(a)) as AbilityName[],
+              }
+            : {}),
+        ...(typeof o.mageArmor === 'boolean' ? { mageArmor: o.mageArmor } : {}),
+        ...(expiresOn ? { expiresOn } : {}),
+      };
+    });
+}
+
+function normRollEvents(v: unknown): RollEvent[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v
+    .filter((r) => r && typeof r === 'object' && (r as Record<string, unknown>).secretRoll !== true)
+    .slice(-50)
+    .map((r) => {
+      const o = r as Record<string, unknown>;
+      const critRaw = asStr(o.crit);
+      const crit = critRaw === 'nat20' || critRaw === 'nat1' ? critRaw : null;
+      return {
+        id: asStr(o.id) || makePcId(),
+        ...(o.pcId ? { pcId: asStr(o.pcId) } : {}),
+        actorName: asStr(o.actorName) || 'Player',
+        label: asStr(o.label),
+        formula: asStr(o.formula),
+        d20Rolls: Array.isArray(o.d20Rolls)
+          ? (o.d20Rolls as unknown[]).map((n) => clampInt(n, 1, 100, 1))
+          : [],
+        total: Math.round(asNum(o.total)),
+        breakdown: asStr(o.breakdown),
+        crit,
+        timestamp: Math.round(asNum(o.timestamp, Date.now())),
+      };
+    });
+}
+
+function normPartyLootItems(v: unknown): PartyLootItem[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v
+    .filter((it) => it && typeof it === 'object')
+    .map((it) => {
+      const o = it as Record<string, unknown>;
+      const curr = normCurrency(o.currency);
+      return {
+        id: asStr(o.id) || makePcId(),
+        name: asStr(o.name),
+        qty: clampInt(o.qty, 0, 99999, 1),
+        ...(o.weight !== undefined ? { weight: asNum(o.weight) } : {}),
+        ...(o.notes !== undefined ? { notes: asStr(o.notes) } : {}),
+        ...(curr ? { currency: curr } : {}),
+        ...(o.claimedByPcId ? { claimedByPcId: asStr(o.claimedByPcId) } : {}),
+        ...(o.claimedByName ? { claimedByName: asStr(o.claimedByName) } : {}),
+        ...(o.claimNonce ? { claimNonce: asStr(o.claimNonce) } : {}),
+        ...(typeof o.splitCompleted === 'boolean' ? { splitCompleted: o.splitCompleted } : {}),
+        ...(typeof o.updatedAt === 'number' ? { updatedAt: o.updatedAt } : {}),
+      };
+    });
+}
+
 function normTurnEconomy(v: unknown): TurnActionEconomy | undefined {
   if (!v || typeof v !== 'object') return undefined;
   const o = v as Record<string, unknown>;
@@ -384,6 +519,11 @@ export function normalizePc(input: unknown): PlayerCharacter {
   const sharedQuests = normSharedQuests(o.sharedQuests);
   const sharedAnnotations = normSharedAnnotations(o.sharedAnnotations);
   const sharedJournal = normSharedJournal(o.sharedJournal);
+  const sharedTheoryLinks = normSharedTheoryLinks(o.sharedTheoryLinks);
+  const sharedStickyCards = normSharedStickyCards(o.sharedStickyCards);
+  const activeBuffs = normActiveBuffs(o.activeBuffs);
+  const rollEvents = normRollEvents(o.rollEvents);
+  const partyLootItems = normPartyLootItems(o.partyLootItems);
   const turnEconomy = normTurnEconomy(o.turnEconomy);
 
   const hpCurrentRaw = hp.current !== undefined ? hp.current : o.currentHp;
@@ -465,6 +605,11 @@ export function normalizePc(input: unknown): PlayerCharacter {
     ...(sharedQuests ? { sharedQuests } : {}),
     ...(sharedAnnotations ? { sharedAnnotations } : {}),
     ...(sharedJournal ? { sharedJournal } : {}),
+    ...(sharedTheoryLinks ? { sharedTheoryLinks } : {}),
+    ...(sharedStickyCards ? { sharedStickyCards } : {}),
+    ...(activeBuffs ? { activeBuffs } : {}),
+    ...(rollEvents ? { rollEvents } : {}),
+    ...(partyLootItems ? { partyLootItems } : {}),
     ...(Array.isArray(o.quests) ? { quests: o.quests as PlayerQuest[] } : {}),
     ...(Array.isArray(o.journalEntries) ? { journalEntries: o.journalEntries as PlayerJournalEntry[] } : {}),
     ...(turnEconomy ? { turnEconomy } : {}),

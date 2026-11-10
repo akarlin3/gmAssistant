@@ -383,4 +383,208 @@ describe('writeback merge preserves the bidirectional privacy invariant', () => 
       RUNS,
     );
   });
+
+  it('4. Player -> GM Secret Roll & Conspiracy Graph Privacy: secretRoll === true rolls and sharedWithGm === false theoryLinks / stickyCards NEVER enter pcWritebacks or CRDT merge, and only mutate owned PCs', () => {
+    const arbRoll = (idx: number) =>
+      fc.boolean().chain((secretRoll) =>
+        fc.record({
+          id: fc.constant(`roll-${idx}`),
+          pcId: fc.constant('pc-1'),
+          actorName: fc.constant('Aria'),
+          label: fc.constant(secretRoll ? `SECRET_ROLL_LABEL_${idx}` : `PUBLIC_ROLL_LABEL_${idx}`),
+          formula: fc.constant('1d20+5'),
+          d20Rolls: fc.constant([15] as number[]),
+          total: fc.constant(20),
+          breakdown: fc.constant(
+            secretRoll ? `SECRET_ROLL_BREAKDOWN_${idx}` : `PUBLIC_ROLL_BREAKDOWN_${idx}`,
+          ),
+          crit: fc.constant(null as 'nat20' | 'nat1' | null),
+          timestamp: fc.integer({ min: 1000, max: 9000 }),
+          secretRoll: fc.constant(secretRoll),
+        }),
+      );
+
+    const arbTheoryLink = (idx: number) =>
+      fc.boolean().chain((sharedWithGm) =>
+        fc.record({
+          id: fc.constant(`tlink-${idx}`),
+          sourceId: fc.constant('npc-1'),
+          targetId: fc.constant('loc-1'),
+          label: fc.constant(
+            sharedWithGm ? `PUBLIC_THEORY_EDGE_${idx}` : `PRIVATE_THEORY_SECRET_${idx}`,
+          ),
+          color: fc.constantFrom<'crimson' | 'gold' | 'violet' | 'emerald'>(
+            'crimson',
+            'gold',
+            'violet',
+            'emerald',
+          ),
+          sharedWithGm: fc.constant(sharedWithGm),
+        }),
+      );
+
+    const arbStickyCard = (idx: number) =>
+      fc.boolean().chain((sharedWithGm) =>
+        fc.record({
+          id: fc.constant(`sticky-${idx}`),
+          title: fc.constant(
+            sharedWithGm ? `PUBLIC_STICKY_TITLE_${idx}` : `PRIVATE_STICKY_TITLE_${idx}`,
+          ),
+          content: fc.constant(
+            sharedWithGm ? `PUBLIC_STICKY_BODY_${idx}` : `PRIVATE_STICKY_SECRET_${idx}`,
+          ),
+          color: fc.constantFrom<'gold' | 'crimson' | 'violet' | 'emerald'>(
+            'gold',
+            'crimson',
+            'violet',
+            'emerald',
+          ),
+          x: fc.integer({ min: 0, max: 500 }),
+          y: fc.integer({ min: 0, max: 500 }),
+          sharedWithGm: fc.constant(sharedWithGm),
+        }),
+      );
+
+    fc.assert(
+      fc.property(
+        arbTrackerState,
+        fc.array(fc.integer({ min: 0, max: 6 }), { maxLength: 6 }).chain((xs) =>
+          fc.tuple(...xs.map((_, i) => arbRoll(i))),
+        ),
+        fc.array(fc.integer({ min: 0, max: 6 }), { maxLength: 5 }).chain((xs) =>
+          fc.tuple(...xs.map((_, i) => arbTheoryLink(i))),
+        ),
+        fc.array(fc.integer({ min: 0, max: 6 }), { maxLength: 5 }).chain((xs) =>
+          fc.tuple(...xs.map((_, i) => arbStickyCard(i))),
+        ),
+        fc.constantFrom('slot-owner', 'slot-intruder'),
+        (baseTracker, rolls, theoryLinks, stickyCards, writerSlotId) => {
+          const fullTracker: PlayerLocalTrackerState = {
+            ...baseTracker,
+            theoryLinks,
+            stickyCards,
+            secretRolls: rolls.filter((r) => r.secretRoll),
+          };
+
+          const secretRolls = rolls.filter((r) => r.secretRoll);
+          const privateLinks = theoryLinks.filter((l) => !l.sharedWithGm);
+          const privateStickies = stickyCards.filter((s) => !s.sharedWithGm);
+
+          // Step A: Outbound serializer check
+          const outbound = serializeOutboundTrackerWriteback(fullTracker);
+          const outboundJson = JSON.stringify(outbound);
+
+          for (const pl of privateLinks) {
+            expect(outboundJson).not.toContain(pl.id);
+            expect(outboundJson).not.toContain(pl.label);
+          }
+          for (const ps of privateStickies) {
+            expect(outboundJson).not.toContain(ps.id);
+            expect(outboundJson).not.toContain(ps.title);
+            expect(outboundJson).not.toContain(ps.content);
+          }
+          for (const sr of secretRolls) {
+            expect(outboundJson).not.toContain(sr.id);
+            expect(outboundJson).not.toContain(sr.label);
+            expect(outboundJson).not.toContain(sr.breakdown);
+          }
+
+          // Step B: Sanitizer + CRDT merge check against raw/tampered payloads
+          const initialPcs: any[] = [
+            {
+              id: 'pc-1',
+              name: 'Aria',
+              hp: { current: 20, max: 20, temp: 0 },
+              conditions: [],
+              exhaustion: 0,
+              deathSaves: { successes: 0, failures: 0 },
+              notes: '',
+              goals: [],
+              ownership: { ownerType: 'player', playerSlotId: 'slot-owner' },
+            },
+            {
+              id: 'pc-2',
+              name: 'Bram',
+              hp: { current: 25, max: 25, temp: 0 },
+              conditions: [],
+              exhaustion: 0,
+              deathSaves: { successes: 0, failures: 0 },
+              notes: '',
+              goals: [],
+              ownership: { ownerType: 'player', playerSlotId: 'slot-other' },
+            },
+          ];
+
+          const sanitizedUpdates = sanitizeOutboundWritebackUpdates({
+            sharedQuests: fullTracker.quests,
+            sharedAnnotations: fullTracker.annotations,
+            sharedJournal: fullTracker.journal,
+            sharedTheoryLinks: theoryLinks,
+            sharedStickyCards: stickyCards,
+            rollEvents: rolls,
+          });
+          const sanitizedJson = JSON.stringify(sanitizedUpdates);
+
+          for (const sr of secretRolls) {
+            expect(sanitizedJson).not.toContain(sr.id);
+            expect(sanitizedJson).not.toContain(sr.label);
+            expect(sanitizedJson).not.toContain(sr.breakdown);
+          }
+          for (const pl of privateLinks) {
+            expect(sanitizedJson).not.toContain(pl.id);
+            expect(sanitizedJson).not.toContain(pl.label);
+          }
+          for (const ps of privateStickies) {
+            expect(sanitizedJson).not.toContain(ps.id);
+            expect(sanitizedJson).not.toContain(ps.title);
+            expect(sanitizedJson).not.toContain(ps.content);
+          }
+
+          // Also test passing raw unsanitized updates directly to mergePcWritebacks
+          const mergeRes = mergePcWritebacks(initialPcs, [
+            {
+              slotId: writerSlotId,
+              pcId: 'pc-1',
+              updates: {
+                sharedQuests: fullTracker.quests,
+                sharedAnnotations: fullTracker.annotations,
+                sharedJournal: fullTracker.journal,
+                sharedTheoryLinks: theoryLinks,
+                sharedStickyCards: stickyCards,
+                rollEvents: rolls,
+              },
+              updatedAtMs: 1500,
+            },
+          ]);
+
+          if (writerSlotId !== 'slot-owner') {
+            expect(mergeRes.changed).toBe(false);
+            expect(mergeRes.pcs).toBe(initialPcs);
+            return;
+          }
+
+          // Non-owned PC is never modified
+          expect(mergeRes.pcs[1]).toBe(initialPcs[1]);
+
+          const mergedJson = JSON.stringify(mergeRes.pcs[0]);
+          for (const sr of secretRolls) {
+            expect(mergedJson).not.toContain(sr.id);
+            expect(mergedJson).not.toContain(sr.label);
+            expect(mergedJson).not.toContain(sr.breakdown);
+          }
+          for (const pl of privateLinks) {
+            expect(mergedJson).not.toContain(pl.id);
+            expect(mergedJson).not.toContain(pl.label);
+          }
+          for (const ps of privateStickies) {
+            expect(mergedJson).not.toContain(ps.id);
+            expect(mergedJson).not.toContain(ps.title);
+            expect(mergedJson).not.toContain(ps.content);
+          }
+        },
+      ),
+      RUNS,
+    );
+  });
 });
+

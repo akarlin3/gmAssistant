@@ -24,12 +24,15 @@ import {
   toggleJournalShareWithGm,
   type PlayerLocalTrackerState,
 } from '@/lib/playerMode/playerTrackerStorage';
-import type { CoinPurse, InventoryItem, PlayerQuestStatus } from '@/lib/pc/types';
+import type { CoinPurse, InventoryItem, PartyLootItem, PlayerQuestStatus } from '@/lib/pc/types';
+import { splitPartyLootGold } from '@/lib/crdt/writeback-merge';
 import { loadStagedEdits, saveStagedEdit } from './PlayerPcSheetCard';
 import type { PlayerPc } from './types';
 
 export default function PlayerQuestsGearJournalTab({
   pc,
+  partyPcs = [],
+  projectedPartyLootItems = [],
   token,
   slotId,
   campaignId,
@@ -38,6 +41,8 @@ export default function PlayerQuestsGearJournalTab({
   revealedEntities,
 }: {
   pc?: PlayerPc;
+  partyPcs?: PlayerPc[];
+  projectedPartyLootItems?: PartyLootItem[];
   token: string;
   slotId: string;
   campaignId: string;
@@ -80,6 +85,20 @@ export default function PlayerQuestsGearJournalTab({
     const s = staged['partyLoot']?.value;
     return typeof s === 'string' ? s : (pc?.partyLoot ?? '');
   });
+  const [partyLootItems, setPartyLootItems] = useState<PartyLootItem[]>(() => {
+    const s = staged['partyLootItems']?.value;
+    if (Array.isArray(s)) return s;
+    if (projectedPartyLootItems.length > 0) return projectedPartyLootItems;
+    return pc?.partyLootItems ?? [];
+  });
+
+  // New Party Loot drop form
+  const [newLootName, setNewLootName] = useState('');
+  const [newLootQty, setNewLootQty] = useState(1);
+  const [newLootGp, setNewLootGp] = useState(0);
+  const [newLootSp, setNewLootSp] = useState(0);
+  const [newLootNotes, setNewLootNotes] = useState('');
+  const [lootFeedback, setLootFeedback] = useState<string | null>(null);
 
   // New inventory item form
   const [newItemName, setNewItemName] = useState('');
@@ -94,7 +113,14 @@ export default function PlayerQuestsGearJournalTab({
     if (!latestStaged['currency'] && pc.currency) setCurrency(pc.currency);
     if (!latestStaged['attunedCount'] && typeof pc.attunedCount === 'number') setAttunedCount(pc.attunedCount);
     if (!latestStaged['partyLoot'] && typeof pc.partyLoot === 'string') setPartyLoot(pc.partyLoot);
-  }, [pc, campaignId]);
+    if (!latestStaged['partyLootItems']) {
+      if (projectedPartyLootItems.length > 0) {
+        setPartyLootItems(projectedPartyLootItems);
+      } else if (pc.partyLootItems) {
+        setPartyLootItems(pc.partyLootItems);
+      }
+    }
+  }, [pc, projectedPartyLootItems, campaignId]);
 
   const syncGearFields = async (updates: Record<string, unknown>) => {
     if (!pc) return;
@@ -112,6 +138,128 @@ export default function PlayerQuestsGearJournalTab({
     } catch (e) {
       console.error('Failed to sync gear update:', e);
     }
+  };
+
+  // --- Structured Claimable Party Loot & Gold Splitter Handlers ---
+  const handlePostLootDrop = () => {
+    if (!newLootName.trim() && newLootGp <= 0 && newLootSp <= 0) return;
+    const drop: PartyLootItem = {
+      id: `loot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: newLootName.trim() || `Treasure Chest (${newLootGp} gp)`,
+      qty: Math.max(1, newLootQty),
+      weight: 0,
+      notes: newLootNotes.trim(),
+      currency:
+        newLootGp > 0 || newLootSp > 0
+          ? { cp: 0, sp: Math.max(0, newLootSp), ep: 0, gp: Math.max(0, newLootGp), pp: 0 }
+          : undefined,
+      createdAt: Date.now(),
+    };
+    const next = [drop, ...partyLootItems];
+    setPartyLootItems(next);
+    setNewLootName('');
+    setNewLootQty(1);
+    setNewLootGp(0);
+    setNewLootSp(0);
+    setNewLootNotes('');
+    void syncGearFields({ partyLootItems: next });
+  };
+
+  const handleClaimPartyLoot = (lootId: string) => {
+    if (!pc) return;
+    const target = partyLootItems.find((item) => item.id === lootId);
+    if (!target || target.claimedByPcId) return;
+
+    const nonce = `claim_${pc.id}_${Date.now()}`;
+    const claimedItem: PartyLootItem = {
+      ...target,
+      claimedByPcId: pc.id,
+      claimedByName: pc.name || 'Party Member',
+      claimNonce: nonce,
+      claimedAt: Date.now(),
+    };
+
+    const nextLoot = partyLootItems.map((it) => (it.id === lootId ? claimedItem : it));
+    const newInvItem: InventoryItem = {
+      id: `claimed_${target.id}`,
+      name: target.name,
+      qty: target.qty || 1,
+      weight: target.weight || 0,
+      equipped: false,
+      attuned: false,
+      notes: target.notes || 'Claimed from Party Loot',
+      sharedWithGm: true,
+    };
+    const nextInv = [...inventory, newInvItem];
+    const nextCurr = { ...currency };
+    if (target.currency) {
+      nextCurr.cp = (nextCurr.cp || 0) + (target.currency.cp || 0);
+      nextCurr.sp = (nextCurr.sp || 0) + (target.currency.sp || 0);
+      nextCurr.ep = (nextCurr.ep || 0) + (target.currency.ep || 0);
+      nextCurr.gp = (nextCurr.gp || 0) + (target.currency.gp || 0);
+      nextCurr.pp = (nextCurr.pp || 0) + (target.currency.pp || 0);
+    }
+
+    setPartyLootItems(nextLoot);
+    setInventory(nextInv);
+    setCurrency(nextCurr);
+    void syncGearFields({
+      partyLootItems: nextLoot,
+      inventory: nextInv,
+      currency: nextCurr,
+    });
+    setLootFeedback(`Claimed "${target.name}" into your inventory!`);
+    setTimeout(() => setLootFeedback(null), 3500);
+  };
+
+  const handleSplitPartyGold = (lootId: string) => {
+    if (!pc) return;
+    const target = partyLootItems.find((item) => item.id === lootId);
+    if (!target || !target.currency) return;
+
+    const partyCount = Math.max(1, partyPcs.length || 1);
+    const split = splitPartyLootGold(target.currency, partyCount);
+
+    const nextCurr: CoinPurse = {
+      cp: (currency.cp || 0) + split.perMemberShare.cp,
+      sp: (currency.sp || 0) + split.perMemberShare.sp,
+      ep: (currency.ep || 0) + split.perMemberShare.ep,
+      gp: (currency.gp || 0) + split.perMemberShare.gp,
+      pp: (currency.pp || 0) + split.perMemberShare.pp,
+    };
+
+    const hasRemainder =
+      split.remainder.cp > 0 ||
+      split.remainder.sp > 0 ||
+      split.remainder.ep > 0 ||
+      split.remainder.gp > 0 ||
+      split.remainder.pp > 0;
+
+    const nextLoot = partyLootItems.map((it) =>
+      it.id === lootId
+        ? {
+            ...it,
+            currency: split.remainder,
+            claimedByPcId: hasRemainder ? undefined : pc.id,
+            claimedByName: hasRemainder
+              ? `Split across ${partyCount} PCs (remainder in pool)`
+              : `Split evenly (${partyCount} PCs)`,
+            claimNonce: `split_${pc.id}_${Date.now()}`,
+            claimedAt: Date.now(),
+          }
+        : it,
+    );
+
+    setPartyLootItems(nextLoot);
+    setCurrency(nextCurr);
+    void syncGearFields({
+      partyLootItems: nextLoot,
+      currency: nextCurr,
+    });
+    setLootFeedback(
+      `Split gold across ${partyCount} party members (+${split.perMemberShare.gp} gp, +${split.perMemberShare.sp} sp each; remainder ${split.remainder.gp} gp tracked).`,
+    );
+    setTimeout(() => setLootFeedback(null), 4000);
   };
 
   // --- Quests Handlers ---
@@ -650,17 +798,151 @@ export default function PlayerQuestsGearJournalTab({
           )}
         </div>
 
-        {/* Party Loot / Unclaimed Scratchpad */}
-        <div className="space-y-1.5 border-t border-rule pt-3">
-          <label className="font-mono text-[10px] font-semibold uppercase tracking-wider text-brass-deep">
-            Party Loot / Unclaimed Scratchpad
-          </label>
+        {/* Structured Claimable Party Loot & Gold Splitter */}
+        <div className="space-y-2.5 border-t border-rule pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="font-mono text-[10px] font-semibold uppercase tracking-wider text-brass-deep">
+              Party Loot / Unclaimed Drops (1-Tap Claim &amp; Gold Splitter)
+            </label>
+            <span className="font-mono text-[10px] text-ink-faint">
+              Active Party Size: {Math.max(1, partyPcs.length || 1)} PCs
+            </span>
+          </div>
+
+          {lootFeedback && (
+            <div className="rounded border border-emerald-600/40 bg-emerald-500/10 px-3 py-1.5 font-serif text-xs text-emerald-900">
+              {lootFeedback}
+            </div>
+          )}
+
+          {/* Post Loot Drop Form */}
+          <div className="grid gap-2 rounded border border-rule bg-parchment-soft p-2.5 sm:grid-cols-12">
+            <input
+              type="text"
+              value={newLootName}
+              onChange={(e) => setNewLootName(e.target.value)}
+              placeholder="Loot drop item or chest name..."
+              className="rounded border border-rule bg-parchment px-2 py-1 font-serif text-xs text-ink sm:col-span-4"
+            />
+            <input
+              type="number"
+              min={1}
+              value={newLootQty}
+              onChange={(e) => setNewLootQty(parseInt(e.target.value, 10) || 1)}
+              placeholder="Qty"
+              title="Quantity"
+              className="rounded border border-rule bg-parchment px-2 py-1 font-mono text-xs text-ink sm:col-span-1"
+            />
+            <input
+              type="number"
+              min={0}
+              value={newLootGp}
+              onChange={(e) => setNewLootGp(parseInt(e.target.value, 10) || 0)}
+              placeholder="GP"
+              title="Gold Pieces (GP)"
+              className="rounded border border-rule bg-parchment px-2 py-1 font-mono text-xs text-ink sm:col-span-2"
+            />
+            <input
+              type="number"
+              min={0}
+              value={newLootSp}
+              onChange={(e) => setNewLootSp(parseInt(e.target.value, 10) || 0)}
+              placeholder="SP"
+              title="Silver Pieces (SP)"
+              className="rounded border border-rule bg-parchment px-2 py-1 font-mono text-xs text-ink sm:col-span-2"
+            />
+            <input
+              type="text"
+              value={newLootNotes}
+              onChange={(e) => setNewLootNotes(e.target.value)}
+              placeholder="Notes..."
+              className="rounded border border-rule bg-parchment px-2 py-1 font-serif text-xs text-ink sm:col-span-2"
+            />
+            <button
+              type="button"
+              onClick={handlePostLootDrop}
+              className="inline-flex items-center justify-center gap-1 rounded border border-gold-deep bg-gold/25 px-2 py-1 font-mono text-xs font-semibold text-gold-deep hover:bg-gold/35 sm:col-span-1"
+            >
+              <Plus size={12} /> Drop
+            </button>
+          </div>
+
+          {partyLootItems.length > 0 && (
+            <div className="space-y-1.5">
+              {partyLootItems.map((drop) => {
+                const isClaimed = Boolean(drop.claimedByPcId);
+                const hasGold =
+                  Boolean(drop.currency) &&
+                  ((drop.currency?.gp ?? 0) > 0 ||
+                    (drop.currency?.sp ?? 0) > 0 ||
+                    (drop.currency?.cp ?? 0) > 0 ||
+                    (drop.currency?.pp ?? 0) > 0);
+                return (
+                  <div
+                    key={drop.id}
+                    className={`flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 text-xs ${
+                      isClaimed
+                        ? 'border-rule/60 bg-parchment-soft/60 text-ink-faint'
+                        : 'border-gold-deep/50 bg-gold/10 text-ink'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`font-serif font-semibold ${isClaimed ? 'line-through' : 'text-ink'}`}>
+                        {drop.name} {drop.qty > 1 ? `×${drop.qty}` : ''}
+                      </span>
+                      {hasGold && (
+                        <span className="rounded border border-gold-deep/40 bg-parchment px-1.5 py-0.5 font-mono text-[10px] font-bold text-gold-deep">
+                          {[
+                            drop.currency?.pp ? `${drop.currency.pp}pp` : null,
+                            drop.currency?.gp ? `${drop.currency.gp}gp` : null,
+                            drop.currency?.ep ? `${drop.currency.ep}ep` : null,
+                            drop.currency?.sp ? `${drop.currency.sp}sp` : null,
+                            drop.currency?.cp ? `${drop.currency.cp}cp` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                        </span>
+                      )}
+                      {drop.notes && <span className="font-serif italic text-ink-soft">— {drop.notes}</span>}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {isClaimed ? (
+                        <span className="rounded bg-parchment px-2 py-0.5 font-mono text-[10px] text-ink-soft">
+                          ✓ Claimed by {drop.claimedByName || drop.claimedByPcId}
+                        </span>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleClaimPartyLoot(drop.id)}
+                            className="inline-flex items-center gap-1 rounded border border-emerald-600 bg-emerald-600 px-2.5 py-0.5 font-mono text-[10px] font-bold text-white hover:bg-emerald-700"
+                          >
+                            Claim Item
+                          </button>
+                          {hasGold && (
+                            <button
+                              type="button"
+                              onClick={() => handleSplitPartyGold(drop.id)}
+                              className="inline-flex items-center gap-1 rounded border border-gold-deep bg-gold/30 px-2.5 py-0.5 font-mono text-[10px] font-bold text-gold-deep hover:bg-gold/40"
+                            >
+                              <Coins size={11} /> Split Party Gold
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <textarea
             value={partyLoot}
             onChange={(e) => setPartyLoot(e.target.value)}
             onBlur={() => syncGearFields({ partyLoot })}
             rows={2}
-            placeholder="Unclaimed treasure, art objects, bag of holding contents, party fund..."
+            placeholder="Unclaimed treasure notes, art objects, bag of holding scratchpad..."
             className="w-full rounded border border-rule bg-parchment-soft p-2.5 font-serif text-xs text-ink placeholder:text-ink-faint focus:border-wax focus:outline-none"
           />
         </div>

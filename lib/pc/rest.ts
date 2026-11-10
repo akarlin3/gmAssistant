@@ -2,6 +2,7 @@
 // refreshes everything: HP to max, all spell slots, all feature uses, and
 // regains half the spent hit dice (rounded down) per SRD.
 
+import { expireActiveBuffs } from '../activeModifiers';
 import type {
   FeatureEntry,
   PactMagicSlots,
@@ -56,6 +57,9 @@ export function shortRest(pc: PlayerCharacter): PlayerCharacter {
     features: resetFeatures(pc.features, 'short'),
     ...(pc.resourcePools ? { resourcePools: resetResourcePools(pc.resourcePools, 'short') } : {}),
     ...(pc.pactSlots ? { pactSlots: resetPactSlots(pc.pactSlots) } : {}),
+    ...(Array.isArray(pc.activeBuffs)
+      ? { activeBuffs: expireActiveBuffs(pc.activeBuffs, 'shortRest') }
+      : {}),
   };
 }
 
@@ -69,6 +73,9 @@ export function longRest(pc: PlayerCharacter): PlayerCharacter {
     ...(pc.pactSlots ? { pactSlots: resetPactSlots(pc.pactSlots) } : {}),
     features: resetFeatures(pc.features, 'all'),
     ...(pc.resourcePools ? { resourcePools: resetResourcePools(pc.resourcePools, 'long') } : {}),
+    ...(Array.isArray(pc.activeBuffs)
+      ? { activeBuffs: expireActiveBuffs(pc.activeBuffs, 'longRest') }
+      : {}),
     exhaustion: Math.max(0, pc.exhaustion - 1) as PlayerCharacter['exhaustion'],
     deathSaves: { successes: 0, failures: 0 },
   };

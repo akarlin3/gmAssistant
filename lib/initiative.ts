@@ -19,6 +19,9 @@ export type Combatant = {
   exhaustion?: number;
   notes?: string;
   concentrationSpell?: string;
+  hidden?: boolean;
+  revealed?: boolean;
+  player_visible?: boolean;
 };
 
 export type InitiativeLogEntry = {

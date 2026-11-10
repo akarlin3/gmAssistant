@@ -232,4 +232,124 @@ describe('redaction invariant (property-based)', () => {
       RUNS,
     );
   });
+
+  // I10: GM -> Player Encounter HUD & Progress Clock Redaction
+  // Arbitrary adversarial campaign state with hidden monsters, monster HP/AC/stat blocks/GM notes,
+  // and private clocks projects ZERO hidden combatants, monster stats, or private clocks into /player.
+  it('I10 — Encounter HUD and Revealed Progress Clocks never leak hidden monsters, monster AC/HP/stat blocks/notes, or private clocks', () => {
+    const arbCombatant = (idx: number) =>
+      fc.record({
+        id: fc.constant(`comb-${idx}`),
+        name: fc.boolean().map((hidden) =>
+          hidden ? `HIDDEN_MONSTER_NAME_${idx}` : `REVEALED_COMBATANT_${idx}`,
+        ),
+        initiative: fc.integer({ min: -5, max: 30 }),
+        hp: fc.integer({ min: 0, max: 250 }),
+        maxHp: fc.integer({ min: 1, max: 250 }),
+        ac: fc.integer({ min: 10, max: 25 }),
+        type: fc.constantFrom<'pc' | 'monster' | 'npc'>('pc', 'monster', 'npc'),
+        pcId: fc.option(fc.constant(`pc-${idx}`), { nil: undefined }),
+        conditions: fc.array(fc.constantFrom('Poisoned', 'Prone'), { maxLength: 2 }),
+        notes: fc.constant(`SECRET_GM_COMBAT_NOTE_${idx}`),
+        statBlock: fc.constant(`SECRET_MONSTER_STATBLOCK_${idx}`),
+        hidden: fc.boolean(),
+        player_visible: fc.boolean(),
+      });
+
+    const arbClock = (idx: number) =>
+      fc.boolean().chain((isParty) =>
+        fc.record({
+          id: fc.constant(`clock-${idx}`),
+          text: fc.constant(isParty ? `PARTY_CLOCK_${idx}` : `PRIVATE_GM_CLOCK_${idx}`),
+          filled: fc.integer({ min: 0, max: 6 }),
+          max: fc.constantFrom(4, 6, 8),
+          visibility: fc.constant(isParty ? 'party' : 'private'),
+          category: fc.constantFrom('faction', 'quest', 'encounter'),
+          publicDescription: fc.constant(
+            isParty ? `PUBLIC_CLOCK_DESC_${idx}` : `PRIVATE_CLOCK_SECRET_DESC_${idx}`,
+          ),
+          gmNotes: fc.constant(`SECRET_GM_CLOCK_NOTES_${idx}`),
+        }),
+      );
+
+    fc.assert(
+      fc.property(
+        arbCampaignAndSlot(),
+        fc.array(fc.integer({ min: 0, max: 8 }), { maxLength: 6 }).chain((indices) =>
+          fc.tuple(...indices.map((_, i) => arbCombatant(i))),
+        ),
+        fc.array(fc.integer({ min: 0, max: 8 }), { maxLength: 6 }).chain((indices) =>
+          fc.tuple(...indices.map((_, i) => arbClock(i))),
+        ),
+        ({ camp, slotId }, combatants, rawClocks) => {
+          const dataWithEncounterAndClocks: PlayerModeData = {
+            ...camp.data,
+            __initiative: {
+              round: 3,
+              turnIndex: 0,
+              active: combatants.length > 0,
+              combatants: combatants.map((c) => ({
+                ...c,
+                // Synchronize name sentinel with effective visibility
+                name:
+                  c.hidden === true || c.player_visible === false
+                    ? `HIDDEN_COMBATANT_${c.id}`
+                    : `PUBLIC_COMBATANT_${c.id}`,
+              })),
+            },
+            clocks: rawClocks as any,
+          };
+
+          const proj = buildSlotProjection(dataWithEncounterAndClocks, 'Camp', slotId, 1000);
+          const hud = proj.activeEncounterHud;
+          const projJson = JSON.stringify({
+            hud: proj.activeEncounterHud,
+            revealedClocks: proj.revealedClocks,
+          });
+
+          expect(hud).toBeDefined();
+          for (const entry of hud!.entries) {
+            // Only whitelisted keys exist on projected HUD entries
+            for (const key of Object.keys(entry)) {
+              expect([
+                'id',
+                'displayName',
+                'initiative',
+                'isPc',
+                'pcId',
+                'publicStatusTag',
+              ]).toContain(key);
+            }
+            expect(entry).not.toHaveProperty('hp');
+            expect(entry).not.toHaveProperty('maxHp');
+            expect(entry).not.toHaveProperty('ac');
+            expect(entry).not.toHaveProperty('notes');
+            expect(entry).not.toHaveProperty('statBlock');
+          }
+
+          for (const c of combatants) {
+            // Never leak GM combat notes or stat blocks
+            expect(projJson).not.toContain(c.notes);
+            expect(projJson).not.toContain(c.statBlock);
+            const isHidden = c.hidden === true || c.player_visible === false;
+            if (isHidden) {
+              expect(projJson).not.toContain(`HIDDEN_COMBATANT_${c.id}`);
+              expect(hud!.entries.some((e) => e.id === c.id)).toBe(false);
+            }
+          }
+
+          for (const clk of rawClocks) {
+            expect(projJson).not.toContain(clk.gmNotes);
+            if (clk.visibility !== 'party') {
+              expect(projJson).not.toContain(clk.text);
+              expect(projJson).not.toContain(clk.publicDescription);
+              expect((proj.revealedClocks ?? []).some((rc) => rc.id === clk.id)).toBe(false);
+            }
+          }
+        },
+      ),
+      RUNS,
+    );
+  });
 });
+

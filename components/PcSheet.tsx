@@ -4,7 +4,7 @@ import { useMemo, useContext, useRef, useState } from 'react';
 import { CampaignPlayModeContext } from './CampaignPlayModeContext';
 import {
   ChevronDown, ChevronRight, X, Plus, Trash2, Download, Heart, Shield,
-  Moon, Sun, Dice5, FileUp,
+  Moon, Sun, Dice5, FileUp, Dices, Lock, Sparkles, Wand2, ArrowUpCircle, ShieldAlert, Zap,
 } from 'lucide-react';
 import {
   abilityMod, formatMod, pcInitiative, pcTotalLevel, proficiencyBonusForLevel,
@@ -17,8 +17,8 @@ import { pcToMarkdown } from '@/lib/pc/export';
 import { makePcId } from '@/lib/pc/factory';
 import {
   ABILITY_NAMES, SPELL_SLOT_LEVELS,
-  type AbilityName, type Attack, type FeatureEntry, type InventoryItem,
-  type PlayerCharacter, type SkillName, type SpellSlotLevel,
+  type AbilityName, type ActiveBuff, type Attack, type FeatureEntry, type InventoryItem,
+  type PlayerCharacter, type RollEvent, type SkillName, type SpellSlotLevel,
 } from '@/lib/pc/types';
 import { CONDITIONS } from '@/lib/initiative';
 import { Label, SectionTitle, inputCls, chipBtn } from './pcSheet/primitives';
@@ -31,6 +31,27 @@ import {
   EvaluationReportBadge,
   ExportSheetPdfButton,
 } from './CharacterSheetLifecycleControls';
+import {
+  computeEffectiveCharacterStats,
+  createBuffFromPreset,
+  PRESET_BUFFS,
+  type RollMode,
+} from '@/lib/activeModifiers';
+import {
+  appendRollEventRingBuffer,
+  parseSpellMetadata,
+  rollAbilityCheck,
+  rollAttackDamage,
+  rollCharacterDeathSave,
+  rollCharacterHitDie,
+  rollConcentrationCheck,
+  rollInitiativeCheck,
+  rollSavingThrow,
+  rollSkillCheck,
+  rollWeaponOrSpellAttack,
+  sanitizeRollEventsForOutbound,
+} from '@/lib/diceRoller';
+import { CharacterWizardModal } from './CharacterWizardModal';
 
 type Props = {
   pc: PlayerCharacter;
@@ -41,6 +62,7 @@ type Props = {
   roster?: { slotId: string; displayName: string }[];
   allPcs?: PlayerCharacter[];
   onEvaluatedUpload?: (updatedPc: PlayerCharacter, previousPc: PlayerCharacter) => void;
+  onAppendSecretRoll?: (roll: RollEvent) => void;
 };
 
 // ---- main component -----------------------------------------------------
@@ -50,6 +72,7 @@ export default function PcSheet({
   roster = [],
   allPcs = [],
   onEvaluatedUpload,
+  onAppendSecretRoll,
 }: Props) {
   const playMode = useContext(CampaignPlayModeContext);
   const totalLevel = useMemo(() => pcTotalLevel(pc), [pc]);
@@ -59,6 +82,78 @@ export default function PcSheet({
   );
   const singleUploadRef = useRef<HTMLInputElement>(null);
   const [uploadingSingle, setUploadingSingle] = useState(false);
+
+  // Interactive Click-to-Roll & Active Buffs state
+  const [rollMode, setRollMode] = useState<RollMode>('normal');
+  const [situationalBonus, setSituationalBonus] = useState<string>('');
+  const [secretRoll, setSecretRoll] = useState(false);
+  const [lastRoll, setLastRoll] = useState<RollEvent | null>(null);
+  const [customBuffName, setCustomBuffName] = useState('');
+  const [customBuffAc, setCustomBuffAc] = useState(0);
+  const [customBuffBonus, setCustomBuffBonus] = useState('');
+  const [concentrationPrompt, setConcentrationPrompt] = useState<{
+    damage: number;
+    dc: number;
+    spellName: string;
+    rolledResult?: RollEvent;
+  } | null>(null);
+  const [spellPrompt, setSpellPrompt] = useState<{
+    spellName: string;
+    level: number;
+    requiresConcentration: boolean;
+  } | null>(null);
+  const [wizardMode, setWizardMode] = useState<'create' | 'levelUp' | null>(null);
+
+  const effectiveStats = useMemo(() => computeEffectiveCharacterStats(pc), [pc]);
+  const activeBuffs: ActiveBuff[] = pc.activeBuffs ?? [];
+
+  // Patch helper: shallow-merges a partial and emits the new PC.
+  const patch = (p: Partial<PlayerCharacter>) => onChange({ ...pc, ...p });
+
+  const emitRoll = (event: RollEvent, extraPatch?: Partial<PlayerCharacter>) => {
+    setLastRoll(event);
+    if (event.secretRoll) {
+      onAppendSecretRoll?.(event);
+      if (extraPatch) patch(extraPatch);
+    } else {
+      const nextPublic = sanitizeRollEventsForOutbound(
+        appendRollEventRingBuffer(pc.rollEvents ?? [], event, 50),
+      );
+      patch({ ...(extraPatch ?? {}), rollEvents: nextPublic });
+    }
+  };
+
+  const togglePresetBuff = (presetKey: string) => {
+    const exists = activeBuffs.some((b) => b.presetKey === presetKey || b.id === presetKey);
+    if (exists) {
+      patch({
+        activeBuffs: activeBuffs.filter((b) => b.presetKey !== presetKey && b.id !== presetKey),
+      });
+    } else {
+      const created = createBuffFromPreset(presetKey);
+      if (created) {
+        patch({ activeBuffs: [...activeBuffs, created] });
+      }
+    }
+  };
+
+  const addCustomBuff = () => {
+    if (!customBuffName.trim()) return;
+    const buff: ActiveBuff = {
+      id: `custom-${Date.now()}`,
+      name: customBuffName.trim(),
+      acBonus: customBuffAc || undefined,
+      attackBonusFormula: customBuffBonus.trim() || undefined,
+      saveBonusFormula: customBuffBonus.trim() || undefined,
+      checkBonusFormula: customBuffBonus.trim() || undefined,
+      expiresOn: 'rest',
+      active: true,
+    };
+    patch({ activeBuffs: [...activeBuffs, buff] });
+    setCustomBuffName('');
+    setCustomBuffAc(0);
+    setCustomBuffBonus('');
+  };
 
   const handleSinglePcUpload = async (file: File) => {
     setUploadingSingle(true);
@@ -99,19 +194,11 @@ export default function PcSheet({
     return 'Player PC';
   }, [isPlayerOwned, pc.ownership?.playerSlotId, roster]);
 
-  const otherPlayerOwnedPc = useMemo(() => {
-    return allPcs.find((p) => p.id !== pc.id && p.ownership?.ownerType === 'player');
-  }, [allPcs, pc.id]);
-
-  // Patch helper: shallow-merges a partial and emits the new PC.
-  const patch = (p: Partial<PlayerCharacter>) => onChange({ ...pc, ...p });
-
   const setAbility = (a: AbilityName, v: number) =>
     patch({ abilities: { ...pc.abilities, [a]: v } });
 
   const setLevel = (v: number) => {
     const lvl = Math.max(1, Math.min(20, v));
-    // Auto-recompute proficiency bonus from the new level (still overridable).
     patch({ level: lvl, proficiencyBonus: proficiencyBonusForLevel(lvl) });
   };
 
@@ -248,9 +335,34 @@ export default function PcSheet({
         </button>
         <EvaluationReportBadge evaluation={evaluation} compact />
         <span className="flex items-center gap-1 font-serif text-[11px] text-ink-soft">
-          <Heart size={11} className="text-crimson" /> {pc.hp.current}/{pc.hp.max}
-          <Shield size={11} className="ml-1.5 text-brass-deep" /> {pc.ac}
+          <Heart size={11} className="text-crimson" /> {pc.hp.current}/{effectiveStats.effectiveMaxHp}
+          <Shield size={11} className="ml-1.5 text-brass-deep" /> {effectiveStats.effectiveAc}
+          {effectiveStats.acDelta !== 0 && (
+            <span className="font-mono text-[9px] text-emerald-700">
+              ({effectiveStats.acDelta > 0 ? `+${effectiveStats.acDelta}` : effectiveStats.acDelta})
+            </span>
+          )}
         </span>
+        <button
+          type="button"
+          onClick={() => setWizardMode('levelUp')}
+          data-testid={`pc-level-up-btn-${pc.id}`}
+          className="inline-flex items-center gap-1 rounded border border-amber-500/50 bg-amber-500/15 px-1.5 py-0.5 font-display text-[10px] font-semibold uppercase tracking-wider text-amber-700 hover:bg-amber-500/25"
+          title="Guided 1-Tap Level-Up Wizard"
+        >
+          <ArrowUpCircle size={11} />
+          <span>Level Up</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setWizardMode('create')}
+          data-testid={`pc-wizard-builder-btn-${pc.id}`}
+          className="inline-flex items-center gap-1 rounded border border-indigo-500/40 bg-indigo-500/10 px-1.5 py-0.5 font-display text-[10px] font-semibold uppercase tracking-wider text-indigo-700 hover:bg-indigo-500/20"
+          title="Guided Character Builder Wizard"
+        >
+          <Wand2 size={11} />
+          <span>Builder</span>
+        </button>
         <button
           type="button"
           onClick={() => singleUploadRef.current?.click()}
@@ -281,9 +393,231 @@ export default function PcSheet({
         </button>
       </div>
 
-
       {!open ? null : (
         <div className="space-y-3 border-t border-rule p-3">
+          {/* Automatic Concentration Check Prompt Toast */}
+          {concentrationPrompt && (
+            <div
+              data-testid="pcsheet-concentration-prompt"
+              className="flex flex-wrap items-center justify-between gap-2 rounded border-2 border-amber-500 bg-amber-950/90 px-3 py-2 text-xs text-amber-100 shadow"
+            >
+              <div className="flex items-center gap-2">
+                <ShieldAlert size={15} className="text-amber-400" />
+                <span>
+                  Took <strong>{concentrationPrompt.damage}</strong> damage while concentrating on{' '}
+                  <strong>{concentrationPrompt.spellName}</strong>! Roll CON Save{' '}
+                  <strong>DC {concentrationPrompt.dc}</strong>:
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {!concentrationPrompt.rolledResult ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ev = rollConcentrationCheck(pc, concentrationPrompt.damage, {
+                        rollMode,
+                        situationalBonus: situationalBonus || undefined,
+                        secretRoll,
+                      });
+                      emitRoll(ev);
+                      setConcentrationPrompt({ ...concentrationPrompt, rolledResult: ev });
+                    }}
+                    className="rounded bg-amber-400 px-2.5 py-1 font-mono text-[11px] font-bold text-zinc-950"
+                  >
+                    🎲 Roll Concentration Save (DC {concentrationPrompt.dc})
+                  </button>
+                ) : (
+                  <span className="font-mono text-xs font-bold">
+                    Rolled {concentrationPrompt.rolledResult.total} vs DC {concentrationPrompt.dc} (
+                    {concentrationPrompt.rolledResult.total >= concentrationPrompt.dc ? 'PASS' : 'FAIL'})
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setConcentrationPrompt(null)}
+                  className="rounded border border-emerald-400/50 bg-emerald-500/20 px-2 py-0.5 font-mono text-[10px] text-emerald-200"
+                >
+                  Keep Conc.
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    patch({ concentrationSpell: '' });
+                    setConcentrationPrompt(null);
+                  }}
+                  className="rounded border border-red-400/50 bg-red-500/20 px-2 py-0.5 font-mono text-[10px] text-red-200"
+                >
+                  Drop Conc.
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Roll Modifier Pill Bar & Latest Roll Banner */}
+          <div className="space-y-2 rounded border border-rule bg-parchment-soft p-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="mr-1 inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase text-brass-deep">
+                  <Dices size={12} /> Click-to-Roll:
+                </span>
+                {(['normal', 'advantage', 'disadvantage'] as RollMode[]).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setRollMode(m)}
+                    className={`rounded border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${
+                      rollMode === m
+                        ? m === 'advantage'
+                          ? 'border-emerald-600 bg-emerald-600 text-white'
+                          : m === 'disadvantage'
+                            ? 'border-red-600 bg-red-600 text-white'
+                            : 'border-wax bg-wax text-ivory'
+                        : 'border-rule bg-parchment text-ink-soft'
+                    }`}
+                  >
+                    {m === 'normal' ? 'Normal' : m === 'advantage' ? 'Advantage' : 'Disadvantage'}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-1">
+                {['+1d4', '+2', '+5'].map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => setSituationalBonus((cur) => (cur === b ? '' : b))}
+                    className={`rounded border px-1.5 py-0.5 font-mono text-[10px] ${
+                      situationalBonus === b
+                        ? 'border-amber-600 bg-amber-500/20 font-bold text-amber-900'
+                        : 'border-rule bg-parchment text-ink-soft'
+                    }`}
+                  >
+                    {b}
+                  </button>
+                ))}
+                <input
+                  type="text"
+                  value={situationalBonus}
+                  onChange={(e) => setSituationalBonus(e.target.value)}
+                  placeholder="+mod / +1d6"
+                  className="w-20 rounded border border-rule bg-parchment px-1.5 py-0.5 font-mono text-[10px] text-ink"
+                />
+                <button
+                  type="button"
+                  onClick={() => setSecretRoll((s) => !s)}
+                  className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[10px] font-semibold ${
+                    secretRoll
+                      ? 'border-purple-600 bg-purple-600 text-white'
+                      : 'border-rule bg-parchment text-ink-soft'
+                  }`}
+                >
+                  <Lock size={10} />
+                  {secretRoll ? '🔒 Secret Roll' : 'Public Roll'}
+                </button>
+              </div>
+            </div>
+
+            {lastRoll && (
+              <div
+                className={`flex flex-wrap items-center justify-between gap-2 rounded border px-2.5 py-1.5 text-xs ${
+                  lastRoll.crit === 'nat20'
+                    ? 'border-amber-500 bg-amber-500/15 text-amber-950'
+                    : lastRoll.crit === 'nat1'
+                      ? 'border-red-500 bg-red-500/15 text-red-950'
+                      : 'border-rule bg-parchment text-ink'
+                }`}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-display font-bold">{lastRoll.label}</span>
+                  <span className="font-mono text-[11px] text-ink-soft">({lastRoll.breakdown})</span>
+                  {lastRoll.crit === 'nat20' && (
+                    <span className="rounded bg-amber-500 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase text-white">
+                      ★ NAT 20!
+                    </span>
+                  )}
+                  {lastRoll.crit === 'nat1' && (
+                    <span className="rounded bg-red-600 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase text-white">
+                      💀 NAT 1!
+                    </span>
+                  )}
+                </div>
+                <span className="font-mono text-base font-bold text-wax">= {lastRoll.total}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Active Buffs & Dynamic Stat Modifiers Bar */}
+          <div className="space-y-1.5 rounded border border-rule bg-parchment-soft p-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-1">
+              <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase text-brass-deep">
+                <Zap size={11} /> Active Buffs &amp; Spell Effects
+              </span>
+              {effectiveStats.summaryBadges.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {effectiveStats.summaryBadges.map((badge, i) => (
+                    <span
+                      key={i}
+                      className="rounded bg-amber-500/20 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-amber-900"
+                    >
+                      {badge}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {Object.values(PRESET_BUFFS).map((preset) => {
+                const isActive = activeBuffs.some(
+                  (b) => b.presetKey === preset.presetKey || b.id === preset.id,
+                );
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => togglePresetBuff(preset.presetKey || preset.id)}
+                    className={`rounded-full border px-2 py-0.5 font-mono text-[10px] transition ${
+                      isActive
+                        ? 'border-emerald-600 bg-emerald-600 font-bold text-white shadow-sm'
+                        : 'border-rule bg-parchment text-ink-soft hover:text-ink'
+                    }`}
+                  >
+                    {isActive ? '✓ ' : '+ '}
+                    {preset.name}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap items-center gap-1 pt-1">
+              <input
+                type="text"
+                value={customBuffName}
+                onChange={(e) => setCustomBuffName(e.target.value)}
+                placeholder="Custom Buff..."
+                className="w-28 rounded border border-rule bg-parchment px-1.5 py-0.5 font-serif text-[11px]"
+              />
+              <input
+                type="number"
+                value={customBuffAc || ''}
+                onChange={(e) => setCustomBuffAc(parseInt(e.target.value, 10) || 0)}
+                placeholder="+AC"
+                className="w-12 rounded border border-rule bg-parchment px-1.5 py-0.5 font-mono text-[11px]"
+              />
+              <input
+                type="text"
+                value={customBuffBonus}
+                onChange={(e) => setCustomBuffBonus(e.target.value)}
+                placeholder="Roll +1d4"
+                className="w-20 rounded border border-rule bg-parchment px-1.5 py-0.5 font-mono text-[11px]"
+              />
+              <button
+                type="button"
+                onClick={addCustomBuff}
+                className="rounded border border-brass-deep bg-brass/15 px-2 py-0.5 font-mono text-[10px] font-semibold text-brass-deep"
+              >
+                + Buff
+              </button>
+            </div>
+          </div>
+
           {/* Identity */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <div className="col-span-2 sm:col-span-1">
@@ -322,22 +656,13 @@ export default function PcSheet({
                   className="w-full cursor-pointer border-b border-rule bg-transparent p-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none"
                 >
                   <option value="dm">DM-Owned NPC</option>
-                  {roster.map((r: any) => {
-                    return (
-                      <option
-                        key={r.slotId}
-                        value={r.slotId}
-                      >
-                        Player: {r.displayName}
-                      </option>
-                    );
-                  })}
-                  {roster.length === 0 && (
-                    <option
-                      value="player-generic"
-                    >
-                      Player PC
+                  {roster.map((r: any) => (
+                    <option key={r.slotId} value={r.slotId}>
+                      Player: {r.displayName}
                     </option>
+                  ))}
+                  {roster.length === 0 && (
+                    <option value="player-generic">Player PC</option>
                   )}
                 </select>
               </div>
@@ -392,15 +717,31 @@ export default function PcSheet({
             </p>
           </div>
 
-          {/* Abilities */}
+          {/* Abilities (1-Tap Rollable) */}
           <div className="border-t border-rule pt-2.5">
-            <SectionTitle>Abilities</SectionTitle>
+            <SectionTitle>Abilities (Tap Mod to Roll Check)</SectionTitle>
             <div className="mt-1.5 grid grid-cols-3 gap-1.5 sm:grid-cols-6">
               {ABILITY_NAMES.map((a) => (
                 <div key={a} className="rounded border border-rule bg-parchment-soft p-1.5 text-center">
                   <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">{a}</div>
                   <NumInput name={a} min={1} max={30} value={pc.abilities[a]} onChange={(v) => setAbility(a, v)} className="w-full bg-transparent text-center font-serif text-lg text-ink focus:outline-none" />
-                  <div className="font-display text-xs text-crimson">{formatMod(abilityMod(pc.abilities[a]))}</div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      emitRoll(
+                        rollAbilityCheck(pc, a, {
+                          rollMode,
+                          situationalBonus: situationalBonus || undefined,
+                          secretRoll,
+                        }),
+                      )
+                    }
+                    className="mt-0.5 inline-flex items-center gap-1 rounded border border-crimson/30 bg-crimson/10 px-2 py-0.5 font-display text-xs text-crimson hover:bg-crimson hover:text-ivory"
+                    title={`Roll ${a} Check`}
+                  >
+                    <Dices size={10} />
+                    {formatMod(abilityMod(pc.abilities[a]))}
+                  </button>
                 </div>
               ))}
             </div>
@@ -409,17 +750,45 @@ export default function PcSheet({
           {/* Combat stats */}
           <div className="grid grid-cols-2 gap-2 border-t border-rule pt-2.5 sm:grid-cols-4">
             <div>
-              <Label>AC</Label>
+              <Label>
+                AC{' '}
+                {effectiveStats.acDelta !== 0 && (
+                  <span className="font-mono text-[10px] text-emerald-700">
+                    (Eff: {effectiveStats.effectiveAc})
+                  </span>
+                )}
+              </Label>
               <NumInput name="ac" value={pc.ac} onChange={(v) => patch({ ac: v })} />
             </div>
             <div>
-              <Label>Speed</Label>
+              <Label>
+                Speed{' '}
+                {effectiveStats.effectiveSpeed !== pc.speed && (
+                  <span className="font-mono text-[10px] text-amber-700">
+                    (Eff: {effectiveStats.effectiveSpeed} ft)
+                  </span>
+                )}
+              </Label>
               <NumInput value={pc.speed} onChange={(v) => patch({ speed: v })} />
             </div>
             <div>
               <Label>Initiative</Label>
               <NumInput value={pc.initiativeMod} onChange={(v) => patch({ initiativeMod: v })} />
-              <div className="text-center font-display text-[10px] text-ink-mute">eff {formatMod(pcInitiative(pc))}</div>
+              <button
+                type="button"
+                onClick={() =>
+                  emitRoll(
+                    rollInitiativeCheck(pc, {
+                      rollMode,
+                      situationalBonus: situationalBonus || undefined,
+                      secretRoll,
+                    }),
+                  )
+                }
+                className="mt-0.5 flex w-full items-center justify-center gap-1 rounded border border-brass-deep/40 bg-brass/10 py-0.5 font-display text-[10px] text-brass-deep hover:bg-brass hover:text-parchment"
+              >
+                <Dices size={10} /> Roll Init ({formatMod(effectiveStats.effectiveInitiative)})
+              </button>
             </div>
             <div>
               <Label>Prof. Bonus</Label>
@@ -427,7 +796,21 @@ export default function PcSheet({
             </div>
             <div>
               <Label>HP Current</Label>
-              <NumInput name="hpCurrent" value={pc.hp.current} onChange={(v) => patch({ hp: { ...pc.hp, current: v } })} />
+              <NumInput
+                name="hpCurrent"
+                value={pc.hp.current}
+                onChange={(v) => {
+                  const dmg = pc.hp.current - v;
+                  patch({ hp: { ...pc.hp, current: v } });
+                  if (dmg > 0 && pc.concentrationSpell) {
+                    setConcentrationPrompt({
+                      damage: dmg,
+                      dc: Math.max(10, Math.floor(dmg / 2)),
+                      spellName: pc.concentrationSpell,
+                    });
+                  }
+                }}
+              />
             </div>
             <div>
               <Label>HP Max</Label>
@@ -442,31 +825,66 @@ export default function PcSheet({
               <div className="flex items-center gap-1">
                 <NumInput value={pc.hitDice.used} onChange={(v) => patch({ hitDice: { ...pc.hitDice, used: Math.max(0, Math.min(pc.hitDice.max, v)) } })} />
                 <span className="font-serif text-xs text-ink-mute">/ {pc.hitDice.max}</span>
+                <button
+                  type="button"
+                  disabled={pc.hitDice.used >= pc.hitDice.max}
+                  onClick={() => {
+                    const res = rollCharacterHitDie(pc, { secretRoll });
+                    emitRoll(res.rollEvent, {
+                      hp: { ...pc.hp, current: res.nextCurrentHp },
+                      hitDice: { ...pc.hitDice, used: Math.min(pc.hitDice.max, pc.hitDice.used + 1) },
+                    });
+                  }}
+                  className="ml-1 rounded border border-emerald-600/50 bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-800 disabled:opacity-40"
+                  title="Spend & Roll 1 Hit Die to Heal"
+                >
+                  🎲 Spend
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Saving throws */}
+          {/* Saving throws (Checkbox toggles prof, Roll button rolls save) */}
           <div className="border-t border-rule pt-2.5">
             <SectionTitle>Saving Throws</SectionTitle>
             <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
               {ABILITY_NAMES.map((a) => {
                 const prof = pc.proficiencies.savingThrows.includes(a);
+                const effSaveMod = effectiveStats.savingThrowModifiers[a] ?? savingThrowModifier(pc, a);
                 return (
-                  <button
+                  <div
                     key={a}
-                    onClick={() => toggleSave(a)}
-                    role="checkbox"
-                    aria-checked={prof}
-                    aria-label={`Proficient in ${a} save`}
                     className={`flex items-center justify-between rounded border px-2 py-1 font-serif text-sm ${prof ? 'border-brass-deep/50 bg-brass/10' : 'border-rule'}`}
                   >
-                    <span className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleSave(a)}
+                      role="checkbox"
+                      aria-checked={prof}
+                      aria-label={`Proficient in ${a} save`}
+                      className="flex items-center gap-1.5"
+                    >
                       <span className={`inline-block size-2.5 rounded-full border ${prof ? 'border-crimson bg-crimson' : 'border-ink-mute'}`} />
                       <span className="font-display text-[11px] uppercase tracking-wider text-ink-soft">{a}</span>
-                    </span>
-                    <span className="font-display text-crimson">{formatMod(savingThrowModifier(pc, a))}</span>
-                  </button>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        emitRoll(
+                          rollSavingThrow(pc, a, {
+                            rollMode,
+                            situationalBonus: situationalBonus || undefined,
+                            secretRoll,
+                          }),
+                        )
+                      }
+                      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-display text-crimson hover:bg-crimson/15"
+                      title={`Roll ${a} Saving Throw`}
+                    >
+                      <Dices size={11} />
+                      {formatMod(effSaveMod)}
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -483,22 +901,42 @@ export default function PcSheet({
             <div className="mt-1.5 grid grid-cols-1 gap-1 sm:grid-cols-2">
               {SKILL_NAMES.map((s) => {
                 const prof = pc.proficiencies.skills.includes(s);
+                const effSkillMod = effectiveStats.skillModifiers[s] ?? skillModifier(pc, s);
                 return (
-                  <button
+                  <div
                     key={s}
-                    onClick={() => toggleSkill(s)}
-                    role="checkbox"
-                    aria-checked={prof}
-                    aria-label={`Proficient in ${s}`}
                     className={`flex items-center justify-between rounded px-2 py-1 font-serif text-sm ${prof ? 'bg-brass/10' : 'hover:bg-parchment-deep'}`}
                   >
-                    <span className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleSkill(s)}
+                      role="checkbox"
+                      aria-checked={prof}
+                      aria-label={`Proficient in ${s}`}
+                      className="flex items-center gap-1.5 text-left"
+                    >
                       <span className={`inline-block size-2.5 rounded-sm border ${prof ? 'border-crimson bg-crimson' : 'border-ink-mute'}`} />
                       <span className="text-ink-soft">{s}</span>
                       <span className="font-display text-[9px] uppercase text-ink-faint">{SKILL_ABILITIES[s]}</span>
-                    </span>
-                    <span className="font-display text-crimson">{formatMod(skillModifier(pc, s))}</span>
-                  </button>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        emitRoll(
+                          rollSkillCheck(pc, s, {
+                            rollMode,
+                            situationalBonus: situationalBonus || undefined,
+                            secretRoll,
+                          }),
+                        )
+                      }
+                      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-display text-crimson hover:bg-crimson/15"
+                      title={`Roll ${s} Check`}
+                    >
+                      <Dices size={11} />
+                      {formatMod(effSkillMod)}
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -530,7 +968,26 @@ export default function PcSheet({
                 </div>
               </div>
               <div>
-                <Label>Death Saves</Label>
+                <div className="flex items-center gap-2">
+                  <Label>Death Saves</Label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const res = rollCharacterDeathSave(pc, {
+                        rollMode,
+                        situationalBonus: situationalBonus || undefined,
+                        secretRoll,
+                      });
+                      emitRoll(res.rollEvent, {
+                        deathSaves: res.nextDeathSaves,
+                        ...(res.revivedWithOneHp ? { hp: { ...pc.hp, current: 1 } } : {}),
+                      });
+                    }}
+                    className="rounded border border-crimson/40 bg-crimson/10 px-2 py-0.5 font-mono text-[10px] font-bold text-crimson hover:bg-crimson hover:text-ivory"
+                  >
+                    🎲 Roll Death Save
+                  </button>
+                </div>
                 <div className="flex items-center gap-3">
                   <Bubbles label="✓" color="emerald" count={pc.deathSaves.successes} onSet={(n) => patch({ deathSaves: { ...pc.deathSaves, successes: n } })} />
                   <Bubbles label="✗" color="crimson" count={pc.deathSaves.failures} onSet={(n) => patch({ deathSaves: { ...pc.deathSaves, failures: n } })} />
@@ -569,8 +1026,43 @@ export default function PcSheet({
                       <input name="range" value={a.range} onChange={(e) => updateAttack(a.id, { range: e.target.value })} placeholder="5 ft." className={inputCls} />
                     </label>
                   </div>
-                  <div className="mt-1 flex items-center gap-1.5 font-display text-[10px] uppercase tracking-wider text-ink-mute">
-                    <Dice5 size={11} /> 1d20{formatMod(a.attackBonus)} · {a.damageExpr || '—'}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 font-display text-[10px] uppercase tracking-wider">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        emitRoll(
+                          rollWeaponOrSpellAttack(
+                            pc,
+                            { name: a.name || 'Attack', attackBonus: a.attackBonus, damage: a.damageExpr },
+                            {
+                              rollMode,
+                              situationalBonus: situationalBonus || undefined,
+                              secretRoll,
+                            },
+                          ),
+                        )
+                      }
+                      className="inline-flex items-center gap-1 rounded border border-crimson/50 bg-crimson/10 px-2 py-0.5 text-crimson hover:bg-crimson hover:text-ivory"
+                    >
+                      <Dice5 size={11} /> Roll To Hit (1d20{formatMod(a.attackBonus)})
+                    </button>
+                    {a.damageExpr && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          emitRoll(
+                            rollAttackDamage(
+                              pc,
+                              { name: a.name || 'Attack', damage: a.damageExpr, damageType: a.damageType },
+                              { isCrit: lastRoll?.crit === 'nat20', secretRoll },
+                            ),
+                          )
+                        }
+                        className="inline-flex items-center gap-1 rounded border border-amber-600/50 bg-amber-500/15 px-2 py-0.5 text-amber-900 hover:bg-amber-500 hover:text-white"
+                      >
+                        💥 Roll Damage ({a.damageExpr})
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -633,7 +1125,84 @@ export default function PcSheet({
               })}
             </div>
             <div className="mt-2">
-              <Label>Spells Known</Label>
+              <Label>Spells Known (Tap Cast to Roll &amp; Deduct Slot / Concentration)</Label>
+              {(pc.spellsKnown ?? []).length > 0 && (
+                <div className="mb-1.5 flex flex-wrap gap-1">
+                  {(pc.spellsKnown ?? []).map((sp, i) => {
+                    const meta = parseSpellMetadata(sp);
+                    return (
+                      <button
+                        key={`${sp}-${i}`}
+                        type="button"
+                        onClick={() => {
+                          const castAbi = pc.spellcastingAbility ?? 'INT';
+                          const spellAtkBonus = abilityMod(pc.abilities[castAbi]) + pc.proficiencyBonus;
+                          const ev = rollWeaponOrSpellAttack(
+                            pc,
+                            { name: meta.cleanName || sp, attackBonus: spellAtkBonus },
+                            {
+                              rollMode,
+                              situationalBonus: situationalBonus || undefined,
+                              secretRoll,
+                            },
+                          );
+                          emitRoll(ev);
+                          if ((meta.level && meta.level > 0) || meta.requiresConcentration) {
+                            setSpellPrompt({
+                              spellName: meta.cleanName || sp,
+                              level: meta.level || 1,
+                              requiresConcentration: meta.requiresConcentration,
+                            });
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 rounded border border-indigo-500/40 bg-indigo-500/10 px-2 py-0.5 font-serif text-xs text-indigo-900 hover:bg-indigo-500/20"
+                      >
+                        <Sparkles size={10} /> {sp}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {spellPrompt && (
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded border border-indigo-500/50 bg-indigo-950/90 px-2.5 py-1.5 text-xs text-indigo-100">
+                  <span>
+                    Cast <strong>{spellPrompt.spellName}</strong>: Deduct Lvl {spellPrompt.level} Slot
+                    {spellPrompt.requiresConcentration ? ' & Set Concentration' : ''}?
+                    {spellPrompt.requiresConcentration && pc.concentrationSpell && pc.concentrationSpell !== spellPrompt.spellName
+                      ? ` (Replaces ${pc.concentrationSpell})`
+                      : ''}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const lvl = Math.max(1, Math.min(9, spellPrompt.level)) as SpellSlotLevel;
+                        const cur = pc.spellSlots?.[lvl] ?? { max: 1, used: 0 };
+                        patch({
+                          spellSlots: {
+                            ...(pc.spellSlots ?? {}),
+                            [lvl]: { ...cur, used: Math.min(cur.max, cur.used + 1) },
+                          },
+                          ...(spellPrompt.requiresConcentration
+                            ? { concentrationSpell: spellPrompt.spellName }
+                            : {}),
+                        });
+                        setSpellPrompt(null);
+                      }}
+                      className="rounded bg-indigo-500 px-2 py-0.5 font-mono text-[10px] font-bold text-white"
+                    >
+                      Confirm Cast
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSpellPrompt(null)}
+                      className="font-mono text-[10px] text-indigo-300"
+                    >
+                      Skip
+                    </button>
+                  </div>
+                </div>
+              )}
               <ListEditor
                 values={pc.spellsKnown ?? []}
                 onChange={(next) => patch({ spellsKnown: next })}
@@ -670,6 +1239,18 @@ export default function PcSheet({
                           <option value="short">Short rest</option>
                           <option value="long">Long rest</option>
                         </select>
+                        <button
+                          type="button"
+                          disabled={f.uses.used >= f.uses.max}
+                          onClick={() =>
+                            updateFeature(f.id, {
+                              uses: { ...f.uses!, used: Math.min(f.uses!.max, f.uses!.used + 1) },
+                            })
+                          }
+                          className="rounded border border-wax/50 bg-wax/10 px-2 py-0.5 font-mono text-[10px] font-bold text-wax disabled:opacity-40"
+                        >
+                          ⚡ Use ({f.uses.max - f.uses.used} left)
+                        </button>
                         <button onClick={() => updateFeature(f.id, { uses: undefined })} className="font-display text-[9px] uppercase text-ink-mute hover:text-crimson">No uses</button>
                       </>
                     ) : (
@@ -710,6 +1291,20 @@ export default function PcSheet({
             <PlayerSharedQuestsNotesPanel pcs={[pc]} />
           </div>
         </div>
+      )}
+
+      {/* Character Builder / Level-Up Wizard Modal */}
+      {wizardMode && (
+        <CharacterWizardModal
+          open={true}
+          mode={wizardMode}
+          existingPc={pc}
+          onClose={() => setWizardMode(null)}
+          onSave={(updatedPc) => {
+            onChange({ ...updatedPc, id: pc.id });
+            setWizardMode(null);
+          }}
+        />
       )}
     </div>
   );

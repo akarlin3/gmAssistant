@@ -1,11 +1,20 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { PcEvaluation, PlayerCharacter } from '@/lib/pc/types';
+import { ABILITY_NAMES, type PcEvaluation, type PlayerCharacter, type RollEvent } from '@/lib/pc/types';
 import {
   downloadOrShareCharacterSheetPdf,
   type PdfStylePreset,
 } from '@/lib/characterPdfExporter';
+import { computeEffectiveCharacterStats, type RollMode } from '@/lib/activeModifiers';
+import {
+  appendRollEventRingBuffer,
+  rollAbilityCheck,
+  rollInitiativeCheck,
+  rollSavingThrow,
+  rollWeaponOrSpellAttack,
+  sanitizeRollEventsForOutbound,
+} from '@/lib/diceRoller';
 
 export interface ExportSheetPdfButtonProps {
   pc: Partial<PlayerCharacter> & Record<string, unknown>;
@@ -506,7 +515,19 @@ export function PartyRunTrackerSection({
   const [toast, setToast] = useState<SheetUploadToastState | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [rollMode, setRollMode] = useState<RollMode>('normal');
+  const [lastGmRoll, setLastGmRoll] = useState<RollEvent | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
+
+  const recordPcRoll = (pc: PlayerCharacter, roll: RollEvent) => {
+    setLastGmRoll(roll);
+    const nextRolls = sanitizeRollEventsForOutbound(
+      appendRollEventRingBuffer(pc.rollEvents ?? [], roll),
+    );
+    onUpdatePcs(
+      pcs.map((item) => (item.id === pc.id ? { ...item, rollEvents: nextRolls } : item)),
+    );
+  };
 
   const handleFiles = async (files: File[]) => {
     if (files.length === 0) return;
@@ -575,10 +596,26 @@ export function PartyRunTrackerSection({
             Party Tactical &amp; Defensive Tracker ({pcs.length})
           </h3>
           <p className="font-serif text-[11px] italic text-ink-mute">
-            Live AC, Strong/Weak Saves, Resistances, Special Senses, 1-Step Sheet Upload &amp; PDF Export
+            Live AC, 1-Tap Click-to-Roll Checks/Saves/Attacks, Strong/Weak Saves &amp; Sheet Upload
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
+          <div className="inline-flex overflow-hidden rounded border border-rule bg-parchment-deep text-[9px] font-display uppercase tracking-wider">
+            {(['normal', 'advantage', 'disadvantage'] as RollMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setRollMode(mode)}
+                className={`px-1.5 py-0.5 transition-colors ${
+                  rollMode === mode
+                    ? 'bg-crimson text-parchment font-bold'
+                    : 'text-ink-soft hover:bg-parchment'
+                }`}
+              >
+                {mode === 'normal' ? 'Norm' : mode === 'advantage' ? 'Adv' : 'Dis'}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             disabled={uploading}
@@ -604,6 +641,24 @@ export function PartyRunTrackerSection({
         </div>
       </div>
 
+      {lastGmRoll && (
+        <div className="flex items-center justify-between gap-2 rounded border border-gold/40 bg-gold/10 px-2.5 py-1 text-xs">
+          <div>
+            <span className="font-display font-bold text-ink">{lastGmRoll.actorName}</span> ·{' '}
+            <span className="font-serif text-ink-soft">{lastGmRoll.label}:</span>{' '}
+            <span className="font-mono font-bold text-crimson">{lastGmRoll.total}</span>{' '}
+            <span className="font-mono text-[10px] text-ink-mute">({lastGmRoll.breakdown})</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLastGmRoll(null)}
+            className="text-[10px] text-ink-mute hover:text-ink"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <CharacterSheetUploadToast toast={toast} onDismiss={() => setToast(null)} />
       {error && <div className="text-xs italic text-crimson">{error}</div>}
 
@@ -616,6 +671,7 @@ export function PartyRunTrackerSection({
           {pcs.map((pc) => {
             const ev = pc.evaluation;
             const def = ev?.defensiveProfile;
+            const eff = computeEffectiveCharacterStats(pc);
             return (
               <div
                 key={pc.id}
@@ -632,14 +688,88 @@ export function PartyRunTrackerSection({
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        recordPcRoll(pc, rollInitiativeCheck(pc, { rollMode }))
+                      }
+                      title="Roll Initiative"
+                      className="rounded border border-rule bg-parchment px-1.5 py-0.5 font-display text-[10px] text-ink hover:border-gold"
+                    >
+                      🎲 Init {eff.initiative >= 0 ? `+${eff.initiative}` : eff.initiative}
+                    </button>
                     <span className="rounded border border-crimson/30 bg-crimson/10 px-1.5 py-0.5 font-display text-[10px] text-crimson">
                       HP {pc.hp.current}/{pc.hp.max}
                     </span>
                     <span className="rounded border border-brass-deep/30 bg-brass/10 px-1.5 py-0.5 font-display text-[10px] text-brass-deep">
-                      AC {pc.ac}
+                      AC {eff.ac}
+                      {eff.acDelta !== 0
+                        ? ` (${eff.acDelta > 0 ? `+${eff.acDelta}` : eff.acDelta})`
+                        : ''}
                     </span>
                   </div>
                 </div>
+
+                {/* 1-Tap Click-to-Roll Ability & Save Strip */}
+                <div className="flex flex-wrap items-center gap-1">
+                  {ABILITY_NAMES.map((ab) => {
+                    const mod = eff.abilityModifiers[ab];
+                    const saveMod = eff.savingThrowModifiers[ab];
+                    return (
+                      <div
+                        key={ab}
+                        className="inline-flex items-center overflow-hidden rounded border border-rule/80 bg-parchment text-[10px]"
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            recordPcRoll(
+                              pc,
+                              rollAbilityCheck(pc, ab, { rollMode }),
+                            )
+                          }
+                          title={`Roll ${ab.toUpperCase()} Check`}
+                          className="px-1 py-0.5 font-display uppercase text-ink hover:bg-gold/15"
+                        >
+                          {ab.toUpperCase()} {mod >= 0 ? `+${mod}` : mod}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            recordPcRoll(
+                              pc,
+                              rollSavingThrow(pc, ab, { rollMode }),
+                            )
+                          }
+                          title={`Roll ${ab.toUpperCase()} Save`}
+                          className="border-l border-rule/60 bg-parchment-deep/60 px-1 py-0.5 font-mono text-[9px] text-ink-soft hover:bg-crimson/15 hover:text-crimson"
+                        >
+                          Sv{saveMod >= 0 ? `+${saveMod}` : saveMod}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {(pc.attacks ?? []).length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1">
+                    {(pc.attacks ?? []).slice(0, 3).map((atk) => (
+                      <button
+                        key={atk.id}
+                        type="button"
+                        onClick={() =>
+                          recordPcRoll(
+                            pc,
+                            rollWeaponOrSpellAttack(pc, atk, { rollMode }),
+                          )
+                        }
+                        className="rounded border border-crimson/30 bg-crimson/5 px-1.5 py-0.5 font-display text-[10px] text-crimson hover:bg-crimson/15"
+                      >
+                        ⚔️ {atk.name} ({atk.attackBonus >= 0 ? `+${atk.attackBonus}` : atk.attackBonus})
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {def && (
                   <div className="space-y-0.5 rounded border border-rule/60 bg-parchment px-2 py-1 font-serif text-[11px] text-ink-soft">

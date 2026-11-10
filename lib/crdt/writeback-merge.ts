@@ -37,9 +37,17 @@
  * prove the merge never moves data across the visibility boundary.
  */
 
+import { appendRollEventRingBuffer } from '@/lib/diceRoller';
 import { validatePlayerField, PLAYER_EDITABLE_FIELDS } from '@/lib/player/allowlist';
 import { sanitizeOutboundWritebackUpdates } from '@/lib/playerMode/playerTrackerStorage';
-import type { PlayerCharacter, PlayerWritebackTombstone } from '@/lib/pc/types';
+import type {
+  CoinPurse,
+  InventoryItem,
+  PartyLootItem,
+  PlayerCharacter,
+  PlayerWritebackTombstone,
+  RollEvent,
+} from '@/lib/pc/types';
 
 const PLAYER_AUTHORITATIVE = new Set<string>(PLAYER_EDITABLE_FIELDS);
 
@@ -94,6 +102,15 @@ function ownsPc(pc: PlayerCharacter, slotId: string): boolean {
  * down so React reference-equality checks fire correctly.
  */
 function setNestedField(pc: PlayerCharacter, fieldPath: string, value: unknown): PlayerCharacter {
+  if (fieldPath === 'rollEvents' && Array.isArray(value)) {
+    return {
+      ...pc,
+      rollEvents: appendRollEventRingBuffer(pc.rollEvents, value as RollEvent[], {
+        cap: 50,
+        includeSecret: false,
+      }),
+    };
+  }
   const next: any = { ...pc };
   const parts = fieldPath.split('.');
   let cur: any = next;
@@ -103,12 +120,25 @@ function setNestedField(pc: PlayerCharacter, fieldPath: string, value: unknown):
     cur = cur[part];
   }
   cur[parts[parts.length - 1]] = value;
+  if (fieldPath === 'classes' && Array.isArray(value) && value.length > 0) {
+    const totalLvl = Math.max(
+      1,
+      Math.min(
+        20,
+        value.reduce((sum: number, c: any) => sum + (Number(c?.level) || 0), 0),
+      ),
+    );
+    next.level = totalLvl;
+    next.proficiencyBonus =
+      totalLvl >= 17 ? 6 : totalLvl >= 13 ? 5 : totalLvl >= 9 ? 4 : totalLvl >= 5 ? 3 : 2;
+  }
   return next;
 }
 
 /**
- * Apply tombstones to remove any previously-shared quest, annotation, or journal
- * entry that the player subsequently toggled back to private (`sharedWithGm: false`).
+ * Apply tombstones to remove any previously-shared quest, annotation, journal
+ * entry, theory link, or sticky card that the player subsequently toggled back
+ * to private (`sharedWithGm: false`).
  */
 function applyTombstonesToPc(
   pc: PlayerCharacter,
@@ -118,6 +148,8 @@ function applyTombstonesToPc(
   const questIds = new Set<string>();
   const annotationIds = new Set<string>();
   const journalIds = new Set<string>();
+  const theoryLinkIds = new Set<string>();
+  const stickyCardIds = new Set<string>();
   const allIds = new Set<string>();
 
   for (const t of tombstones) {
@@ -126,6 +158,8 @@ function applyTombstonesToPc(
     if (t.kind === 'quest') questIds.add(t.id);
     else if (t.kind === 'annotation') annotationIds.add(t.id);
     else if (t.kind === 'journal') journalIds.add(t.id);
+    else if (t.kind === 'theoryLink') theoryLinkIds.add(t.id);
+    else if (t.kind === 'stickyCard') stickyCardIds.add(t.id);
   }
 
   const next: PlayerCharacter = { ...pc };
@@ -142,6 +176,16 @@ function applyTombstonesToPc(
   if (Array.isArray(next.sharedJournal)) {
     next.sharedJournal = next.sharedJournal.filter(
       (j) => !journalIds.has(j.id) && !allIds.has(j.id) && j.sharedWithGm === true,
+    );
+  }
+  if (Array.isArray(next.sharedTheoryLinks)) {
+    next.sharedTheoryLinks = next.sharedTheoryLinks.filter(
+      (l) => !theoryLinkIds.has(l.id) && !allIds.has(l.id) && l.sharedWithGm === true,
+    );
+  }
+  if (Array.isArray(next.sharedStickyCards)) {
+    next.sharedStickyCards = next.sharedStickyCards.filter(
+      (c) => !stickyCardIds.has(c.id) && !allIds.has(c.id) && c.sharedWithGm === true,
     );
   }
   return next;
@@ -205,8 +249,14 @@ export function mergePcWritebacks(
         continue;
       }
       // Enforce Player -> GM privacy boundary at merge time as well: strip any
-      // quest, annotation, journal entry, or inventory item where sharedWithGm !== true.
-      const value = sanitizeOutboundWritebackUpdates({ [field]: rawValue })[field];
+      // quest, annotation, journal entry, theory link, sticky card, or inventory
+      // item where sharedWithGm !== true, and any rollEvent where secretRoll === true.
+      const sanitizedMap = sanitizeOutboundWritebackUpdates({ [field]: rawValue });
+      if (!Object.prototype.hasOwnProperty.call(sanitizedMap, field)) {
+        rejected.push({ slotId: wb.slotId, pcId: wb.pcId, field, reason: 'field-not-allowed' });
+        continue;
+      }
+      const value = sanitizedMap[field];
 
       const key = `${wb.pcId} ${field}`;
       const prior = winners.get(key);
@@ -248,7 +298,43 @@ export function mergePcWritebacks(
     applied.push({ slotId: wb.slotId, pcId: wb.pcId, field: 'sharedTombstones' });
   }
 
-  const pcs = currentPcs.map((pc, i) => nextByIdx.get(i) ?? pc);
+  let pcs = currentPcs.map((pc, i) => nextByIdx.get(i) ?? pc);
+
+  // Enforce cross-PC idempotency for claimed party loot items (`loot-claim-<lootId>`):
+  // if two PCs concurrently claimed the same `lootId` into their inventory, only the
+  // earliest/deterministic claimant keeps the item so unique items are never duplicated.
+  const seenLootClaimIds = new Map<string, string>(); // item.id -> winning pcId
+  // Seed with claims already present on currentPcs before this batch
+  for (const origPc of currentPcs) {
+    for (const item of origPc.inventory ?? []) {
+      if (item.id && item.id.startsWith('loot-claim-') && !seenLootClaimIds.has(item.id)) {
+        seenLootClaimIds.set(item.id, origPc.id);
+      }
+    }
+  }
+  // Sort modified PCs by their winning inventory writeback timestamp (earliest claim wins)
+  const orderedPcs = [...pcs].sort((a, b) => {
+    const wbA = winners.get(`${a.id} inventory`)?.wb.updatedAtMs ?? 0;
+    const wbB = winners.get(`${b.id} inventory`)?.wb.updatedAtMs ?? 0;
+    if (wbA !== wbB) return wbA - wbB;
+    return a.id.localeCompare(b.id);
+  });
+  for (const p of orderedPcs) {
+    for (const item of p.inventory ?? []) {
+      if (item.id && item.id.startsWith('loot-claim-') && !seenLootClaimIds.has(item.id)) {
+        seenLootClaimIds.set(item.id, p.id);
+      }
+    }
+  }
+  pcs = pcs.map((p) => {
+    if (!Array.isArray(p.inventory)) return p;
+    const filtered = p.inventory.filter((item) => {
+      if (!item.id || !item.id.startsWith('loot-claim-')) return true;
+      return seenLootClaimIds.get(item.id) === p.id;
+    });
+    return filtered.length === p.inventory.length ? p : { ...p, inventory: filtered };
+  });
+
   return { pcs, changed: true, applied, rejected };
 }
 
@@ -257,3 +343,314 @@ function isNewer(a: StagedWriteback, b: StagedWriteback): boolean {
   if (a.updatedAtMs !== b.updatedAtMs) return a.updatedAtMs > b.updatedAtMs;
   return a.slotId > b.slotId;
 }
+
+// ---- Idempotent Party Loot Claiming & Gold Splitting -----------------------
+
+export interface PartyLootClaimRequest {
+  lootId: string;
+  pcId: string;
+  claimNonce?: string;
+  timestampMs?: number;
+}
+
+export interface PartyLootClaimResult {
+  changed: boolean;
+  alreadyClaimed: boolean;
+  claimedByPcId?: string;
+  lootItems: PartyLootItem[];
+  pcs: PlayerCharacter[];
+}
+
+function emptyPurse(): CoinPurse {
+  return { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
+}
+
+function addCoinPurses(a: CoinPurse | undefined, b: CoinPurse | undefined): CoinPurse {
+  const base = a ?? emptyPurse();
+  const add = b ?? emptyPurse();
+  return {
+    cp: Math.max(0, (base.cp ?? 0) + (add.cp ?? 0)),
+    sp: Math.max(0, (base.sp ?? 0) + (add.sp ?? 0)),
+    ep: Math.max(0, (base.ep ?? 0) + (add.ep ?? 0)),
+    gp: Math.max(0, (base.gp ?? 0) + (add.gp ?? 0)),
+    pp: Math.max(0, (base.pp ?? 0) + (add.pp ?? 0)),
+  };
+}
+
+/**
+ * Idempotently claims a structured party loot item for a specific PC.
+ * If the loot item is already claimed (even by the same PC or a concurrent click),
+ * returns `changed: false, alreadyClaimed: true` and does NOT duplicate the item.
+ */
+export function claimPartyLootItem(
+  lootItems: readonly PartyLootItem[],
+  pcs: readonly PlayerCharacter[],
+  request: PartyLootClaimRequest,
+): PartyLootClaimResult {
+  const targetIdx = lootItems.findIndex((it) => it.id === request.lootId);
+  if (targetIdx < 0) {
+    return {
+      changed: false,
+      alreadyClaimed: false,
+      lootItems: [...lootItems],
+      pcs: [...pcs],
+    };
+  }
+
+  const item = lootItems[targetIdx];
+  if (item.claimedByPcId) {
+    return {
+      changed: false,
+      alreadyClaimed: true,
+      claimedByPcId: item.claimedByPcId,
+      lootItems: [...lootItems],
+      pcs: [...pcs],
+    };
+  }
+
+  const pcIdx = pcs.findIndex((p) => p.id === request.pcId);
+  if (pcIdx < 0) {
+    return {
+      changed: false,
+      alreadyClaimed: false,
+      lootItems: [...lootItems],
+      pcs: [...pcs],
+    };
+  }
+
+  const targetPc = pcs[pcIdx];
+  const claimNonce = request.claimNonce || `claim-${item.id}-${targetPc.id}`;
+  const deterministicItemId = `loot-claim-${item.id}`;
+
+  const updatedLootItem: PartyLootItem = {
+    ...item,
+    claimedByPcId: targetPc.id,
+    claimedByName: targetPc.name || 'Party Member',
+    claimNonce,
+    updatedAt: request.timestampMs ?? Date.now(),
+  };
+
+  const nextLootItems = lootItems.map((it, i) => (i === targetIdx ? updatedLootItem : it));
+
+  const alreadyInInventory = (targetPc.inventory ?? []).some(
+    (inv) => inv.id === deterministicItemId,
+  );
+  const nextInventory: InventoryItem[] = alreadyInInventory
+    ? [...(targetPc.inventory ?? [])]
+    : [
+        ...(targetPc.inventory ?? []),
+        {
+          id: deterministicItemId,
+          name: item.name,
+          qty: Math.max(1, item.qty ?? 1),
+          ...(item.weight !== undefined ? { weight: item.weight } : {}),
+          ...(item.notes ? { notes: item.notes } : {}),
+          equipped: false,
+          sharedWithGm: true,
+        },
+      ];
+
+  const nextCurrency = item.currency
+    ? addCoinPurses(targetPc.currency, item.currency)
+    : targetPc.currency;
+
+  const updatedPc: PlayerCharacter = {
+    ...targetPc,
+    inventory: nextInventory,
+    ...(nextCurrency ? { currency: nextCurrency } : {}),
+  };
+
+  const nextPcs = pcs.map((p, i) => (i === pcIdx ? updatedPc : p));
+
+  return {
+    changed: true,
+    alreadyClaimed: false,
+    claimedByPcId: targetPc.id,
+    lootItems: nextLootItems,
+    pcs: nextPcs,
+  };
+}
+
+/**
+ * Resolves an array of concurrent claim requests deterministically (sorted by
+ * `timestampMs` ascending, tie-broken by `pcId` and `claimNonce`) so that
+ * concurrent clicks on the same unique loot item NEVER duplicate the item.
+ */
+export function resolveConcurrentPartyLootClaims(
+  initialLootItems: readonly PartyLootItem[],
+  initialPcs: readonly PlayerCharacter[],
+  claims: readonly PartyLootClaimRequest[],
+): {
+  lootItems: PartyLootItem[];
+  pcs: PlayerCharacter[];
+  accepted: PartyLootClaimRequest[];
+  rejected: PartyLootClaimRequest[];
+} {
+  const sorted = [...claims].sort((a, b) => {
+    const ta = a.timestampMs ?? 0;
+    const tb = b.timestampMs ?? 0;
+    if (ta !== tb) return ta - tb;
+    return a.pcId.localeCompare(b.pcId);
+  });
+
+  let lootItems = [...initialLootItems];
+  let pcs = [...initialPcs];
+  const accepted: PartyLootClaimRequest[] = [];
+  const rejected: PartyLootClaimRequest[] = [];
+
+  for (const req of sorted) {
+    const res = claimPartyLootItem(lootItems, pcs, req);
+    if (res.changed) {
+      lootItems = res.lootItems;
+      pcs = res.pcs;
+      accepted.push(req);
+    } else {
+      rejected.push(req);
+    }
+  }
+
+  return { lootItems, pcs, accepted, rejected };
+}
+
+export interface SplitPartyGoldResult {
+  pcs: PlayerCharacter[];
+  sharePerPc: CoinPurse;
+  perMemberShare: CoinPurse;
+  remainder: CoinPurse;
+  recipientCount: number;
+}
+
+/**
+ * Splits a CoinPurse evenly across active party PCs (`targetPcIds` if specified,
+ * or all `pcs`, or a numeric `pcsOrCount`), adding `sharePerPc` to each
+ * recipient PC's `currency` and returning the indivisible `remainder`.
+ */
+export function splitPartyLootGold(
+  currencyToSplit: CoinPurse,
+  pcsOrCount: readonly PlayerCharacter[] | number,
+  targetPcIds?: readonly string[],
+): SplitPartyGoldResult {
+  const pcs: readonly PlayerCharacter[] = typeof pcsOrCount === 'number' ? [] : pcsOrCount;
+  const recipientSet =
+    typeof pcsOrCount === 'number'
+      ? new Set<string>()
+      : targetPcIds && targetPcIds.length > 0
+        ? new Set(targetPcIds)
+        : new Set(pcs.map((p) => p.id));
+
+  const recipients = pcs.filter((p) => recipientSet.has(p.id));
+  const count =
+    typeof pcsOrCount === 'number' ? Math.max(0, Math.trunc(pcsOrCount)) : recipients.length;
+
+  if (count === 0) {
+    const empty = emptyPurse();
+    return {
+      pcs: [...pcs],
+      sharePerPc: empty,
+      perMemberShare: empty,
+      remainder: { ...currencyToSplit },
+      recipientCount: 0,
+    };
+  }
+
+  const coins: (keyof CoinPurse)[] = ['pp', 'gp', 'ep', 'sp', 'cp'];
+  const sharePerPc = emptyPurse();
+  const remainder = emptyPurse();
+
+  for (const denom of coins) {
+    const total = Math.max(0, Math.trunc(currencyToSplit[denom] ?? 0));
+    sharePerPc[denom] = Math.floor(total / count);
+    remainder[denom] = total % count;
+  }
+
+  const nextPcs = pcs.map((pc) => {
+    if (!recipientSet.has(pc.id)) return pc;
+    return {
+      ...pc,
+      currency: addCoinPurses(pc.currency, sharePerPc),
+    };
+  });
+
+  return {
+    pcs: nextPcs,
+    sharePerPc,
+    perMemberShare: sharePerPc,
+    remainder,
+    recipientCount: count,
+  };
+}
+
+/**
+ * Splits the currency on a specific `PartyLootItem` across active party PCs
+ * idempotently. Remainder coins stay in the loot item's `currency` pool.
+ */
+export function splitPartyLootDropGold(
+  lootItems: readonly PartyLootItem[],
+  pcs: readonly PlayerCharacter[],
+  opts: { lootId: string; activePcIds?: readonly string[]; claimNonce?: string },
+): {
+  changed: boolean;
+  lootItems: PartyLootItem[];
+  pcs: PlayerCharacter[];
+  sharePerPc: CoinPurse;
+  remainder: CoinPurse;
+} {
+  const idx = lootItems.findIndex((it) => it.id === opts.lootId);
+  if (idx < 0) {
+    return {
+      changed: false,
+      lootItems: [...lootItems],
+      pcs: [...pcs],
+      sharePerPc: emptyPurse(),
+      remainder: emptyPurse(),
+    };
+  }
+  const item = lootItems[idx];
+  if (!item.currency || item.splitCompleted || (opts.claimNonce && item.claimNonce === opts.claimNonce)) {
+    return {
+      changed: false,
+      lootItems: [...lootItems],
+      pcs: [...pcs],
+      sharePerPc: emptyPurse(),
+      remainder: item.currency ?? emptyPurse(),
+    };
+  }
+
+  const splitRes = splitPartyLootGold(item.currency, pcs, opts.activePcIds);
+  if (splitRes.recipientCount === 0) {
+    return {
+      changed: false,
+      lootItems: [...lootItems],
+      pcs: [...pcs],
+      sharePerPc: emptyPurse(),
+      remainder: item.currency,
+    };
+  }
+
+  const hasAnyShare = Object.values(splitRes.sharePerPc).some((v) => v > 0);
+  if (!hasAnyShare) {
+    return {
+      changed: false,
+      lootItems: [...lootItems],
+      pcs: [...pcs],
+      sharePerPc: splitRes.sharePerPc,
+      remainder: splitRes.remainder,
+    };
+  }
+
+  const nextItem: PartyLootItem = {
+    ...item,
+    currency: splitRes.remainder,
+    splitCompleted: true,
+    claimNonce: opts.claimNonce || `split-${item.id}-${Date.now()}`,
+  };
+
+  return {
+    changed: true,
+    lootItems: lootItems.map((it, i) => (i === idx ? nextItem : it)),
+    pcs: splitRes.pcs,
+    sharePerPc: splitRes.sharePerPc,
+    remainder: splitRes.remainder,
+  };
+}
+

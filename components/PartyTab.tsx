@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useContext, useRef } from 'react';
-import { Plus, Users, FileUp } from 'lucide-react';
+import { Plus, Users, FileUp, Wand2 } from 'lucide-react';
 import PcSheet from './PcSheet';
 import { PC_CAP, type PlayerCharacter } from '@/lib/pc/types';
 import { CampaignPlayModeContext } from './CampaignPlayModeContext';
@@ -12,6 +12,7 @@ import {
   ExportAllPartyPdfsButton,
   type SheetUploadToastState,
 } from './CharacterSheetLifecycleControls';
+import { CharacterWizardModal } from './CharacterWizardModal';
 
 type Props = {
   pcs: PlayerCharacter[];
@@ -45,6 +46,7 @@ export default function PartyTab({
   const [localUploading, setLocalUploading] = useState(false);
   const [localError, setLocalError] = useState('');
   const [toast, setToast] = useState<SheetUploadToastState | null>(null);
+  const [wizardCreateOpen, setWizardCreateOpen] = useState(false);
   const batchFileInputRef = useRef<HTMLInputElement>(null);
 
   const atCap = pcs.length >= PC_CAP;
@@ -233,6 +235,17 @@ export default function PartyTab({
 
         <button
           type="button"
+          onClick={() => setWizardCreateOpen(true)}
+          disabled={atCap}
+          data-testid="party-tab-create-wizard-btn"
+          className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-indigo-700 hover:text-indigo-900 disabled:opacity-40"
+          title="Guided Character Builder Wizard"
+        >
+          <Wand2 size={12} /> Create Character (Wizard)
+        </button>
+
+        <button
+          type="button"
           onClick={() => batchFileInputRef.current?.click()}
           disabled={isBusy}
           className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-crimson hover:text-wine disabled:cursor-wait disabled:opacity-50"
@@ -265,6 +278,22 @@ export default function PartyTab({
           </span>
         )}
       </div>
+
+      {wizardCreateOpen && (
+        <CharacterWizardModal
+          open={true}
+          mode="create"
+          onClose={() => setWizardCreateOpen(false)}
+          onSave={(newPc) => {
+            if (onReplaceAllPcs) {
+              onReplaceAllPcs([...pcs, newPc]);
+            } else {
+              onUpdate(newPc);
+            }
+            setWizardCreateOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

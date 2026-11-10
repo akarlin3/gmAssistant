@@ -20,16 +20,23 @@ export type PcOwnership = {
 };
 
 import type {
+  ActiveBuff,
   CoinPurse,
   InventoryItem,
   PactMagicSlots,
+  PartyLootItem,
+  PcAttackEntry,
   PcEvaluation,
   PcFeature,
   PcResourcePool,
   PlayerJournalEntry,
   PlayerLoreAnnotation,
   PlayerQuest,
+  PlayerStickyCard,
+  PlayerTheoryLink,
+  RollEvent,
   SpellSlotGroup,
+  TurnActionEconomy,
 } from '@/lib/pc/types';
 
 // A projected player-character sheet. Modeled loosely (most fields optional and
@@ -39,6 +46,8 @@ export type PlayerPc = {
   id: string;
   name?: string;
   race?: string;
+  background?: string;
+  alignment?: string;
   level?: number;
   ac?: number;
   speed?: number;
@@ -47,6 +56,9 @@ export type PlayerPc = {
   notes?: string;
   exhaustion?: number;
   conditions?: string[];
+  activeBuffs?: ActiveBuff[];
+  concentrationSpell?: string;
+  turnEconomy?: TurnActionEconomy;
   proficiencyBonus?: number;
   ownership?: PcOwnership;
   hp?: { current?: number; max?: number; temp?: number };
@@ -54,15 +66,21 @@ export type PlayerPc = {
   deathSaves?: { successes?: number; failures?: number };
   abilities?: Record<string, number>;
   proficiencies?: { savingThrows?: string[]; skills?: string[] };
-  classes?: Array<{ name?: string; level?: number }>;
+  skillExpertise?: string[];
+  classes?: Array<{ name?: string; level?: number; subclass?: string }>;
   spellSlots?: SpellSlotGroup[];
   pactSlots?: PactMagicSlots | null;
   resourcePools?: PcResourcePool[];
   features?: PcFeature[];
+  attacks?: PcAttackEntry[];
+  spellsKnown?: string[];
+  spellcastingAbility?: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha' | null;
   inventory?: InventoryItem[];
   attunedCount?: number;
   currency?: CoinPurse;
   partyLoot?: string;
+  partyLootItems?: PartyLootItem[];
+  rollEvents?: RollEvent[];
   goals?: string[];
   bonds?: string[];
   ideals?: string[];
@@ -70,6 +88,8 @@ export type PlayerPc = {
   sharedQuests?: PlayerQuest[];
   sharedAnnotations?: PlayerLoreAnnotation[];
   sharedJournal?: PlayerJournalEntry[];
+  sharedTheoryLinks?: PlayerTheoryLink[];
+  sharedStickyCards?: PlayerStickyCard[];
   evaluation?: PcEvaluation;
   [field: string]: unknown;
 };

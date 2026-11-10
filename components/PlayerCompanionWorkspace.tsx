@@ -26,6 +26,11 @@ import {
   Calendar,
   Award,
   AtSign,
+  Wand2,
+  ArrowUpCircle,
+  Network,
+  List,
+  Dices,
 } from 'lucide-react';
 import PcSheet from './PcSheet';
 import { QuickDice } from './RunSessionView';
@@ -36,18 +41,43 @@ import {
   CharacterSheetUploadToast,
   type SheetUploadToastState,
 } from './CharacterSheetLifecycleControls';
-import type {
-  CoinPurse,
-  InventoryItem,
-  LoreAttitudeTag,
-  PactMagicSlots,
-  PcResourcePool,
-  PlayerCharacter,
-  PlayerJournalEntry,
-  PlayerQuest,
-  PlayerQuestStatus,
-  RechargeTiming,
-  TurnActionEconomy,
+import { CharacterWizardModal } from './CharacterWizardModal';
+import {
+  PlayerLoreGraph,
+  RevealedProgressClocksStrip,
+  type LoreGraphEntityNode,
+  type LoreGraphGmEdge,
+} from './PlayerLoreGraph';
+import {
+  MobilePlayerCombatBar,
+  CollapsibleTableRollFeed,
+} from './MobilePlayerCombatBar';
+import { expireActiveBuffs, type RollMode } from '@/lib/activeModifiers';
+import {
+  appendRollEventRingBuffer,
+  rollAbilityCheck,
+  rollConcentrationCheck,
+  rollInitiativeCheck,
+  rollSavingThrow,
+  sanitizeRollEventsForOutbound,
+} from '@/lib/diceRoller';
+import { projectRevealedClocks } from '@/lib/playerMode/projection';
+import {
+  ABILITY_NAMES,
+  type CoinPurse,
+  type InventoryItem,
+  type LoreAttitudeTag,
+  type PactMagicSlots,
+  type PcResourcePool,
+  type PlayerCharacter,
+  type PlayerJournalEntry,
+  type PlayerQuest,
+  type PlayerQuestStatus,
+  type PlayerStickyCard,
+  type PlayerTheoryLink,
+  type RechargeTiming,
+  type RollEvent,
+  type TurnActionEconomy,
 } from '@/lib/pc/types';
 
 export type PlayerCompanionTabId = 'sheet' | 'quests' | 'world' | 'gear' | 'play';
@@ -143,6 +173,12 @@ export default function PlayerCompanionWorkspace({
   const [selectedPcIdx, setSelectedPcIdx] = useState(0);
   const [localToast, setLocalToast] = useState<SheetUploadToastState | null>(null);
   const [dragOverSheet, setDragOverSheet] = useState(false);
+  const [wizardMode, setWizardMode] = useState<'create' | 'levelUp' | null>(null);
+  const [worldViewMode, setWorldViewMode] = useState<'list' | 'graph'>('list');
+  const [secretRolls, setSecretRolls] = useState<RollEvent[]>([]);
+  const [playRollMode, setPlayRollMode] = useState<RollMode>('normal');
+  const [playSecretRoll, setPlaySecretRoll] = useState(false);
+
   const activePc: PlayerCharacter | undefined = pcs[selectedPcIdx] ?? pcs[0];
 
   // Companion quests & clues stored in campaign data (`__playerCompanionQuests`)
@@ -152,6 +188,15 @@ export default function PlayerCompanionWorkspace({
   // Companion journal entries stored in campaign data (`__playerCompanionJournal`)
   const companionJournal = (get('__playerCompanionJournal', []) as PlayerJournalEntry[]) || [];
   const setCompanionJournal = (next: PlayerJournalEntry[]) => setVal('__playerCompanionJournal', next);
+
+  // Companion conspiracy graph state
+  const companionTheoryLinks = (get('__playerCompanionTheoryLinks', []) as PlayerTheoryLink[]) || [];
+  const setCompanionTheoryLinks = (next: PlayerTheoryLink[]) => setVal('__playerCompanionTheoryLinks', next);
+  const companionStickyCards = (get('__playerCompanionStickyCards', []) as PlayerStickyCard[]) || [];
+  const setCompanionStickyCards = (next: PlayerStickyCard[]) => setVal('__playerCompanionStickyCards', next);
+  const companionNodePositions = (get('__playerCompanionNodePositions', {}) as Record<string, { x: number; y: number }>) || {};
+  const setCompanionNodePositions = (next: Record<string, { x: number; y: number }>) =>
+    setVal('__playerCompanionNodePositions', next);
 
   const handleDropOrSelectFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
@@ -188,6 +233,68 @@ export default function PlayerCompanionWorkspace({
   const npcs = (get('npcs', []) as Array<Record<string, any>>) || [];
   const locations = (get('locations', []) as Array<Record<string, any>>) || [];
   const factions = (get('factions', []) as Array<Record<string, any>>) || [];
+  const clocks = (get('clocks', []) as Array<Record<string, any>>) || [];
+
+  const revealedClocks = useMemo(
+    () => projectRevealedClocks({ clocks, factions }),
+    [clocks, factions],
+  );
+
+  const loreGraphNodes = useMemo<LoreGraphEntityNode[]>(() => {
+    const nodes: LoreGraphEntityNode[] = [];
+    npcs.forEach((n, i) => {
+      if (!n?.name) return;
+      nodes.push({
+        id: String(n.id || `npc-${i}`),
+        name: String(n.name),
+        category: 'npc',
+        subtitle: typeof n.archetype === 'string' ? n.archetype : undefined,
+        description: typeof n.notes === 'string' ? n.notes : undefined,
+        attitude: (n.attitudeTag as LoreAttitudeTag) || 'neutral',
+      });
+    });
+    locations.forEach((l, i) => {
+      if (!l?.name) return;
+      nodes.push({
+        id: String(l.id || `loc-${i}`),
+        name: String(l.name),
+        category: 'location',
+        subtitle: typeof l.type === 'string' ? l.type : undefined,
+        description: typeof l.notes === 'string' ? l.notes : undefined,
+      });
+    });
+    factions.forEach((f, i) => {
+      if (!f?.name) return;
+      nodes.push({
+        id: String(f.id || `fac-${i}`),
+        name: String(f.name),
+        category: 'faction',
+        description: typeof f.identity === 'string' ? f.identity : undefined,
+      });
+    });
+    companionQuests.forEach((q) => {
+      nodes.push({
+        id: q.id,
+        name: q.title,
+        category: 'quest',
+        description: q.notes,
+      });
+    });
+    return nodes;
+  }, [npcs, locations, factions, companionQuests]);
+
+  const combinedRolls = useMemo<RollEvent[]>(() => {
+    const byId = new Map<string, RollEvent>();
+    for (const p of pcs) {
+      for (const r of p.rollEvents ?? []) {
+        if (r?.id) byId.set(r.id, r);
+      }
+    }
+    for (const r of secretRolls) {
+      if (r?.id) byId.set(r.id, r);
+    }
+    return Array.from(byId.values()).sort((a, b) => b.timestamp - a.timestamp).slice(0, 50);
+  }, [pcs, secretRolls]);
 
   // --- Sheet Tab Local Form State ---
   const [newPoolName, setNewPoolName] = useState('');
@@ -268,6 +375,19 @@ export default function PlayerCompanionWorkspace({
     onUpdatePc({ ...activePc, ...patch, updatedAt: Date.now() });
   };
 
+  const handleEmitCompanionRoll = (event: RollEvent) => {
+    if (event.secretRoll) {
+      setSecretRolls((prev) => [event, ...prev].slice(0, 50));
+      return;
+    }
+    if (activePc) {
+      const nextPublic = sanitizeRollEventsForOutbound(
+        appendRollEventRingBuffer(activePc.rollEvents ?? [], event, 50),
+      );
+      patchActivePc({ rollEvents: nextPublic });
+    }
+  };
+
   const turnEconomy: TurnActionEconomy = activePc?.turnEconomy ?? DEFAULT_TURN_ECONOMY;
 
   const toggleTurnEconomyItem = (key: keyof TurnActionEconomy) => {
@@ -282,11 +402,12 @@ export default function PlayerCompanionWorkspace({
   const resetNextTurn = () => {
     patchActivePc({
       turnEconomy: { ...DEFAULT_TURN_ECONOMY },
+      activeBuffs: expireActiveBuffs(activePc?.activeBuffs ?? [], 'turn'),
     });
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-24">
       {/* Standalone Player Companion Mode Banner & Tab Navigation */}
       <div className="rounded-lg border border-indigo-500/30 bg-parchment-soft p-3 shadow-sm">
         <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
@@ -438,16 +559,26 @@ export default function PlayerCompanionWorkspace({
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {activePc && (
-                <ExportSheetPdfButton
-                  pc={{
-                    ...activePc,
-                    quests: activePc.quests?.length ? activePc.quests : companionQuests,
-                    journalEntries: activePc.journalEntries?.length
-                      ? activePc.journalEntries
-                      : companionJournal,
-                  }}
-                  mode="player"
-                />
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setWizardMode('levelUp')}
+                    data-testid="companion-level-up-btn"
+                    className="inline-flex items-center gap-1.5 rounded border border-amber-600/60 bg-amber-500/15 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-amber-800 hover:bg-amber-500/25"
+                  >
+                    <ArrowUpCircle size={13} /> Level Up
+                  </button>
+                  <ExportSheetPdfButton
+                    pc={{
+                      ...activePc,
+                      quests: activePc.quests?.length ? activePc.quests : companionQuests,
+                      journalEntries: activePc.journalEntries?.length
+                        ? activePc.journalEntries
+                        : companionJournal,
+                    }}
+                    mode="player"
+                  />
+                </>
               )}
               {onUploadClick && (
                 <button
@@ -462,6 +593,14 @@ export default function PlayerCompanionWorkspace({
               )}
               <button
                 type="button"
+                onClick={() => setWizardMode('create')}
+                data-testid="companion-create-character-btn"
+                className="inline-flex items-center gap-1.5 rounded border border-indigo-600/50 bg-indigo-500/15 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-indigo-800 hover:bg-indigo-500/25"
+              >
+                <Wand2 size={13} /> Create Character
+              </button>
+              <button
+                type="button"
                 onClick={onAddPc}
                 className="inline-flex items-center gap-1.5 rounded border border-wax bg-wax px-3 py-1.5 font-display text-xs uppercase tracking-wider text-ivory hover:bg-wax/90"
               >
@@ -469,6 +608,8 @@ export default function PlayerCompanionWorkspace({
               </button>
             </div>
           </div>
+
+          <CollapsibleTableRollFeed rolls={combinedRolls} currentPcId={activePc?.id} />
 
           <CharacterSheetUploadToast
             toast={
@@ -494,7 +635,7 @@ export default function PlayerCompanionWorkspace({
           {!activePc ? (
             <div className="rounded-lg border border-rule bg-parchment p-8 text-center shadow-card">
               <p className="font-serif text-sm italic text-ink-soft">
-                No character sheet created yet. Click &ldquo;Add Character&rdquo; or &ldquo;Import Character Sheet&rdquo; above to begin!
+                No character sheet created yet. Click &ldquo;Create Character&rdquo;, &ldquo;Add Character&rdquo;, or &ldquo;Import Character Sheet&rdquo; above to begin!
               </p>
             </div>
           ) : (
@@ -706,6 +847,7 @@ export default function PlayerCompanionWorkspace({
                 onToggleOpen={() => onTogglePcOpen(activePc.id)}
                 onChange={onUpdatePc}
                 onRemove={() => onRemovePc(activePc.id)}
+                onAppendSecretRoll={(r) => setSecretRolls((prev) => [r, ...prev].slice(0, 50))}
               />
             </>
           )}
@@ -715,6 +857,10 @@ export default function PlayerCompanionWorkspace({
       {/* TAB 2: QUESTS & CLUES */}
       {activeTab === 'quests' && (
         <div className="space-y-4 rounded-lg border border-rule bg-parchment p-4 shadow-card sm:p-5">
+          {revealedClocks.length > 0 && (
+            <RevealedProgressClocksStrip clocks={revealedClocks} />
+          )}
+
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-3">
             <div>
               <h2 className="font-display text-lg tracking-wide text-ink">
@@ -876,21 +1022,61 @@ export default function PlayerCompanionWorkspace({
       {/* TAB 3: WORLD & JOURNAL */}
       {activeTab === 'world' && (
         <div className="space-y-6">
-          {/* Known NPCs, Visited Locations, and Factions */}
-          <div className="grid gap-4 lg:grid-cols-3">
-            {/* Player-Known NPCs */}
-            <section className="space-y-3 rounded-lg border border-rule bg-parchment p-4 shadow-card">
-              <h3 className="font-display text-base tracking-wide text-ink">
-                Known NPCs ({npcs.length})
-              </h3>
-              <div className="space-y-1.5 rounded border border-rule bg-parchment-soft p-2.5">
-                <input
-                  type="text"
-                  value={newNpcName}
-                  onChange={(e) => setNewNpcName(e.target.value)}
-                  placeholder="NPC Name..."
-                  className="w-full rounded border border-rule bg-parchment px-2 py-1 font-serif text-xs text-ink"
-                />
+          {/* Toggle between List View and Interactive Conspiracy Board / Graph View */}
+          <div className="flex items-center justify-between rounded-lg border border-rule bg-parchment-soft px-3 py-2">
+            <span className="font-display text-xs uppercase tracking-wider text-ink-soft">
+              World Lore &amp; Conspiracy Board
+            </span>
+            <div className="inline-flex rounded border border-rule bg-parchment p-0.5">
+              <button
+                type="button"
+                onClick={() => setWorldViewMode('list')}
+                data-testid="companion-world-list-btn"
+                className={`inline-flex items-center gap-1 rounded px-2.5 py-1 font-display text-[11px] uppercase tracking-wider ${
+                  worldViewMode === 'list' ? 'bg-wax text-ivory' : 'text-ink-soft hover:text-ink'
+                }`}
+              >
+                <List size={12} /> List View
+              </button>
+              <button
+                type="button"
+                onClick={() => setWorldViewMode('graph')}
+                data-testid="companion-world-graph-btn"
+                className={`inline-flex items-center gap-1 rounded px-2.5 py-1 font-display text-[11px] uppercase tracking-wider ${
+                  worldViewMode === 'graph' ? 'bg-wax text-ivory' : 'text-ink-soft hover:text-ink'
+                }`}
+              >
+                <Network size={12} /> Board / Graph View
+              </button>
+            </div>
+          </div>
+
+          {worldViewMode === 'graph' ? (
+            <PlayerLoreGraph
+              entities={loreGraphNodes}
+              gmEdges={[]}
+              theoryLinks={companionTheoryLinks}
+              stickyCards={companionStickyCards}
+              nodePositions={companionNodePositions}
+              onChangeTheoryLinks={setCompanionTheoryLinks}
+              onChangeStickyCards={setCompanionStickyCards}
+              onChangeNodePositions={setCompanionNodePositions}
+            />
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-3">
+              {/* Player-Known NPCs */}
+              <section className="space-y-3 rounded-lg border border-rule bg-parchment p-4 shadow-card">
+                <h3 className="font-display text-base tracking-wide text-ink">
+                  Known NPCs ({npcs.length})
+                </h3>
+                <div className="space-y-1.5 rounded border border-rule bg-parchment-soft p-2.5">
+                  <input
+                    type="text"
+                    value={newNpcName}
+                    onChange={(e) => setNewNpcName(e.target.value)}
+                    placeholder="NPC Name..."
+                    className="w-full rounded border border-rule bg-parchment px-2 py-1 font-serif text-xs text-ink"
+                  />
                 <div className="flex gap-1.5">
                   <input
                     type="text"
@@ -1099,6 +1285,7 @@ export default function PlayerCompanionWorkspace({
               </div>
             </section>
           </div>
+          )}
 
           {/* Session Recaps & Journal with @-Mention Entity Linking */}
           <section className="space-y-3 rounded-lg border border-rule bg-parchment p-4 shadow-card sm:p-5">
@@ -1649,6 +1836,23 @@ export default function PlayerCompanionWorkspace({
                       DC {Math.max(10, Math.floor(damageTakenInput / 2))}
                     </strong>
                   </div>
+                  {activePc && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleEmitCompanionRoll(
+                          rollConcentrationCheck(activePc, damageTakenInput, {
+                            rollMode: playRollMode,
+                            secretRoll: playSecretRoll,
+                          }),
+                        )
+                      }
+                      data-testid="companion-roll-concentration-btn"
+                      className="mt-2 w-full rounded border border-wax bg-wax py-1 font-mono text-[11px] font-bold text-ivory hover:bg-wax/90"
+                    >
+                      🎲 Roll Concentration Save (CON DC {Math.max(10, Math.floor(damageTakenInput / 2))})
+                    </button>
+                  )}
                 </div>
               </div>
             </section>
@@ -1715,8 +1919,68 @@ export default function PlayerCompanionWorkspace({
             </section>
           </div>
 
-          {/* Right Column: Dice Roller & Spell Lookup */}
+          {/* Right Column: Dice Roller, Quick Character Rolls & Spell Lookup */}
           <div className="space-y-4 lg:col-span-5">
+            <CollapsibleTableRollFeed rolls={combinedRolls} currentPcId={activePc?.id} />
+
+            {activePc && (
+              <section className="space-y-2.5 rounded-lg border border-rule bg-parchment p-4 shadow-card">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="flex items-center gap-1.5 font-display text-sm font-semibold uppercase tracking-wider text-brass-deep">
+                    <Dices size={14} /> Quick Sheet Rolls ({activePc.name})
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleEmitCompanionRoll(
+                        rollInitiativeCheck(activePc, {
+                          rollMode: playRollMode,
+                          secretRoll: playSecretRoll,
+                        }),
+                      )
+                    }
+                    className="rounded border border-wax/50 bg-wax/10 px-2.5 py-0.5 font-mono text-[10px] font-bold text-wax hover:bg-wax hover:text-ivory"
+                  >
+                    ⚡ Roll Initiative
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+                  {ABILITY_NAMES.map((abi) => (
+                    <div key={abi} className="flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleEmitCompanionRoll(
+                            rollAbilityCheck(activePc, abi, {
+                              rollMode: playRollMode,
+                              secretRoll: playSecretRoll,
+                            }),
+                          )
+                        }
+                        className="rounded border border-rule bg-parchment-soft py-1 font-mono text-[10px] font-bold text-ink hover:border-wax"
+                      >
+                        {abi} Check
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleEmitCompanionRoll(
+                            rollSavingThrow(activePc, abi, {
+                              rollMode: playRollMode,
+                              secretRoll: playSecretRoll,
+                            }),
+                          )
+                        }
+                        className="rounded border border-crimson/30 bg-crimson/10 py-0.5 font-mono text-[9px] font-semibold text-crimson hover:bg-crimson hover:text-ivory"
+                      >
+                        {abi} Save
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <section className="space-y-2 rounded-lg border border-rule bg-parchment p-4 shadow-card">
               <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-brass-deep">
                 Table Dice Roller
@@ -1775,6 +2039,41 @@ export default function PlayerCompanionWorkspace({
             </section>
           </div>
         </div>
+      )}
+
+      {/* Character Builder & Level-Up Wizard Modal */}
+      {wizardMode && (
+        <CharacterWizardModal
+          open={true}
+          mode={wizardMode}
+          existingPc={wizardMode === 'levelUp' ? activePc : undefined}
+          onClose={() => setWizardMode(null)}
+          onSave={(savedPc) => {
+            if (wizardMode === 'levelUp' && activePc) {
+              onUpdatePc({ ...savedPc, id: activePc.id });
+            } else {
+              setVal('pcs', [...pcs, savedPc]);
+              setSelectedPcIdx(pcs.length);
+            }
+            setWizardMode(null);
+          }}
+        />
+      )}
+
+      {/* Thumb-Zone Mobile Combat & Quick-Action Bottom Sheet (<768px) */}
+      {activePc && (
+        <MobilePlayerCombatBar
+          pc={activePc}
+          rollMode={playRollMode}
+          secretRoll={playSecretRoll}
+          onToggleSecretRoll={() => setPlaySecretRoll((s) => !s)}
+          onChangeRollMode={setPlayRollMode}
+          onApplyHpChange={(nextCurrentHp) => {
+            patchActivePc({ hp: { ...activePc.hp, current: nextCurrentHp } });
+          }}
+          onRollEvent={handleEmitCompanionRoll}
+          onUpdatePc={(patch) => patchActivePc(patch as Partial<PlayerCharacter>)}
+        />
       )}
     </div>
   );

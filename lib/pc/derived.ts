@@ -42,6 +42,9 @@ export function pcInitiative(pc: PlayerCharacter): number {
   return abilityMod(pc.abilities.DEX);
 }
 
+export const initiativeBonus = pcInitiative;
+export { skillModifier as skillBonus } from './skills';
+
 // Formats a modifier with an explicit sign, e.g. 3 -> "+3", -1 -> "-1".
 export function formatMod(n: number): string {
   return n >= 0 ? `+${n}` : `${n}`;

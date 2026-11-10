@@ -206,7 +206,9 @@ export const ClockCard = ({ data, onChange, onRemove }: any) => {
   const notes: string = data.notes || '';
   const triggerNote: string = data.triggerNote || '';
   const status: ClockStatus = deriveClockStatus(data);
-  const playerVisible = isEntityPlayerVisible(data);
+  const playerVisible = isEntityPlayerVisible(data) || data.visibility === 'party';
+  const category: 'faction' | 'quest' | 'encounter' =
+    data.category === 'quest' || data.category === 'encounter' ? data.category : 'faction';
   const [notesOpen, setNotesOpen] = useState(notes.trim().length > 0 || triggerNote.trim().length > 0);
 
   const handleSegmentClick = (index: number) => {
@@ -227,10 +229,28 @@ export const ClockCard = ({ data, onChange, onRemove }: any) => {
       <div className="flex items-start justify-between gap-2">
         <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="What is this faction trying to do?" />
         <div className="flex flex-shrink-0 items-center gap-1.5">
+          <select
+            value={category}
+            onChange={(e) => onChange({ ...data, category: e.target.value })}
+            className="rounded border border-rule bg-parchment-soft px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft"
+            title="Clock Category"
+          >
+            <option value="faction">Faction</option>
+            <option value="quest">Quest</option>
+            <option value="encounter">Encounter</option>
+          </select>
           {playMode !== 'solo' && (
             <button
               type="button"
-              onClick={() => onChange({ ...data, player_visible: !playerVisible, isPublic: !playerVisible })}
+              onClick={() => {
+                const nextVis = !playerVisible;
+                onChange({
+                  ...data,
+                  visibility: nextVis ? 'party' : 'private',
+                  player_visible: nextVis,
+                  isPublic: nextVis,
+                });
+              }}
               aria-label={playerVisible ? 'Hide clock from players' : 'Share clock with players'}
               aria-pressed={playerVisible}
               className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
@@ -238,10 +258,10 @@ export const ClockCard = ({ data, onChange, onRemove }: any) => {
                   ? 'border-moss bg-moss text-parchment hover:bg-moss/90'
                   : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
               }`}
-              title={playerVisible ? 'player_visible: true' : 'player_visible: false'}
+              title={playerVisible ? 'Visibility: Party (Shared)' : 'Visibility: Private (GM Only)'}
             >
               {playerVisible ? <Eye size={10} /> : <EyeOff size={10} />}
-              {playerVisible ? 'Shared' : 'Private'}
+              {playerVisible ? 'Party' : 'Private'}
             </button>
           )}
           <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
@@ -263,6 +283,13 @@ export const ClockCard = ({ data, onChange, onRemove }: any) => {
           </select>
         </div>
       </div>
+      {playerVisible && (
+        <Field
+          value={data.publicDescription || ''}
+          onChange={(v) => onChange({ ...data, publicDescription: v })}
+          placeholder="Public description shown to players on Revealed Progress Clocks strip..."
+        />
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <select

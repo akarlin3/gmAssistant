@@ -50,6 +50,8 @@ export function savingThrowModifier(
   return base + prof;
 }
 
+export const SKILL_ABILITY = SKILL_ABILITIES;
+export const skillBonus = skillModifier;
 export const savingThrowBonus = savingThrowModifier;
 
 export function passivePerception(pc: PlayerCharacter): number {

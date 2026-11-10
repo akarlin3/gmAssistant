@@ -14,6 +14,7 @@
 // is toggled OFF (`sharedWithGm: false`), a tombstone is emitted so the GM's
 // reconciled PC removes the item while the player's local copy remains intact.
 
+import { sanitizeRollEventsForOutbound } from '@/lib/diceRoller';
 import { makePcId } from '@/lib/pc/factory';
 import type {
   AttitudeTag,
@@ -23,13 +24,20 @@ import type {
   PlayerQuest,
   PlayerQuestCategory,
   PlayerQuestStatus,
+  PlayerStickyCard,
+  PlayerTheoryLink,
   PlayerWritebackTombstone,
+  RollEvent,
 } from '@/lib/pc/types';
 
 export type PlayerTrackerState = {
   quests: PlayerQuest[];
   annotations: PlayerLoreAnnotation[];
   journal: PlayerJournalEntry[];
+  theoryLinks?: PlayerTheoryLink[];
+  stickyCards?: PlayerStickyCard[];
+  nodePositions?: Record<string, { x: number; y: number }>;
+  secretRolls?: RollEvent[];
   /** IDs of items that were previously synced with `sharedWithGm: true`. */
   previouslySharedIds?: string[];
   /** Pending tombstones to remove un-shared items from the GM's view. */
@@ -46,6 +54,10 @@ export function emptyPlayerTrackerState(): PlayerTrackerState {
     quests: [],
     annotations: [],
     journal: [],
+    theoryLinks: [],
+    stickyCards: [],
+    nodePositions: {},
+    secretRolls: [],
     previouslySharedIds: [],
     tombstones: [],
     pendingTombstones: [],
@@ -98,6 +110,38 @@ export function createPlayerJournalEntry(
     title: partial.title ?? '',
     content: partial.content ?? '',
     sharedWithGm: partial.sharedWithGm === true,
+  };
+}
+
+export function createPlayerTheoryLink(
+  partial: Partial<PlayerTheoryLink> = {},
+): PlayerTheoryLink {
+  return {
+    id: partial.id || makePcId(),
+    sourceId: partial.sourceId ?? '',
+    targetId: partial.targetId ?? '',
+    label: partial.label ?? '',
+    color: partial.color ?? '#f59e0b',
+    sharedWithGm: partial.sharedWithGm === true,
+    ...(typeof partial.updatedAt === 'number' ? { updatedAt: partial.updatedAt } : {}),
+  };
+}
+
+export function createPlayerStickyCard(
+  partial: Partial<PlayerStickyCard> = {},
+): PlayerStickyCard {
+  return {
+    id: partial.id || makePcId(),
+    title: partial.title ?? '',
+    content: partial.content ?? '',
+    color: partial.color ?? '#fef08a',
+    ...(typeof partial.x === 'number' ? { x: partial.x } : {}),
+    ...(typeof partial.y === 'number' ? { y: partial.y } : {}),
+    ...(typeof partial.linkedEntityId === 'string' && partial.linkedEntityId
+      ? { linkedEntityId: partial.linkedEntityId }
+      : {}),
+    sharedWithGm: partial.sharedWithGm === true,
+    ...(typeof partial.updatedAt === 'number' ? { updatedAt: partial.updatedAt } : {}),
   };
 }
 
@@ -183,6 +227,44 @@ export function sanitizeJournalEntryForGm(
   };
 }
 
+export function sanitizeTheoryLinkForGm(
+  link: PlayerTheoryLink | Record<string, unknown>,
+): PlayerTheoryLink | null {
+  if (!link || typeof link !== 'object') return null;
+  const l = link as PlayerTheoryLink;
+  if (l.sharedWithGm !== true) return null;
+  return {
+    id: String(l.id || makePcId()),
+    sourceId: typeof l.sourceId === 'string' ? l.sourceId : '',
+    targetId: typeof l.targetId === 'string' ? l.targetId : '',
+    label: typeof l.label === 'string' ? l.label : '',
+    color: typeof l.color === 'string' && l.color ? l.color : '#f59e0b',
+    sharedWithGm: true,
+    ...(typeof l.updatedAt === 'number' ? { updatedAt: l.updatedAt } : {}),
+  };
+}
+
+export function sanitizeStickyCardForGm(
+  card: PlayerStickyCard | Record<string, unknown>,
+): PlayerStickyCard | null {
+  if (!card || typeof card !== 'object') return null;
+  const c = card as PlayerStickyCard;
+  if (c.sharedWithGm !== true) return null;
+  return {
+    id: String(c.id || makePcId()),
+    title: typeof c.title === 'string' ? c.title : '',
+    content: typeof c.content === 'string' ? c.content : '',
+    color: typeof c.color === 'string' && c.color ? c.color : '#fef08a',
+    ...(typeof c.x === 'number' && Number.isFinite(c.x) ? { x: c.x } : {}),
+    ...(typeof c.y === 'number' && Number.isFinite(c.y) ? { y: c.y } : {}),
+    ...(typeof c.linkedEntityId === 'string' && c.linkedEntityId
+      ? { linkedEntityId: c.linkedEntityId }
+      : {}),
+    sharedWithGm: true,
+    ...(typeof c.updatedAt === 'number' ? { updatedAt: c.updatedAt } : {}),
+  };
+}
+
 export function sanitizeInventoryForGm(
   items: ReadonlyArray<InventoryItem | Record<string, unknown>>,
 ): InventoryItem[] {
@@ -222,17 +304,26 @@ export function reconcileTrackerSharingTransition(
   },
   nowMs: number = Date.now(),
 ): PlayerTrackerState {
+  const prevTheoryLinks = prev.theoryLinks ?? [];
+  const prevStickyCards = prev.stickyCards ?? [];
+  const nextTheoryLinks = next.theoryLinks ?? prevTheoryLinks;
+  const nextStickyCards = next.stickyCards ?? prevStickyCards;
+
   const prevShared = new Set<string>(prev.previouslySharedIds ?? []);
   for (const q of prev.quests) if (q.sharedWithGm === true) prevShared.add(q.id);
   for (const a of prev.annotations) if (a.sharedWithGm === true) prevShared.add(a.id);
   for (const j of prev.journal) if (j.sharedWithGm === true) prevShared.add(j.id);
+  for (const l of prevTheoryLinks) if (l.sharedWithGm === true) prevShared.add(l.id);
+  for (const c of prevStickyCards) if (c.sharedWithGm === true) prevShared.add(c.id);
 
   const currentShared = new Set<string>();
-  const kindById = new Map<string, 'quest' | 'annotation' | 'journal'>();
+  const kindById = new Map<string, PlayerWritebackTombstone['kind']>();
 
   for (const q of prev.quests) kindById.set(q.id, 'quest');
   for (const a of prev.annotations) kindById.set(a.id, 'annotation');
   for (const j of prev.journal) kindById.set(j.id, 'journal');
+  for (const l of prevTheoryLinks) kindById.set(l.id, 'theoryLink');
+  for (const c of prevStickyCards) kindById.set(c.id, 'stickyCard');
 
   for (const q of next.quests) {
     kindById.set(q.id, 'quest');
@@ -245,6 +336,14 @@ export function reconcileTrackerSharingTransition(
   for (const j of next.journal) {
     kindById.set(j.id, 'journal');
     if (j.sharedWithGm === true) currentShared.add(j.id);
+  }
+  for (const l of nextTheoryLinks) {
+    kindById.set(l.id, 'theoryLink');
+    if (l.sharedWithGm === true) currentShared.add(l.id);
+  }
+  for (const c of nextStickyCards) {
+    kindById.set(c.id, 'stickyCard');
+    if (c.sharedWithGm === true) currentShared.add(c.id);
   }
 
   const tombstoneMap = new Map<string, PlayerWritebackTombstone>();
@@ -270,6 +369,10 @@ export function reconcileTrackerSharingTransition(
     quests: next.quests.map((q) => ({ ...q, sharedWithGm: q.sharedWithGm === true })),
     annotations: next.annotations.map((a) => ({ ...a, sharedWithGm: a.sharedWithGm === true })),
     journal: next.journal.map((j) => ({ ...j, sharedWithGm: j.sharedWithGm === true })),
+    theoryLinks: nextTheoryLinks.map((l) => ({ ...l, sharedWithGm: l.sharedWithGm === true })),
+    stickyCards: nextStickyCards.map((c) => ({ ...c, sharedWithGm: c.sharedWithGm === true })),
+    nodePositions: next.nodePositions ?? prev.nodePositions ?? {},
+    secretRolls: next.secretRolls ?? prev.secretRolls ?? [],
     previouslySharedIds: Array.from(currentShared),
     tombstones: tombstonesList,
     pendingTombstones: tombstonesList,
@@ -283,13 +386,16 @@ export function reconcileTrackerSharingTransition(
  * `updates` payload.
  *
  * SECURITY BOUNDARY (Player -> GM Privacy):
- * - Strictly filters out any quest, annotation, or journal entry where `sharedWithGm !== true`.
+ * - Strictly filters out any quest, annotation, journal entry, theory link, or
+ *   sticky card where `sharedWithGm !== true`.
  * - Strips `privateNotes` when `sharedWithGm === false`.
  * - Emits tombstones (`sharedTombstones`) for any item that was previously shared
  *   and then toggled OFF (`sharedWithGm: false`), containing only opaque item IDs.
  */
 export function serializeOutboundTrackerWriteback(
   state: Pick<PlayerTrackerState, 'quests' | 'annotations' | 'journal'> & {
+    theoryLinks?: PlayerTheoryLink[];
+    stickyCards?: PlayerStickyCard[];
     tombstones?: PlayerWritebackTombstone[];
     pendingTombstones?: PlayerWritebackTombstone[];
   },
@@ -297,6 +403,8 @@ export function serializeOutboundTrackerWriteback(
   sharedQuests: PlayerQuest[];
   sharedAnnotations: PlayerLoreAnnotation[];
   sharedJournal: PlayerJournalEntry[];
+  sharedTheoryLinks: PlayerTheoryLink[];
+  sharedStickyCards: PlayerStickyCard[];
   sharedTombstones: PlayerWritebackTombstone[];
 } {
   const sharedQuests: PlayerQuest[] = [];
@@ -317,10 +425,24 @@ export function serializeOutboundTrackerWriteback(
     if (clean) sharedJournal.push(clean);
   }
 
+  const sharedTheoryLinks: PlayerTheoryLink[] = [];
+  for (const l of state.theoryLinks ?? []) {
+    const clean = sanitizeTheoryLinkForGm(l);
+    if (clean) sharedTheoryLinks.push(clean);
+  }
+
+  const sharedStickyCards: PlayerStickyCard[] = [];
+  for (const c of state.stickyCards ?? []) {
+    const clean = sanitizeStickyCardForGm(c);
+    if (clean) sharedStickyCards.push(clean);
+  }
+
   const activeSharedIds = new Set<string>([
     ...sharedQuests.map((q) => q.id),
     ...sharedAnnotations.map((a) => a.id),
     ...sharedJournal.map((j) => j.id),
+    ...sharedTheoryLinks.map((l) => l.id),
+    ...sharedStickyCards.map((c) => c.id),
   ]);
 
   const rawTombstones = state.tombstones ?? state.pendingTombstones ?? [];
@@ -328,7 +450,13 @@ export function serializeOutboundTrackerWriteback(
     .filter((t) => t && typeof t.id === 'string' && !activeSharedIds.has(t.id))
     .map((t) => ({
       id: t.id,
-      kind: t.kind === 'annotation' || t.kind === 'journal' ? t.kind : 'quest',
+      kind:
+        t.kind === 'annotation' ||
+        t.kind === 'journal' ||
+        t.kind === 'theoryLink' ||
+        t.kind === 'stickyCard'
+          ? t.kind
+          : 'quest',
       removedAtMs: typeof t.removedAtMs === 'number' ? t.removedAtMs : Date.now(),
     }));
 
@@ -336,6 +464,8 @@ export function serializeOutboundTrackerWriteback(
     sharedQuests,
     sharedAnnotations,
     sharedJournal,
+    sharedTheoryLinks,
+    sharedStickyCards,
     sharedTombstones,
   };
 }
@@ -344,7 +474,8 @@ export function serializeOutboundTrackerWriteback(
  * Sanitizes an arbitrary outbound `updates` map before staging to `pcWritebacks`
  * or applying in `mergePcWritebacks`. Guarantees that even if a caller passes
  * unfiltered arrays into `sharedQuests`, `sharedAnnotations`, `sharedJournal`,
- * or `inventory`, any item with `sharedWithGm === false` is stripped before
+ * `sharedTheoryLinks`, `sharedStickyCards`, `rollEvents`, or `inventory`, any
+ * item with `sharedWithGm === false` or `secretRoll === true` is stripped before
  * leaving the client or merging into CRDT state.
  */
 export function sanitizeOutboundWritebackUpdates(
@@ -352,6 +483,16 @@ export function sanitizeOutboundWritebackUpdates(
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [field, value] of Object.entries(updates)) {
+    // Strictly block any local-only tracker fields if passed directly
+    if (
+      field === 'secretRolls' ||
+      field === 'nodePositions' ||
+      field === 'privateNotes' ||
+      field === 'gmSecrets' ||
+      field === 'gmNotes'
+    ) {
+      continue;
+    }
     if (field === 'sharedQuests' && Array.isArray(value)) {
       out[field] = value
         .map((q) => sanitizeQuestForGm(q))
@@ -364,6 +505,16 @@ export function sanitizeOutboundWritebackUpdates(
       out[field] = value
         .map((j) => sanitizeJournalEntryForGm(j))
         .filter((j): j is PlayerJournalEntry => j !== null);
+    } else if (field === 'sharedTheoryLinks' && Array.isArray(value)) {
+      out[field] = value
+        .map((l) => sanitizeTheoryLinkForGm(l))
+        .filter((l): l is PlayerTheoryLink => l !== null);
+    } else if (field === 'sharedStickyCards' && Array.isArray(value)) {
+      out[field] = value
+        .map((c) => sanitizeStickyCardForGm(c))
+        .filter((c): c is PlayerStickyCard => c !== null);
+    } else if (field === 'rollEvents' && Array.isArray(value)) {
+      out[field] = sanitizeRollEventsForOutbound(value as RollEvent[]);
     } else if (field === 'inventory' && Array.isArray(value)) {
       out[field] = sanitizeInventoryForGm(value);
     } else {
@@ -388,7 +539,7 @@ export function toggleQuestShareWithGm(
   );
   return reconcileTrackerSharingTransition(
     state,
-    { quests: nextQuests, annotations: state.annotations, journal: state.journal },
+    { ...state, quests: nextQuests },
     nowMs,
   );
 }
@@ -401,7 +552,7 @@ export function toggleAllQuestsShareWithGm(
   const nextQuests = state.quests.map((q) => ({ ...q, sharedWithGm }));
   return reconcileTrackerSharingTransition(
     state,
-    { quests: nextQuests, annotations: state.annotations, journal: state.journal },
+    { ...state, quests: nextQuests },
     nowMs,
   );
 }
@@ -419,7 +570,7 @@ export function toggleAnnotationShareWithGm(
   );
   return reconcileTrackerSharingTransition(
     state,
-    { quests: state.quests, annotations: nextAnnotations, journal: state.journal },
+    { ...state, annotations: nextAnnotations },
     nowMs,
   );
 }
@@ -437,7 +588,43 @@ export function toggleJournalShareWithGm(
   );
   return reconcileTrackerSharingTransition(
     state,
-    { quests: state.quests, annotations: state.annotations, journal: nextJournal },
+    { ...state, journal: nextJournal },
+    nowMs,
+  );
+}
+
+export function toggleTheoryLinkShareWithGm(
+  state: PlayerTrackerState,
+  linkId: string,
+  sharedWithGm?: boolean,
+  nowMs: number = Date.now(),
+): PlayerTrackerState {
+  const nextTheoryLinks = (state.theoryLinks ?? []).map((l) =>
+    l.id === linkId
+      ? { ...l, sharedWithGm: sharedWithGm !== undefined ? sharedWithGm : !l.sharedWithGm }
+      : l,
+  );
+  return reconcileTrackerSharingTransition(
+    state,
+    { ...state, theoryLinks: nextTheoryLinks },
+    nowMs,
+  );
+}
+
+export function toggleStickyCardShareWithGm(
+  state: PlayerTrackerState,
+  cardId: string,
+  sharedWithGm?: boolean,
+  nowMs: number = Date.now(),
+): PlayerTrackerState {
+  const nextStickyCards = (state.stickyCards ?? []).map((c) =>
+    c.id === cardId
+      ? { ...c, sharedWithGm: sharedWithGm !== undefined ? sharedWithGm : !c.sharedWithGm }
+      : c,
+  );
+  return reconcileTrackerSharingTransition(
+    state,
+    { ...state, stickyCards: nextStickyCards },
     nowMs,
   );
 }
@@ -508,7 +695,7 @@ export async function loadPlayerTrackerIdb(
   });
 }
 
-function normalizeTrackerState(raw: unknown): PlayerTrackerState {
+export function normalizeTrackerState(raw: unknown): PlayerTrackerState {
   if (!raw || typeof raw !== 'object') return emptyPlayerTrackerState();
   const o = raw as Record<string, unknown>;
   const quests = Array.isArray(o.quests)
@@ -522,6 +709,30 @@ function normalizeTrackerState(raw: unknown): PlayerTrackerState {
   const journal = Array.isArray(o.journal)
     ? o.journal.map((j) => createPlayerJournalEntry(j as Partial<PlayerJournalEntry>))
     : [];
+  const theoryLinks = Array.isArray(o.theoryLinks)
+    ? o.theoryLinks
+        .filter((l) => l && typeof l === 'object')
+        .map((l) => createPlayerTheoryLink(l as Partial<PlayerTheoryLink>))
+    : [];
+  const stickyCards = Array.isArray(o.stickyCards)
+    ? o.stickyCards
+        .filter((c) => c && typeof c === 'object')
+        .map((c) => createPlayerStickyCard(c as Partial<PlayerStickyCard>))
+    : [];
+  const nodePositions: Record<string, { x: number; y: number }> = {};
+  if (o.nodePositions && typeof o.nodePositions === 'object') {
+    for (const [k, v] of Object.entries(o.nodePositions as Record<string, unknown>)) {
+      if (v && typeof v === 'object') {
+        const pt = v as Record<string, unknown>;
+        if (typeof pt.x === 'number' && typeof pt.y === 'number' && Number.isFinite(pt.x) && Number.isFinite(pt.y)) {
+          nodePositions[k] = { x: pt.x, y: pt.y };
+        }
+      }
+    }
+  }
+  const secretRolls: RollEvent[] = Array.isArray(o.secretRolls)
+    ? (o.secretRolls as RollEvent[]).filter((r) => r && typeof r === 'object' && typeof r.id === 'string').slice(-50)
+    : [];
   const previouslySharedIds = Array.isArray(o.previouslySharedIds)
     ? o.previouslySharedIds.filter((x): x is string => typeof x === 'string')
     : [];
@@ -530,10 +741,12 @@ function normalizeTrackerState(raw: unknown): PlayerTrackerState {
         .filter((t) => t && typeof t === 'object' && typeof (t as any).id === 'string')
         .map((t: any) => ({
           id: String(t.id),
-          kind: (t.kind === 'annotation' || t.kind === 'journal' ? t.kind : 'quest') as
-            | 'quest'
-            | 'annotation'
-            | 'journal',
+          kind: (t.kind === 'annotation' ||
+          t.kind === 'journal' ||
+          t.kind === 'theoryLink' ||
+          t.kind === 'stickyCard'
+            ? t.kind
+            : 'quest') as PlayerWritebackTombstone['kind'],
           removedAtMs: typeof t.removedAtMs === 'number' ? t.removedAtMs : 0,
         }))
     : [];
@@ -541,9 +754,15 @@ function normalizeTrackerState(raw: unknown): PlayerTrackerState {
     quests,
     annotations,
     journal,
+    theoryLinks,
+    stickyCards,
+    nodePositions,
+    secretRolls,
     previouslySharedIds,
     tombstones,
+    pendingTombstones: tombstones,
     updatedAtMs: typeof o.updatedAtMs === 'number' ? o.updatedAtMs : 0,
+    updatedAt: typeof o.updatedAt === 'number' ? o.updatedAt : 0,
   };
 }
 
@@ -628,7 +847,7 @@ export function upsertAnnotation(
   }
   return reconcileTrackerSharingTransition(
     state,
-    { quests: state.quests, annotations: nextAnnotations, journal: state.journal },
+    { ...state, annotations: nextAnnotations },
     nowMs,
   );
 }

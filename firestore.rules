@@ -164,10 +164,15 @@ service cloud.firestore {
           'deathSaves', 'deathSaves.successes', 'deathSaves.failures',
           'inspiration', 'ac', 'speed', 'initiativeMod',
           'spellSlots', 'pactSlots', 'resourcePools', 'features',
-          'inventory', 'attunedCount', 'currency', 'partyLoot',
+          'inventory', 'attunedCount', 'currency', 'partyLoot', 'partyLootItems',
           'notes', 'goals', 'bonds', 'ideals', 'flaws',
-          'sharedQuests', 'sharedAnnotations', 'sharedJournal', 'sharedTombstones',
-          'turnEconomy', 'concentrationSpell', 'downtimeDays', 'renown', 'evaluation'
+          'sharedQuests', 'sharedAnnotations', 'sharedJournal',
+          'sharedTheoryLinks', 'sharedStickyCards', 'sharedTombstones',
+          'turnEconomy', 'concentrationSpell', 'activeBuffs', 'rollEvents',
+          'downtimeDays', 'renown',
+          'evaluation', 'attacks', 'spellsKnown', 'spellcastingAbility',
+          'classes', 'race', 'background', 'alignment', 'abilities',
+          'proficiencies', 'skillExpertise', 'resistances', 'immunities', 'senses'
         ])
         && get(/databases/$(database)/documents/playerShares/$(request.resource.data.shareToken)).data.campaignId == campaignId
         && exists(/databases/$(database)/documents/playerShares/$(request.resource.data.shareToken)/slots/$(playerSlotId));

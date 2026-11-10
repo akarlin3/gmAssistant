@@ -55,6 +55,7 @@ export const PLAYER_EDITABLE_FIELDS = [
   'attunedCount',        // Attunement slots used (integer in [0, 3])
   'currency',            // Coin purse ({ cp, sp, ep, gp, pp })
   'partyLoot',           // Party loot / unclaimed scratchpad (string)
+  'partyLootItems',      // Structured claimable party loot items
 
   // Freeform & Roleplay Traits
   'notes',               // Freeform player session notes (string)
@@ -67,11 +68,15 @@ export const PLAYER_EDITABLE_FIELDS = [
   'sharedQuests',        // Player quests explicitly shared with GM
   'sharedAnnotations',   // Per-entity player lore annotations explicitly shared with GM
   'sharedJournal',       // Player session journal entries explicitly shared with GM
+  'sharedTheoryLinks',   // Player conspiracy graph theory links explicitly shared with GM
+  'sharedStickyCards',   // Player conspiracy graph sticky cards explicitly shared with GM
   'sharedTombstones',    // Tombstones for previously shared items toggled back to private
 
   // Table HUD & Companion State
   'turnEconomy',         // Action economy checklist for current turn
   'concentrationSpell',  // Active concentration spell name (string)
+  'activeBuffs',         // Active temporary buffs / spell modifiers
+  'rollEvents',          // Public dice roll ring buffer (secretRoll: true strictly excluded)
   'downtimeDays',        // Tracked downtime days (non-negative integer)
   'renown',              // Tracked renown score (integer)
 
@@ -266,18 +271,94 @@ const PlayerJournalEntrySchema = z.object({
   updatedAt: z.number().optional(),
 });
 
+const PlayerTheoryLinkSchema = z.object({
+  id: z.string().min(1),
+  sourceId: z.string().min(1),
+  targetId: z.string().min(1),
+  label: z.string(),
+  color: z.string(),
+  sharedWithGm: z.boolean(),
+  updatedAt: z.number().optional(),
+});
+
+const PlayerStickyCardSchema = z.object({
+  id: z.string().min(1),
+  title: z.string(),
+  content: z.string(),
+  color: z.string(),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  linkedEntityId: z.string().optional(),
+  sharedWithGm: z.boolean(),
+  updatedAt: z.number().optional(),
+});
+
+const ActiveBuffSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  acBonus: z.number().int().min(-50).max(50).optional(),
+  speedBonus: z.number().int().min(-500).max(500).optional(),
+  speedMultiplier: z.number().min(0).max(10).optional(),
+  saveBonusFormula: z.string().optional(),
+  attackBonusFormula: z.string().optional(),
+  checkBonusFormula: z.string().optional(),
+  damageBonusFormula: z.string().optional(),
+  rollModeOverride: z.enum(['advantage', 'disadvantage', 'normal']).optional(),
+  affectsChecks: z.boolean().optional(),
+  affectsAttacks: z.boolean().optional(),
+  affectsSaves: z.union([z.literal('all'), z.array(z.string())]).optional(),
+  mageArmor: z.boolean().optional(),
+  expiresOn: z.enum(['turn', 'round', 'shortRest', 'longRest', 'manual']).optional(),
+});
+
+const RollEventSchema = z.object({
+  id: z.string().min(1),
+  pcId: z.string().optional(),
+  actorName: z.string(),
+  label: z.string(),
+  formula: z.string(),
+  d20Rolls: z.array(z.number()),
+  total: z.number(),
+  breakdown: z.string(),
+  crit: z.union([z.literal('nat20'), z.literal('nat1'), z.null()]).optional(),
+  timestamp: z.number(),
+  secretRoll: z.literal(false).optional(),
+  rollMode: z.enum(['normal', 'advantage', 'disadvantage']).optional(),
+  situationalBonus: z.string().optional(),
+});
+
+const PartyLootItemSchema = z.object({
+  id: z.string().min(1),
+  name: z.string(),
+  qty: z.number().min(0),
+  weight: z.number().min(0).optional(),
+  notes: z.string().optional(),
+  currency: CoinPurseSchema.optional(),
+  claimedByPcId: z.string().optional(),
+  claimedByName: z.string().optional(),
+  claimNonce: z.string().optional(),
+  splitCompleted: z.boolean().optional(),
+  updatedAt: z.number().optional(),
+});
+
 const TombstoneSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum(['quest', 'annotation', 'journal']),
-  deletedAt: z.number(),
+  kind: z.enum(['quest', 'annotation', 'journal', 'theoryLink', 'stickyCard']),
+  deletedAt: z.number().optional(),
+  removedAtMs: z.number().optional(),
 });
 
 const TurnEconomySchema = z.object({
-  actionUsed: z.boolean(),
-  bonusActionUsed: z.boolean(),
-  movementUsed: z.boolean(),
-  reactionUsed: z.boolean(),
-  freeInteractionUsed: z.boolean(),
+  action: z.boolean().optional(),
+  bonusAction: z.boolean().optional(),
+  movement: z.boolean().optional(),
+  reaction: z.boolean().optional(),
+  freeInteraction: z.boolean().optional(),
+  actionUsed: z.boolean().optional(),
+  bonusActionUsed: z.boolean().optional(),
+  movementUsed: z.boolean().optional(),
+  reactionUsed: z.boolean().optional(),
+  freeInteractionUsed: z.boolean().optional(),
 });
 
 /**
@@ -368,6 +449,9 @@ export function validatePlayerField(field: string, value: unknown): boolean {
     case 'currency':
       return CoinPurseSchema.safeParse(value).success;
 
+    case 'partyLootItems':
+      return z.array(PartyLootItemSchema).safeParse(value).success;
+
     case 'partyLoot':
     case 'notes':
     case 'concentrationSpell':
@@ -399,8 +483,20 @@ export function validatePlayerField(field: string, value: unknown): boolean {
     case 'sharedJournal':
       return z.array(PlayerJournalEntrySchema).safeParse(value).success;
 
+    case 'sharedTheoryLinks':
+      return z.array(PlayerTheoryLinkSchema).safeParse(value).success;
+
+    case 'sharedStickyCards':
+      return z.array(PlayerStickyCardSchema).safeParse(value).success;
+
     case 'sharedTombstones':
       return z.array(TombstoneSchema).safeParse(value).success;
+
+    case 'activeBuffs':
+      return z.array(ActiveBuffSchema).safeParse(value).success;
+
+    case 'rollEvents':
+      return z.array(RollEventSchema).max(50).safeParse(value).success;
 
     case 'turnEconomy':
       return TurnEconomySchema.safeParse(value).success;

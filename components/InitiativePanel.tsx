@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import {
-  X, Plus, ChevronRight, ChevronLeft, Swords, Skull, Heart, Shield, Flag,
+  X, Plus, ChevronRight, ChevronLeft, Swords, Skull, Heart, Shield, Flag, Eye, EyeOff,
 } from 'lucide-react';
 import {
   type Combatant, type CombatantSide, type InitiativeState,
@@ -351,8 +351,9 @@ export default function InitiativePanel({
               No combatants yet. Add a monster, PC, or manual entry below.
             </li>
           )}
-          {sorted.map((c, i) => {
+          {sorted.map((c) => {
             const isActive = c.id === active?.id;
+            const isHidden = c.hidden === true || c.revealed === false || c.player_visible === false;
             return (
               <li
                 key={c.id}
@@ -365,6 +366,26 @@ export default function InitiativePanel({
                     {c.name}
                   </span>
                   {c.hp.current <= 0 && <Skull size={12} className="flex-shrink-0 text-ink-mute" />}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const nextHidden = !isHidden;
+                      updateCombatant(c.id, {
+                        hidden: nextHidden,
+                        revealed: !nextHidden,
+                        player_visible: !nextHidden,
+                      });
+                    }}
+                    className={`flex-shrink-0 rounded border px-1 py-0.5 font-display text-[9px] uppercase ${
+                      isHidden
+                        ? 'border-rule bg-parchment text-ink-mute'
+                        : 'border-emerald-600/40 bg-emerald-500/10 text-emerald-800'
+                    }`}
+                    title={isHidden ? 'Hidden from Player HUD (Click to Reveal)' : 'Revealed on Player HUD (Click to Hide)'}
+                  >
+                    {isHidden ? <EyeOff size={10} /> : <Eye size={10} />}
+                  </button>
                   <span className="flex-shrink-0 font-serif text-[11px] tabular-nums text-ink-soft">
                     {c.hp.current}/{c.hp.max}
                   </span>

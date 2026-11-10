@@ -120,9 +120,88 @@ export type PlayerJournalEntry = {
   updatedAt?: number;
 };
 
+export type PlayerTheoryLink = {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  label: string;
+  color: string;
+  sharedWithGm: boolean;
+  updatedAt?: number;
+};
+
+export type PlayerStickyCard = {
+  id: string;
+  title: string;
+  content: string;
+  color: string;
+  x?: number;
+  y?: number;
+  linkedEntityId?: string;
+  sharedWithGm: boolean;
+  updatedAt?: number;
+};
+
+export type RollMode = 'normal' | 'advantage' | 'disadvantage';
+
+export type BuffExpiryTrigger = 'turn' | 'round' | 'shortRest' | 'longRest' | 'rest' | 'manual';
+
+export type ActiveBuff = {
+  id: string;
+  presetKey?: string;
+  name: string;
+  active?: boolean;
+  acBonus?: number;
+  speedBonus?: number;
+  speedMultiplier?: number;
+  saveBonusFormula?: string;
+  attackBonusFormula?: string;
+  checkBonusFormula?: string;
+  damageBonusFormula?: string;
+  rollModeOverride?: RollMode;
+  affectsChecks?: boolean;
+  affectsAttacks?: boolean;
+  affectsSaves?: AbilityName[] | 'all';
+  mageArmor?: boolean;
+  expiresOn?: BuffExpiryTrigger;
+};
+
+export type RollEvent = {
+  id: string;
+  pcId?: string;
+  actorName: string;
+  label: string;
+  formula: string;
+  d20Rolls: number[];
+  total: number;
+  breakdown: string;
+  crit?: 'nat20' | 'nat1' | null;
+  timestamp: number;
+  secretRoll?: boolean;
+  rollMode?: RollMode;
+  situationalBonus?: string;
+};
+
+export type PartyLootItem = {
+  id: string;
+  name: string;
+  qty: number;
+  weight?: number;
+  notes?: string;
+  currency?: CoinPurse;
+  claimedByPcId?: string;
+  claimedByName?: string;
+  claimedByPcName?: string;
+  claimedAt?: number;
+  createdAt?: number;
+  claimNonce?: string;
+  splitCompleted?: boolean;
+  updatedAt?: number;
+};
+
 export type PlayerWritebackTombstone = {
   id: string;
-  kind: 'quest' | 'annotation' | 'journal';
+  kind: 'quest' | 'annotation' | 'journal' | 'theoryLink' | 'stickyCard';
   removedAtMs: number;
 };
 
@@ -144,10 +223,14 @@ export type Attack = {
   name: string;
   attackBonus: number;
   damageExpr: string; // "1d8+3"
+  damage?: string;
   damageType: string; // "slashing"
   range: string; // "5 ft." or "150/600 ft."
   notes?: string;
 };
+
+export type PcAttackEntry = Attack;
+export type AbilityKey = AbilityName | Lowercase<AbilityName>;
 
 export type RefreshKind = 'short' | 'long';
 
@@ -156,7 +239,7 @@ export type FeatureEntry = {
   name: string;
   source: string; // "Fighter 3", "Background", "Race"
   description: string;
-  uses?: { max: number; used: number; refresh: RefreshKind };
+  uses?: { max: number; used: number; current?: number; refresh: RefreshKind };
 };
 
 export type PcFeature = FeatureEntry;
@@ -220,8 +303,14 @@ export type PlayerCharacter = {
   sharedQuests?: PlayerQuest[];
   sharedAnnotations?: PlayerLoreAnnotation[];
   sharedJournal?: PlayerJournalEntry[];
+  sharedTheoryLinks?: PlayerTheoryLink[];
+  sharedStickyCards?: PlayerStickyCard[];
   quests?: PlayerQuest[];
   journalEntries?: PlayerJournalEntry[];
+
+  activeBuffs?: ActiveBuff[];
+  rollEvents?: RollEvent[];
+  partyLootItems?: PartyLootItem[];
 
   turnEconomy?: TurnActionEconomy;
   concentrationSpell?: string;

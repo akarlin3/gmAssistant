@@ -21,6 +21,9 @@ import { formatElapsed } from './helpers';
 import { ActivePrepGroup, CompactCard, ExpandableCard } from './cards';
 import PlayerSharedQuestsNotesPanel from '../../PlayerSharedQuestsNotesPanel';
 import { PartyRunTrackerSection } from '../../CharacterSheetLifecycleControls';
+import { CollapsibleTableRollFeed } from '../../MobilePlayerCombatBar';
+import { claimPartyLootItem, splitPartyLootDropGold } from '@/lib/crdt/writeback-merge';
+import type { PartyLootItem } from '@/lib/pc/types';
 
 export function InlineNoteSeed({ trackEvent }: { trackEvent: (kind: ChangeEventKind, summary: string) => void }) {
   const [text, setText] = useState('');
@@ -545,6 +548,24 @@ export function RunSessionInlineActive({
             onUpdatePcs={(nextPcs) => setVal('pcs', nextPcs)}
           />
 
+          <CollapsibleTableRollFeed
+            rolls={party
+              .flatMap((p) => p.rollEvents ?? [])
+              .filter((r) => !r.secretRoll)
+              .sort((a, b) => b.timestamp - a.timestamp)
+              .slice(0, 50)}
+            title="Table Roll Feed (Party & GM)"
+          />
+
+          <GmPartyLootDropSection
+            pcs={party}
+            partyLootItems={((get('partyLootItems', []) as PartyLootItem[]) || []).concat(
+              party.flatMap((p) => p.partyLootItems ?? []),
+            )}
+            onUpdatePartyLoot={(nextLoot) => setVal('partyLootItems', nextLoot)}
+            onUpdatePcs={(nextPcs) => setVal('pcs', nextPcs)}
+          />
+
           <PlayerSharedQuestsNotesPanel pcs={party} />
 
 
@@ -654,5 +675,176 @@ export function RunSessionInlineActive({
         />
       </div>
     </div>
+  );
+}
+
+function GmPartyLootDropSection({
+  pcs,
+  partyLootItems,
+  onUpdatePartyLoot,
+  onUpdatePcs,
+}: {
+  pcs: ReturnType<typeof normalizePcs>;
+  partyLootItems: PartyLootItem[];
+  onUpdatePartyLoot: (next: PartyLootItem[]) => void;
+  onUpdatePcs: (next: ReturnType<typeof normalizePcs>) => void;
+}) {
+  const [name, setName] = useState('');
+  const [qty, setQty] = useState(1);
+  const [gp, setGp] = useState(0);
+  const [notes, setNotes] = useState('');
+
+  // Deduplicate by id
+  const uniqueItems = Array.from(
+    new globalThis.Map<string, PartyLootItem>(partyLootItems.map((it) => [it.id, it])).values(),
+  );
+
+  const handleDropLoot = () => {
+    const trimmed = name.trim() || (gp > 0 ? `${gp} GP Pouch` : '');
+    if (!trimmed) return;
+    const item: PartyLootItem = {
+      id: `loot-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      name: trimmed,
+      qty: Math.max(1, qty),
+      weight: 0,
+      notes: notes.trim(),
+      currency: gp > 0 ? { cp: 0, sp: 0, ep: 0, gp: Math.max(0, gp), pp: 0 } : undefined,
+      createdAt: Date.now(),
+    };
+    onUpdatePartyLoot([...uniqueItems, item]);
+    setName('');
+    setQty(1);
+    setGp(0);
+    setNotes('');
+  };
+
+  return (
+    <section className="space-y-2 rounded border border-rule bg-parchment p-3 shadow-card">
+      <div className="flex items-center justify-between gap-2 border-b border-rule pb-1.5">
+        <h3 className="font-display text-xs uppercase tracking-wider text-ink">
+          💰 Party Loot / Unclaimed &amp; Gold Splitter ({uniqueItems.filter((i) => !i.claimedByPcId && !i.splitCompleted).length})
+        </h3>
+        <span className="font-serif text-[11px] italic text-ink-mute">
+          Projected live to /player for 1-tap claiming
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Drop item or treasure (e.g. Potion of Healing)..."
+          className="min-w-[160px] flex-1 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink"
+        />
+        <input
+          type="number"
+          min={1}
+          value={qty}
+          onChange={(e) => setQty(Number(e.target.value) || 1)}
+          title="Quantity"
+          className="w-14 rounded border border-rule bg-parchment-soft px-1.5 py-1 text-center font-mono text-xs text-ink"
+        />
+        <input
+          type="number"
+          min={0}
+          value={gp}
+          onChange={(e) => setGp(Number(e.target.value) || 0)}
+          placeholder="GP"
+          title="Gold Pieces"
+          className="w-20 rounded border border-rule bg-parchment-soft px-1.5 py-1 text-center font-mono text-xs text-ink"
+        />
+        <button
+          type="button"
+          onClick={handleDropLoot}
+          className="rounded border border-gold/60 bg-gold/15 px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-ink hover:bg-gold/25"
+        >
+          + Post Loot Drop
+        </button>
+      </div>
+
+      {uniqueItems.length > 0 && (
+        <ul className="space-y-1.5 pt-1">
+          {uniqueItems.map((item) => {
+            const hasGold =
+              item.currency &&
+              ((item.currency.gp || 0) > 0 ||
+                (item.currency.pp || 0) > 0 ||
+                (item.currency.sp || 0) > 0 ||
+                (item.currency.cp || 0) > 0);
+            return (
+              <li
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded border border-rule/80 bg-parchment-soft px-2.5 py-1.5 text-xs"
+              >
+                <div>
+                  <span className="font-display font-bold text-ink">
+                    {item.name} {item.qty > 1 ? `×${item.qty}` : ''}
+                  </span>
+                  {item.currency && item.currency.gp > 0 && (
+                    <span className="ml-1.5 rounded bg-gold/20 px-1.5 py-0.5 font-mono text-[10px] text-ink">
+                      {item.currency.gp} GP
+                    </span>
+                  )}
+                  {item.claimedByPcName && (
+                    <span className="ml-2 font-serif text-[11px] italic text-moss">
+                      ✓ Claimed by {item.claimedByPcName}
+                    </span>
+                  )}
+                  {item.splitCompleted && (
+                    <span className="ml-2 font-serif text-[11px] italic text-moss">
+                      ✓ Split evenly across party
+                    </span>
+                  )}
+                </div>
+
+                {!item.claimedByPcId && !item.splitCompleted && pcs.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1">
+                    {hasGold && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const res = splitPartyLootDropGold(uniqueItems, pcs, {
+                            lootId: item.id,
+                            activePcIds: pcs.map((p) => p.id),
+                          });
+                          if (res.changed) {
+                            onUpdatePartyLoot(res.lootItems);
+                            onUpdatePcs(res.pcs);
+                          }
+                        }}
+                        className="rounded border border-gold/60 bg-gold/20 px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink hover:bg-gold/30"
+                      >
+                        Split Party Gold
+                      </button>
+                    )}
+                    {pcs.slice(0, 4).map((pc) => (
+                      <button
+                        key={pc.id}
+                        type="button"
+                        onClick={() => {
+                          const res = claimPartyLootItem(uniqueItems, pcs, {
+                            lootId: item.id,
+                            pcId: pc.id,
+                            claimNonce: `gm-claim-${pc.id}-${item.id}`,
+                          });
+                          if (res.changed) {
+                            onUpdatePartyLoot(res.lootItems);
+                            onUpdatePcs(res.pcs);
+                          }
+                        }}
+                        className="rounded border border-rule bg-parchment px-1.5 py-0.5 font-display text-[10px] text-ink-soft hover:border-crimson hover:text-crimson"
+                      >
+                        Claim → {pc.name || 'PC'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }

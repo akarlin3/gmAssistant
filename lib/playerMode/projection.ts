@@ -6,12 +6,16 @@
 import { DEFAULT_FIELD_VISIBILITY } from './fieldDefaults';
 import { resolveVisibility } from './resolveVisibility';
 import { redactSpoilers } from './spoilers';
+import { sanitizeRollEventsForOutbound } from '@/lib/diceRoller';
 import { edgeVisibleToSlot, effectiveWeight } from '@/lib/wiki/edges';
 import type { EntityType, Relationship } from '@/lib/wiki/types';
 import { projectPlayerMaps } from '@/lib/maps/playerProjection';
+import type { PartyLootItem, RollEvent } from '@/lib/pc/types';
 import {
   PLAYER_ENTITY_TYPES,
   normalizeItem,
+  type ActiveEncounterHud,
+  type ActiveEncounterHudEntry,
   type CampaignItem,
   type EntityVisibility,
   type FieldPrivacyMap,
@@ -20,6 +24,8 @@ import {
   type PlayerEntityType,
   type PlayerLogEntry,
   type PlayerModeData,
+  type PublicCombatStatusTag,
+  type RevealedProgressClock,
   type ShareMeta,
   type SlotProjection,
 } from './types';
@@ -87,6 +93,9 @@ function redactEntity(
     const copy: Record<string, unknown> = { ...entity };
     delete copy.gmNotes;
     delete copy.gmSecrets;
+    if (Array.isArray(copy.rollEvents)) {
+      copy.rollEvents = sanitizeRollEventsForOutbound(copy.rollEvents as RollEvent[]);
+    }
     return copy;
   }
 
@@ -117,6 +126,286 @@ function redactLogEntry(entry: PlayerLogEntry): Record<string, unknown> {
     if (!PLAYER_LOG_INTERNAL_FIELDS.has(k)) out[k] = v;
   }
   return out;
+}
+
+/**
+ * Projects a strictly redacted `activeEncounterHud` slice from the GM's `Run`
+ * encounter tracker (`data.__initiative` or `data.activeEncounter`).
+ *
+ * SECURITY INVARIANT:
+ * - Filters out any combatant where `hidden === true`, `isHidden === true`,
+ *   `revealed === false`, `player_visible === false`, or `visibility === 'private'`.
+ * - NEVER exposes monster AC, exact HP, temp HP, stat blocks, sourceMonsterId,
+ *   GM notes, or private conditions—emitting ONLY:
+ *   `{ id, displayName, initiative, isPc, pcId?, publicStatusTag? }`.
+ */
+export function projectActiveEncounterHud(data: PlayerModeData): ActiveEncounterHud {
+  const rawInit = ((data as Record<string, unknown>).__initiative ??
+    (data as Record<string, unknown>).activeEncounter) as Record<string, unknown> | undefined;
+
+  if (!rawInit || typeof rawInit !== 'object') {
+    return { active: false, round: 1, activeTurnId: '', entries: [] };
+  }
+
+  const rawCombatants = Array.isArray(rawInit.combatants)
+    ? (rawInit.combatants as Array<Record<string, unknown>>)
+    : Array.isArray(rawInit.entries)
+      ? (rawInit.entries as Array<Record<string, unknown>>)
+      : [];
+
+  if (rawCombatants.length === 0 || rawInit.active === false) {
+    return {
+      active: false,
+      round: typeof rawInit.round === 'number' && rawInit.round >= 1 ? Math.trunc(rawInit.round) : 1,
+      activeTurnId: '',
+      entries: [],
+    };
+  }
+
+  const sidePriority: Record<string, number> = { pc: 0, ally: 1, enemy: 2, neutral: 3 };
+  // Sort combatants identically to lib/initiative.ts sortInitiative
+  const sortedAll = [...rawCombatants]
+    .filter((c) => c && typeof c === 'object' && typeof c.id === 'string' && c.id.length > 0)
+    .sort((a, b) => {
+      const initDiff = Number(b.initiative ?? 0) - Number(a.initiative ?? 0);
+      if (initDiff !== 0) return initDiff;
+      const sideA = sidePriority[String(a.side ?? 'neutral')] ?? 3;
+      const sideB = sidePriority[String(b.side ?? 'neutral')] ?? 3;
+      if (sideA !== sideB) return sideA - sideB;
+      return String(a.name ?? a.displayName ?? '').localeCompare(
+        String(b.name ?? b.displayName ?? ''),
+      );
+    });
+
+  const isCombatantHidden = (c: Record<string, unknown>): boolean =>
+    c.hidden === true ||
+    c.isHidden === true ||
+    c.revealed === false ||
+    c.player_visible === false ||
+    c.visibility === 'private';
+
+  const rawIdx =
+    typeof rawInit.activeIndex === 'number' && Number.isFinite(rawInit.activeIndex)
+      ? rawInit.activeIndex
+      : typeof rawInit.currentIndex === 'number' && Number.isFinite(rawInit.currentIndex)
+        ? rawInit.currentIndex
+        : 0;
+
+  const currentIdx = Math.max(0, Math.min(sortedAll.length - 1, Math.trunc(rawIdx)));
+
+  const rawActiveId =
+    typeof rawInit.activeTurnId === 'string' && rawInit.activeTurnId
+      ? rawInit.activeTurnId
+      : sortedAll[currentIdx]?.id
+        ? String(sortedAll[currentIdx].id)
+        : '';
+
+  const visibleCombatants = sortedAll.filter((c) => !isCombatantHidden(c));
+  const visibleIds = new Set(visibleCombatants.map((c) => String(c.id)));
+
+  // Never leak the ID of a hidden combatant via activeTurnId
+  const safeActiveTurnId = visibleIds.has(rawActiveId) ? rawActiveId : '';
+
+  const entries: ActiveEncounterHudEntry[] = visibleCombatants.map((c) => {
+    const hpObj = (c.hp as Record<string, unknown>) || {};
+    const curHp =
+      typeof hpObj.current === 'number'
+        ? hpObj.current
+        : typeof c.currentHp === 'number'
+          ? c.currentHp
+          : 10;
+    const maxHp =
+      typeof hpObj.max === 'number' && hpObj.max > 0
+        ? hpObj.max
+        : typeof c.maxHp === 'number' && c.maxHp > 0
+          ? c.maxHp
+          : Math.max(1, curHp);
+
+    let publicStatusTag: PublicCombatStatusTag = 'Healthy';
+    if (curHp <= 0) {
+      publicStatusTag = 'Down';
+    } else if (curHp <= Math.floor(maxHp / 2)) {
+      publicStatusTag = 'Bloodied';
+    } else if (
+      c.publicStatusTag === 'Healthy' ||
+      c.publicStatusTag === 'Bloodied' ||
+      c.publicStatusTag === 'Down'
+    ) {
+      publicStatusTag = c.publicStatusTag;
+    }
+
+    const isPc =
+      c.side === 'pc' ||
+      c.isPc === true ||
+      typeof c.refPcId === 'string' ||
+      typeof c.pcId === 'string';
+    const pcIdRaw =
+      typeof c.refPcId === 'string' && c.refPcId
+        ? c.refPcId
+        : typeof c.pcId === 'string' && c.pcId
+          ? c.pcId
+          : undefined;
+
+    return {
+      id: String(c.id),
+      displayName: redactSpoilers(String(c.displayName ?? c.name ?? 'Combatant')),
+      initiative: Number.isFinite(Number(c.initiative)) ? Number(c.initiative) : 0,
+      isPc,
+      ...(pcIdRaw ? { pcId: pcIdRaw } : {}),
+      publicStatusTag,
+    };
+  });
+
+  return {
+    active: entries.length > 0,
+    round: typeof rawInit.round === 'number' && rawInit.round >= 1 ? Math.trunc(rawInit.round) : 1,
+    activeTurnId: safeActiveTurnId,
+    entries,
+  };
+}
+
+/**
+ * Projects GM-revealed progress clocks (`Party` visibility) into the player
+ * projection while strictly excluding `Private` clocks and GM-only notes.
+ */
+export function projectRevealedClocks(
+  data: Record<string, any>,
+  slotId: string = '',
+): RevealedProgressClock[] {
+  const clocks = data.clocks;
+  if (!Array.isArray(clocks)) return [];
+  const config = data.player;
+  const out: RevealedProgressClock[] = [];
+
+  for (const raw of clocks) {
+    if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string' || !raw.id) continue;
+    const c = raw as Record<string, unknown>;
+    const clockId = String(c.id);
+
+    // Explicit private flags on the clock itself always fail closed
+    if (
+      c.visibility === 'private' ||
+      c.visibility === 'Private' ||
+      c.player_visible === false ||
+      c.isPublic === false
+    ) {
+      continue;
+    }
+
+    const entityVis = config?.entityVisibility?.clocks?.[clockId];
+    if (entityVis?.mode === 'private') {
+      continue;
+    }
+
+    const admittedByEntityVis =
+      entityVis?.mode === 'party' ||
+      (entityVis?.mode === 'custom' &&
+        Array.isArray(entityVis.allowedSlotIds) &&
+        entityVis.allowedSlotIds.includes(slotId));
+
+    const admittedByClockFlag =
+      c.visibility === 'party' ||
+      c.visibility === 'Party' ||
+      c.player_visible === true ||
+      c.isPublic === true;
+
+    if (!admittedByEntityVis && !admittedByClockFlag) {
+      continue;
+    }
+
+    const segmentsTotal = Math.max(
+      1,
+      Math.trunc(Number(c.segmentsTotal ?? c.max ?? 4) || 4),
+    );
+    const segmentsFilled = Math.max(
+      0,
+      Math.min(segmentsTotal, Math.trunc(Number(c.segmentsFilled ?? c.filled ?? 0) || 0)),
+    );
+
+    const rawTitle = String(c.title ?? c.text ?? c.name ?? 'Progress Clock');
+    const rawCategory = String(
+      c.category ?? (c.faction ? 'faction' : 'quest'),
+    );
+    const rawPublicDesc =
+      typeof c.publicDescription === 'string'
+        ? c.publicDescription
+        : typeof c.faction === 'string'
+          ? c.faction
+          : '';
+
+    out.push({
+      id: clockId,
+      title: redactSpoilers(rawTitle),
+      segmentsTotal,
+      segmentsFilled,
+      category: redactSpoilers(rawCategory),
+      publicDescription: redactSpoilers(rawPublicDesc),
+    });
+  }
+
+  return out;
+}
+
+/**
+ * Projects the bounded public table roll feed (last 50 public rolls),
+ * strictly stripping any `secretRoll: true` events.
+ */
+export function projectTableRollEvents(data: PlayerModeData): RollEvent[] {
+  const combined: RollEvent[] = [];
+  if (Array.isArray(data.rollEvents)) {
+    combined.push(...data.rollEvents);
+  }
+  const pcs = data.pcs;
+  if (Array.isArray(pcs)) {
+    for (const pc of pcs) {
+      if (pc && typeof pc === 'object' && Array.isArray((pc as any).rollEvents)) {
+        combined.push(...((pc as any).rollEvents as RollEvent[]));
+      }
+    }
+  }
+  return sanitizeRollEventsForOutbound(combined, 50);
+}
+
+/**
+ * Projects structured party loot drops (`data.partyLootItems`), redacting any
+ * GM spoiler tags in item names or notes.
+ */
+export function projectPartyLootItems(data: PlayerModeData): PartyLootItem[] {
+  const rawList: PartyLootItem[] = [];
+  if (Array.isArray(data.partyLootItems)) {
+    rawList.push(...data.partyLootItems);
+  }
+  const pcs = data.pcs;
+  if (Array.isArray(pcs)) {
+    for (const pc of pcs) {
+      if (pc && typeof pc === 'object' && Array.isArray((pc as any).partyLootItems)) {
+        rawList.push(...((pc as any).partyLootItems as PartyLootItem[]));
+      }
+    }
+  }
+  const byId = new Map<string, PartyLootItem>();
+  for (const item of rawList) {
+    if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !item.id) continue;
+    const prev = byId.get(item.id);
+    // Once claimed or splitCompleted, preserve that state
+    if (prev && (prev.claimedByPcId || prev.splitCompleted) && !item.claimedByPcId && !item.splitCompleted) {
+      continue;
+    }
+    byId.set(item.id, {
+      id: item.id,
+      name: redactSpoilers(String(item.name || 'Loot Item')),
+      qty: Math.max(0, Number(item.qty ?? 1)),
+      ...(typeof item.weight === 'number' ? { weight: item.weight } : {}),
+      ...(typeof item.notes === 'string' && item.notes ? { notes: redactSpoilers(item.notes) } : {}),
+      ...(item.currency ? { currency: item.currency } : {}),
+      ...(item.claimedByPcId ? { claimedByPcId: String(item.claimedByPcId) } : {}),
+      ...(item.claimedByName ? { claimedByName: redactSpoilers(String(item.claimedByName)) } : {}),
+      ...(item.claimNonce ? { claimNonce: String(item.claimNonce) } : {}),
+      ...(typeof item.splitCompleted === 'boolean' ? { splitCompleted: item.splitCompleted } : {}),
+      ...(typeof item.updatedAt === 'number' ? { updatedAt: item.updatedAt } : {}),
+    });
+  }
+  return Array.from(byId.values());
 }
 
 // Group items by their assigned roster slot once, so each slot's projection is
@@ -313,6 +602,11 @@ export function buildSlotProjection(
   // Pass the whole blob so readMaps normalizes historical/partial map docs.
   const maps = projectPlayerMaps(data as Record<string, unknown>);
 
+  const activeEncounterHud = projectActiveEncounterHud(data);
+  const revealedClocks = projectRevealedClocks(data, slotId);
+  const rollEvents = projectTableRollEvents(data);
+  const partyLootItems = projectPartyLootItems(data);
+
   return {
     campaignName,
     tokenVersion: config.tokenVersion,
@@ -322,6 +616,10 @@ export function buildSlotProjection(
     sessionLog,
     updatedAtMs: nowMs,
     items: projectedItems,
+    activeEncounterHud,
+    revealedClocks,
+    rollEvents,
+    partyLootItems,
     edges: projectEdges(data, visibleEntityKeys, slotId),
     planning,
     pcGoals: projectedGoals,
