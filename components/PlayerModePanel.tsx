@@ -27,7 +27,7 @@ import {
 import { normalizePcs } from '@/lib/pc/factory';
 import type { PlayerCharacter } from '@/lib/pc/types';
 import PlayerSharedQuestsNotesPanel from './PlayerSharedQuestsNotesPanel';
-import { PartyRosterRunTracker } from './pcSheet/EvaluationToastAndReport';
+import { PartyRunTrackerSection } from './CharacterSheetLifecycleControls';
 
 type AnyData = Record<string, any>;
 type Confirm = (o: { title: string; message: string; confirmText?: string; cancelText?: string; isDestructive?: boolean }) => Promise<boolean>;
@@ -66,7 +66,7 @@ export default function PlayerModePanel({
   confirm: Confirm;
   playerLog: PlayerLogEntry[];
   onPlayerLogChange: (entries: PlayerLogEntry[]) => void;
-  onPcsChange?: (pcs: PlayerCharacter[]) => void;
+  onPcsChange?: (next: PlayerCharacter[]) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'done' | 'error'>('idle');
@@ -260,14 +260,6 @@ export default function PlayerModePanel({
         </div>
       </SectionCard>
 
-      {/* Party Character Sheets (Batch Upload & Roster) */}
-      <SectionCard title={`Party Character Sheets (${normalizePcs(data.pcs ?? []).length})`} icon={<Users size={16} />} defaultOpen>
-        <PartyRosterRunTracker
-          pcs={normalizePcs(data.pcs ?? [])}
-          onPcsChange={onPcsChange}
-        />
-      </SectionCard>
-
       {/* Field defaults */}
       <SectionCard title="Field visibility defaults" icon={<Eye size={16} />}>
         <div className="space-y-4">
@@ -369,6 +361,12 @@ export default function PlayerModePanel({
       <SectionCard title="Preview as player" icon={<Eye size={16} />}>
         <PreviewAsPlayer data={data} config={config} campaignName={campaignName} previewSlot={previewSlot} setPreviewSlot={setPreviewSlot} />
       </SectionCard>
+
+      {/* Party Character Sheets — Batch Upload, Mechanical Evaluation & PDF Export */}
+      <PartyRunTrackerSection
+        pcs={normalizePcs(data.pcs ?? [])}
+        onUpdatePcs={(nextPcs) => onPcsChange?.(nextPcs)}
+      />
 
       {/* Player-Shared Quests & Notes */}
       <PlayerSharedQuestsNotesPanel pcs={normalizePcs(data.pcs ?? [])} />

@@ -20,7 +20,7 @@ import { Empty, Detail } from '../prepShared';
 import { formatElapsed } from './helpers';
 import { ActivePrepGroup, CompactCard, ExpandableCard } from './cards';
 import PlayerSharedQuestsNotesPanel from '../../PlayerSharedQuestsNotesPanel';
-import { PartyRosterRunTracker } from '../../pcSheet/EvaluationToastAndReport';
+import { PartyRunTrackerSection } from '../../CharacterSheetLifecycleControls';
 
 export function InlineNoteSeed({ trackEvent }: { trackEvent: (kind: ChangeEventKind, summary: string) => void }) {
   const [text, setText] = useState('');
@@ -540,7 +540,13 @@ export function RunSessionInlineActive({
             )}
           </ActivePrepGroup>
 
+          <PartyRunTrackerSection
+            pcs={party}
+            onUpdatePcs={(nextPcs) => setVal('pcs', nextPcs)}
+          />
+
           <PlayerSharedQuestsNotesPanel pcs={party} />
+
 
           <ActivePrepGroup title="Faction Clocks" icon={ScrollText} count={clocks.length}>
             {clocks.length === 0 ? <Empty>No clocks prepped.</Empty> : (
@@ -592,14 +598,6 @@ export function RunSessionInlineActive({
         </div>
 
         <div className="space-y-3 lg:sticky lg:top-3 lg:self-start">
-          <PanelShell title={`Party Roster & Defenses (${party.length})`} icon={Users} open={true} onToggle={() => {}}>
-            <PartyRosterRunTracker
-              pcs={party}
-              onPcsChange={(nextPcs) => setVal('pcs', nextPcs)}
-              compact
-            />
-          </PanelShell>
-
           <PanelShell title="Initiative" icon={Swords} open={initiativeOpen} onToggle={() => setInitiativeOpen(o => !o)}>
             {initiativeOpen ? (
               <InitiativePanel

@@ -31,11 +31,11 @@ import PcSheet from './PcSheet';
 import { QuickDice } from './RunSessionView';
 import { shortRest, longRest } from '@/lib/pc/rest';
 import {
-  SheetUploadDropzone,
-  SheetUploadToast,
-  type SheetUploadBannerState,
-} from './pcSheet/EvaluationToastAndReport';
-import { uploadAndMergePcFiles } from './campaignEditor/useCampaignEditor/useSheetUpload';
+  ExportSheetPdfButton,
+  EvaluationReportBadge,
+  CharacterSheetUploadToast,
+  type SheetUploadToastState,
+} from './CharacterSheetLifecycleControls';
 import type {
   CoinPurse,
   InventoryItem,
@@ -114,6 +114,10 @@ export default function PlayerCompanionWorkspace({
   onUpdatePc,
   onRemovePc,
   onUploadClick,
+  onUploadFiles,
+  uploadToast,
+  onUndoUpload,
+  onDismissUploadToast,
   get,
   setVal,
 }: {
@@ -129,10 +133,16 @@ export default function PlayerCompanionWorkspace({
   onUpdatePc: (pc: PlayerCharacter) => void;
   onRemovePc: (id: string) => void;
   onUploadClick?: () => void;
+  onUploadFiles?: (files: FileList | File[]) => void;
+  uploadToast?: SheetUploadToastState | null;
+  onUndoUpload?: () => void;
+  onDismissUploadToast?: () => void;
   get: (key: string, fallback: any) => any;
   setVal: (key: string, val: any) => void;
 }) {
   const [selectedPcIdx, setSelectedPcIdx] = useState(0);
+  const [localToast, setLocalToast] = useState<SheetUploadToastState | null>(null);
+  const [dragOverSheet, setDragOverSheet] = useState(false);
   const activePc: PlayerCharacter | undefined = pcs[selectedPcIdx] ?? pcs[0];
 
   // Companion quests & clues stored in campaign data (`__playerCompanionQuests`)
@@ -143,6 +153,37 @@ export default function PlayerCompanionWorkspace({
   const companionJournal = (get('__playerCompanionJournal', []) as PlayerJournalEntry[]) || [];
   const setCompanionJournal = (next: PlayerJournalEntry[]) => setVal('__playerCompanionJournal', next);
 
+  const handleDropOrSelectFiles = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+    if (onUploadFiles) {
+      onUploadFiles(fileArray);
+      return;
+    }
+    const prevSnapshot = pcs.map((p) => JSON.parse(JSON.stringify(p)) as PlayerCharacter);
+    try {
+      const { parseCharacterSheet } = await import('@/lib/characterSheetParser');
+      for (const file of fileArray) {
+        const res = await parseCharacterSheet(file, {
+          existingPc: activePc,
+          existingPcs: pcs,
+        });
+        if (activePc) {
+          onUpdatePc({ ...res.pc, id: activePc.id });
+        } else {
+          setVal('pcs', [...pcs, res.pc]);
+        }
+        setLocalToast({
+          message: `${res.pc.name} (Lv ${res.pc.level})${res.wasMerged ? ' · Active HP & resources preserved' : ''}`,
+          evaluation: res.evaluation,
+          onUndo: () => setVal('pcs', prevSnapshot),
+        });
+      }
+    } catch (err) {
+      console.error('Character sheet upload failed:', err);
+    }
+  };
+
   // Known NPCs, Visited Locations, Factions
   const npcs = (get('npcs', []) as Array<Record<string, any>>) || [];
   const locations = (get('locations', []) as Array<Record<string, any>>) || [];
@@ -152,44 +193,6 @@ export default function PlayerCompanionWorkspace({
   const [newPoolName, setNewPoolName] = useState('');
   const [newPoolMax, setNewPoolMax] = useState(3);
   const [newPoolRecharge, setNewPoolRecharge] = useState<RechargeTiming>('short');
-  const [localUploading, setLocalUploading] = useState(false);
-  const [localUploadError, setLocalUploadError] = useState<string | null>(null);
-  const [uploadBanner, setUploadBanner] = useState<SheetUploadBannerState | null>(null);
-
-  const handleCompanionFilesSelected = async (files: File[]) => {
-    if (files.length === 0) return;
-    setLocalUploading(true);
-    setLocalUploadError(null);
-    const snapshot = pcs.map((p) => ({ ...p }));
-    try {
-      const targetPcId =
-        files.length === 1 && activePc && (!activePc.name || activePc.name === 'New Character' || pcs.length === 1)
-          ? activePc.id
-          : undefined;
-      const { nextPcs, evaluatedPcs } = await uploadAndMergePcFiles(
-        files,
-        pcs,
-        {},
-        (next) => setVal('pcs', next),
-        undefined,
-        { targetPcId },
-      );
-      if (evaluatedPcs.length === 1 && activePc && evaluatedPcs[0].id === activePc.id) {
-        onUpdatePc(evaluatedPcs[0]);
-      } else {
-        setVal('pcs', nextPcs);
-      }
-      setUploadBanner({
-        message: 'Character Evaluated & Saved (Active HP & Spent Resources Preserved)',
-        pcs: evaluatedPcs,
-        onUndo: () => setVal('pcs', snapshot),
-      });
-    } catch (err: any) {
-      setLocalUploadError(err?.message || 'Failed to parse character sheet');
-    } finally {
-      setLocalUploading(false);
-    }
-  };
 
   // --- Quests & Clues Form State ---
   const [questCategoryFilter, setQuestCategoryFilter] = useState<'all' | 'quest' | 'goal' | 'rumor' | 'mystery'>('all');
@@ -400,34 +403,61 @@ export default function PlayerCompanionWorkspace({
 
       {/* TAB 1: SHEET */}
       {activeTab === 'sheet' && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rule bg-parchment p-3.5 shadow-card">
+        <div
+          className="space-y-4"
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOverSheet(true);
+          }}
+          onDragLeave={() => setDragOverSheet(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOverSheet(false);
+            if (e.dataTransfer?.files?.length) {
+              void handleDropOrSelectFiles(e.dataTransfer.files);
+            }
+          }}
+        >
+          <div
+            className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3.5 shadow-card transition ${
+              dragOverSheet ? 'border-emerald-500 bg-emerald-500/10' : 'border-rule bg-parchment'
+            }`}
+          >
             <div>
-              <h2 className="font-display text-lg tracking-wide text-ink">
-                Character Sheet &amp; Resource Dashboard
-              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-display text-lg tracking-wide text-ink">
+                  Character Sheet &amp; Resource Dashboard
+                </h2>
+                {activePc?.evaluation && (
+                  <EvaluationReportBadge evaluation={activePc.evaluation} />
+                )}
+              </div>
               <p className="font-serif text-xs text-ink-soft">
-                Drop or select a character sheet (.pdf, .json, or image) to auto-evaluate &amp; delta-merge while preserving active HP, spent resources, quests, and journal notes.
+                Drop or import a character sheet (.pdf, .json, .png/.jpg) for 1-step evaluation &amp; state-preserving auto-save, or export a fillable PDF.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <SheetUploadDropzone
-                onFilesSelected={handleCompanionFilesSelected}
-                uploading={Boolean(uploadingChar || localUploading)}
-                multiple={true}
-                compact
-                buttonLabel="Upload / Drop Sheet"
-                label="Drop .pdf, .json, or image sheet to evaluate & save"
-              />
+              {activePc && (
+                <ExportSheetPdfButton
+                  pc={{
+                    ...activePc,
+                    quests: activePc.quests?.length ? activePc.quests : companionQuests,
+                    journalEntries: activePc.journalEntries?.length
+                      ? activePc.journalEntries
+                      : companionJournal,
+                  }}
+                  mode="player"
+                />
+              )}
               {onUploadClick && (
                 <button
                   type="button"
                   onClick={onUploadClick}
-                  disabled={uploadingChar || localUploading}
+                  disabled={uploadingChar}
                   className="inline-flex items-center gap-1.5 rounded border border-brass-deep bg-brass/15 px-3 py-1.5 font-display text-xs uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment disabled:opacity-50"
                 >
                   <FileUp size={13} />
-                  {uploadingChar || localUploading ? 'Parsing Sheet…' : 'Import Character Sheet'}
+                  {uploadingChar ? 'Evaluating & Saving…' : 'Upload / Update Sheet'}
                 </button>
               )}
               <button
@@ -440,14 +470,24 @@ export default function PlayerCompanionWorkspace({
             </div>
           </div>
 
-          <SheetUploadToast
-            banner={uploadBanner}
-            onDismiss={() => setUploadBanner(null)}
+          <CharacterSheetUploadToast
+            toast={
+              uploadToast
+                ? {
+                    ...uploadToast,
+                    onUndo: onUndoUpload ?? uploadToast.onUndo,
+                  }
+                : localToast
+            }
+            onDismiss={() => {
+              onDismissUploadToast?.();
+              setLocalToast(null);
+            }}
           />
 
-          {(uploadError || localUploadError) && (
+          {uploadError && (
             <div className="rounded border border-crimson/40 bg-crimson/10 px-3 py-2 font-serif text-xs text-crimson">
-              {localUploadError || uploadError}
+              {uploadError}
             </div>
           )}
 

@@ -415,6 +415,7 @@ export default function CampaignEditor(props: CampaignEditorProps) {
               <input
                 ref={pcFileInputRef}
                 type="file"
+                multiple
                 accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.md,.json,application/pdf,image/png,image/jpeg,image/webp,image/gif,text/plain,application/json,text/markdown"
                 onChange={uploadPcSheet}
                 className="hidden"

@@ -20,10 +20,10 @@ export type PcOwnership = {
 };
 
 import type {
-  CharacterEvaluation,
   CoinPurse,
   InventoryItem,
   PactMagicSlots,
+  PcEvaluation,
   PcFeature,
   PcResourcePool,
   PlayerJournalEntry,
@@ -54,7 +54,7 @@ export type PlayerPc = {
   deathSaves?: { successes?: number; failures?: number };
   abilities?: Record<string, number>;
   proficiencies?: { savingThrows?: string[]; skills?: string[] };
-  classes?: Array<{ name?: string; level?: number; subclass?: string }>;
+  classes?: Array<{ name?: string; level?: number }>;
   spellSlots?: SpellSlotGroup[];
   pactSlots?: PactMagicSlots | null;
   resourcePools?: PcResourcePool[];
@@ -70,7 +70,7 @@ export type PlayerPc = {
   sharedQuests?: PlayerQuest[];
   sharedAnnotations?: PlayerLoreAnnotation[];
   sharedJournal?: PlayerJournalEntry[];
-  evaluation?: CharacterEvaluation;
+  evaluation?: PcEvaluation;
   [field: string]: unknown;
 };
 

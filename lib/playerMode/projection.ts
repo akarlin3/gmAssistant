@@ -76,7 +76,7 @@ function redactEntity(
   config: PlayerConfig,
   slotId: string,
 ): Record<string, unknown> | null {
-  // Bypasses redaction for PCs owned by the active player slot
+  // Bypasses redaction for PCs owned by the active player slot (except GM-only fields)
   if (
     entityType === 'pcs' &&
     entity.ownership &&
@@ -84,7 +84,10 @@ function redactEntity(
     (entity.ownership as any).ownerType === 'player' &&
     (entity.ownership as any).playerSlotId === slotId
   ) {
-    return { ...entity };
+    const copy: Record<string, unknown> = { ...entity };
+    delete copy.gmNotes;
+    delete copy.gmSecrets;
+    return copy;
   }
 
   const visibility: EntityVisibility | undefined =

@@ -1,27 +1,26 @@
-import { abilityMod, formatMod, proficiencyBonusForLevel } from './pc/derived';
-import { normalizePc } from './pc/factory';
-import { SKILL_ABILITIES } from './pc/skills';
 import {
   ABILITY_NAMES,
   SPELL_SLOT_LEVELS,
   type AbilityName,
-  type CharacterAuditNote,
-  type CharacterDerivedStats,
-  type CharacterEvaluation,
-  type DefensiveProfile,
-  type DefensiveSaveEntry,
   type PactMagicSlots,
   type PartyRole,
+  type PcAuditNote,
   type PcClass,
+  type PcDefensiveProfile,
+  type PcDerivedStats,
+  type PcEvaluation,
   type PcResourcePool,
   type PlayerCharacter,
   type SkillName,
   type SpellSlot,
   type SpellSlotLevel,
 } from './pc/types';
+import { emptyPc, makePcId, normalizePc } from './pc/factory';
+import { abilityMod, proficiencyBonusForLevel, savingThrowBonus } from './pc/derived';
+import { SKILL_ABILITIES } from './pc/skills';
 
-// Standard 5e Full/Multiclass Spell Slot Table (caster levels 1..20)
-const STANDARD_SPELL_SLOTS_TABLE: Record<number, number[]> = {
+// Standard 5e Full-Caster Spell Slot Table (Levels 1-20)
+const FULL_CASTER_SLOTS: Record<number, number[]> = {
   1: [2],
   2: [3],
   3: [4, 2],
@@ -44,28 +43,28 @@ const STANDARD_SPELL_SLOTS_TABLE: Record<number, number[]> = {
   20: [4, 3, 3, 3, 3, 2, 2, 1, 1],
 };
 
-// Warlock Pact Magic Table (warlock levels 1..20)
-const WARLOCK_PACT_TABLE: Record<number, { slots: number; level: SpellSlotLevel }> = {
-  1: { slots: 1, level: 1 },
-  2: { slots: 2, level: 1 },
-  3: { slots: 2, level: 2 },
-  4: { slots: 2, level: 2 },
-  5: { slots: 2, level: 3 },
-  6: { slots: 2, level: 3 },
-  7: { slots: 2, level: 4 },
-  8: { slots: 2, level: 4 },
-  9: { slots: 2, level: 5 },
-  10: { slots: 2, level: 5 },
-  11: { slots: 3, level: 5 },
-  12: { slots: 3, level: 5 },
-  13: { slots: 3, level: 5 },
-  14: { slots: 3, level: 5 },
-  15: { slots: 3, level: 5 },
-  16: { slots: 3, level: 5 },
-  17: { slots: 4, level: 5 },
-  18: { slots: 4, level: 5 },
-  19: { slots: 4, level: 5 },
-  20: { slots: 4, level: 5 },
+// Warlock Pact Magic Table (Levels 1-20 -> { slots, level })
+const WARLOCK_PACT_TABLE: Record<number, { max: number; level: SpellSlotLevel }> = {
+  1: { max: 1, level: 1 },
+  2: { max: 2, level: 1 },
+  3: { max: 2, level: 2 },
+  4: { max: 2, level: 2 },
+  5: { max: 2, level: 3 },
+  6: { max: 2, level: 3 },
+  7: { max: 2, level: 4 },
+  8: { max: 2, level: 4 },
+  9: { max: 2, level: 5 },
+  10: { max: 2, level: 5 },
+  11: { max: 3, level: 5 },
+  12: { max: 3, level: 5 },
+  13: { max: 3, level: 5 },
+  14: { max: 3, level: 5 },
+  15: { max: 3, level: 5 },
+  16: { max: 3, level: 5 },
+  17: { max: 4, level: 5 },
+  18: { max: 4, level: 5 },
+  19: { max: 4, level: 5 },
+  20: { max: 4, level: 5 },
 };
 
 const CLASS_HIT_DIE: Record<string, number> = {
@@ -84,19 +83,7 @@ const CLASS_HIT_DIE: Record<string, number> = {
   wizard: 6,
 };
 
-const CLASS_SPELLCASTING_ABILITY: Record<string, AbilityName> = {
-  artificer: 'INT',
-  wizard: 'INT',
-  cleric: 'WIS',
-  druid: 'WIS',
-  ranger: 'WIS',
-  bard: 'CHA',
-  paladin: 'CHA',
-  sorcerer: 'CHA',
-  warlock: 'CHA',
-};
-
-const CLASS_DEFAULT_SAVES: Record<string, [AbilityName, AbilityName]> = {
+const CLASS_SAVING_THROWS: Record<string, [AbilityName, AbilityName]> = {
   barbarian: ['STR', 'CON'],
   bard: ['DEX', 'CHA'],
   cleric: ['WIS', 'CHA'],
@@ -112,18 +99,31 @@ const CLASS_DEFAULT_SAVES: Record<string, [AbilityName, AbilityName]> = {
   artificer: ['CON', 'INT'],
 };
 
-const KNOWN_CONCENTRATION_SPELLS = [
-  'barkskin',
+const CLASS_SPELLCASTING_ABILITY: Record<string, AbilityName> = {
+  bard: 'CHA',
+  cleric: 'WIS',
+  druid: 'WIS',
+  paladin: 'CHA',
+  ranger: 'WIS',
+  sorcerer: 'CHA',
+  warlock: 'CHA',
+  wizard: 'INT',
+  artificer: 'INT',
+};
+
+const KNOWN_CONCENTRATION_SPELLS = new Set([
+  'bane',
   'banishment',
-  'BIGBY',
+  'Barkskin'.toLowerCase(),
   'bless',
   'blur',
   'call lightning',
   'cloud of daggers',
+  'confusion',
   'conjure animals',
+  'conjure elemental',
   'conjure woodland beings',
-  'Concentration',
-  'dancing lights',
+  'Compelled Duel'.toLowerCase(),
   'darkness',
   'detect magic',
   'enhance ability',
@@ -142,7 +142,6 @@ const KNOWN_CONCENTRATION_SPELLS = [
   'hex',
   'hold monster',
   'hold person',
-  'hunger of hadar',
   "hunter's mark",
   'hunters mark',
   'hypnotic pattern',
@@ -152,147 +151,233 @@ const KNOWN_CONCENTRATION_SPELLS = [
   'pass without trace',
   'polymorph',
   'protection from evil and good',
-  'resistance',
   'shield of faith',
   'silence',
   'slow',
-  'Spike Growth',
+  'spike growth',
   'spirit guardians',
-  'spiritual weapon',
+  'spiritual weapon', // 2024 rules
   'suggestion',
   'sunbeam',
-  'tasha\'s hideous laughter',
+  'telekinesis',
+  'vampiric touch',
   'wall of fire',
   'wall of force',
   'wall of stone',
   'web',
   'witch bolt',
-].map((s) => s.toLowerCase());
+]);
 
-function normKey(s: string): string {
-  return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+export type EvaluatedPlayerCharacter = PlayerCharacter & {
+  pc: EvaluatedPlayerCharacter;
+  evaluation: PcEvaluation;
+  derivedStats: PcDerivedStats;
+  spellSlots: NonNullable<PlayerCharacter['spellSlots']> & {
+    some: (predicate: (slot: { level: number; max: number; used: number }) => boolean) => boolean;
+    find: (predicate: (slot: { level: number; max: number; used: number }) => boolean) => { level: number; max: number; used: number } | undefined;
+    map: <T>(fn: (slot: { level: number; max: number; used: number }) => T) => T[];
+    filter: (predicate: (slot: { level: number; max: number; used: number }) => boolean) => Array<{ level: number; max: number; used: number }>;
+  };
+  resourcePools: PcResourcePool[];
+  currency: NonNullable<PlayerCharacter['currency']>;
+  spellsKnown: string[];
+  // Flat convenience aliases for callers/tests
+  currentHp: number;
+  maxHp: number;
+  tempHp: number;
+  abilityModifiers: Record<AbilityName, number>;
+  passivePerception: number;
+  passiveInvestigation: number;
+  passiveInsight: number;
+  spellSaveDc: number | null;
+  spellAttackBonus: number | null;
+  carryingCapacity: number;
+};
+
+function normalizeClassKey(name: string): string {
+  return name.trim().toLowerCase();
 }
 
-function findPrimaryClass(classes: PcClass[]): string {
-  if (!classes.length) return '';
-  const sorted = [...classes].sort((a, b) => (b.level || 0) - (a.level || 0));
-  return sorted[0].name.trim().toLowerCase();
-}
-
-function getBarbarianRages(level: number): number {
-  if (level >= 17) return 6;
-  if (level >= 12) return 5;
-  if (level >= 6) return 4;
-  if (level >= 3) return 3;
-  return 2;
-}
-
-function computeEffectiveCasterLevel(classes: PcClass[]): number {
-  let full = 0;
-  let half = 0;
-  let third = 0;
-  let artificer = 0;
-
-  for (const c of classes) {
-    const name = c.name.trim().toLowerCase();
-    const sub = (c.subclass || '').trim().toLowerCase();
-    const lvl = Math.max(0, c.level || 0);
-
-    if (['bard', 'cleric', 'druid', 'sorcerer', 'wizard'].some((k) => name.includes(k))) {
-      full += lvl;
-    } else if (['paladin', 'ranger'].some((k) => name.includes(k))) {
-      half += lvl;
-    } else if (name.includes('artificer')) {
-      artificer += lvl;
-    } else if (
-      (name.includes('fighter') && sub.includes('eldritch')) ||
-      (name.includes('rogue') && sub.includes('arcane')) ||
-      sub.includes('eldritch knight') ||
-      sub.includes('arcane trickster')
-    ) {
-      third += lvl;
+function parseClassString(rawClass: string, fallbackLevel = 1): PcClass[] {
+  if (!rawClass || !rawClass.trim()) return [];
+  const parts = rawClass
+    .split(/[/|,]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const out: PcClass[] = [];
+  for (const part of parts) {
+    // Match e.g. "Fighter (Battle Master) 5" or "Paladin 6" or "Level 3 Rogue"
+    const m1 = part.match(/^([A-Za-z\s-]+?)(?:\s*\(([^)]+)\))?\s+(\d{1,2})$/);
+    if (m1) {
+      out.push({
+        name: m1[1].trim(),
+        ...(m1[2] ? { subclass: m1[2].trim() } : {}),
+        level: Math.max(1, Math.min(20, parseInt(m1[3], 10))),
+      });
+      continue;
+    }
+    const m2 = part.match(/^(?:Lv\.?|Level)\s*(\d{1,2})\s+([A-Za-z\s-]+?)(?:\s*\(([^)]+)\))?$/i);
+    if (m2) {
+      out.push({
+        name: m2[2].trim(),
+        ...(m2[3] ? { subclass: m2[3].trim() } : {}),
+        level: Math.max(1, Math.min(20, parseInt(m2[1], 10))),
+      });
+      continue;
+    }
+    const m3 = part.match(/^([A-Za-z\s-]+?)(?:\s*\(([^)]+)\))?$/);
+    if (m3) {
+      out.push({
+        name: m3[1].trim(),
+        ...(m3[2] ? { subclass: m3[2].trim() } : {}),
+        level: Math.max(1, Math.min(20, fallbackLevel)),
+      });
     }
   }
+  return out;
+}
 
-  const totalCasterClasses =
-    (full > 0 ? 1 : 0) + (half > 0 ? 1 : 0) + (third > 0 ? 1 : 0) + (artificer > 0 ? 1 : 0);
-
-  if (totalCasterClasses === 0) return 0;
-
-  if (totalCasterClasses === 1) {
-    if (full > 0) return full;
-    if (artificer > 0) return Math.ceil(artificer / 2);
-    if (half > 0) return Math.ceil(half / 2);
-    if (third > 0) return third >= 3 ? Math.ceil(third / 3) : 0;
+function computeSkillBonusWithExpertise(
+  pc: PlayerCharacter,
+  skill: SkillName,
+): number {
+  const ability = SKILL_ABILITIES[skill];
+  const mod = abilityMod(pc.abilities[ability]);
+  const isProficient = pc.proficiencies.skills.includes(skill);
+  const isExpert = (pc.skillExpertise ?? []).includes(skill);
+  if (isExpert) return mod + pc.proficiencyBonus * 2;
+  if (isProficient) return mod + pc.proficiencyBonus;
+  // Check Jack of All Trades (Bard 2+)
+  const bardLevel = pc.classes
+    .filter((c) => normalizeClassKey(c.name).includes('bard'))
+    .reduce((acc, c) => acc + c.level, 0);
+  if (bardLevel >= 2) {
+    return mod + Math.floor(pc.proficiencyBonus / 2);
   }
+  return mod;
+}
 
-  // Multiclass spellcaster formula
-  return (
-    full +
-    Math.floor(half / 2) +
-    Math.ceil(artificer / 2) +
-    Math.floor(third / 3)
-  );
+function inferSpellcastingAbility(pc: PlayerCharacter): AbilityName | undefined {
+  if (pc.spellcastingAbility && ABILITY_NAMES.includes(pc.spellcastingAbility)) {
+    return pc.spellcastingAbility;
+  }
+  for (const cls of pc.classes) {
+    const key = normalizeClassKey(cls.name);
+    for (const [k, ab] of Object.entries(CLASS_SPELLCASTING_ABILITY)) {
+      if (key.includes(k)) return ab;
+    }
+    const sub = (cls.subclass ?? '').toLowerCase();
+    if (sub.includes('eldritch knight') || sub.includes('arcane trickster')) {
+      return 'INT';
+    }
+  }
+  if ((pc.spellsKnown && pc.spellsKnown.length > 0) || (pc.spellSlots && Object.keys(pc.spellSlots).length > 0)) {
+    // Pick highest mental stat
+    const mentals: AbilityName[] = ['INT', 'WIS', 'CHA'];
+    return mentals.reduce((best, cur) =>
+      pc.abilities[cur] > pc.abilities[best] ? cur : best,
+    );
+  }
+  return undefined;
 }
 
 export function synthesizeSpellSlotsForClasses(
   classes: PcClass[],
-  existingSlots?: Partial<Record<SpellSlotLevel, SpellSlot>>,
-): Partial<Record<SpellSlotLevel, SpellSlot>> | undefined {
-  const casterLevel = Math.min(20, Math.max(0, computeEffectiveCasterLevel(classes)));
-  if (casterLevel <= 0) {
-    return existingSlots && Object.keys(existingSlots).length > 0 ? existingSlots : undefined;
+): {
+  spellSlots?: Partial<Record<SpellSlotLevel, SpellSlot>>;
+  pactSlots?: PactMagicSlots;
+} {
+  let effectiveCasterLevel = 0;
+  let singleClassCasterType: 'full' | 'half' | 'third' | 'artificer' | null = null;
+  let casterClassCount = 0;
+  let warlockLevel = 0;
+
+  for (const cls of classes) {
+    const key = normalizeClassKey(cls.name);
+    const sub = (cls.subclass ?? '').toLowerCase();
+    const lvl = Math.max(1, Math.min(20, cls.level || 1));
+
+    if (key.includes('warlock')) {
+      warlockLevel += lvl;
+      continue;
+    }
+
+    if (
+      key.includes('bard') ||
+      key.includes('cleric') ||
+      key.includes('druid') ||
+      key.includes('sorcerer') ||
+      key.includes('wizard')
+    ) {
+      effectiveCasterLevel += lvl;
+      singleClassCasterType = 'full';
+      casterClassCount++;
+    } else if (key.includes('artificer')) {
+      effectiveCasterLevel += Math.ceil(lvl / 2);
+      singleClassCasterType = 'artificer';
+      casterClassCount++;
+    } else if (key.includes('paladin') || key.includes('ranger')) {
+      if (lvl >= 2) {
+        effectiveCasterLevel += Math.floor(lvl / 2);
+        singleClassCasterType = 'half';
+        casterClassCount++;
+      }
+    } else if (
+      sub.includes('eldritch knight') ||
+      sub.includes('arcane trickster')
+    ) {
+      if (lvl >= 3) {
+        effectiveCasterLevel += Math.floor(lvl / 3);
+        singleClassCasterType = 'third';
+        casterClassCount++;
+      }
+    }
   }
 
-  const row = STANDARD_SPELL_SLOTS_TABLE[casterLevel] || [];
-  const out: Partial<Record<SpellSlotLevel, SpellSlot>> = { ...(existingSlots || {}) };
-
-  row.forEach((maxSlots, idx) => {
-    const lvl = (idx + 1) as SpellSlotLevel;
-    if (!SPELL_SLOT_LEVELS.includes(lvl) || maxSlots <= 0) return;
-    const prev = out[lvl];
-    if (!prev || prev.max <= 0) {
-      out[lvl] = { max: maxSlots, used: prev?.used ?? 0 };
+  // Single-class half/third caster rounding adjustments per 5e rules
+  if (casterClassCount === 1 && classes.length === 1) {
+    const lvl = classes[0].level;
+    if (singleClassCasterType === 'half' && lvl >= 2) {
+      effectiveCasterLevel = Math.ceil(lvl / 2);
+    } else if (singleClassCasterType === 'third' && lvl >= 3) {
+      effectiveCasterLevel = Math.ceil(lvl / 3);
     }
-  });
+  }
 
-  return Object.keys(out).length > 0 ? out : undefined;
+  effectiveCasterLevel = Math.min(20, effectiveCasterLevel);
+  const slotCounts = effectiveCasterLevel > 0 ? FULL_CASTER_SLOTS[effectiveCasterLevel] : undefined;
+  let spellSlots: Partial<Record<SpellSlotLevel, SpellSlot>> | undefined;
+
+  if (slotCounts && slotCounts.length > 0) {
+    spellSlots = {};
+    slotCounts.forEach((max, idx) => {
+      const slotLevel = (idx + 1) as SpellSlotLevel;
+      if (max > 0 && SPELL_SLOT_LEVELS.includes(slotLevel)) {
+        spellSlots![slotLevel] = { max, used: 0 };
+      }
+    });
+  }
+
+  let pactSlots: PactMagicSlots | undefined;
+  if (warlockLevel > 0) {
+    const clampedWarlock = Math.min(20, warlockLevel);
+    const entry = WARLOCK_PACT_TABLE[clampedWarlock];
+    if (entry) {
+      pactSlots = { level: entry.level, max: entry.max, used: 0 };
+    }
+  }
+
+  return { spellSlots, pactSlots };
 }
 
-export function synthesizePactSlotsForClasses(
-  classes: PcClass[],
-  existingPact?: PactMagicSlots | null,
-): PactMagicSlots | undefined {
-  const warlock = classes.find((c) => c.name.trim().toLowerCase().includes('warlock'));
-  if (!warlock || warlock.level <= 0) {
-    return existingPact ?? undefined;
+export function synthesizeClassResourcePools(
+  pc: PlayerCharacter,
+): PcResourcePool[] {
+  const existingPools = Array.isArray(pc.resourcePools) ? [...pc.resourcePools] : [];
+  const byNormName = new Map<string, PcResourcePool>();
+  for (const pool of existingPools) {
+    byNormName.set(pool.name.trim().toLowerCase(), pool);
   }
-  const lvl = Math.min(20, Math.max(1, warlock.level));
-  const pact = WARLOCK_PACT_TABLE[lvl];
-  if (!pact) return existingPact ?? undefined;
-
-  if (existingPact && existingPact.max > 0) {
-    return existingPact;
-  }
-  return {
-    level: pact.level,
-    max: pact.slots,
-    used: existingPact?.used ?? 0,
-  };
-}
-
-export function synthesizeClassResourcePools(pc: PlayerCharacter): PcResourcePool[] {
-  const existing = Array.isArray(pc.resourcePools) ? [...pc.resourcePools] : [];
-  const byKey = new Map<string, number>();
-
-  existing.forEach((pool, idx) => {
-    byKey.set(normKey(pool.id), idx);
-    byKey.set(normKey(pool.name), idx);
-    if (normKey(pool.name).includes('focus') || normKey(pool.name).includes('kipoint')) {
-      byKey.set('focuspoints', idx);
-      byKey.set('kipoints', idx);
-    }
-  });
 
   const ensurePool = (
     id: string,
@@ -302,568 +387,400 @@ export function synthesizeClassResourcePools(pc: PlayerCharacter): PcResourcePoo
     initialCurrent?: number,
   ) => {
     if (max <= 0) return;
-    const nId = normKey(id);
-    const nName = normKey(name);
-    const existingIdx = byKey.get(nId) ?? byKey.get(nName);
-    if (existingIdx !== undefined) {
-      const prev = existing[existingIdx];
-      if (prev.max <= 0) {
-        existing[existingIdx] = {
-          ...prev,
-          max,
-          current: initialCurrent ?? max,
-        };
+    const norm = name.trim().toLowerCase();
+    const existing = byNormName.get(norm) || existingPools.find((p) => p.id === id);
+    if (existing) {
+      if (existing.max <= 0) {
+        existing.max = max;
+        existing.current = initialCurrent ?? max;
       }
       return;
     }
-    const pool: PcResourcePool = {
+    const created: PcResourcePool = {
       id,
       name,
       current: initialCurrent !== undefined ? Math.max(0, Math.min(max, initialCurrent)) : max,
       max,
       rechargeOn,
     };
-    const newIdx = existing.length;
-    existing.push(pool);
-    byKey.set(nId, newIdx);
-    byKey.set(nName, newIdx);
+    existingPools.push(created);
+    byNormName.set(norm, created);
   };
 
-  const totalLevel = Math.max(
-    1,
-    pc.classes.reduce((s, c) => s + (c.level || 0), 0) || pc.level || 1,
-  );
-  const chaMod = abilityMod(pc.abilities.CHA);
-  const wisMod = abilityMod(pc.abilities.WIS);
-
-  // Always ensure Hit Dice resource pool is present and synced with pc.hitDice
-  const hdMax = Math.max(totalLevel, pc.hitDice?.max || totalLevel);
-  const hdUsed = Math.max(0, pc.hitDice?.used || 0);
-  ensurePool('hit-dice', 'Hit Dice', hdMax, 'long', Math.max(0, hdMax - hdUsed));
-
   for (const cls of pc.classes) {
-    const name = cls.name.trim().toLowerCase();
-    const sub = (cls.subclass || '').trim().toLowerCase();
-    const lvl = Math.max(1, cls.level || 1);
+    const key = normalizeClassKey(cls.name);
+    const lvl = Math.max(1, Math.min(20, cls.level || 1));
 
-    if (name.includes('fighter')) {
-      ensurePool('second-wind', 'Second Wind', lvl >= 10 ? 4 : lvl >= 4 ? 3 : 1, 'short');
+    if (key.includes('fighter')) {
+      ensurePool('res-second-wind', 'Second Wind', 1, 'short');
       if (lvl >= 2) {
-        ensurePool('action-surge', 'Action Surge', lvl >= 17 ? 2 : 1, 'short');
+        ensurePool('res-action-surge', 'Action Surge', lvl >= 17 ? 2 : 1, 'short');
       }
       if (lvl >= 9) {
-        ensurePool('indomitable', 'Indomitable', lvl >= 17 ? 3 : lvl >= 13 ? 2 : 1, 'long');
-      }
-      if (sub.includes('battle master') || sub.includes('battlemaster')) {
-        ensurePool(
-          'superiority-dice',
-          'Superiority Dice',
-          lvl >= 15 ? 6 : lvl >= 7 ? 5 : 4,
-          'short',
-        );
+        const indom = lvl >= 17 ? 3 : lvl >= 13 ? 2 : 1;
+        ensurePool('res-indomitable', 'Indomitable', indom, 'long');
       }
     }
 
-    if (name.includes('barbarian')) {
-      ensurePool('rage', 'Rage', getBarbarianRages(lvl), 'long');
+    if (key.includes('barbarian')) {
+      const rages =
+        lvl >= 20 ? 99 : lvl >= 17 ? 6 : lvl >= 12 ? 5 : lvl >= 6 ? 4 : lvl >= 3 ? 3 : 2;
+      ensurePool('res-rage', 'Rage', rages, 'long');
     }
 
-    if (name.includes('monk') && lvl >= 2) {
-      ensurePool('focus-points', 'Focus / Ki Points', lvl, 'short');
+    if (key.includes('monk') && lvl >= 2) {
+      ensurePool('res-focus-points', 'Focus / Ki Points', lvl, 'short');
     }
 
-    if (name.includes('bard')) {
+    if (key.includes('bard')) {
+      const chaMod = Math.max(1, abilityMod(pc.abilities.CHA));
       ensurePool(
-        'bardic-inspiration',
+        'res-bardic-inspiration',
         'Bardic Inspiration',
-        Math.max(1, chaMod),
+        chaMod,
         lvl >= 5 ? 'short' : 'long',
       );
     }
 
-    if (name.includes('cleric') && lvl >= 2) {
-      ensurePool(
-        'channel-divinity',
-        'Channel Divinity',
-        lvl >= 18 ? 3 : lvl >= 6 ? 2 : 1,
-        'short',
-      );
+    if (key.includes('cleric') && lvl >= 2) {
+      const cdMax = lvl >= 18 ? 3 : lvl >= 6 ? 2 : 1;
+      ensurePool('res-channel-divinity', 'Channel Divinity', cdMax, 'short');
     }
 
-    if (name.includes('paladin')) {
-      ensurePool('lay-on-hands', 'Lay on Hands', lvl * 5, 'long');
+    if (key.includes('paladin')) {
+      ensurePool('res-lay-on-hands', 'Lay on Hands', lvl * 5, 'long');
       if (lvl >= 3) {
-        ensurePool('channel-divinity', 'Channel Divinity', lvl >= 11 ? 2 : 1, 'short');
+        ensurePool('res-channel-divinity', 'Channel Divinity', 1, 'short');
       }
     }
 
-    if (name.includes('druid') && lvl >= 2) {
-      ensurePool('wild-shape', 'Wild Shape', lvl >= 17 ? 4 : lvl >= 6 ? 3 : 2, 'short');
+    if (key.includes('wizard')) {
+      ensurePool('res-arcane-recovery', 'Arcane Recovery', 1, 'long');
     }
 
-    if (name.includes('sorcerer') && lvl >= 2) {
-      ensurePool('sorcery-points', 'Sorcery Points', lvl, 'long');
+    if (key.includes('sorcerer') && lvl >= 2) {
+      ensurePool('res-sorcery-points', 'Sorcery Points', lvl, 'long');
     }
 
-    if (name.includes('wizard')) {
-      ensurePool('arcane-recovery', 'Arcane Recovery', 1, 'long');
-    }
-
-    if (name.includes('ranger') && lvl >= 2) {
-      ensurePool('favored-enemy', 'Favored Enemy', Math.max(2, proficiencyBonusForLevel(totalLevel)), 'long');
-    }
-
-    if (name.includes('warlock') && lvl >= 2) {
-      ensurePool('magical-cunning', 'Magical Cunning', 1, 'long');
-    }
-
-    if (name.includes('artificer') && lvl >= 7) {
-      ensurePool('flash-of-genius', 'Flash of Genius', Math.max(1, abilityMod(pc.abilities.INT)), 'long');
+    if (key.includes('druid') && lvl >= 2) {
+      ensurePool('res-wild-shape', 'Wild Shape', 2, 'short');
     }
   }
 
-  // Also scan pc.features for explicit resource uses or well-known feature names
-  for (const feat of pc.features || []) {
-    const fLower = `${feat.name} ${feat.description || ''}`.toLowerCase();
+  // Also check explicit feature names for any resources if class wasn't matched or from feats
+  for (const feat of pc.features) {
+    const fName = feat.name.trim();
+    const fLower = fName.toLowerCase();
     if (feat.uses && feat.uses.max > 0) {
-      const id = feat.id || `feat-${normKey(feat.name)}`;
-      const current = Math.max(0, feat.uses.max - (feat.uses.used || 0));
-      ensurePool(id, feat.name, feat.uses.max, feat.uses.refresh || 'long', current);
+      ensurePool(
+        `res-feat-${fLower.replace(/[^a-z0-9]+/g, '-')}`,
+        fName,
+        feat.uses.max,
+        feat.uses.refresh === 'short' ? 'short' : 'long',
+        Math.max(0, feat.uses.max - (feat.uses.used || 0)),
+      );
+    } else if (fLower.includes('action surge')) {
+      ensurePool('res-action-surge', 'Action Surge', 1, 'short');
+    } else if (fLower.includes('second wind')) {
+      ensurePool('res-second-wind', 'Second Wind', 1, 'short');
+    } else if (fLower === 'rage' || fLower.startsWith('rage ')) {
+      ensurePool('res-rage', 'Rage', 2, 'long');
+    } else if (fLower.includes('ki points') || fLower.includes('focus points') || fLower === 'ki') {
+      ensurePool('res-focus-points', 'Focus / Ki Points', Math.max(2, pc.level), 'short');
+    } else if (fLower.includes('bardic inspiration')) {
+      ensurePool('res-bardic-inspiration', 'Bardic Inspiration', Math.max(1, abilityMod(pc.abilities.CHA)), pc.level >= 5 ? 'short' : 'long');
+    } else if (fLower.includes('channel divinity')) {
+      ensurePool('res-channel-divinity', 'Channel Divinity', 1, 'short');
+    } else if (fLower.includes('lay on hands')) {
+      ensurePool('res-lay-on-hands', 'Lay on Hands', pc.level * 5, 'long');
+    } else if (fLower.includes('arcane recovery')) {
+      ensurePool('res-arcane-recovery', 'Arcane Recovery', 1, 'long');
     } else if (fLower.includes('lucky')) {
-      ensurePool('lucky-points', 'Luck Points', 3, 'long');
-    } else if (fLower.includes('relentless endurance')) {
-      ensurePool('relentless-endurance', 'Relentless Endurance', 1, 'long');
-    } else if (fLower.includes('fey step') || fLower.includes('misty step')) {
-      if (fLower.includes('proficiency bonus')) {
-        ensurePool('fey-step', 'Fey Step', proficiencyBonusForLevel(totalLevel), 'long');
-      }
-    } else if (fLower.includes('war priest')) {
-      ensurePool('war-priest', 'War Priest', Math.max(1, wisMod), 'long');
+      ensurePool('res-lucky', 'Luck Points', 3, 'long');
     }
   }
 
-  return existing;
+  // Always synthesize Hit Dice pool for unified resource tracking
+  const hdMax = Math.max(1, pc.hitDice.max || pc.level || 1);
+  const hdCurrent = Math.max(0, hdMax - (pc.hitDice.used || 0));
+  ensurePool('res-hit-dice', 'Hit Dice', hdMax, 'long', hdCurrent);
+
+  return existingPools;
 }
 
-function inferSenses(pc: PlayerCharacter): string[] {
-  const senses = new Set<string>(pc.senses || []);
-  const blob = [
-    pc.race,
-    pc.notes,
-    ...(pc.features || []).map((f) => `${f.name} ${f.description}`),
-    ...(pc.classes || []).map((c) => `${c.name} ${c.subclass || ''}`),
-  ]
-    .join(' ')
-    .toLowerCase();
-
-  // Check explicit distance matches first
-  const dvMatch = blob.match(/darkvision\s*(?:up to\s*)?(\d+)\s*f(?:ee)?t/i);
-  const bsMatch = blob.match(/blindsight\s*(?:up to\s*)?(\d+)\s*f(?:ee)?t/i);
-  const tsMatch = blob.match(/tremorsense\s*(?:up to\s*)?(\d+)\s*f(?:ee)?t/i);
-  const truesightMatch = blob.match(/truesight\s*(?:up to\s*)?(\d+)\s*f(?:ee)?t/i);
-
-  if (dvMatch) {
-    senses.add(`Darkvision ${dvMatch[1]} ft.`);
-  } else if (
-    ['drow', 'duergar', 'deep gnome', 'svirfneblin', 'gloom stalker', "devil's sight", 'superior darkvision'].some(
-      (k) => blob.includes(k),
-    )
-  ) {
-    senses.add('Darkvision 120 ft.');
-  } else if (
-    [
-      'elf',
-      'elven',
-      'dwarf',
-      'dwarven',
-      'gnome',
-      'tiefling',
-      'half-elf',
-      'half-orc',
-      'orc',
-      'aasimar',
-      'tabaxi',
-      'goblin',
-      'bugbear',
-      'hobgoblin',
-      'kobold',
-      'yuan-ti',
-      'shadar-kai',
-      'eladrin',
-      'owlin',
-      'dhampir',
-      'hexblood',
-      'reborn',
-      'darkvision',
-    ].some((k) => blob.includes(k))
-  ) {
-    senses.add('Darkvision 60 ft.');
-  }
-
-  if (bsMatch) {
-    senses.add(`Blindsight ${bsMatch[1]} ft.`);
-  } else if (blob.includes('blindsight') || blob.includes('blind fighting')) {
-    senses.add('Blindsight 10 ft.');
-  }
-
-  if (tsMatch) {
-    senses.add(`Tremorsense ${tsMatch[1]} ft.`);
-  } else if (blob.includes('tremorsense')) {
-    senses.add('Tremorsense 60 ft.');
-  }
-
-  if (truesightMatch) {
-    senses.add(`Truesight ${truesightMatch[1]} ft.`);
-  }
-
-  return Array.from(senses);
-}
-
-function inferResistancesAndImmunities(pc: PlayerCharacter): {
-  resistances: string[];
-  immunities: string[];
-} {
-  const resistances = new Set<string>(pc.resistances || []);
-  const immunities = new Set<string>(pc.immunities || []);
-
-  const blob = [
-    pc.race,
-    pc.notes,
-    ...(pc.features || []).map((f) => `${f.name} ${f.description}`),
-    ...(pc.inventory || []).map((i) => `${i.name} ${i.description || ''} ${i.notes || ''}`),
-    ...(pc.classes || []).map((c) => `${c.name} ${c.subclass || ''}`),
-  ]
-    .join(' ')
-    .toLowerCase();
-
-  if (blob.includes('tiefling') || blob.includes('hellish resistance')) {
-    resistances.add('Fire');
-  }
-  if (blob.includes('dwarf') || blob.includes('dwarven resilience') || blob.includes('stout')) {
-    resistances.add('Poison');
-  }
-  if (blob.includes('aasimar') || blob.includes('celestial resistance')) {
-    resistances.add('Necrotic');
-    resistances.add('Radiant');
-  }
-  if (blob.includes('goliath') || blob.includes("stone's endurance")) {
-    // noted as damage reduction
-  }
-  if (blob.includes('barbarian')) {
-    if (blob.includes('bear') && blob.includes('totem')) {
-      resistances.add('All except Psychic (while Raging)');
-    } else {
-      resistances.add('Bludgeoning, Piercing, Slashing (while Raging)');
-    }
-  }
-  if (blob.includes('dragonborn')) {
-    if (blob.includes('red') || blob.includes('gold') || blob.includes('brass')) resistances.add('Fire');
-    else if (blob.includes('blue') || blob.includes('bronze')) resistances.add('Lightning');
-    else if (blob.includes('white') || blob.includes('silver')) resistances.add('Cold');
-    else if (blob.includes('black') || blob.includes('copper')) resistances.add('Acid');
-    else if (blob.includes('green')) resistances.add('Poison');
-  }
-
-  // Explicit "resistance to X" patterns
-  const resTypes = ['acid', 'cold', 'fire', 'force', 'lightning', 'necrotic', 'poison', 'psychic', 'radiant', 'thunder'];
-  for (const t of resTypes) {
-    const cap = t.charAt(0).toUpperCase() + t.slice(1);
-    if (
-      blob.includes(`resistance to ${t}`) ||
-      blob.includes(`${t} resistance`) ||
-      blob.includes(`armor of ${t} resistance`) ||
-      blob.includes(`ring of ${t} resistance`)
-    ) {
-      resistances.add(cap);
-    }
-    if (blob.includes(`immunity to ${t}`) || blob.includes(`immune to ${t}`)) {
-      immunities.add(cap);
-    }
-  }
-
-  const monk = pc.classes.find((c) => c.name.toLowerCase().includes('monk'));
-  if (monk && monk.level >= 10) {
-    immunities.add('Poison');
-    immunities.add('Disease');
-  }
-  const paladin = pc.classes.find((c) => c.name.toLowerCase().includes('paladin'));
-  if (paladin && paladin.level >= 3) {
-    immunities.add('Disease');
-  }
-  if (blob.includes('elf') || blob.includes('fey ancestry')) {
-    immunities.add('Magical Sleep');
-  }
-
-  return {
-    resistances: Array.from(resistances),
-    immunities: Array.from(immunities),
-  };
-}
-
-function inferPartyRoles(pc: PlayerCharacter): PartyRole[] {
+function evaluatePartyRoles(pc: PlayerCharacter): PartyRole[] {
   const roles = new Set<PartyRole>();
-  const classesLower = pc.classes.map((c) => `${c.name} ${c.subclass || ''}`.toLowerCase());
-  const spellsLower = (pc.spellsKnown || []).map((s) => s.toLowerCase());
-  const skills = new Set<SkillName>(pc.proficiencies?.skills || []);
+  const classesLower = pc.classes.map((c) => normalizeClassKey(c.name));
+  const skills = new Set(pc.proficiencies.skills);
+  const spellsLower = (pc.spellsKnown ?? []).map((s) => s.toLowerCase());
 
-  const hasClass = (...keywords: string[]) =>
-    classesLower.some((c) => keywords.some((k) => c.includes(k)));
-
-  // Frontline: Heavy/tank classes or high AC + HP
+  // Frontline: high AC (>=17), high CON/HP, or Barbarian/Fighter/Paladin
   if (
-    hasClass('barbarian', 'fighter', 'paladin', 'moon', 'armorer', 'battle smith', 'forge', 'tempest', 'war', 'twilight') ||
-    (pc.ac >= 17 && pc.hp.max >= pc.level * 7)
+    pc.ac >= 17 ||
+    classesLower.some((c) => c.includes('barbarian') || c.includes('fighter') || c.includes('paladin')) ||
+    (pc.hp.max >= pc.level * 8 && abilityMod(pc.abilities.CON) >= 2)
   ) {
     roles.add('Frontline');
   }
 
-  // Striker: High single-target or weapon/blast damage classes or multiple strong attacks
+  // Striker: Rogue, Ranger, Monk, Paladin, Fighter, Warlock, Barbarian, or multiple high-damage attacks
   if (
-    hasClass('rogue', 'ranger', 'paladin', 'fighter', 'monk', 'barbarian', 'warlock', 'sorcerer', 'evocation', 'vengeance', 'assassin', 'gloom stalker', 'hexblade') ||
-    (pc.attacks || []).length >= 2
+    classesLower.some((c) =>
+      ['rogue', 'ranger', 'monk', 'paladin', 'fighter', 'barbarian', 'warlock'].some((k) =>
+        c.includes(k),
+      ),
+    ) ||
+    pc.attacks.length >= 2 ||
+    spellsLower.some((s) =>
+      ['eldritch blast', 'fireball', 'scorching ray', 'guiding bolt', "hunter's mark", 'hex'].some(
+        (k) => s.includes(k),
+      ),
+    )
   ) {
     roles.add('Striker');
   }
 
-  // Controller: Crowd/battlefield control casters or control spells
+  // Controller: Wizard, Sorcerer, Druid, Bard, or control spells
   if (
-    hasClass('wizard', 'druid', 'sorcerer', 'bard', 'warlock') ||
+    classesLower.some((c) =>
+      ['wizard', 'druid', 'sorcerer'].some((k) => c.includes(k)),
+    ) ||
     spellsLower.some((s) =>
-      ['web', 'hypnotic pattern', 'hold person', 'entangle', 'faerie fire', 'banishment', 'wall of force', 'slow', 'counterspell', 'spike growth', 'spirit guardians', 'sleep', 'darkness', 'hunger of hadar'].some(
-        (k) => s.includes(k),
-      ),
+      [
+        'web',
+        'entangle',
+        'hypnotic pattern',
+        'hold person',
+        'counterspell',
+        'banishment',
+        'wall of force',
+        'slow',
+        'spike growth',
+        'faerie fire',
+      ].some((k) => s.includes(k)),
     )
   ) {
     roles.add('Controller');
   }
 
-  // Support: Healers, buffers, aura providers
+  // Support: Cleric, Bard, Druid, Paladin, Artificer, or healing/buff spells
   if (
-    hasClass('cleric', 'bard', 'druid', 'paladin', 'artificer', 'divine soul', 'celestial', 'mercy') ||
+    classesLower.some((c) =>
+      ['cleric', 'bard', 'druid', 'paladin', 'artificer'].some((k) => c.includes(k)),
+    ) ||
     spellsLower.some((s) =>
-      ['cure wounds', 'healing word', 'bless', 'revivify', 'lesser restoration', 'aid', 'haste', 'guidance', 'shield of faith', 'heroism', 'polymorph'].some(
-        (k) => s.includes(k),
-      ),
+      [
+        'healing word',
+        'cure wounds',
+        'bless',
+        'aid',
+        'haste',
+        'revivify',
+        'lesser restoration',
+        'shield of faith',
+      ].some((k) => s.includes(k)),
     )
   ) {
     roles.add('Support');
   }
 
-  // Utility: Skill monkeys, ritual casters, explorers
+  // Utility: Rogue, Bard, Wizard, Artificer, Ranger, or >=4 skill proficiencies / ritual spells
   if (
-    hasClass('rogue', 'bard', 'wizard', 'artificer', 'ranger', 'knowledge', 'tomelock') ||
+    classesLower.some((c) =>
+      ['rogue', 'bard', 'wizard', 'artificer', 'ranger'].some((k) => c.includes(k)),
+    ) ||
     skills.size >= 4 ||
-    (pc.skillExpertise && pc.skillExpertise.length > 0)
+    (pc.proficiencies.tools ?? []).length >= 2
   ) {
     roles.add('Utility');
   }
 
-  // Face: Social interaction specialists
-  const chaMod = abilityMod(pc.abilities.CHA);
-  const socialSkills: SkillName[] = ['Persuasion', 'Deception', 'Intimidation', 'Performance'];
-  const socialCount = socialSkills.filter((sk) => skills.has(sk)).length;
+  // Face: High CHA (mod >= 2) or Persuasion/Deception/Intimidation proficiency
   if (
-    hasClass('bard', 'paladin', 'sorcerer', 'warlock', 'swashbuckler', 'eloquence', 'fey wanderer') ||
-    (chaMod >= 2 && socialCount >= 1) ||
-    socialCount >= 2
+    abilityMod(pc.abilities.CHA) >= 2 ||
+    skills.has('Persuasion') ||
+    skills.has('Deception') ||
+    skills.has('Intimidation')
   ) {
     roles.add('Face');
   }
 
   if (roles.size === 0) {
-    roles.add(pc.ac >= 16 ? 'Frontline' : 'Striker');
+    roles.add('Striker');
   }
 
   return Array.from(roles);
 }
 
-function buildDefensiveProfile(
-  pc: PlayerCharacter,
-  profBonus: number,
-  resistances: string[],
-  immunities: string[],
-  senses: string[],
-): DefensiveProfile {
-  const saves: DefensiveSaveEntry[] = ABILITY_NAMES.map((ability) => {
-    const isProf = (pc.proficiencies?.savingThrows || []).includes(ability);
-    // Paladin Aura of Protection at lvl 6+
-    const paladinLvl =
-      pc.classes.find((c) => c.name.toLowerCase().includes('paladin'))?.level || 0;
-    const auraBonus = paladinLvl >= 6 ? Math.max(1, abilityMod(pc.abilities.CHA)) : 0;
-    // Monk Diamond Soul at lvl 14+
-    const monkLvl = pc.classes.find((c) => c.name.toLowerCase().includes('monk'))?.level || 0;
-    const effectiveProf = isProf || monkLvl >= 14;
-    const bonus = abilityMod(pc.abilities[ability]) + (effectiveProf ? profBonus : 0) + auraBonus;
-    return { ability, bonus };
-  });
+function evaluateDefensiveProfile(pc: PlayerCharacter): PcDefensiveProfile {
+  const saveEntries = ABILITY_NAMES.map((ab) => ({
+    ability: ab,
+    bonus: savingThrowBonus(pc, ab),
+  })).sort((a, b) => b.bonus - a.bonus);
 
-  const sortedDesc = [...saves].sort((a, b) => b.bonus - a.bonus);
-  const sortedAsc = [...saves].sort((a, b) => a.bonus - b.bonus);
+  const fmtBonus = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
+  const strongestSaves = saveEntries
+    .slice(0, 2)
+    .map((s) => `${s.ability} ${fmtBonus(s.bonus)}`);
+  const weakestSaves = saveEntries
+    .slice(-2)
+    .reverse()
+    .map((s) => `${s.ability} ${fmtBonus(s.bonus)}`);
 
-  const equippedArmor = (pc.inventory || [])
+  const equippedArmor = pc.inventory
     .filter((i) => i.equipped)
-    .map((i) => i.name)
-    .filter((name) =>
-      /armor|mail|plate|leather|hide|breastplate|half plate|shield|robe|cloak of protection|ring of protection/i.test(
-        name,
-      ),
-    );
+    .map((i) => i.name);
+  const armorHint =
+    equippedArmor.find((n) =>
+      /plate|chain|scale|leather|breastplate|mail|hide|shield|robe/i.test(n),
+    ) || (abilityMod(pc.abilities.DEX) !== 0 ? `DEX ${fmtBonus(abilityMod(pc.abilities.DEX))}` : 'Base');
+  const acSummary = `AC ${pc.ac} (${armorHint})`;
 
-  const acSummary =
-    equippedArmor.length > 0
-      ? `AC ${pc.ac} (${equippedArmor.slice(0, 2).join(', ')})`
-      : `AC ${pc.ac}`;
+  const resistances = new Set<string>(pc.resistances ?? []);
+  const immunities = new Set<string>(pc.immunities ?? []);
+  const specialSenses = new Set<string>(pc.senses ?? []);
+
+  const raceLower = (pc.race || '').toLowerCase();
+  if (raceLower.includes('tiefling')) {
+    resistances.add('Fire');
+    specialSenses.add('Darkvision 60 ft.');
+  }
+  if (raceLower.includes('dwarf')) {
+    resistances.add('Poison');
+    specialSenses.add('Darkvision 60 ft.');
+  }
+  if (raceLower.includes('elf') || raceLower.includes('gnome') || raceLower.includes('half-orc')) {
+    specialSenses.add(
+      raceLower.includes('drow') || raceLower.includes('deep')
+        ? 'Superior Darkvision 120 ft.'
+        : 'Darkvision 60 ft.',
+    );
+  }
+  if (raceLower.includes('elf')) {
+    immunities.add('Magical Sleep');
+  }
+  if (raceLower.includes('aasimar')) {
+    resistances.add('Necrotic');
+    resistances.add('Radiant');
+    specialSenses.add('Darkvision 60 ft.');
+  }
+  if (raceLower.includes('dragonborn')) {
+    resistances.add('Draconic Ancestry Element');
+  }
+
+  for (const feat of pc.features) {
+    const text = `${feat.name} ${feat.description}`.toLowerCase();
+    if (text.includes('darkvision 120') || text.includes("devil's sight")) {
+      specialSenses.add('Darkvision 120 ft.');
+    } else if (text.includes('darkvision')) {
+      specialSenses.add('Darkvision 60 ft.');
+    }
+    if (text.includes('blindsight')) specialSenses.add('Blindsight');
+    if (text.includes('tremorsense')) specialSenses.add('Tremorsense');
+    if (text.includes('truesight')) specialSenses.add('Truesight');
+    if (text.includes('purity of body')) {
+      immunities.add('Poison');
+      immunities.add('Disease');
+    }
+    if (text.includes('divine health')) {
+      immunities.add('Disease');
+    }
+  }
 
   return {
-    ac: pc.ac,
     acSummary,
-    strongestSaves: sortedDesc.slice(0, 2),
-    weakestSaves: sortedAsc.slice(0, 2),
-    resistances,
-    immunities,
-    senses,
+    strongestSaves,
+    weakestSaves,
+    resistances: Array.from(resistances),
+    immunities: Array.from(immunities),
+    specialSenses: Array.from(specialSenses),
   };
 }
 
 function buildAuditNotes(
-  rawInput: Record<string, unknown>,
   pc: PlayerCharacter,
-  derivedStats: CharacterDerivedStats,
-): CharacterAuditNote[] {
-  const notes: CharacterAuditNote[] = [];
+  rawInput: Record<string, unknown>,
+  expectedProfBonus: number,
+): PcAuditNote[] {
+  const notes: PcAuditNote[] = [];
 
-  // 1. Attunement cap audit (> 3 attuned items)
-  const inventoryAttunedCount = (pc.inventory || []).filter((i) => i.attuned).length;
-  const effectiveAttunedCount = Math.max(pc.attunedCount || 0, inventoryAttunedCount);
-  const artificerLvl =
-    pc.classes.find((c) => c.name.toLowerCase().includes('artificer'))?.level || 0;
-  const maxAttunement = artificerLvl >= 18 ? 6 : artificerLvl >= 14 ? 5 : artificerLvl >= 10 ? 4 : 3;
-
-  if (effectiveAttunedCount > maxAttunement) {
+  // 1. Check Attunement Limit (>3 attuned items)
+  const attunedItemsCount = pc.inventory.filter((i) => i.attuned).length;
+  const reportedAttuned = typeof rawInput.attunedCount === 'number' ? rawInput.attunedCount : attunedItemsCount;
+  const maxAttuned = Math.max(attunedItemsCount, reportedAttuned);
+  if (maxAttuned > 3) {
     notes.push({
       id: 'audit-attunement-limit',
       severity: 'warning',
       category: 'attunement',
-      message: `${effectiveAttunedCount} attuned items detected (exceeds maximum of ${maxAttunement} attunement slots).`,
+      message: `Character has ${maxAttuned} attuned items (standard 5e maximum is 3).`,
     });
   }
 
-  // 2. Ability modifier math discrepancy check
-  const rawMods = rawInput.abilityModifiers as Record<string, unknown> | undefined;
-  if (rawMods && typeof rawMods === 'object') {
-    for (const ability of ABILITY_NAMES) {
-      const provided = rawMods[ability] ?? rawMods[ability.toLowerCase()];
-      if (typeof provided === 'number' && Number.isFinite(provided)) {
-        const expected = derivedStats.abilityModifiers[ability];
-        if (provided !== expected) {
+  // 2. Check Ability Modifier or Proficiency Bonus Math Discrepancies from raw input
+  if (rawInput.abilityModifiers && typeof rawInput.abilityModifiers === 'object') {
+    const rawMods = rawInput.abilityModifiers as Record<string, unknown>;
+    for (const ab of ABILITY_NAMES) {
+      if (typeof rawMods[ab] === 'number') {
+        const expected = abilityMod(pc.abilities[ab]);
+        if (rawMods[ab] !== expected) {
           notes.push({
-            id: `audit-ability-math-${ability.toLowerCase()}`,
+            id: `audit-mod-${ab.toLowerCase()}`,
             severity: 'warning',
-            category: 'ability-math',
-            message: `${ability} modifier discrepancy: sheet listed ${formatMod(provided)} for score ${pc.abilities[ability]} (expected ${formatMod(expected)}).`,
+            category: 'math',
+            message: `${ab} modifier discrepancy: sheet listed ${rawMods[ab] >= 0 ? `+${rawMods[ab]}` : rawMods[ab]}, but score ${pc.abilities[ab]} yields ${expected >= 0 ? `+${expected}` : expected}.`,
           });
         }
       }
     }
   }
 
-  // 3. AC math discrepancy check
-  const dexMod = derivedStats.abilityModifiers.DEX;
-  const conMod = derivedStats.abilityModifiers.CON;
-  const wisMod = derivedStats.abilityModifiers.WIS;
-  const isBarbarian = pc.classes.some((c) => c.name.toLowerCase().includes('barbarian'));
-  const isMonk = pc.classes.some((c) => c.name.toLowerCase().includes('monk'));
-
-  const invNames = (pc.inventory || []).map((i) => i.name.toLowerCase());
-  const hasShield = invNames.some((n) => n.includes('shield'));
-  const shieldBonus = hasShield ? 2 : 0;
-
-  let expectedArmoredAc: number | null = null;
-  if (invNames.some((n) => n.includes('full plate') || /^plate(\s+armor)?$/.test(n))) {
-    expectedArmoredAc = 18 + shieldBonus;
-  } else if (invNames.some((n) => n.includes('splint'))) {
-    expectedArmoredAc = 17 + shieldBonus;
-  } else if (invNames.some((n) => n.includes('chain mail'))) {
-    expectedArmoredAc = 16 + shieldBonus;
-  } else if (invNames.some((n) => n.includes('half plate'))) {
-    expectedArmoredAc = 15 + Math.min(2, dexMod) + shieldBonus;
-  } else if (invNames.some((n) => n.includes('breastplate') || n.includes('scale mail'))) {
-    expectedArmoredAc = 14 + Math.min(2, dexMod) + shieldBonus;
-  } else if (invNames.some((n) => n.includes('studded leather'))) {
-    expectedArmoredAc = 12 + dexMod + shieldBonus;
-  } else if (invNames.some((n) => n.includes('leather'))) {
-    expectedArmoredAc = 11 + dexMod + shieldBonus;
-  } else if (isBarbarian) {
-    expectedArmoredAc = 10 + dexMod + conMod + shieldBonus;
-  } else if (isMonk && !hasShield) {
-    expectedArmoredAc = 10 + dexMod + wisMod;
-  }
-
-  const rawAcProvided = typeof rawInput.ac === 'number' ? rawInput.ac : undefined;
-  if (expectedArmoredAc !== null && rawAcProvided !== undefined && Math.abs(rawAcProvided - expectedArmoredAc) >= 2) {
+  if (
+    typeof rawInput.proficiencyBonus === 'number' &&
+    rawInput.proficiencyBonus > 0 &&
+    rawInput.proficiencyBonus !== expectedProfBonus
+  ) {
     notes.push({
-      id: 'audit-ac-math-mismatch',
-      severity: 'info',
-      category: 'ac-math',
-      message: `AC math check: sheet AC is ${pc.ac}, whereas standard equipment/unarmored formula predicts ${expectedArmoredAc}.`,
-    });
-  } else if (pc.ac < 10 + dexMod && expectedArmoredAc === null) {
-    notes.push({
-      id: 'audit-ac-below-unarmored',
+      id: 'audit-proficiency-bonus',
       severity: 'warning',
-      category: 'ac-math',
-      message: `AC (${pc.ac}) is lower than base Unarmored AC (${10 + dexMod} from 10 + DEX ${formatMod(dexMod)}).`,
+      category: 'proficiency',
+      message: `Proficiency bonus listed as +${rawInput.proficiencyBonus}, auto-corrected to +${expectedProfBonus} for Level ${pc.level}.`,
     });
   }
 
-  // 4. Concentration spell tag check
-  const untaggedConcentrationSpells: string[] = [];
-  for (const spell of pc.spellsKnown || []) {
-    const lower = spell.toLowerCase();
-    const isConc = KNOWN_CONCENTRATION_SPELLS.some((k) => lower.includes(k));
-    const hasTag = /\[c\]|\(c\)|concentration/i.test(spell);
-    if (isConc && !hasTag) {
-      untaggedConcentrationSpells.push(spell.replace(/^\[[PA]\]\s*/i, '').trim());
+  // 3. Check AC math discrepancy (e.g. unarmored AC lower than 10 + DEX mod when DEX mod > 0)
+  const dexMod = abilityMod(pc.abilities.DEX);
+  const hasArmorEquipped = pc.inventory.some(
+    (i) => i.equipped && /armor|plate|chain|scale|leather|breastplate|mail|hide/i.test(i.name),
+  );
+  const unarmoredFloor = 10 + dexMod;
+  if (!hasArmorEquipped && pc.ac > 0 && pc.ac < unarmoredFloor) {
+    notes.push({
+      id: 'audit-ac-math',
+      severity: 'warning',
+      category: 'math',
+      message: `AC (${pc.ac}) is lower than unarmored baseline 10 + DEX (${unarmoredFloor}).`,
+    });
+  }
+
+  // 4. Check Missing Concentration Tags on known concentration spells
+  const untaggedConcSpells: string[] = [];
+  for (const spell of pc.spellsKnown ?? []) {
+    const clean = spell
+      .replace(/\(.*?\)|\[.*?\]/g, '')
+      .trim()
+      .toLowerCase();
+    const hasConcTag = /\(c\)|\[c\]|concentration/i.test(spell);
+    if (KNOWN_CONCENTRATION_SPELLS.has(clean) && !hasConcTag) {
+      untaggedConcSpells.push(spell);
     }
   }
-  if (untaggedConcentrationSpells.length > 0) {
+  if (untaggedConcSpells.length > 0) {
     notes.push({
-      id: 'audit-concentration-tags',
+      id: 'audit-missing-concentration',
       severity: 'info',
       category: 'concentration',
-      message: `Concentration spells without explicit [C] tags: ${untaggedConcentrationSpells.slice(0, 5).join(', ')}.`,
-    });
-  }
-
-  // 5. Level-up / allocation checks
-  const classLevelSum = pc.classes.reduce((sum, c) => sum + (c.level || 0), 0);
-  if (pc.classes.length > 0 && typeof rawInput.level === 'number' && rawInput.level !== classLevelSum) {
-    notes.push({
-      id: 'audit-level-mismatch',
-      severity: 'warning',
-      category: 'level-up',
-      message: `Character level (${rawInput.level}) differed from sum of class levels (${classLevelSum}); synced to ${pc.level}.`,
-    });
-  }
-
-  for (const cls of pc.classes) {
-    if (cls.level >= 3 && !cls.subclass) {
-      notes.push({
-        id: `audit-missing-subclass-${normKey(cls.name)}`,
-        severity: 'info',
-        category: 'level-up',
-        message: `${cls.name} is level ${cls.level} without a recorded subclass.`,
-      });
-    }
-  }
-
-  const rawHd = rawInput.hitDice as Record<string, unknown> | undefined;
-  if (rawHd && typeof rawHd.max === 'number' && rawHd.max > 0 && rawHd.max < pc.level) {
-    notes.push({
-      id: 'audit-hit-dice-level-up',
-      severity: 'info',
-      category: 'level-up',
-      message: `Hit Dice pool was ${rawHd.max}/${pc.level} prior to evaluation; updated to ${pc.hitDice.max}d${pc.hitDice.dieSize}.`,
+      message: `Concentration spells without (C) tag: ${untaggedConcSpells.join(', ')}.`,
     });
   }
 
@@ -871,273 +788,235 @@ function buildAuditNotes(
 }
 
 /**
- * Automatic Character Evaluator:
- * - Computes and backfills missing Ability Modifiers, Proficiency Bonus, Passive Perception /
- *   Investigation / Insight, Spell Save DC, Spell Attack Bonus, Initiative bonus, and Carrying Capacity.
- * - Synthesizes standard & Pact Magic spell slots and trackable class resource pools.
- * - Attaches tactical & rules audit (`evaluation` with `partyRoles`, `defensiveProfile`, `auditNotes`).
+ * Automatically evaluates a parsed or edited PC sheet:
+ * 1. Computes & backfills derived stats (Ability Modifiers, Proficiency Bonus, Passive Senses, Spell Save DC, Spell Attack Bonus, Initiative, Carrying Capacity).
+ * 2. Synthesizes standard & Pact Magic spell slots and trackable class resource pools.
+ * 3. Produces a Tactical & Rules Audit (`evaluation`: `partyRoles`, `defensiveProfile`, `auditNotes`).
  */
 export function evaluateCharacterSheet(
-  input: Partial<PlayerCharacter> & Record<string, unknown>,
-): PlayerCharacter {
-  const raw = (input || {}) as Record<string, unknown>;
-  const pc = normalizePc(input);
+  inputPc: Partial<PlayerCharacter> | Record<string, unknown>,
+): EvaluatedPlayerCharacter {
+  const raw = (inputPc ?? {}) as Record<string, unknown>;
+  const base = normalizePc({ ...emptyPc(), ...raw });
 
-  // Support flat convenience HP properties if passed on raw input
-  const rawHpObj = (raw.hp as Record<string, unknown>) || {};
-  const rawMaxHp =
-    typeof rawHpObj.max === 'number'
-      ? rawHpObj.max
-      : typeof raw.maxHp === 'number'
-        ? raw.maxHp
-        : pc.hp.max;
-  const rawCurrentHp =
-    typeof rawHpObj.current === 'number'
-      ? rawHpObj.current
-      : typeof raw.currentHp === 'number'
-        ? raw.currentHp
-        : pc.hp.current;
-  const rawTempHp =
-    typeof rawHpObj.temp === 'number'
-      ? rawHpObj.temp
-      : typeof raw.tempHp === 'number'
-        ? raw.tempHp
-        : pc.hp.temp;
-
-  // Backfill ability scores if only abilityModifiers were supplied
-  const rawAbilities = (raw.abilities as Record<string, unknown>) || {};
-  const rawAbilityMods = (raw.abilityModifiers as Record<string, unknown>) || {};
-  const abilities = { ...pc.abilities };
-  for (const ab of ABILITY_NAMES) {
-    const rawScore = rawAbilities[ab] ?? rawAbilities[ab.toLowerCase()];
-    const rawMod = rawAbilityMods[ab] ?? rawAbilityMods[ab.toLowerCase()];
-    if (
-      (rawScore === undefined || rawScore === null || rawScore === 0) &&
-      typeof rawMod === 'number' &&
-      Number.isFinite(rawMod)
-    ) {
-      abilities[ab] = Math.max(1, Math.min(30, 10 + rawMod * 2));
-    } else if (typeof rawScore === 'number' && Number.isFinite(rawScore) && rawScore > 0) {
-      abilities[ab] = Math.max(1, Math.min(30, Math.round(rawScore)));
+  // Parse classes if provided as string (e.g. `classLevel: "Fighter 5"` or `class: "Paladin"`)
+  let classes = [...base.classes];
+  if (classes.length === 0) {
+    const rawClassStr =
+      typeof raw.classLevel === 'string'
+        ? raw.classLevel
+        : typeof raw.class === 'string'
+          ? raw.class
+          : '';
+    const rawClassStr2 = typeof raw.classLevel2 === 'string' ? raw.classLevel2 : '';
+    const combined = [rawClassStr, rawClassStr2].filter(Boolean).join(' / ');
+    if (combined) {
+      classes = parseClassString(combined, typeof raw.level === 'number' ? raw.level : 1);
     }
   }
-  pc.abilities = abilities;
 
   // Compute total level from classes or explicit level
-  const classSum = pc.classes.reduce((sum, c) => sum + (c.level || 0), 0);
-  const totalLevel = Math.max(1, Math.min(20, classSum > 0 ? classSum : pc.level || 1));
-  pc.level = totalLevel;
+  const sumClassLevels = classes.reduce((sum, c) => sum + (c.level || 0), 0);
+  const totalLevel = Math.max(
+    1,
+    Math.min(
+      20,
+      sumClassLevels > 0
+        ? Math.max(sumClassLevels, typeof raw.level === 'number' ? raw.level : 1)
+        : typeof raw.level === 'number'
+          ? raw.level
+          : base.level || 1,
+    ),
+  );
 
-  // Backfill default saving throw proficiencies from primary class if none listed
-  const primaryClass = findPrimaryClass(pc.classes);
-  if (pc.proficiencies.savingThrows.length === 0 && primaryClass) {
-    for (const [clsKey, saves] of Object.entries(CLASS_DEFAULT_SAVES)) {
-      if (primaryClass.includes(clsKey)) {
-        pc.proficiencies.savingThrows = [...saves];
+  // If single class level is smaller than totalLevel, sync it
+  if (classes.length === 1 && classes[0].level < totalLevel) {
+    classes[0] = { ...classes[0], level: totalLevel };
+  }
+
+  const expectedProfBonus = proficiencyBonusForLevel(totalLevel);
+
+  // Backfill saving throw proficiencies from primary class if none specified
+  let savingThrows = [...base.proficiencies.savingThrows];
+  if (savingThrows.length === 0 && classes.length > 0) {
+    const primaryKey = normalizeClassKey(classes[0].name);
+    for (const [k, saves] of Object.entries(CLASS_SAVING_THROWS)) {
+      if (primaryKey.includes(k)) {
+        savingThrows = [...saves];
         break;
       }
     }
   }
 
-  // Compute ability modifiers
-  const abilityModifiers: Record<AbilityName, number> = {
-    STR: abilityMod(pc.abilities.STR),
-    DEX: abilityMod(pc.abilities.DEX),
-    CON: abilityMod(pc.abilities.CON),
-    INT: abilityMod(pc.abilities.INT),
-    WIS: abilityMod(pc.abilities.WIS),
-    CHA: abilityMod(pc.abilities.CHA),
-  };
-  pc.abilityModifiers = abilityModifiers;
+  // Backfill Hit Dice from primary class if defaults weren't tailored
+  let dieSize = base.hitDice.dieSize || 8;
+  if (classes.length > 0 && (!raw.hitDice || !(raw.hitDice as Record<string, unknown>)?.dieSize)) {
+    const primaryKey = normalizeClassKey(classes[0].name);
+    for (const [k, d] of Object.entries(CLASS_HIT_DIE)) {
+      if (primaryKey.includes(k)) {
+        dieSize = d;
+        break;
+      }
+    }
+  }
+  const hdMax =
+    raw.hitDice && typeof (raw.hitDice as Record<string, unknown>).max === 'number' && (raw.hitDice as Record<string, unknown>).max as number > 0
+      ? ((raw.hitDice as Record<string, unknown>).max as number)
+      : totalLevel;
+  const hdUsed = Math.max(0, Math.min(hdMax, base.hitDice.used || 0));
 
-  // Compute proficiency bonus from total level
-  const profBonus = proficiencyBonusForLevel(totalLevel);
-  pc.proficiencyBonus = profBonus;
+  // Resolve HP (support both hp.{current,max,temp} and flat currentHp/maxHp/tempHp)
+  const rawHpObj = (raw.hp as Record<string, unknown>) || {};
+  let maxHp =
+    typeof rawHpObj.max === 'number' && rawHpObj.max > 0
+      ? rawHpObj.max
+      : typeof raw.maxHp === 'number' && raw.maxHp > 0
+        ? raw.maxHp
+        : typeof raw.hpMax === 'number' && raw.hpMax > 0
+          ? raw.hpMax
+          : base.hp.max;
 
-  // Compute HP backfill if maxHp is 0
-  const primaryDieSize =
-    (primaryClass &&
-      Object.entries(CLASS_HIT_DIE).find(([k]) => primaryClass.includes(k))?.[1]) ||
-    pc.hitDice?.dieSize ||
-    8;
+  const conMod = abilityMod(base.abilities.CON);
+  if (!maxHp || maxHp <= 0) {
+    // Estimate standard 5e HP: max die at L1 + average die at L2..N
+    const avgPerLvl = Math.floor(dieSize / 2) + 1;
+    maxHp = Math.max(
+      totalLevel,
+      dieSize + conMod + (totalLevel - 1) * (avgPerLvl + conMod),
+    );
+  }
 
-  const estimatedMaxHp =
-    rawMaxHp > 0
-      ? rawMaxHp
-      : Math.max(
-          1,
-          primaryDieSize +
-            abilityModifiers.CON +
-            (totalLevel - 1) * (Math.floor(primaryDieSize / 2) + 1 + abilityModifiers.CON),
-        );
-  const finalCurrentHp =
-    raw.currentHp !== undefined || rawHpObj.current !== undefined
-      ? rawCurrentHp
-      : rawMaxHp > 0
-        ? rawMaxHp
-        : estimatedMaxHp;
+  const hasExplicitCurrentHp =
+    typeof rawHpObj.current === 'number' || typeof raw.currentHp === 'number';
+  const currentHp = hasExplicitCurrentHp
+    ? Math.max(0, Math.min(maxHp, base.hp.current))
+    : maxHp;
+  const tempHp = Math.max(0, base.hp.temp);
 
-  pc.hp = {
-    max: estimatedMaxHp,
-    current: finalCurrentHp,
-    temp: Math.max(0, rawTempHp),
-  };
-
-  // Hit Dice synthesis
-  pc.hitDice = {
-    dieSize: ([4, 6, 8, 10, 12].includes(primaryDieSize) ? primaryDieSize : 8) as number,
-    max: Math.max(totalLevel, pc.hitDice?.max || totalLevel),
-    used: Math.min(totalLevel, Math.max(0, pc.hitDice?.used || 0)),
-  };
+  // Compute Ability Modifiers
+  const abilityModifiers = {} as Record<AbilityName, number>;
+  for (const ab of ABILITY_NAMES) {
+    abilityModifiers[ab] = abilityMod(base.abilities[ab]);
+  }
 
   // Initiative bonus backfill
-  const rawInit = raw.initiativeMod ?? raw.initiative;
-  const hasExplicitInit =
-    typeof rawInit === 'number' && !Number.isNaN(rawInit) && rawInit !== 0;
-  const hasAlertFeat = (pc.features || []).some((f) =>
-    f.name.toLowerCase().includes('alert'),
-  );
-  const computedInit = abilityModifiers.DEX + (hasAlertFeat ? profBonus : 0);
-  pc.initiativeMod = hasExplicitInit ? Math.round(rawInit as number) : computedInit;
+  const rawInitProvided =
+    typeof raw.initiativeMod === 'number' || typeof raw.initiative === 'number';
+  const initiativeMod = rawInitProvided
+    ? typeof raw.initiativeMod === 'number'
+      ? raw.initiativeMod
+      : Number(raw.initiative) || abilityModifiers.DEX
+    : abilityModifiers.DEX;
 
-  // AC backfill if left at default 10 or 0
-  if (!raw.ac || pc.ac <= 0) {
-    pc.ac = Math.max(10, 10 + abilityModifiers.DEX);
-  }
+  // AC backfill if missing/0
+  const rawAcProvided = typeof raw.ac === 'number' && raw.ac > 0;
+  const ac = rawAcProvided ? base.ac : Math.max(10, 10 + abilityModifiers.DEX);
 
-  // Passive scores (10 + skill mod + expertise)
-  const expertiseSet = new Set<SkillName>(pc.skillExpertise || []);
-  const profSkillSet = new Set<SkillName>(pc.proficiencies?.skills || []);
-  const computePassive = (skill: SkillName): number => {
-    const ab = SKILL_ABILITIES[skill];
-    const base = 10 + abilityModifiers[ab];
-    const prof = profSkillSet.has(skill) ? profBonus : 0;
-    const exp = expertiseSet.has(skill) ? profBonus : 0;
-    return base + prof + exp;
+  // Assemble working PC before skill/spell synthesis
+  const workingPc: PlayerCharacter = {
+    ...base,
+    level: totalLevel,
+    classes,
+    proficiencyBonus: expectedProfBonus,
+    proficiencies: {
+      ...base.proficiencies,
+      savingThrows,
+    },
+    hp: {
+      current: currentHp,
+      max: maxHp,
+      temp: tempHp,
+    },
+    hitDice: {
+      dieSize,
+      max: hdMax,
+      used: hdUsed,
+    },
+    ac,
+    initiativeMod,
   };
 
-  pc.passivePerception =
-    typeof raw.passivePerception === 'number' && raw.passivePerception > 0
-      ? raw.passivePerception
-      : computePassive('Perception');
-  pc.passiveInvestigation =
-    typeof raw.passiveInvestigation === 'number' && raw.passiveInvestigation > 0
-      ? raw.passiveInvestigation
-      : computePassive('Investigation');
-  pc.passiveInsight =
-    typeof raw.passiveInsight === 'number' && raw.passiveInsight > 0
-      ? raw.passiveInsight
-      : computePassive('Insight');
+  // Spellcasting Ability, Save DC & Attack Bonus
+  const spellcastingAbility = inferSpellcastingAbility(workingPc);
+  if (spellcastingAbility) {
+    workingPc.spellcastingAbility = spellcastingAbility;
+  }
 
-  // Spellcasting ability, Save DC, and Attack Bonus
-  let spellAbility: AbilityName | undefined = pc.spellcastingAbility;
-  if (!spellAbility) {
-    for (const c of pc.classes) {
-      const cLower = c.name.trim().toLowerCase();
-      const subLower = (c.subclass || '').trim().toLowerCase();
-      const found = Object.entries(CLASS_SPELLCASTING_ABILITY).find(([k]) =>
-        cLower.includes(k),
-      );
-      if (found) {
-        spellAbility = found[1];
-        break;
-      }
-      if (subLower.includes('eldritch') || subLower.includes('arcane trickster')) {
-        spellAbility = 'INT';
-        break;
+  const spellSaveDc = spellcastingAbility
+    ? 8 + expectedProfBonus + abilityModifiers[spellcastingAbility]
+    : null;
+  const spellAttackBonus = spellcastingAbility
+    ? expectedProfBonus + abilityModifiers[spellcastingAbility]
+    : null;
+
+  // Synthesize Spell Slots & Pact Magic Slots
+  const synthesizedSlots = synthesizeSpellSlotsForClasses(classes);
+  if (!workingPc.spellSlots || Object.keys(workingPc.spellSlots).length === 0) {
+    if (synthesizedSlots.spellSlots) {
+      workingPc.spellSlots = synthesizedSlots.spellSlots;
+    }
+  } else if (synthesizedSlots.spellSlots) {
+    // Backfill any missing slot levels from class progression
+    const mergedSlots: Partial<Record<SpellSlotLevel, SpellSlot>> = {
+      ...synthesizedSlots.spellSlots,
+    };
+    for (const lvl of SPELL_SLOT_LEVELS) {
+      const existingSlot = workingPc.spellSlots[lvl];
+      if (existingSlot && existingSlot.max > 0) {
+        mergedSlots[lvl] = existingSlot;
       }
     }
-  }
-  if (!spellAbility && (pc.spellsKnown?.length || pc.spellSlots || pc.pactSlots)) {
-    // Pick highest mental ability
-    const mentals: AbilityName[] = ['INT', 'WIS', 'CHA'];
-    mentals.sort((a, b) => pc.abilities[b] - pc.abilities[a]);
-    spellAbility = mentals[0];
+    workingPc.spellSlots = mergedSlots;
   }
 
-  let spellSaveDc: number | null = null;
-  let spellAttackBonus: number | null = null;
-  if (spellAbility) {
-    pc.spellcastingAbility = spellAbility;
-    const spellMod = abilityModifiers[spellAbility];
-    spellSaveDc =
-      typeof raw.spellSaveDc === 'number' && raw.spellSaveDc > 0
-        ? raw.spellSaveDc
-        : 8 + profBonus + spellMod;
-    spellAttackBonus =
-      typeof raw.spellAttackBonus === 'number'
-        ? raw.spellAttackBonus
-        : profBonus + spellMod;
-    pc.spellSaveDc = spellSaveDc;
-    pc.spellAttackBonus = spellAttackBonus;
+  if (!workingPc.pactSlots && synthesizedSlots.pactSlots) {
+    workingPc.pactSlots = synthesizedSlots.pactSlots;
   }
 
-  // Carrying capacity (STR * 15, doubled for Powerful Build)
-  const raceAndFeats = [
-    pc.race,
-    ...(pc.features || []).map((f) => f.name),
-  ]
-    .join(' ')
-    .toLowerCase();
-  const hasPowerfulBuild = [
-    'goliath',
-    'powerful build',
-    'bugbear',
-    'firbolg',
-    'orc',
-    'centaur',
-    'loxodon',
-  ].some((k) => raceAndFeats.includes(k));
-  const carryingCapacity = pc.abilities.STR * 15 * (hasPowerfulBuild ? 2 : 1);
-  pc.carryingCapacity = carryingCapacity;
+  // Synthesize Class Resource Pools
+  workingPc.resourcePools = synthesizeClassResourcePools(workingPc);
 
-  // Spell Slot & Class Resource Synthesis
-  const synthesizedSlots = synthesizeSpellSlotsForClasses(pc.classes, pc.spellSlots);
-  if (synthesizedSlots) {
-    pc.spellSlots = synthesizedSlots;
-  }
-  const synthesizedPact = synthesizePactSlotsForClasses(pc.classes, pc.pactSlots);
-  if (synthesizedPact) {
-    pc.pactSlots = synthesizedPact;
-  }
-  pc.resourcePools = synthesizeClassResourcePools(pc);
+  // Attuned count sync
+  const attunedFromInv = workingPc.inventory.filter((i) => i.attuned).length;
+  workingPc.attunedCount = Math.min(
+    3,
+    Math.max(attunedFromInv, typeof raw.attunedCount === 'number' ? raw.attunedCount : 0),
+  );
 
-  // Attunement count sync
-  const invAttuned = (pc.inventory || []).filter((i) => i.attuned).length;
-  const rawAttunedCount =
-    typeof raw.attunedCount === 'number' ? raw.attunedCount : pc.attunedCount || 0;
-  pc.attunedCount = Math.max(rawAttunedCount, invAttuned);
+  // Passive Senses
+  const hasObservant = workingPc.features.some((f) =>
+    f.name.toLowerCase().includes('observant'),
+  );
+  const observantBonus = hasObservant ? 5 : 0;
+  const passivePerception =
+    10 + computeSkillBonusWithExpertise(workingPc, 'Perception') + observantBonus;
+  const passiveInvestigation =
+    10 + computeSkillBonusWithExpertise(workingPc, 'Investigation') + observantBonus;
+  const passiveInsight = 10 + computeSkillBonusWithExpertise(workingPc, 'Insight');
 
-  // Senses, resistances, immunities
-  const senses = inferSenses(pc);
-  const { resistances, immunities } = inferResistancesAndImmunities(pc);
-  pc.senses = senses;
-  pc.resistances = resistances;
-  pc.immunities = immunities;
+  // Carrying Capacity (STR * 15, x2 for Powerful Build)
+  const hasPowerfulBuild =
+    /goliath|firbolg|bugbear|orc/i.test(workingPc.race) ||
+    workingPc.features.some((f) => /powerful build|aspect of the beast.*bear/i.test(f.name));
+  const carryingCapacity = workingPc.abilities.STR * 15 * (hasPowerfulBuild ? 2 : 1);
 
-  const derivedStats: CharacterDerivedStats = {
+  const derivedStats: PcDerivedStats = {
     abilityModifiers,
-    proficiencyBonus: profBonus,
-    passivePerception: pc.passivePerception,
-    passiveInvestigation: pc.passiveInvestigation,
-    passiveInsight: pc.passiveInsight,
+    proficiencyBonus: expectedProfBonus,
+    passivePerception,
+    passiveInvestigation,
+    passiveInsight,
     spellSaveDc,
     spellAttackBonus,
-    initiativeBonus: pc.initiativeMod,
+    initiativeBonus: initiativeMod,
     carryingCapacity,
   };
 
-  const partyRoles = inferPartyRoles(pc);
-  const defensiveProfile = buildDefensiveProfile(
-    pc,
-    profBonus,
-    resistances,
-    immunities,
-    senses,
-  );
-  const auditNotes = buildAuditNotes(raw, pc, derivedStats);
+  const partyRoles = evaluatePartyRoles(workingPc);
+  const defensiveProfile = evaluateDefensiveProfile(workingPc);
+  const auditNotes = buildAuditNotes(workingPc, raw, expectedProfBonus);
 
-  const evaluation: CharacterEvaluation = {
+  const evaluation: PcEvaluation = {
     partyRoles,
     defensiveProfile,
     auditNotes,
@@ -1145,6 +1024,61 @@ export function evaluateCharacterSheet(
     evaluatedAt: Date.now(),
   };
 
-  pc.evaluation = evaluation;
-  return pc;
+  workingPc.evaluation = evaluation;
+  if (defensiveProfile.resistances.length > 0 && !workingPc.resistances) {
+    workingPc.resistances = defensiveProfile.resistances;
+  }
+  if (defensiveProfile.immunities.length > 0 && !workingPc.immunities) {
+    workingPc.immunities = defensiveProfile.immunities;
+  }
+  if (defensiveProfile.specialSenses.length > 0 && !workingPc.senses) {
+    workingPc.senses = defensiveProfile.specialSenses;
+  }
+
+  if (workingPc.pactSlots) {
+    (workingPc.pactSlots as PactMagicSlots & { slotLevel?: number }).slotLevel =
+      workingPc.pactSlots.level;
+  }
+
+  if (workingPc.spellSlots && typeof workingPc.spellSlots === 'object' && !Array.isArray(workingPc.spellSlots)) {
+    const toGroupArray = () =>
+      SPELL_SLOT_LEVELS.filter((lvl) => workingPc.spellSlots?.[lvl] && workingPc.spellSlots[lvl]!.max > 0).map(
+        (lvl) => ({
+          level: lvl,
+          max: workingPc.spellSlots![lvl]!.max,
+          used: workingPc.spellSlots![lvl]!.used,
+        }),
+      );
+    for (const method of ['some', 'find', 'map', 'filter', 'forEach'] as const) {
+      Object.defineProperty(workingPc.spellSlots, method, {
+        value: (...args: unknown[]) => (toGroupArray() as any)[method](...args),
+        enumerable: false,
+        configurable: true,
+        writable: true,
+      });
+    }
+  }
+
+  const result = {
+    ...workingPc,
+    evaluation,
+    derivedStats,
+    currentHp: workingPc.hp.current,
+    maxHp: workingPc.hp.max,
+    tempHp: workingPc.hp.temp,
+    abilityModifiers,
+    passivePerception,
+    passiveInvestigation,
+    passiveInsight,
+    spellSaveDc,
+    spellAttackBonus,
+    carryingCapacity,
+  } as EvaluatedPlayerCharacter;
+  Object.defineProperty(result, 'pc', {
+    value: result,
+    enumerable: false,
+    configurable: true,
+    writable: true,
+  });
+  return result;
 }

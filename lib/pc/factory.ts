@@ -40,6 +40,12 @@ export function makePcId(): string {
   return `pc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+export function createEmptyPc(id?: string): PlayerCharacter {
+  const pc = emptyPc();
+  if (id) pc.id = id;
+  return pc;
+}
+
 export function emptyPc(): PlayerCharacter {
   return {
     id: makePcId(),
@@ -113,7 +119,7 @@ const VALID_SKILLS = new Set<string>(Object.keys(SKILL_ABILITIES));
 function normAbilities(v: unknown): Record<AbilityName, number> {
   const o = (v as Record<string, unknown>) || {};
   const out = {} as Record<AbilityName, number>;
-  for (const a of ABILITY_NAMES) out[a] = clampInt(o[a] ?? o[a.toLowerCase()], 1, 30, 10);
+  for (const a of ABILITY_NAMES) out[a] = clampInt(o[a], 1, 30, 10);
   return out;
 }
 
@@ -165,11 +171,13 @@ function normResourcePools(v: unknown): PcResourcePool[] | undefined {
   });
 }
 
-function normPactSlots(v: unknown): PactMagicSlots | undefined {
+function normPactSlots(v: unknown): (PactMagicSlots & { slotLevel?: SpellSlotLevel }) | undefined {
   if (!v || typeof v !== 'object') return undefined;
   const o = v as Record<string, unknown>;
+  const lvl = clampInt(o.level ?? o.slotLevel, 1, 9, 1) as SpellSlotLevel;
   return {
-    level: clampInt(o.level, 1, 9, 1) as SpellSlotLevel,
+    level: lvl,
+    slotLevel: lvl,
     max: clampInt(o.max, 0, 99, 0),
     used: clampInt(o.used, 0, 99, 0),
   };
@@ -311,19 +319,16 @@ function normSpellSlots(
   let any = false;
   if (Array.isArray(v)) {
     for (const item of v) {
-      if (!item || typeof item !== 'object') continue;
-      const o = item as Record<string, unknown>;
-      const lvl = clampInt(o.level, 1, 9, 0) as SpellSlotLevel;
-      if (SPELL_SLOT_LEVELS.includes(lvl)) {
-        const max = clampInt(o.max, 0, 99, 0);
-        const used =
-          o.used !== undefined
-            ? clampInt(o.used, 0, 99, 0)
-            : o.current !== undefined
-              ? Math.max(0, max - clampInt(o.current, 0, 99, max))
-              : 0;
-        out[lvl] = { max, used };
-        any = true;
+      if (item && typeof item === 'object') {
+        const rec = item as Record<string, unknown>;
+        const lvl = clampInt(rec.level, 1, 9, 0) as SpellSlotLevel;
+        if (SPELL_SLOT_LEVELS.includes(lvl)) {
+          out[lvl] = {
+            max: clampInt(rec.max, 0, 99, 0),
+            used: clampInt(rec.used, 0, 99, 0),
+          };
+          any = true;
+        }
       }
     }
     return any ? out : undefined;
@@ -332,16 +337,9 @@ function normSpellSlots(
   for (const lvl of SPELL_SLOT_LEVELS) {
     const slot = o[lvl] as Record<string, unknown> | undefined;
     if (slot && typeof slot === 'object') {
-      const max = clampInt(slot.max, 0, 99, 0);
-      const used =
-        slot.used !== undefined
-          ? clampInt(slot.used, 0, 99, 0)
-          : slot.current !== undefined
-            ? Math.max(0, max - clampInt(slot.current, 0, 99, max))
-            : 0;
       out[lvl] = {
-        max,
-        used,
+        max: clampInt(slot.max, 0, 99, 0),
+        used: clampInt(slot.used, 0, 99, 0),
       };
       any = true;
     }
@@ -388,6 +386,10 @@ export function normalizePc(input: unknown): PlayerCharacter {
   const sharedJournal = normSharedJournal(o.sharedJournal);
   const turnEconomy = normTurnEconomy(o.turnEconomy);
 
+  const hpCurrentRaw = hp.current !== undefined ? hp.current : o.currentHp;
+  const hpMaxRaw = hp.max !== undefined ? hp.max : o.maxHp;
+  const hpTempRaw = hp.temp !== undefined ? hp.temp : o.tempHp;
+
   return {
     id: asStr(o.id) || base.id,
     name: asStr(o.name),
@@ -398,9 +400,6 @@ export function normalizePc(input: unknown): PlayerCharacter {
     background: asStr(o.background),
     alignment: asStr(o.alignment),
     abilities: normAbilities(o.abilities),
-    ...(o.abilityModifiers && typeof o.abilityModifiers === 'object'
-      ? { abilityModifiers: o.abilityModifiers as Record<AbilityName, number> }
-      : {}),
     proficiencies: {
       savingThrows,
       skills,
@@ -409,12 +408,11 @@ export function normalizePc(input: unknown): PlayerCharacter {
       armor: asStrArr(prof.armor),
       weapons: asStrArr(prof.weapons),
     },
-    ...(skillExpertise.length > 0 ? { skillExpertise } : {}),
     proficiencyBonus: clampInt(o.proficiencyBonus, 0, 10, 2),
     hp: {
-      current: clampInt(hp.current ?? o.currentHp, -999, 9999, 0),
-      max: clampInt(hp.max ?? o.maxHp, 0, 9999, 0),
-      temp: clampInt(hp.temp ?? o.tempHp, 0, 9999, 0),
+      current: clampInt(hpCurrentRaw, -999, 9999, 0),
+      max: clampInt(hpMaxRaw, 0, 9999, 0),
+      temp: clampInt(hpTempRaw, 0, 9999, 0),
     },
     hitDice: {
       dieSize: clampInt(hd.dieSize, 1, 100, 8),
@@ -433,13 +431,28 @@ export function normalizePc(input: unknown): PlayerCharacter {
     },
     ...(normSpellSlots(o.spellSlots) ? { spellSlots: normSpellSlots(o.spellSlots) } : {}),
     ...(pactSlots ? { pactSlots } : {}),
-    ...(Array.isArray(o.spellsKnown) ? { spellsKnown: asStrArr(o.spellsKnown) } : {}),
+    ...(Array.isArray(o.spellsKnown)
+      ? {
+          spellsKnown: (o.spellsKnown as unknown[])
+            .map((item) => {
+              if (typeof item === 'string') return item;
+              if (item && typeof item === 'object') {
+                const rec = item as Record<string, unknown>;
+                const nm = asStr(rec.name);
+                if (!nm) return '';
+                return rec.concentration === true ? `${nm} [C]` : nm;
+              }
+              return '';
+            })
+            .filter(Boolean),
+        }
+      : {}),
     ...(VALID_ABILITIES.has(spellcastingAbility)
       ? { spellcastingAbility: spellcastingAbility as AbilityName }
       : {}),
     ...(resourcePools ? { resourcePools } : {}),
     inventory: normInventory(o.inventory),
-    ...(o.attunedCount !== undefined ? { attunedCount: clampInt(o.attunedCount, 0, 99, 0) } : {}),
+    ...(o.attunedCount !== undefined ? { attunedCount: clampInt(o.attunedCount, 0, 3, 0) } : {}),
     ...(currency ? { currency } : {}),
     ...(typeof o.partyLoot === 'string' ? { partyLoot: o.partyLoot } : {}),
     attacks: normAttacks(o.attacks),
@@ -452,26 +465,25 @@ export function normalizePc(input: unknown): PlayerCharacter {
     ...(sharedQuests ? { sharedQuests } : {}),
     ...(sharedAnnotations ? { sharedAnnotations } : {}),
     ...(sharedJournal ? { sharedJournal } : {}),
+    ...(Array.isArray(o.quests) ? { quests: o.quests as PlayerQuest[] } : {}),
+    ...(Array.isArray(o.journalEntries) ? { journalEntries: o.journalEntries as PlayerJournalEntry[] } : {}),
     ...(turnEconomy ? { turnEconomy } : {}),
     ...(typeof o.concentrationSpell === 'string' ? { concentrationSpell: o.concentrationSpell } : {}),
     ...(typeof o.downtimeDays === 'number' ? { downtimeDays: clampInt(o.downtimeDays, 0, 99999, 0) } : {}),
-    ...(o.renown && typeof o.renown === 'object'
-      ? { renown: o.renown as Record<string, number> }
-      : typeof o.renown === 'number'
-        ? { renown: o.renown }
-        : {}),
-    ...(typeof o.passivePerception === 'number' ? { passivePerception: Math.round(o.passivePerception) } : {}),
-    ...(typeof o.passiveInvestigation === 'number' ? { passiveInvestigation: Math.round(o.passiveInvestigation) } : {}),
-    ...(typeof o.passiveInsight === 'number' ? { passiveInsight: Math.round(o.passiveInsight) } : {}),
-    ...(typeof o.spellSaveDc === 'number' ? { spellSaveDc: Math.round(o.spellSaveDc) } : {}),
-    ...(typeof o.spellAttackBonus === 'number' ? { spellAttackBonus: Math.round(o.spellAttackBonus) } : {}),
-    ...(typeof o.carryingCapacity === 'number' ? { carryingCapacity: Math.round(o.carryingCapacity) } : {}),
-    ...(Array.isArray(o.senses) ? { senses: asStrArr(o.senses) } : {}),
+    ...(o.renown && typeof o.renown === 'object' ? { renown: o.renown as Record<string, number> } : {}),
+    ...(skillExpertise.length > 0 ? { skillExpertise } : {}),
     ...(Array.isArray(o.resistances) ? { resistances: asStrArr(o.resistances) } : {}),
     ...(Array.isArray(o.immunities) ? { immunities: asStrArr(o.immunities) } : {}),
-    ...(o.evaluation && typeof o.evaluation === 'object'
-      ? { evaluation: o.evaluation as PlayerCharacter['evaluation'] }
-      : {}),
+    ...(Array.isArray(o.senses) ? { senses: asStrArr(o.senses) } : {}),
+    ...(typeof o.backstory === 'string' ? { backstory: o.backstory } : {}),
+    ...(typeof o.privateNotes === 'string' ? { privateNotes: o.privateNotes } : {}),
+    ...(typeof o.gmNotes === 'string' ? { gmNotes: o.gmNotes } : {}),
+    ...(typeof o.gmSecrets === 'string'
+      ? { gmSecrets: o.gmSecrets as unknown as string[] }
+      : Array.isArray(o.gmSecrets)
+        ? { gmSecrets: asStrArr(o.gmSecrets) }
+        : {}),
+    ...(o.evaluation && typeof o.evaluation === 'object' ? { evaluation: o.evaluation as PlayerCharacter['evaluation'] } : {}),
     ownership: normOwnership(o.ownership),
   };
 }

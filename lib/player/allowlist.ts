@@ -74,7 +74,22 @@ export const PLAYER_EDITABLE_FIELDS = [
   'concentrationSpell',  // Active concentration spell name (string)
   'downtimeDays',        // Tracked downtime days (non-negative integer)
   'renown',              // Tracked renown score (integer)
-  'evaluation',          // Tactical & mechanical sheet evaluation summary
+
+  // Character Sheet Evaluation & Mechanical Sync
+  'evaluation',          // Automatic character sheet evaluation & tactical audit
+  'attacks',             // Weapon & spell attacks
+  'spellsKnown',         // Known/prepared spell names
+  'spellcastingAbility', // Primary spellcasting ability
+  'classes',             // Class & subclass levels
+  'race',                // Species / ancestry
+  'background',          // Character background
+  'alignment',           // Character alignment
+  'abilities',           // Full ability score map ({ STR, DEX, CON, INT, WIS, CHA })
+  'proficiencies',       // Saving throw, skill, language, tool, weapon, armor proficiencies
+  'skillExpertise',      // Skills with expertise
+  'resistances',         // Damage resistances
+  'immunities',          // Damage/condition immunities
+  'senses',              // Special senses (e.g., Darkvision 60 ft.)
 ] as const;
 
 export type PlayerEditableField = (typeof PLAYER_EDITABLE_FIELDS)[number];
@@ -108,18 +123,14 @@ const SpellSlotSchema = z.object({
   level: z.number().int().min(1).max(9),
   max: z.number().int().min(0).max(20),
   used: z.number().int().min(0).max(20),
-  current: z.number().int().min(0).max(20).optional(),
-});
-
-const SpellSlotRecordValueSchema = z.object({
-  max: z.number().int().min(0).max(20),
-  used: z.number().int().min(0).max(20),
-  current: z.number().int().min(0).max(20).optional(),
 });
 
 const SpellSlotRecordSchema = z.record(
-  z.enum(['1', '2', '3', '4', '5', '6', '7', '8', '9']),
-  SpellSlotRecordValueSchema,
+  z.string(),
+  z.object({
+    max: z.number().int().min(0).max(20),
+    used: z.number().int().min(0).max(20),
+  }),
 );
 
 const ResourcePoolSchema = z.object({
@@ -138,13 +149,67 @@ const FeatureSchema = z.object({
   usesMax: z.number().int().min(0).optional(),
   usesRemaining: z.number().int().min(0).optional(),
   recharge: z.enum(['short', 'long', 'dawn', 'other']).optional(),
-  uses: z
-    .object({
-      max: z.number().int().min(0),
-      used: z.number().int().min(0),
-      refresh: z.enum(['short', 'long']),
-    })
-    .optional(),
+  uses: z.object({
+    max: z.number().int().min(0),
+    used: z.number().int().min(0),
+    refresh: z.enum(['short', 'long']),
+  }).optional(),
+});
+
+const AttackSchema = z.object({
+  id: z.string().optional(),
+  name: z.string(),
+  attackBonus: z.number().int().min(-20).max(50),
+  damageExpr: z.string(),
+  damageType: z.string(),
+  range: z.string(),
+  notes: z.string().optional(),
+});
+
+const PcClassSchema = z.object({
+  name: z.string(),
+  level: z.number().int().min(1).max(20),
+  subclass: z.string().optional(),
+});
+
+const AbilitiesSchema = z.object({
+  STR: z.number().int().min(1).max(30),
+  DEX: z.number().int().min(1).max(30),
+  CON: z.number().int().min(1).max(30),
+  INT: z.number().int().min(1).max(30),
+  WIS: z.number().int().min(1).max(30),
+  CHA: z.number().int().min(1).max(30),
+});
+
+const ProficienciesSchema = z.object({
+  savingThrows: z.array(z.string()),
+  skills: z.array(z.string()),
+  languages: z.array(z.string()),
+  tools: z.array(z.string()),
+  armor: z.array(z.string()),
+  weapons: z.array(z.string()),
+});
+
+const EvaluationSchema = z.object({
+  partyRoles: z.array(z.enum(['Frontline', 'Striker', 'Controller', 'Support', 'Utility', 'Face'])),
+  defensiveProfile: z.object({
+    acSummary: z.string(),
+    strongestSaves: z.array(z.string()),
+    weakestSaves: z.array(z.string()),
+    resistances: z.array(z.string()),
+    immunities: z.array(z.string()),
+    specialSenses: z.array(z.string()),
+  }),
+  auditNotes: z.array(
+    z.object({
+      id: z.string(),
+      severity: z.enum(['info', 'warning']),
+      category: z.enum(['attunement', 'math', 'concentration', 'resources', 'proficiency']),
+      message: z.string(),
+    }),
+  ),
+  derivedStats: z.record(z.string(), z.any()).optional(),
+  evaluatedAt: z.number().optional(),
 });
 
 const InventoryItemSchema = z.object({
@@ -204,8 +269,7 @@ const PlayerJournalEntrySchema = z.object({
 const TombstoneSchema = z.object({
   id: z.string().min(1),
   kind: z.enum(['quest', 'annotation', 'journal']),
-  deletedAt: z.number().optional(),
-  removedAtMs: z.number().optional(),
+  deletedAt: z.number(),
 });
 
 const TurnEconomySchema = z.object({
@@ -214,53 +278,6 @@ const TurnEconomySchema = z.object({
   movementUsed: z.boolean(),
   reactionUsed: z.boolean(),
   freeInteractionUsed: z.boolean(),
-});
-
-const AbilitySaveEntrySchema = z.object({
-  ability: z.enum(['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']),
-  bonus: z.number().int().min(-20).max(30),
-});
-
-const EvaluationSchema = z.object({
-  partyRoles: z.array(z.enum(['Frontline', 'Striker', 'Controller', 'Support', 'Utility', 'Face'])),
-  defensiveProfile: z.object({
-    ac: z.number().int().min(0).max(50),
-    acSummary: z.string(),
-    strongestSaves: z.array(AbilitySaveEntrySchema),
-    weakestSaves: z.array(AbilitySaveEntrySchema),
-    resistances: z.array(z.string()),
-    immunities: z.array(z.string()),
-    senses: z.array(z.string()),
-  }),
-  auditNotes: z.array(
-    z.object({
-      id: z.string(),
-      severity: z.enum(['info', 'warning']),
-      category: z.enum([
-        'attunement',
-        'ability-math',
-        'ac-math',
-        'concentration',
-        'level-up',
-        'general',
-      ]),
-      message: z.string(),
-    }),
-  ),
-  derivedStats: z
-    .object({
-      abilityModifiers: z.record(z.string(), z.number().int().min(-10).max(20)),
-      proficiencyBonus: z.number().int().min(1).max(10),
-      passivePerception: z.number().int().min(0).max(50),
-      passiveInvestigation: z.number().int().min(0).max(50),
-      passiveInsight: z.number().int().min(0).max(50),
-      spellSaveDc: z.number().int().min(0).max(40).nullable(),
-      spellAttackBonus: z.number().int().min(-10).max(30).nullable(),
-      initiativeBonus: z.number().int().min(-20).max(30),
-      carryingCapacity: z.number().min(0).max(99999),
-    })
-    .optional(),
-  evaluatedAt: z.number().optional(),
 });
 
 /**
@@ -327,6 +344,21 @@ export function validatePlayerField(field: string, value: unknown): boolean {
     case 'features':
       return z.array(FeatureSchema).safeParse(value).success;
 
+    case 'attacks':
+      return z.array(AttackSchema).safeParse(value).success;
+
+    case 'classes':
+      return z.array(PcClassSchema).safeParse(value).success;
+
+    case 'abilities':
+      return AbilitiesSchema.safeParse(value).success;
+
+    case 'proficiencies':
+      return ProficienciesSchema.safeParse(value).success;
+
+    case 'evaluation':
+      return EvaluationSchema.safeParse(value).success;
+
     case 'inventory':
       return z.array(InventoryItemSchema).safeParse(value).success;
 
@@ -339,12 +371,23 @@ export function validatePlayerField(field: string, value: unknown): boolean {
     case 'partyLoot':
     case 'notes':
     case 'concentrationSpell':
+    case 'race':
+    case 'background':
+    case 'alignment':
       return z.string().safeParse(value).success;
+
+    case 'spellcastingAbility':
+      return z.enum(['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']).safeParse(value).success;
 
     case 'goals':
     case 'bonds':
     case 'ideals':
     case 'flaws':
+    case 'spellsKnown':
+    case 'skillExpertise':
+    case 'resistances':
+    case 'immunities':
+    case 'senses':
       return z.array(z.string()).safeParse(value).success;
 
     case 'sharedQuests':
@@ -367,9 +410,6 @@ export function validatePlayerField(field: string, value: unknown): boolean {
 
     case 'renown':
       return z.number().int().min(-999).max(9999).safeParse(value).success;
-
-    case 'evaluation':
-      return EvaluationSchema.safeParse(value).success;
 
     default:
       // Fail-closed for any path that falls outside our switch statement mapping

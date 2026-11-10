@@ -1,16 +1,17 @@
 'use client';
 
-import { useState, useContext } from 'react';
+import React, { useState, useContext, useRef } from 'react';
 import { Plus, Users, FileUp } from 'lucide-react';
 import PcSheet from './PcSheet';
 import { PC_CAP, type PlayerCharacter } from '@/lib/pc/types';
 import { CampaignPlayModeContext } from './CampaignPlayModeContext';
-import { uploadAndMergePcFiles } from './campaignEditor/useCampaignEditor/useSheetUpload';
+import { parseCharacterSheet } from '@/lib/characterSheetParser';
+import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
-  SheetUploadDropzone,
-  SheetUploadToast,
-  type SheetUploadBannerState,
-} from './pcSheet/EvaluationToastAndReport';
+  CharacterSheetUploadToast,
+  ExportAllPartyPdfsButton,
+  type SheetUploadToastState,
+} from './CharacterSheetLifecycleControls';
 
 type Props = {
   pcs: PlayerCharacter[];
@@ -23,61 +24,107 @@ type Props = {
   onUpdate: (pc: PlayerCharacter) => void;
   onRemove: (id: string) => void;
   onUploadClick?: () => void;
-  onWritePcs?: (next: PlayerCharacter[]) => void;
   roster?: { slotId: string; displayName: string }[];
+  onReplaceAllPcs?: (nextPcs: PlayerCharacter[]) => void;
 };
 
 export default function PartyTab({
-  pcs, openMap, uploading, uploadError,
-  onToggleOpen, onAdd, onUpdate, onRemove, onUploadClick, onWritePcs,
+  pcs,
+  openMap,
+  uploading,
+  uploadError,
+  onToggleOpen,
+  onAdd,
+  onUpdate,
+  onRemove,
   roster = [],
+  onReplaceAllPcs,
 }: Props) {
   const playMode = useContext(CampaignPlayModeContext);
   const [promptDismissed, setPromptDismissed] = useState(false);
   const [localUploading, setLocalUploading] = useState(false);
   const [localError, setLocalError] = useState('');
-  const [banner, setBanner] = useState<SheetUploadBannerState | null>(null);
+  const [toast, setToast] = useState<SheetUploadToastState | null>(null);
+  const batchFileInputRef = useRef<HTMLInputElement>(null);
+
   const atCap = pcs.length >= PC_CAP;
+  const isBusy = uploading || localUploading;
+  const activeError = localError || uploadError;
 
-  const isBusy = Boolean(uploading || localUploading);
-  const effectiveError = localError || uploadError;
-
-  const applyPcsList = (next: PlayerCharacter[]) => {
-    if (onWritePcs) {
-      onWritePcs(next);
-    } else {
-      next.forEach((p) => onUpdate(p));
-    }
-  };
+  const showDuetPrompt =
+    playMode === 'duet' &&
+    pcs.length === 1 &&
+    pcs[0].ownership?.ownerType !== 'player' &&
+    !promptDismissed;
+  const singlePc = pcs[0];
 
   const handleBatchFiles = async (files: File[]) => {
-    if (!files.length) return;
+    if (files.length === 0) return;
     setLocalError('');
     setLocalUploading(true);
+    const previousPcs = pcs.map((p) => JSON.parse(JSON.stringify(p)) as PlayerCharacter);
+
     try {
-      const outcome = await uploadAndMergePcFiles(
-        files,
-        pcs,
-        {},
-        (next) => applyPcsList(next),
-      );
-      outcome.evaluatedPcs.forEach((p) => {
-        if (!openMap[p.id]) onToggleOpen(p.id);
-      });
-      setBanner({
-        message: 'Character Evaluated & Saved (Active HP & Spent Resources Preserved)',
-        pcs: outcome.evaluatedPcs,
-        onUndo: () => applyPcsList(outcome.previousPcs),
+      let idToken: string | undefined;
+      try {
+        const user = getFirebaseAuth().currentUser;
+        if (user) idToken = await user.getIdToken();
+      } catch {
+        // Offline Tier 1 still works without auth
+      }
+
+      const workingPcs = [...pcs];
+      let lastEvaluatedPc: PlayerCharacter | null = null;
+      const updatedNames: string[] = [];
+
+      for (const file of files) {
+        const res = await parseCharacterSheet(file, {
+          filename: file.name,
+          mimeType: file.type,
+          existingPcs: workingPcs,
+          authToken: idToken,
+        });
+        lastEvaluatedPc = res.pc;
+        updatedNames.push(res.pc.name || file.name);
+
+        if (res.mergedWithExisting && res.matchedPcId) {
+          const idx = workingPcs.findIndex((p) => p.id === res.matchedPcId);
+          if (idx !== -1) {
+            workingPcs[idx] = res.pc;
+          }
+          onUpdate(res.pc);
+        } else if (workingPcs.length < PC_CAP) {
+          workingPcs.push(res.pc);
+          onUpdate(res.pc);
+        }
+      }
+
+      if (onReplaceAllPcs) {
+        onReplaceAllPcs(workingPcs);
+      }
+
+      setToast({
+        message:
+          updatedNames.length === 1
+            ? `${updatedNames[0]} evaluated & saved.`
+            : `${updatedNames.length} character sheets evaluated & saved (${updatedNames.join(', ')}).`,
+        evaluation: lastEvaluatedPc?.evaluation,
+        onUndo: () => {
+          if (onReplaceAllPcs) {
+            onReplaceAllPcs(previousPcs);
+          } else {
+            for (const prev of previousPcs) {
+              onUpdate(prev);
+            }
+          }
+        },
       });
     } catch (err: any) {
-      setLocalError(err?.message || 'Upload failed');
+      setLocalError(err?.message || 'Failed to parse character sheet.');
     } finally {
       setLocalUploading(false);
     }
   };
-
-  const showDuetPrompt = playMode === 'duet' && pcs.length === 1 && pcs[0].ownership?.ownerType !== 'player' && !promptDismissed;
-  const singlePc = pcs[0];
 
   return (
     <div className="space-y-3">
@@ -89,29 +136,29 @@ export default function PartyTab({
             {pcs.length} / {PC_CAP} characters
           </span>
         </div>
-        <SheetUploadDropzone
-          onFilesSelected={handleBatchFiles}
-          uploading={isBusy}
-          multiple={true}
-          buttonLabel="Drop / Upload Sheets"
-          label="Drop 1 or more sheets (.pdf, .json, .png, .jpg, .webp) — auto-evaluates & preserves active state"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportAllPartyPdfsButton pcs={pcs} compact />
+        </div>
       </div>
-
-      <SheetUploadToast banner={banner} onDismiss={() => setBanner(null)} />
 
       <p className="font-serif text-sm italic text-ink-soft">
         First-class player characters with live HP, abilities, skills, attacks,
-        spell slots, and features. Wired into Scene Mode rolls and Session Mode
-        combat.
+        spell slots, and features. Drop or upload PDF, JSON, or image character sheets
+        for automatic mechanical evaluation and state-preserving level-up merges.
       </p>
+
+      <CharacterSheetUploadToast toast={toast} onDismiss={() => setToast(null)} />
 
       {showDuetPrompt && (
         <div className="animate-fade-in flex flex-col gap-3 rounded border border-teal-500/30 bg-teal-950/10 p-3 shadow-sm backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
-            <h4 className="font-display text-sm font-semibold tracking-wide text-teal-400">Duet Mode Setup</h4>
+            <h4 className="font-display text-sm font-semibold tracking-wide text-teal-400">
+              Duet Mode Setup
+            </h4>
             <p className="font-serif text-xs text-ink-soft">
-              Is <strong className="text-teal-400">{singlePc.name || 'Unnamed PC'}</strong> your player&apos;s character? Duet campaigns are designed around exactly one player-owned character.
+              Is <strong className="text-teal-400">{singlePc.name || 'Unnamed PC'}</strong> your
+              player&apos;s character? Duet campaigns are designed around exactly one player-owned
+              character.
             </p>
           </div>
           <div className="flex items-center gap-2 self-end sm:self-center">
@@ -120,7 +167,7 @@ export default function PartyTab({
                 const firstSlotId = roster?.[0]?.slotId;
                 onUpdate({
                   ...singlePc,
-                  ownership: { ownerType: 'player', playerSlotId: firstSlotId }
+                  ownership: { ownerType: 'player', playerSlotId: firstSlotId },
                 });
               }}
               className="rounded bg-teal-600 px-2.5 py-1 font-display text-xs uppercase tracking-wider text-white transition-colors hover:bg-teal-500"
@@ -148,17 +195,33 @@ export default function PartyTab({
               onRemove={() => onRemove(pc.id)}
               roster={roster}
               allPcs={pcs}
+              onEvaluatedUpload={(updatedPc, previousPc) => {
+                onUpdate(updatedPc);
+                setToast({
+                  message: `${updatedPc.name || 'Character'} evaluated & merged (vitals & spent slots preserved).`,
+                  evaluation: updatedPc.evaluation,
+                  onUndo: () => onUpdate(previousPc),
+                });
+              }}
             />
           </div>
         ))}
         {pcs.length === 0 && (
           <p className="font-serif text-sm italic text-ink-mute">
-            No PCs yet. Click &quot;New PC&quot; or drop character sheets above to build your party.
+            No PCs yet. Click &quot;New PC&quot; or drop `.pdf` / `.json` / image sheets to import.
           </p>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 pt-1">
+      <div
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          const dropped = Array.from(e.dataTransfer.files || []);
+          if (dropped.length > 0) void handleBatchFiles(dropped);
+        }}
+        className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-rule bg-parchment-deep/30 px-3 py-2 pt-2"
+      >
         <button
           onClick={onAdd}
           disabled={atCap}
@@ -167,26 +230,41 @@ export default function PartyTab({
         >
           <Plus size={12} /> New PC
         </button>
-        {onUploadClick && (
-          <button
-            onClick={onUploadClick}
-            disabled={isBusy}
-            className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-crimson hover:text-wine disabled:cursor-wait disabled:opacity-50"
-            title="Upload one or more character sheets (.pdf, .json, .png, .jpg, .webp)"
-          >
-            <FileUp size={12} /> {isBusy ? 'Evaluating & Saving…' : 'Import Sheet as PC'}
-          </button>
-        )}
-        {effectiveError && (
-          <span className="text-xs italic text-crimson" title={effectiveError}>{effectiveError}</span>
+
+        <button
+          type="button"
+          onClick={() => batchFileInputRef.current?.click()}
+          disabled={isBusy}
+          className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-crimson hover:text-wine disabled:cursor-wait disabled:opacity-50"
+          title="Upload one or more character sheets (.pdf, .json, .png, .jpg, .webp) — auto-evaluates & merges"
+        >
+          <FileUp size={12} />{' '}
+          {isBusy ? 'Evaluating Sheet(s)…' : 'Upload / Merge Character Sheet(s)'}
+        </button>
+        <input
+          ref={batchFileInputRef}
+          type="file"
+          multiple
+          accept=".pdf,.json,.png,.jpg,.jpeg,.webp,application/pdf,application/json,image/png,image/jpeg,image/webp"
+          onChange={(e) => {
+            const files = e.target.files ? Array.from(e.target.files) : [];
+            e.target.value = '';
+            void handleBatchFiles(files);
+          }}
+          className="hidden"
+        />
+
+        {activeError && (
+          <span className="text-xs italic text-crimson" title={activeError}>
+            {activeError}
+          </span>
         )}
         {atCap && (
           <span className="font-serif text-xs italic text-ink-mute">
-            Party is full ({PC_CAP} max) — re-uploading an existing character merges in-place.
+            Party is full ({PC_CAP} max — uploading an existing character name still merges).
           </span>
         )}
       </div>
     </div>
   );
 }
-

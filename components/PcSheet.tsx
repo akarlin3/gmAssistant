@@ -1,10 +1,10 @@
 'use client';
 
-import { useMemo, useContext } from 'react';
+import { useMemo, useContext, useRef, useState } from 'react';
 import { CampaignPlayModeContext } from './CampaignPlayModeContext';
 import {
   ChevronDown, ChevronRight, X, Plus, Trash2, Download, Heart, Shield,
-  Moon, Sun, Dice5,
+  Moon, Sun, Dice5, FileUp,
 } from 'lucide-react';
 import {
   abilityMod, formatMod, pcInitiative, pcTotalLevel, proficiencyBonusForLevel,
@@ -24,10 +24,13 @@ import { CONDITIONS } from '@/lib/initiative';
 import { Label, SectionTitle, inputCls, chipBtn } from './pcSheet/primitives';
 import { TextInput, NumInput, Bubbles, ListEditor } from './pcSheet/fields';
 import PlayerSharedQuestsNotesPanel from './PlayerSharedQuestsNotesPanel';
+import { evaluateCharacterSheet } from '@/lib/characterEvaluator';
+import { parseCharacterSheet } from '@/lib/characterSheetParser';
+import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
-  DefensiveProfileInlineBadge,
-  EvaluationReportCard,
-} from './pcSheet/EvaluationToastAndReport';
+  EvaluationReportBadge,
+  ExportSheetPdfButton,
+} from './CharacterSheetLifecycleControls';
 
 type Props = {
   pc: PlayerCharacter;
@@ -37,6 +40,7 @@ type Props = {
   onRemove: () => void;
   roster?: { slotId: string; displayName: string }[];
   allPcs?: PlayerCharacter[];
+  onEvaluatedUpload?: (updatedPc: PlayerCharacter, previousPc: PlayerCharacter) => void;
 };
 
 // ---- main component -----------------------------------------------------
@@ -45,9 +49,44 @@ export default function PcSheet({
   pc, open, onToggleOpen, onChange, onRemove,
   roster = [],
   allPcs = [],
+  onEvaluatedUpload,
 }: Props) {
   const playMode = useContext(CampaignPlayModeContext);
   const totalLevel = useMemo(() => pcTotalLevel(pc), [pc]);
+  const evaluation = useMemo(
+    () => pc.evaluation ?? evaluateCharacterSheet(pc).evaluation,
+    [pc],
+  );
+  const singleUploadRef = useRef<HTMLInputElement>(null);
+  const [uploadingSingle, setUploadingSingle] = useState(false);
+
+  const handleSinglePcUpload = async (file: File) => {
+    setUploadingSingle(true);
+    const prevSnapshot = JSON.parse(JSON.stringify(pc)) as PlayerCharacter;
+    try {
+      let idToken: string | undefined;
+      try {
+        const user = getFirebaseAuth().currentUser;
+        if (user) idToken = await user.getIdToken();
+      } catch {
+        // Offline Tier 1 fallback
+      }
+      const res = await parseCharacterSheet(file, {
+        filename: file.name,
+        mimeType: file.type,
+        existingPc: pc,
+        targetPcId: pc.id,
+        authToken: idToken,
+      });
+      if (onEvaluatedUpload) {
+        onEvaluatedUpload(res.pc, prevSnapshot);
+      } else {
+        onChange(res.pc);
+      }
+    } finally {
+      setUploadingSingle(false);
+    }
+  };
 
   const isPlayerOwned = pc.ownership?.ownerType === 'player';
   const ownerLabel = useMemo(() => {
@@ -186,7 +225,7 @@ export default function PcSheet({
   return (
     <div className="rounded border border-rule bg-parchment shadow-card">
       {/* header */}
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2">
         <button onClick={onToggleOpen} className="text-ink-mute hover:text-ink" aria-label="Toggle">
           {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         </button>
@@ -207,10 +246,33 @@ export default function PcSheet({
             </span>
           </div>
         </button>
+        <EvaluationReportBadge evaluation={evaluation} compact />
         <span className="flex items-center gap-1 font-serif text-[11px] text-ink-soft">
           <Heart size={11} className="text-crimson" /> {pc.hp.current}/{pc.hp.max}
           <Shield size={11} className="ml-1.5 text-brass-deep" /> {pc.ac}
         </span>
+        <button
+          type="button"
+          onClick={() => singleUploadRef.current?.click()}
+          disabled={uploadingSingle}
+          className="gm-tooltip inline-flex items-center gap-1 rounded border border-rule px-1.5 py-0.5 text-[10px] font-semibold text-ink-soft hover:border-crimson hover:text-crimson"
+          title="Upload / Level-Up Sheet for this PC (Preserves Damage & Spent Slots)"
+        >
+          <FileUp size={11} />
+          <span>{uploadingSingle ? 'Merging…' : 'Update Sheet'}</span>
+        </button>
+        <input
+          ref={singleUploadRef}
+          type="file"
+          accept=".pdf,.json,.png,.jpg,.jpeg,.webp,application/pdf,application/json,image/png,image/jpeg,image/webp"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (file) void handleSinglePcUpload(file);
+          }}
+          className="hidden"
+        />
+        <ExportSheetPdfButton pc={pc} mode="gm" compact />
         <button onClick={exportMd} className="gm-tooltip text-ink-mute hover:text-brass-deep" data-tooltip="Export Markdown" title="Export Markdown" aria-label="Export Markdown">
           <Download size={14} />
         </button>
@@ -218,6 +280,7 @@ export default function PcSheet({
           <Trash2 size={14} />
         </button>
       </div>
+
 
       {!open ? null : (
         <div className="space-y-3 border-t border-rule p-3">

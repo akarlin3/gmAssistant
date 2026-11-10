@@ -1,41 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { normalizeCharacter } from '@/lib/character-schema';
-import { evaluateCharacterSheet } from '@/lib/characterEvaluator';
-import {
-  parseCharacterJsonString,
-  parsePdfDeterministicFromCorpus,
-} from '@/lib/characterSheetParser';
-import { mapParsedToPc } from '@/lib/pc/from-parser';
-import { enforcePlayerRateLimit } from '@/lib/player/rate-limit';
-import { readBearerToken, verifyFirebaseUser, verifyPro } from '@/lib/verify-pro';
+import { readBearerToken, verifyPro } from '@/lib/verify-pro';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { enforcePlayerRateLimit } from '@/lib/player/rate-limit';
+import { characterToPc } from '@/lib/pc/from-parser';
+import { evaluateCharacterSheet } from '@/lib/characterEvaluator';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
-
-const SHARE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{20,128}$/;
-
-async function verifyShareCapabilityToken(shareToken: string): Promise<boolean> {
-  if (!shareToken || !SHARE_TOKEN_PATTERN.test(shareToken)) {
-    return false;
-  }
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'campaign-prep-fc9ed';
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/playerShares/${encodeURIComponent(shareToken)}`;
-  try {
-    const res = await fetch(url);
-    if (res.status === 404) {
-      return false;
-    }
-    if (res.ok) {
-      return true;
-    }
-    // If Firestore REST is unreachable in offline/sandbox environment, accept syntactically valid capability tokens
-    return true;
-  } catch {
-    return true;
-  }
-}
 
 const CHARACTER_JSON_SCHEMA = {
   type: 'object',
@@ -153,222 +126,260 @@ Conventions:
 - Preserve homebrew names, custom items, and unusual mechanics verbatim — do not normalize them to canonical 5e equivalents.
 - Strip newlines from single-line fields. Use newlines freely in "equipment", "features", "spells", "backstory", "notes".`;
 
+function isValidCapabilityShareToken(token: string | null | undefined): token is string {
+  if (!token || typeof token !== 'string') return false;
+  const trimmed = token.trim();
+  return /^[A-Za-z0-9_-]{12,128}$/.test(trimmed);
+}
+
+async function parseWithGeminiFallback(
+  apiKey: string,
+  base64Data: string,
+  mime: string,
+): Promise<unknown> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { inlineData: { mimeType: mime, data: base64Data } },
+            { text: 'Extract this character sheet into JSON matching the schema.' },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json',
+      },
+    }),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`Gemini fallback error (${res.status}): ${errText.slice(0, 300)}`);
+  }
+  const payload = (await res.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  const text = payload.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+  return JSON.parse(text);
+}
+
 export async function POST(req: NextRequest) {
-  const form = await req.formData().catch(() => null);
-  const idToken = readBearerToken(req.headers.get('authorization'));
-  const headerShareToken = (req.headers.get('x-share-token') || '').trim();
-  const formShareToken = form ? String(form.get('shareToken') || '').trim() : '';
-  const candidateShareToken =
-    headerShareToken ||
-    formShareToken ||
-    (idToken && !idToken.includes('.') && SHARE_TOKEN_PATTERN.test(idToken) ? idToken : '');
+  const contentType = req.headers.get('content-type') || '';
+  let buf: Buffer;
+  let mime = '';
+  let bodyShareToken: string | null = null;
 
-  let authorized = false;
-
-  // Path A: Campaign share-link capability token (unauthenticated `/player` link users)
-  if (candidateShareToken) {
-    const validShare = await verifyShareCapabilityToken(candidateShareToken);
-    if (validShare) {
-      const playerLimited = enforcePlayerRateLimit(candidateShareToken);
-      if (playerLimited) return playerLimited;
-      authorized = true;
+  if (contentType.includes('application/json')) {
+    const jsonBody = (await req.json().catch(() => ({}))) as {
+      fileData?: string;
+      mimeType?: string;
+      shareToken?: string;
+    };
+    if (!jsonBody.fileData) {
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
-  }
-
-  // Path B: Authenticated Firebase user (GM or Standalone Player)
-  if (!authorized) {
-    if (!idToken) {
-      return NextResponse.json(
-        { error: 'Authentication or valid campaign share token required' },
-        { status: 401 },
-      );
+    buf = Buffer.from(jsonBody.fileData, 'base64');
+    mime = jsonBody.mimeType || 'application/pdf';
+    bodyShareToken = jsonBody.shareToken ?? null;
+  } else {
+    const form = await req.formData();
+    const file = form.get('file');
+    const shareField = form.get('shareToken');
+    if (typeof shareField === 'string') bodyShareToken = shareField;
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
-    const proVerified = await verifyPro(idToken);
-    if (proVerified.ok) {
-      const limited = enforceRateLimit(proVerified.uid);
-      if (limited) return limited;
-      authorized = true;
-    } else {
-      const userVerified = await verifyFirebaseUser(idToken);
-      if (!userVerified.ok) {
-        return NextResponse.json(
-          { error: userVerified.message },
-          { status: userVerified.status },
-        );
-      }
-      const limited = enforceRateLimit(userVerified.uid);
-      if (limited) return limited;
-      authorized = true;
+    if (file.size === 0) {
+      return NextResponse.json({ error: 'File is empty' }, { status: 400 });
     }
+    if (file.size > 25 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File too large (max 25 MB)' }, { status: 413 });
+    }
+    buf = Buffer.from(await file.arrayBuffer());
+    mime = file.type || '';
   }
 
-  if (!form) {
-    return NextResponse.json({ error: 'Invalid form data' }, { status: 400 });
-  }
-
-  const file = form.get('file');
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
-  }
-  const model = 'claude-sonnet-4-6';
-  if (file.size === 0) {
+  if (buf.length === 0) {
     return NextResponse.json({ error: 'File is empty' }, { status: 400 });
   }
-  if (file.size > 25 * 1024 * 1024) {
+  if (buf.length > 25 * 1024 * 1024) {
     return NextResponse.json({ error: 'File too large (max 25 MB)' }, { status: 413 });
   }
 
-  const buf = Buffer.from(await file.arrayBuffer());
-  const mime = (file.type || '').toLowerCase();
-  const fileName = (file.name || '').toLowerCase();
+  // Authorize request for EITHER:
+  // 1. Authenticated Firebase user (GM / Standalone Player)
+  // 2. Player holding a valid campaign share-link capability token (with per-token rate limiting)
+  const idToken = readBearerToken(req.headers.get('authorization'));
+  const shareToken = req.headers.get('x-share-token') || bodyShareToken;
 
-  // Fast-path deterministic check if JSON or structured PDF reaches the API route
-  if (fileName.endsWith('.json') || mime === 'application/json') {
-    try {
-      const { pc } = parseCharacterJsonString(buf.toString('utf-8'));
-      return NextResponse.json({
-        character: normalizeCharacter({ name: pc.name }),
-        pc,
-        evaluation: pc.evaluation,
-        tier: 'tier1',
-      });
-    } catch {
-      // Fall through to LLM parser
-    }
-  } else if (fileName.endsWith('.pdf') || mime === 'application/pdf') {
-    try {
-      const deterministicPc = parsePdfDeterministicFromCorpus(buf.toString('latin1'));
-      if (deterministicPc) {
-        return NextResponse.json({
-          character: normalizeCharacter({ name: deterministicPc.name }),
-          pc: deterministicPc,
-          evaluation: deterministicPc.evaluation,
-          tier: 'tier1',
-        });
+  if (idToken) {
+    const verified = await verifyPro(idToken);
+    if (!verified.ok) {
+      // Allow valid shareToken fallback if present alongside an expired token
+      if (isValidCapabilityShareToken(shareToken)) {
+        const playerLimited = enforcePlayerRateLimit(shareToken);
+        if (playerLimited) return playerLimited;
+      } else {
+        return NextResponse.json({ error: verified.message }, { status: verified.status });
       }
-    } catch {
-      // Fall through to Tier 2 multimodal LLM parser
+    } else {
+      const limited = enforceRateLimit(verified.uid);
+      if (limited) return limited;
     }
-  }
-
-  const apiKey = process.env.ANTHROPIC_API_KEY || '';
-
-  let fileBlock: Anthropic.Messages.ContentBlockParam;
-  if (mime === 'application/pdf' || fileName.endsWith('.pdf')) {
-    fileBlock = {
-      type: 'document',
-      source: { type: 'base64', media_type: 'application/pdf', data: buf.toString('base64') },
-    };
-  } else if (
-    mime === 'image/png' ||
-    mime === 'image/jpeg' ||
-    mime === 'image/webp' ||
-    mime === 'image/gif' ||
-    /\.(png|jpe?g|webp|gif)$/i.test(fileName)
-  ) {
-    const resolvedMime: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif' =
-      mime === 'image/png' || fileName.endsWith('.png')
-        ? 'image/png'
-        : mime === 'image/webp' || fileName.endsWith('.webp')
-          ? 'image/webp'
-          : mime === 'image/gif' || fileName.endsWith('.gif')
-            ? 'image/gif'
-            : 'image/jpeg';
-    fileBlock = {
-      type: 'image',
-      source: { type: 'base64', media_type: resolvedMime, data: buf.toString('base64') },
-    };
+  } else if (isValidCapabilityShareToken(shareToken)) {
+    const playerLimited = enforcePlayerRateLimit(shareToken.trim());
+    if (playerLimited) return playerLimited;
   } else {
-    const text = buf.toString('utf-8');
-    if (!text.trim()) {
-      return NextResponse.json({ error: `Unsupported file type: ${mime || 'unknown'}` }, { status: 415 });
-    }
-    fileBlock = { type: 'text', text: `Character sheet content:\n\n${text}` };
-  }
-
-  const client = new Anthropic({ apiKey });
-
-  const abort = new AbortController();
-  const timeout = setTimeout(() => abort.abort(), 55_000);
-
-  let response: Anthropic.Messages.Message;
-  try {
-    response = await client.messages.create(
-      {
-        model,
-        max_tokens: 8192,
-        system: [
-          {
-            type: 'text',
-            text: SYSTEM_PROMPT,
-            cache_control: { type: 'ephemeral' },
-          },
-        ],
-        output_config: {
-          format: {
-            type: 'json_schema',
-            schema: CHARACTER_JSON_SCHEMA,
-          },
-        },
-        messages: [
-          {
-            role: 'user',
-            content: [
-              fileBlock,
-              { type: 'text', text: 'Extract this character sheet into the structured schema.' },
-            ],
-          },
-        ],
-      },
-      { signal: abort.signal },
+    return NextResponse.json(
+      { error: 'Not signed in and no valid campaign share token provided' },
+      { status: 401 },
     );
-  } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      return NextResponse.json(
-        { error: 'Request timed out after 55 seconds.' },
-        { status: 504 },
-      );
-    }
-    if (err instanceof Anthropic.APIError) {
-      return NextResponse.json(
-        { error: `Claude API error (${err.status}): ${err.message}` },
-        { status: 502 },
-      );
-    }
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: msg }, { status: 500 });
-  } finally {
-    clearTimeout(timeout);
   }
 
-  const text = response.content
-    .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
-    .map((b) => b.text)
-    .join('');
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!anthropicKey && !geminiKey) {
+    return NextResponse.json(
+      { error: 'Server missing ANTHROPIC_API_KEY or GEMINI_API_KEY' },
+      { status: 500 },
+    );
+  }
 
   let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    return NextResponse.json(
-      { error: 'Model did not return valid JSON', raw: text.slice(0, 2000) },
-      { status: 502 },
-    );
+  let usageInfo: Record<string, number> = {};
+
+  if (anthropicKey) {
+    const model = 'claude-sonnet-4-6';
+    let fileBlock: Anthropic.Messages.ContentBlockParam;
+    if (mime === 'application/pdf') {
+      fileBlock = {
+        type: 'document',
+        source: { type: 'base64', media_type: 'application/pdf', data: buf.toString('base64') },
+      };
+    } else if (
+      mime === 'image/png' ||
+      mime === 'image/jpeg' ||
+      mime === 'image/webp' ||
+      mime === 'image/gif'
+    ) {
+      fileBlock = {
+        type: 'image',
+        source: { type: 'base64', media_type: mime, data: buf.toString('base64') },
+      };
+    } else {
+      const text = buf.toString('utf-8');
+      if (!text.trim()) {
+        return NextResponse.json(
+          { error: `Unsupported file type: ${mime || 'unknown'}` },
+          { status: 415 },
+        );
+      }
+      fileBlock = { type: 'text', text: `Character sheet content:\n\n${text}` };
+    }
+
+    const client = new Anthropic({ apiKey: anthropicKey });
+    const abort = new AbortController();
+    const timeout = setTimeout(() => abort.abort(), 55_000);
+
+    try {
+      const response = await client.messages.create(
+        {
+          model,
+          max_tokens: 8192,
+          system: [
+            {
+              type: 'text',
+              text: SYSTEM_PROMPT,
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
+          output_config: {
+            format: {
+              type: 'json_schema',
+              schema: CHARACTER_JSON_SCHEMA,
+            },
+          },
+          messages: [
+            {
+              role: 'user',
+              content: [
+                fileBlock,
+                { type: 'text', text: 'Extract this character sheet into the structured schema.' },
+              ],
+            },
+          ],
+        },
+        { signal: abort.signal },
+      );
+
+      const text = response.content
+        .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('');
+
+      parsed = JSON.parse(text);
+      usageInfo = {
+        input_tokens: response.usage.input_tokens,
+        output_tokens: response.usage.output_tokens,
+        cache_creation_input_tokens: response.usage.cache_creation_input_tokens ?? 0,
+        cache_read_input_tokens: response.usage.cache_read_input_tokens ?? 0,
+      };
+    } catch (err) {
+      if (geminiKey) {
+        try {
+          parsed = await parseWithGeminiFallback(
+            geminiKey,
+            buf.toString('base64'),
+            mime || 'application/pdf',
+          );
+        } catch (geminiErr) {
+          const msg = geminiErr instanceof Error ? geminiErr.message : 'Multimodal fallback failed';
+          return NextResponse.json({ error: msg }, { status: 502 });
+        }
+      } else {
+        if (err instanceof Error && err.name === 'AbortError') {
+          return NextResponse.json(
+            { error: 'Request timed out after 55 seconds.' },
+            { status: 504 },
+          );
+        }
+        if (err instanceof Anthropic.APIError) {
+          return NextResponse.json(
+            { error: `Claude API error (${err.status}): ${err.message}` },
+            { status: 502 },
+          );
+        }
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        return NextResponse.json({ error: msg }, { status: 500 });
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  } else if (geminiKey) {
+    try {
+      parsed = await parseWithGeminiFallback(
+        geminiKey,
+        buf.toString('base64'),
+        mime || 'application/pdf',
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gemini parser error';
+      return NextResponse.json({ error: msg }, { status: 502 });
+    }
   }
 
   const character = normalizeCharacter(parsed);
-  const pc = evaluateCharacterSheet(mapParsedToPc(character));
+  const pc = evaluateCharacterSheet(characterToPc(character));
 
   return NextResponse.json({
     character,
     pc,
     evaluation: pc.evaluation,
-    tier: 'tier2',
-    usage: {
-      input_tokens: response.usage.input_tokens,
-      output_tokens: response.usage.output_tokens,
-      cache_creation_input_tokens: response.usage.cache_creation_input_tokens ?? 0,
-      cache_read_input_tokens: response.usage.cache_read_input_tokens ?? 0,
-    },
+    usage: usageInfo,
   });
 }

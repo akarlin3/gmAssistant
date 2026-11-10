@@ -8,7 +8,7 @@
 
 import type { Character } from '../character-schema';
 import { proficiencyBonusForLevel } from './derived';
-import { emptyPc, makePcId } from './factory';
+import { emptyPc, makePcId, normalizePc } from './factory';
 import { SKILL_ABILITIES } from './skills';
 import {
   ABILITY_NAMES,
@@ -134,7 +134,7 @@ export function mapParsedToPc(parsed: Character): PlayerCharacter {
     (x) => x && x.trim(),
   );
 
-  return {
+  return normalizePc({
     ...base,
     id: makePcId(),
     name: parsed.name || 'Unnamed',
@@ -170,5 +170,7 @@ export function mapParsedToPc(parsed: Character): PlayerCharacter {
     bonds: splitLines(parsed.bonds),
     ideals: splitLines(parsed.ideals),
     flaws: splitLines(parsed.flaws),
-  };
+  });
 }
+
+export const characterToPc = mapParsedToPc;

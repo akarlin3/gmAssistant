@@ -72,6 +72,9 @@ import PlayerSafeLoreView from '@/components/PlayerSafeLoreView';
 import SessionDeltaLogPanel from '@/components/world/SessionDeltaLogPanel';
 import LoreRagAssistant from '@/components/LoreRagAssistant';
 import K1CPrintQueuePanel from '@/components/printQueue/K1CPrintQueuePanel';
+import { normalizePcs } from '@/lib/pc/factory';
+import { PartyRunTrackerSection } from '@/components/CharacterSheetLifecycleControls';
+
 
 interface LiveSessionCockpitProps {
   campaignId?: string;
@@ -1228,7 +1231,13 @@ export default function LiveSessionCockpit({
               </button>
             </div>
           </section>
+
+          <PartyRunTrackerSection
+            pcs={normalizePcs(state.pcs ?? [])}
+            onUpdatePcs={(nextPcs) => setState((prev) => ({ ...prev, pcs: nextPcs }))}
+          />
         </div>
+
 
         {/* -----------------------------------------------------------------
             MODULE 1B: PINNED ACTIVE SCENE CARD (MODULES 2 & 3 WIRED)

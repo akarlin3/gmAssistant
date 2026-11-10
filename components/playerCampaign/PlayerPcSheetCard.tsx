@@ -7,18 +7,15 @@
 // by the GM.
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { X, Plus, Heart, Sparkles, Shield, Zap, Footprints, Moon, Sun, Flame, Dice5 } from 'lucide-react';
+import { X, Plus, Heart, Sparkles, Shield, Zap, Footprints, Moon, Sun, Flame, Dice5, FileUp } from 'lucide-react';
 import { submitPlayerUpdate, submitPlayerBatchUpdate } from '@/lib/playerMode/playerClient';
-import { parseCharacterSheetFile } from '@/lib/characterSheetParser';
-import { mergeUploadedCharacterSheet, buildPlayerWritebackFromMergedPc } from '@/lib/characterMerge';
-import { normalizePc } from '@/lib/pc/factory';
+import type { PactMagicSlots, PcEvaluation, PcResourcePool, RechargeTiming, SpellSlotGroup } from '@/lib/pc/types';
 import {
-  SheetUploadDropzone,
-  SheetUploadToast,
-  DefensiveProfileInlineBadge,
-  type SheetUploadBannerState,
-} from '../pcSheet/EvaluationToastAndReport';
-import type { CharacterEvaluation, PactMagicSlots, PcResourcePool, PlayerCharacter, RechargeTiming, SpellSlotGroup } from '@/lib/pc/types';
+  ExportSheetPdfButton,
+  EvaluationReportBadge,
+  CharacterSheetUploadToast,
+  type SheetUploadToastState,
+} from '@/components/CharacterSheetLifecycleControls';
 import {
   ABILITY_KEYS,
   CONDITION_OPTIONS,
@@ -134,14 +131,6 @@ export default function PlayerPcSheetCard({
   const [localSpellSlots, setLocalSpellSlots] = useState<SpellSlotGroup[]>(() => getInitialValue('spellSlots', pc.spellSlots ?? []));
   const [localPactSlots, setLocalPactSlots] = useState<PactMagicSlots | null>(() => getInitialValue('pactSlots', pc.pactSlots ?? null));
   const [localResourcePools, setLocalResourcePools] = useState<PcResourcePool[]>(() => getInitialValue('resourcePools', pc.resourcePools ?? []));
-  const [localEvaluation, setLocalEvaluation] = useState<CharacterEvaluation | undefined>(() =>
-    getInitialValue('evaluation', pc.evaluation),
-  );
-
-  // Sheet upload state
-  const [uploadingSheet, setUploadingSheet] = useState(false);
-  const [sheetUploadError, setSheetUploadError] = useState<string | null>(null);
-  const [uploadBanner, setUploadBanner] = useState<SheetUploadBannerState | null>(null);
 
   // New resource pool inline form state
   const [newPoolName, setNewPoolName] = useState('');
@@ -580,90 +569,182 @@ export default function PlayerPcSheetCard({
     sendUpdate(field, current);
   };
 
-  const applyMergedPcToLocalState = (target: PlayerCharacter) => {
-    setLocalHp(target.hp.current);
-    setLocalMaxHp(target.hp.max);
-    setLocalTempHp(target.hp.temp);
-    setLocalHitDice({
-      dieSize: ([4, 6, 8, 10, 12].includes(target.hitDice.dieSize) ? target.hitDice.dieSize : 8) as 4 | 6 | 8 | 10 | 12,
-      max: target.hitDice.max,
-      used: target.hitDice.used,
-    });
-    setLocalAc(target.ac);
-    setLocalSpeed(target.speed);
-    setLocalInitMod(target.initiativeMod);
-    setLocalInspiration(Boolean(target.inspiration));
-    setLocalNotes(target.notes ?? '');
-    setLocalExhaustion(target.exhaustion ?? 0);
-    setLocalDeathSaves(target.deathSaves);
-    setLocalConditions(target.conditions ?? []);
-    const slotGroups: SpellSlotGroup[] = Array.isArray(target.spellSlots)
-      ? target.spellSlots
-      : target.spellSlots
-      ? Object.entries(target.spellSlots)
-          .filter(([, s]) => s && s.max > 0)
-          .map(([lvl, s]) => ({
-            level: Number(lvl) as SpellSlotGroup['level'],
-            max: s.max,
-            used: s.used,
-          }))
-          .sort((a, b) => a.level - b.level)
-      : [];
-    setLocalSpellSlots(slotGroups);
-    setLocalPactSlots(target.pactSlots ?? null);
-    setLocalResourcePools(target.resourcePools ?? []);
-    setLocalEvaluation(target.evaluation);
+  const [localEvaluation, setLocalEvaluation] = useState<PcEvaluation | undefined>(() =>
+    getInitialValue('evaluation', pc.evaluation),
+  );
+  const [uploadingSheet, setUploadingSheet] = useState(false);
+  const [sheetUploadError, setSheetUploadError] = useState<string | null>(null);
+  const [uploadToast, setUploadToast] = useState<SheetUploadToastState | null>(null);
+  const [dragOverCard, setDragOverCard] = useState(false);
+  const sheetFileInputRef = useRef<HTMLInputElement>(null);
 
-    const listFields: PcListField[] = ['goals', 'bonds', 'ideals', 'flaws'];
-    for (const f of listFields) {
-      const val = target[f];
-      if (Array.isArray(val)) {
-        saveStagedEdit(campaignId, pc.id, f, val);
-      }
-    }
+  const buildCurrentPcForLifecycle = () => ({
+    ...pc,
+    hp: { current: localHp, max: localMaxHp, temp: localTempHp },
+    hitDice: localHitDice,
+    ac: localAc,
+    speed: localSpeed,
+    initiativeMod: localInitMod,
+    inspiration: localInspiration,
+    notes: localNotes,
+    exhaustion: localExhaustion,
+    deathSaves: localDeathSaves,
+    conditions: localConditions,
+    spellSlots: localSpellSlots,
+    pactSlots: localPactSlots,
+    resourcePools: localResourcePools,
+    evaluation: localEvaluation ?? pc.evaluation,
+  });
 
-    const writebackUpdates = buildPlayerWritebackFromMergedPc(target);
-    void sendBatchUpdate(writebackUpdates);
-  };
-
-  const handlePlayerSheetFilesSelected = async (files: File[]) => {
-    const file = files[0];
-    if (!file) return;
-    setUploadingSheet(true);
+  const handleUploadCharacterSheet = async (file: File) => {
     setSheetUploadError(null);
+    setUploadingSheet(true);
 
-    const currentPcSnapshot = normalizePc({
-      ...pc,
-      hp: { current: localHp, max: localMaxHp, temp: localTempHp },
+    const prevLocalSnapshot = {
+      hp: localHp,
+      maxHp: localMaxHp,
+      tempHp: localTempHp,
       hitDice: localHitDice,
       ac: localAc,
       speed: localSpeed,
-      initiativeMod: localInitMod,
+      initMod: localInitMod,
       inspiration: localInspiration,
-      notes: localNotes,
       exhaustion: localExhaustion,
-      deathSaves: localDeathSaves,
       conditions: localConditions,
       spellSlots: localSpellSlots,
       pactSlots: localPactSlots,
       resourcePools: localResourcePools,
       evaluation: localEvaluation,
-      ownership: { ownerType: 'player', playerSlotId: slotId },
-    });
+    };
 
     try {
-      const parsed = await parseCharacterSheetFile(file, { shareToken: token });
-      const merged = mergeUploadedCharacterSheet(currentPcSnapshot, parsed.pc, {
-        isFullStateBackup: parsed.isFullStateBackup,
+      const { parseCharacterSheet } = await import('@/lib/characterSheetParser');
+      const existingPc = buildCurrentPcForLifecycle();
+      const res = await parseCharacterSheet(file, {
+        existingPc: existingPc as any,
+        targetPcId: pc.id,
+        targetSlotId: slotId,
+        shareToken: token,
       });
-      applyMergedPcToLocalState(merged);
-      setUploadBanner({
-        message: 'Character Evaluated & Saved (Active HP & Spent Resources Preserved)',
-        pcs: [merged],
-        onUndo: () => applyMergedPcToLocalState(currentPcSnapshot),
+
+      const merged = res.pc;
+      const nextHp = merged.hp?.current ?? localHp;
+      const nextMaxHp = merged.hp?.max ?? localMaxHp;
+      const nextTempHp = merged.hp?.temp ?? localTempHp;
+      const nextHitDice = {
+        dieSize: (merged.hitDice?.dieSize ?? localHitDice.dieSize) as 4 | 6 | 8 | 10 | 12,
+        max: merged.hitDice?.max ?? localHitDice.max,
+        used: merged.hitDice?.used ?? localHitDice.used,
+      };
+      const nextAc = merged.ac ?? localAc;
+      const nextSpeed = merged.speed ?? localSpeed;
+      const nextInitMod = merged.initiativeMod ?? localInitMod;
+      const nextInspiration = Boolean(merged.inspiration ?? localInspiration);
+      const nextExhaustion = merged.exhaustion ?? localExhaustion;
+      const nextConditions = merged.conditions ?? localConditions;
+      const nextSpellSlots: SpellSlotGroup[] = Array.isArray(merged.spellSlots)
+        ? (merged.spellSlots as SpellSlotGroup[])
+        : merged.spellSlots && typeof merged.spellSlots === 'object'
+          ? Object.entries(merged.spellSlots)
+              .filter(([k, v]) => !Number.isNaN(Number(k)) && v && typeof v === 'object')
+              .map(([k, v]) => ({
+                level: Number(k),
+                max: Number((v as any).max ?? 0),
+                used: Number((v as any).used ?? Math.max(0, Number((v as any).max ?? 0) - Number((v as any).current ?? 0))),
+              }))
+          : localSpellSlots;
+      const nextPactSlots = merged.pactSlots ?? localPactSlots;
+      const nextResourcePools = merged.resourcePools ?? localResourcePools;
+
+      setLocalHp(nextHp);
+      setLocalMaxHp(nextMaxHp);
+      setLocalTempHp(nextTempHp);
+      setLocalHitDice(nextHitDice);
+      setLocalAc(nextAc);
+      setLocalSpeed(nextSpeed);
+      setLocalInitMod(nextInitMod);
+      setLocalInspiration(nextInspiration);
+      setLocalExhaustion(nextExhaustion);
+      setLocalConditions(nextConditions);
+      setLocalSpellSlots(nextSpellSlots);
+      setLocalPactSlots(nextPactSlots);
+      setLocalResourcePools(nextResourcePools);
+      setLocalEvaluation(res.evaluation);
+
+      const updates: Record<string, unknown> = {
+        'hp.current': nextHp,
+        'hp.max': nextMaxHp,
+        'hp.temp': nextTempHp,
+        hitDice: nextHitDice,
+        ac: nextAc,
+        speed: nextSpeed,
+        initiativeMod: nextInitMod,
+        inspiration: nextInspiration,
+        exhaustion: nextExhaustion,
+        conditions: nextConditions,
+        spellSlots: nextSpellSlots,
+        pactSlots: nextPactSlots,
+        resourcePools: nextResourcePools,
+        features: merged.features ?? [],
+        attacks: merged.attacks ?? [],
+        spellsKnown: merged.spellsKnown ?? [],
+        spellcastingAbility: merged.spellcastingAbility ?? null,
+        classes: merged.classes ?? [],
+        race: merged.race ?? '',
+        background: merged.background ?? '',
+        alignment: merged.alignment ?? '',
+        abilities: merged.abilities,
+        proficiencies: merged.proficiencies,
+        skillExpertise: merged.skillExpertise ?? [],
+        resistances: merged.resistances ?? [],
+        immunities: merged.immunities ?? [],
+        senses: merged.senses ?? [],
+        inventory: merged.inventory ?? [],
+        attunedCount: merged.attunedCount ?? 0,
+        currency: merged.currency,
+        evaluation: res.evaluation,
+      };
+
+      await sendBatchUpdate(updates);
+
+      setUploadToast({
+        message: `${merged.name || pc.name || 'Character'} (Lv ${merged.level}) · Active HP & resources preserved`,
+        evaluation: res.evaluation,
+        onUndo: () => {
+          setLocalHp(prevLocalSnapshot.hp);
+          setLocalMaxHp(prevLocalSnapshot.maxHp);
+          setLocalTempHp(prevLocalSnapshot.tempHp);
+          setLocalHitDice(prevLocalSnapshot.hitDice);
+          setLocalAc(prevLocalSnapshot.ac);
+          setLocalSpeed(prevLocalSnapshot.speed);
+          setLocalInitMod(prevLocalSnapshot.initMod);
+          setLocalInspiration(prevLocalSnapshot.inspiration);
+          setLocalExhaustion(prevLocalSnapshot.exhaustion);
+          setLocalConditions(prevLocalSnapshot.conditions);
+          setLocalSpellSlots(prevLocalSnapshot.spellSlots);
+          setLocalPactSlots(prevLocalSnapshot.pactSlots);
+          setLocalResourcePools(prevLocalSnapshot.resourcePools);
+          setLocalEvaluation(prevLocalSnapshot.evaluation);
+          void sendBatchUpdate({
+            'hp.current': prevLocalSnapshot.hp,
+            'hp.max': prevLocalSnapshot.maxHp,
+            'hp.temp': prevLocalSnapshot.tempHp,
+            hitDice: prevLocalSnapshot.hitDice,
+            ac: prevLocalSnapshot.ac,
+            speed: prevLocalSnapshot.speed,
+            initiativeMod: prevLocalSnapshot.initMod,
+            inspiration: prevLocalSnapshot.inspiration,
+            exhaustion: prevLocalSnapshot.exhaustion,
+            conditions: prevLocalSnapshot.conditions,
+            spellSlots: prevLocalSnapshot.spellSlots,
+            pactSlots: prevLocalSnapshot.pactSlots,
+            resourcePools: prevLocalSnapshot.resourcePools,
+            ...(prevLocalSnapshot.evaluation ? { evaluation: prevLocalSnapshot.evaluation } : {}),
+          });
+        },
       });
     } catch (err: any) {
-      setSheetUploadError(err?.message || 'Failed to parse character sheet');
+      setSheetUploadError(err?.message || 'Failed to parse character sheet.');
     } finally {
       setUploadingSheet(false);
     }
@@ -676,11 +757,26 @@ export default function PlayerPcSheetCard({
   const hitDiceRemaining = Math.max(0, localHitDice.max - localHitDice.used);
 
   return (
-    <div className="space-y-4 rounded-lg border border-rule bg-parchment p-4 shadow-md sm:p-5">
-      {/* Identity & Rest Bar */}
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragOverCard(true);
+      }}
+      onDragLeave={() => setDragOverCard(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOverCard(false);
+        const file = e.dataTransfer?.files?.[0];
+        if (file) void handleUploadCharacterSheet(file);
+      }}
+      className={`space-y-4 rounded-lg border p-4 shadow-md transition sm:p-5 ${
+        dragOverCard ? 'border-emerald-500 bg-emerald-500/5' : 'border-rule bg-parchment'
+      }`}
+    >
+      {/* Identity, Sheet Upload/Export & Rest Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-rule pb-3">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-display text-xl font-semibold tracking-wide text-ink">
               {pc.name || 'Unnamed Character'}
             </h3>
@@ -697,22 +793,39 @@ export default function PlayerPcSheetCard({
               <Sparkles size={11} />
               {localInspiration ? 'Inspired' : 'No Inspiration'}
             </button>
+            <EvaluationReportBadge evaluation={localEvaluation ?? pc.evaluation} compact />
           </div>
           <p className="font-serif text-xs italic text-ink-mute">
             {[pc.race, classesLabel].filter(Boolean).join(' · ')}
           </p>
-          <DefensiveProfileInlineBadge evaluation={localEvaluation ?? pc.evaluation} compact />
         </div>
 
-        {/* Sheet Upload + 1-Tap Short Rest & Long Rest Recovery Buttons */}
+        {/* Upload Sheet, Export Fillable PDF & 1-Tap Short/Long Rest Recovery Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          <SheetUploadDropzone
-            onFilesSelected={handlePlayerSheetFilesSelected}
-            uploading={uploadingSheet}
-            multiple={false}
-            compact
-            buttonLabel="Upload / Update Sheet"
-            label="Drop .pdf, .json, or image character sheet to auto-evaluate & sync"
+          <button
+            type="button"
+            onClick={() => sheetFileInputRef.current?.click()}
+            disabled={uploadingSheet}
+            className="inline-flex items-center gap-1.5 rounded border border-brass-deep/60 bg-brass/15 px-2.5 py-1.5 font-mono text-xs font-semibold text-brass-deep transition-colors hover:bg-brass/25 disabled:opacity-50"
+            title="Upload or drop a Character Sheet (.pdf, .json, .png/.jpg) to evaluate and sync while preserving active HP & spent slots"
+          >
+            <FileUp size={13} />
+            {uploadingSheet ? 'Evaluating…' : 'Upload Sheet'}
+          </button>
+          <input
+            ref={sheetFileInputRef}
+            type="file"
+            accept=".pdf,.json,.png,.jpg,.jpeg,.webp,application/pdf,application/json,image/png,image/jpeg,image/webp"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) void handleUploadCharacterSheet(file);
+            }}
+            className="hidden"
+          />
+          <ExportSheetPdfButton
+            pc={buildCurrentPcForLifecycle() as any}
+            mode="player"
           />
           <button
             type="button"
@@ -733,9 +846,9 @@ export default function PlayerPcSheetCard({
         </div>
       </div>
 
-      <SheetUploadToast
-        banner={uploadBanner}
-        onDismiss={() => setUploadBanner(null)}
+      <CharacterSheetUploadToast
+        toast={uploadToast}
+        onDismiss={() => setUploadToast(null)}
       />
 
       {sheetUploadError && (

@@ -53,8 +53,23 @@ export type PcResourcePool = {
 
 export type PactMagicSlots = {
   level: SpellSlotLevel;
+  slotLevel?: SpellSlotLevel;
   max: number;
   used: number;
+};
+
+export type SpellSlotGroupItem = {
+  level: number;
+  max: number;
+  used: number;
+};
+
+export type SpellSlotsRecord = Partial<Record<SpellSlotLevel, SpellSlot>> & {
+  some?: (predicate: (slot: SpellSlotGroupItem) => boolean) => boolean;
+  find?: (predicate: (slot: SpellSlotGroupItem) => boolean) => SpellSlotGroupItem | undefined;
+  map?: <T>(fn: (slot: SpellSlotGroupItem) => T) => T[];
+  filter?: (predicate: (slot: SpellSlotGroupItem) => boolean) => SpellSlotGroupItem[];
+  forEach?: (fn: (slot: SpellSlotGroupItem) => void) => void;
 };
 
 export type CoinPurse = {
@@ -183,7 +198,7 @@ export type PlayerCharacter = {
   exhaustion: ExhaustionLevel;
   deathSaves: { successes: DeathSaveCount; failures: DeathSaveCount };
 
-  spellSlots?: Partial<Record<SpellSlotLevel, SpellSlot>>;
+  spellSlots?: SpellSlotsRecord;
   pactSlots?: PactMagicSlots | null;
   spellsKnown?: string[];
   spellcastingAbility?: AbilityName;
@@ -205,6 +220,8 @@ export type PlayerCharacter = {
   sharedQuests?: PlayerQuest[];
   sharedAnnotations?: PlayerLoreAnnotation[];
   sharedJournal?: PlayerJournalEntry[];
+  quests?: PlayerQuest[];
+  journalEntries?: PlayerJournalEntry[];
 
   turnEconomy?: TurnActionEconomy;
   concentrationSpell?: string;
@@ -212,71 +229,49 @@ export type PlayerCharacter = {
   renown?: number | Record<string, number>;
   updatedAt?: number;
 
-  // Derived & evaluated mechanical fields
-  abilityModifiers?: Record<AbilityName, number>;
+  skillExpertise?: SkillName[];
+  resistances?: string[];
+  immunities?: string[];
+  senses?: string[];
+  backstory?: string;
+  privateNotes?: string;
+  gmNotes?: string;
+  gmSecrets?: string | string[];
+  evaluation?: PcEvaluation;
+
+  // Optional flat aliases populated by normalizePc / evaluateCharacterSheet
+  currentHp?: number;
+  maxHp?: number;
+  tempHp?: number;
   passivePerception?: number;
   passiveInvestigation?: number;
   passiveInsight?: number;
-  spellSaveDc?: number;
-  spellAttackBonus?: number;
+  spellSaveDc?: number | null;
+  spellAttackBonus?: number | null;
   carryingCapacity?: number;
-  senses?: string[];
-  resistances?: string[];
-  immunities?: string[];
-  skillExpertise?: SkillName[];
-  evaluation?: CharacterEvaluation;
 
   ownership?: PcOwnership;
 };
 
-export type PartyRole =
-  | 'Frontline'
-  | 'Striker'
-  | 'Controller'
-  | 'Support'
-  | 'Utility'
-  | 'Face';
+export type PartyRole = 'Frontline' | 'Striker' | 'Controller' | 'Support' | 'Utility' | 'Face';
 
-export const PARTY_ROLES: readonly PartyRole[] = [
-  'Frontline',
-  'Striker',
-  'Controller',
-  'Support',
-  'Utility',
-  'Face',
-];
-
-export type DefensiveSaveEntry = {
-  ability: AbilityName;
-  bonus: number;
-};
-
-export type DefensiveProfile = {
-  ac: number;
+export type PcDefensiveProfile = {
   acSummary: string;
-  strongestSaves: DefensiveSaveEntry[];
-  weakestSaves: DefensiveSaveEntry[];
+  strongestSaves: string[];
+  weakestSaves: string[];
   resistances: string[];
   immunities: string[];
-  senses: string[];
+  specialSenses: string[];
 };
 
-export type CharacterAuditCategory =
-  | 'attunement'
-  | 'ability-math'
-  | 'ac-math'
-  | 'concentration'
-  | 'level-up'
-  | 'general';
-
-export type CharacterAuditNote = {
+export type PcAuditNote = {
   id: string;
   severity: 'info' | 'warning';
-  category: CharacterAuditCategory;
+  category: 'attunement' | 'math' | 'concentration' | 'resources' | 'proficiency';
   message: string;
 };
 
-export type CharacterDerivedStats = {
+export type PcDerivedStats = {
   abilityModifiers: Record<AbilityName, number>;
   proficiencyBonus: number;
   passivePerception: number;
@@ -288,11 +283,11 @@ export type CharacterDerivedStats = {
   carryingCapacity: number;
 };
 
-export type CharacterEvaluation = {
+export type PcEvaluation = {
   partyRoles: PartyRole[];
-  defensiveProfile: DefensiveProfile;
-  auditNotes: CharacterAuditNote[];
-  derivedStats?: CharacterDerivedStats;
+  defensiveProfile: PcDefensiveProfile;
+  auditNotes: PcAuditNote[];
+  derivedStats: PcDerivedStats;
   evaluatedAt?: number;
 };
 

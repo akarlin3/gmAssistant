@@ -30,6 +30,8 @@ export const SKILL_NAMES: readonly SkillName[] = Object.keys(
   SKILL_ABILITIES,
 ) as SkillName[];
 
+export const ALL_SKILLS: readonly SkillName[] = SKILL_NAMES;
+
 export function skillModifier(pc: PlayerCharacter, skill: SkillName): number {
   const ability = SKILL_ABILITIES[skill];
   const base = abilityMod(pc.abilities[ability]);
@@ -47,6 +49,8 @@ export function savingThrowModifier(
     : 0;
   return base + prof;
 }
+
+export const savingThrowBonus = savingThrowModifier;
 
 export function passivePerception(pc: PlayerCharacter): number {
   return 10 + skillModifier(pc, 'Perception');

@@ -2,116 +2,13 @@
 
 import React from 'react';
 import { getFirebaseAuth } from '@/lib/firebase/client';
-import { makeCharacterId, type Character } from '@/lib/character-schema';
-import { parseCharacterSheetFile } from '@/lib/characterSheetParser';
-import { findMatchingPc, mergeUploadedCharacterSheet } from '@/lib/characterMerge';
+import { normalizeCharacter, makeCharacterId, type Character } from '@/lib/character-schema';
 import { syncAttackMacros } from '@/lib/pc/macros';
 import type { PlayerCharacter } from '@/lib/pc/types';
 import type { PcMacros } from '@/lib/pc/macros';
 import { PC_CAP } from '@/lib/pc/types';
+import { parseCharacterSheet } from '@/lib/characterSheetParser';
 import { mapPcToLegacyCharacter } from '../mapPcToLegacyCharacter';
-
-async function resolveOptionalIdToken(): Promise<string | undefined> {
-  try {
-    const user = getFirebaseAuth().currentUser;
-    if (!user) return undefined;
-    return await user.getIdToken();
-  } catch {
-    return undefined;
-  }
-}
-
-export type BatchSheetUploadOutcome = {
-  previousPcs: PlayerCharacter[];
-  previousMacros: PcMacros;
-  nextPcs: PlayerCharacter[];
-  evaluatedPcs: PlayerCharacter[];
-  uploadedPcs: PlayerCharacter[];
-  mergedCount: number;
-  createdCount: number;
-};
-
-/**
- * Parse, evaluate, and delta-merge one or more uploaded character sheet files
- * (.pdf, .json, .png, .jpg, .jpeg, .webp) into the campaign's PC roster.
- */
-export async function uploadAndMergePcFiles(
-  files: File[],
-  pcs: PlayerCharacter[],
-  pcMacros: PcMacros = {},
-  writePcs?: (next: PlayerCharacter[], macros?: PcMacros) => void,
-  setOpenPcs?: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
-  options?: {
-    targetPcId?: string;
-    targetSlotId?: string;
-    shareToken?: string;
-  },
-): Promise<BatchSheetUploadOutcome> {
-  const previousPcs = [...pcs];
-  const previousMacros = { ...pcMacros };
-  let workingPcs = [...pcs];
-  let workingMacros = { ...pcMacros };
-  const evaluatedPcs: PlayerCharacter[] = [];
-  let mergedCount = 0;
-  let createdCount = 0;
-
-  const idToken = await resolveOptionalIdToken();
-
-  for (const file of files) {
-    const { pc: parsedPc, isFullStateBackup } = await parseCharacterSheetFile(file, {
-      idToken,
-      shareToken: options?.shareToken,
-    });
-
-    const match = findMatchingPc(
-      workingPcs,
-      parsedPc,
-      files.length === 1 ? options?.targetPcId : undefined,
-      files.length === 1 ? options?.targetSlotId : undefined,
-    );
-
-    if (match) {
-      const merged = mergeUploadedCharacterSheet(match, parsedPc, {
-        isFullStateBackup,
-      });
-      workingPcs = workingPcs.map((p) => (p.id === match.id ? merged : p));
-      workingMacros = syncAttackMacros(merged, workingMacros);
-      evaluatedPcs.push(merged);
-      mergedCount++;
-      setOpenPcs?.((o) => ({ ...o, [merged.id]: true }));
-    } else {
-      if (workingPcs.length >= PC_CAP) {
-        if (files.length === 1) {
-          throw new Error(`Party is full (${PC_CAP} max)`);
-        }
-        continue;
-      }
-      const freshPc: PlayerCharacter = {
-        ...parsedPc,
-        ...(options?.targetSlotId
-          ? { ownership: { ownerType: 'player', playerSlotId: options.targetSlotId } }
-          : {}),
-      };
-      workingPcs = [...workingPcs, freshPc];
-      workingMacros = syncAttackMacros(freshPc, workingMacros);
-      evaluatedPcs.push(freshPc);
-      createdCount++;
-      setOpenPcs?.((o) => ({ ...o, [freshPc.id]: true }));
-    }
-  }
-
-  writePcs?.(workingPcs, workingMacros);
-
-  return {
-    previousPcs,
-    previousMacros,
-    nextPcs: workingPcs,
-    evaluatedPcs,
-    uploadedPcs: evaluatedPcs,
-    mergedCount,
-    createdCount,
-  };
-}
 
 /** Upload a legacy character sheet and append it to the characters list. */
 export async function uploadCharacterSheet(
@@ -127,9 +24,19 @@ export async function uploadCharacterSheet(
   setCharUploadError('');
   setUploadingChar(true);
   try {
-    const idToken = await resolveOptionalIdToken();
-    const { pc } = await parseCharacterSheetFile(file, { idToken });
-    const legacy = mapPcToLegacyCharacter(pc);
+    let idToken: string | undefined;
+    try {
+      const user = getFirebaseAuth().currentUser;
+      if (user) idToken = await user.getIdToken();
+    } catch {
+      // Allow offline Tier 1 parsing even without Firebase auth
+    }
+    const parsedResult = await parseCharacterSheet(file, {
+      filename: file.name,
+      mimeType: file.type,
+      authToken: idToken,
+    });
+    const legacy = normalizeCharacter(mapPcToLegacyCharacter(parsedResult.pc));
     const fresh: Character = { ...legacy, id: makeCharacterId() };
     onSuccess(fresh);
   } catch (err: any) {
@@ -139,7 +46,7 @@ export async function uploadCharacterSheet(
   }
 }
 
-/** Upload one or more PC sheets and delta-merge or append them to the pcs list. */
+/** Upload one or more PC sheets (batch party upload supported), evaluate, state-preserving merge, and save. */
 export async function uploadPcSheet(
   e: React.ChangeEvent<HTMLInputElement>,
   pcs: PlayerCharacter[],
@@ -148,27 +55,51 @@ export async function uploadPcSheet(
   setUploadingPc: (v: boolean) => void,
   writePcs: (next: PlayerCharacter[], macros?: PcMacros) => void,
   setOpenPcs: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
-  onEvaluated?: (outcome: BatchSheetUploadOutcome) => void,
 ) {
-  const fileList = e.target.files;
-  const files = fileList ? Array.from(fileList) : [];
+  const fileList = e.target.files ? Array.from(e.target.files) : [];
   e.target.value = '';
-  if (files.length === 0) return;
+  if (fileList.length === 0) return;
   setPcUploadError('');
   setUploadingPc(true);
   try {
-    const outcome = await uploadAndMergePcFiles(
-      files,
-      pcs,
-      pcMacros,
-      writePcs,
-      setOpenPcs,
-    );
-    onEvaluated?.(outcome);
+    let idToken: string | undefined;
+    try {
+      const user = getFirebaseAuth().currentUser;
+      if (user) idToken = await user.getIdToken();
+    } catch {
+      // Allow offline Tier 1 parsing
+    }
+
+    let workingPcs = [...pcs];
+    let workingMacros = { ...pcMacros };
+    const newlyOpened: Record<string, boolean> = {};
+
+    for (const file of fileList) {
+      const result = await parseCharacterSheet(file, {
+        filename: file.name,
+        mimeType: file.type,
+        existingPcs: workingPcs,
+        authToken: idToken,
+      });
+      const pc = result.pc;
+      if (result.mergedWithExisting && result.matchedPcId) {
+        workingPcs = workingPcs.map((p) => (p.id === result.matchedPcId ? pc : p));
+      } else {
+        if (workingPcs.length >= PC_CAP) {
+          setPcUploadError(`Party cap (${PC_CAP}) reached; some new sheets were skipped.`);
+          break;
+        }
+        workingPcs.push(pc);
+      }
+      workingMacros = syncAttackMacros(pc, workingMacros);
+      newlyOpened[pc.id] = true;
+    }
+
+    writePcs(workingPcs, workingMacros);
+    setOpenPcs((o) => ({ ...o, ...newlyOpened }));
   } catch (err: any) {
     setPcUploadError(err?.message || 'Upload failed');
   } finally {
     setUploadingPc(false);
   }
 }
-

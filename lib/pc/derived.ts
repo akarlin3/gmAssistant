@@ -2,7 +2,7 @@
 // bonus, total level, initiative. These are the single source of truth for
 // every auto-computed stat shown on the sheet and consumed by integrations.
 
-import type { PlayerCharacter } from './types';
+import type { AbilityName, PlayerCharacter } from './types';
 
 export function abilityMod(score: number): number {
   if (typeof score !== 'number' || Number.isNaN(score)) return 0;
@@ -15,6 +15,17 @@ export function proficiencyBonusForLevel(level: number): number {
   if (level >= 9) return 4;
   if (level >= 5) return 3;
   return 2;
+}
+
+export function savingThrowBonus(
+  pc: PlayerCharacter,
+  ability: AbilityName,
+): number {
+  const base = abilityMod(pc.abilities?.[ability] ?? 10);
+  const prof = pc.proficiencies?.savingThrows?.includes(ability)
+    ? (pc.proficiencyBonus || proficiencyBonusForLevel(pc.level || 1))
+    : 0;
+  return base + prof;
 }
 
 export function pcTotalLevel(pc: PlayerCharacter): number {
