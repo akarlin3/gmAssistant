@@ -53,6 +53,10 @@ import { TableStageShell } from './tableStage/TableStageShell';
 import { GuidedEmptyState } from './ui/GuidedEmptyState';
 import { PlayerPrivacyPill } from './ui/VisibilityBadge';
 import { MentionText } from './wiki/MentionText';
+import { readMaps, type CampaignMap } from '@/lib/maps/types';
+import ExternalTablePiP, { VoiceDictationButton } from './ExternalTablePiP';
+import TacticalMapStage from './TacticalMapStage';
+import GeminiBridgeModal from './GeminiBridgeModal';
 
 export type PlayerCompanionTabId = 'sheet' | 'quests' | 'world' | 'gear' | 'play';
 
@@ -291,6 +295,9 @@ export default function PlayerCompanionWorkspace({
     });
   };
 
+  const [geminiModalOpen, setGeminiModalOpen] = useState(false);
+  const mapsList = useMemo(() => readMaps({ maps: get('maps', []) }), [get]);
+
   return (
     <div className="space-y-4">
       {/* Standalone Player Companion Mode Banner & Tab Navigation */}
@@ -304,25 +311,52 @@ export default function PlayerCompanionWorkspace({
               Adventurer&apos;s Notebook &amp; Table HUD — built for playing in any campaign.
             </span>
           </div>
-          {pcs.length > 1 && (
-            <div className="flex items-center gap-1.5">
-              <span className="font-mono text-[10px] uppercase text-ink-faint">Character:</span>
-              {pcs.map((pc, idx) => (
-                <button
-                  key={pc.id}
-                  type="button"
-                  onClick={() => setSelectedPcIdx(idx)}
-                  className={`rounded border px-2 py-0.5 font-display text-xs ${
-                    selectedPcIdx === idx
-                      ? 'border-indigo-500 bg-indigo-500/15 text-indigo-600 font-semibold'
-                      : 'border-rule bg-parchment text-ink-soft'
-                  }`}
-                >
-                  {pc.name || `PC ${idx + 1}`}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <ExternalTablePiP
+              role="standalone-player"
+              activePc={activePc ?? null}
+              latestFeedLine={companionJournal[0]?.content ?? companionQuests[0]?.title}
+              onAdjustPcHp={(delta) => {
+                if (!activePc) return;
+                const nextHp = Math.max(
+                  0,
+                  Math.min(activePc.maxHp || 10, (activePc.currentHp ?? activePc.maxHp ?? 10) + delta),
+                );
+                patchActivePc({ currentHp: nextHp });
+              }}
+              onAdjustPcAc={(delta) => {
+                if (!activePc) return;
+                patchActivePc({ ac: Math.max(1, (activePc.ac || 10) + delta) });
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setGeminiModalOpen(true)}
+              className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 font-mono text-[11px] font-semibold text-amber-800 hover:bg-amber-500/25 dark:text-amber-200"
+              title="Open Zero-Key Gemini Journal & Recap Bridge"
+            >
+              <Sparkles size={12} /> Gemini Journal Bridge
+            </button>
+            {pcs.length > 1 && (
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono text-[10px] uppercase text-ink-faint">Character:</span>
+                {pcs.map((pc, idx) => (
+                  <button
+                    key={pc.id}
+                    type="button"
+                    onClick={() => setSelectedPcIdx(idx)}
+                    className={`rounded border px-2 py-0.5 font-display text-xs ${
+                      selectedPcIdx === idx
+                        ? 'border-indigo-500 bg-indigo-500/15 text-indigo-600 font-semibold'
+                        : 'border-rule bg-parchment text-ink-soft'
+                    }`}
+                  >
+                    {pc.name || `PC ${idx + 1}`}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <nav
@@ -1832,6 +1866,16 @@ export default function PlayerCompanionWorkspace({
                     </div>
                   </div>
                 </section>
+
+                <TacticalMapStage
+                  role="standalone-player"
+                  maps={mapsList}
+                  pcs={pcs}
+                  npcs={npcs as Array<{ id?: string; name: string }>}
+                  activePcId={activePc?.id}
+                  activePcColor="#38bdf8"
+                  onChangeMaps={(nextMaps: CampaignMap[]) => setVal('maps', nextMaps)}
+                />
               </div>
             }
             rightHudRail={
@@ -1884,6 +1928,38 @@ export default function PlayerCompanionWorkspace({
           />
         </div>
       )}
+
+      <GeminiBridgeModal
+        open={geminiModalOpen}
+        onClose={() => setGeminiModalOpen(false)}
+        campaignId="standalone_player"
+        campaignName={activePc?.name ? `${activePc.name}'s Campaign` : 'Player Companion'}
+        campaignData={{
+          pcs,
+          npcs,
+          locations,
+          factions,
+          __playerCompanionQuests: companionQuests,
+          __playerCompanionJournal: companionJournal,
+        }}
+        role="player"
+        playerState={{
+          pcName: activePc?.name,
+          quests: companionQuests,
+          journal: companionJournal,
+          revealedEntities: allMentionableEntities,
+        }}
+        onApplyCampaignData={(nextData) => {
+          if (Array.isArray(nextData.__playerCompanionJournal)) {
+            setCompanionJournal(nextData.__playerCompanionJournal);
+          }
+          if (Array.isArray(nextData.__playerCompanionQuests)) {
+            setCompanionQuests(nextData.__playerCompanionQuests);
+          }
+          if (Array.isArray(nextData.npcs)) setVal('npcs', nextData.npcs);
+          if (Array.isArray(nextData.locations)) setVal('locations', nextData.locations);
+        }}
+      />
     </div>
   );
 }

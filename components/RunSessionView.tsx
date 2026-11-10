@@ -3,15 +3,23 @@
 import { useMemo, useState, useEffect } from 'react';
 import {
   Eye, EyeOff, Check, Swords, NotebookPen, Users, Wrench,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Sparkles,
 } from 'lucide-react';
 import { normalizePcs } from '@/lib/pc/factory';
 import type { HomebrewMonster } from './MonstersTab';
 import { makeEvent, type ChangeEvent } from '@/lib/sessionEvents';
 import type { CampaignContext } from '@/lib/generators/types';
 import { normalizeItem } from '@/lib/playerMode/types';
-import type { PlayerConfig } from '@/lib/playerMode/types';
+import type { PlayerConfig, CampaignWhisper, HandoutCard } from '@/lib/playerMode/types';
 import type { PlayerLogEntry } from '@/lib/playerMode/sessionLog';
+import type { InitiativeState } from '@/lib/initiative';
+import { normalizeWorldClockState } from '@/lib/worldClock';
+import { readMaps, type CampaignMap } from '@/lib/maps/types';
+import WorldClockBar from './WorldClockBar';
+import ExternalTablePiP, { VoiceDictationButton } from './ExternalTablePiP';
+import WhisperDrawer from './WhisperDrawer';
+import HandoutOverlay from './HandoutOverlay';
+import TacticalMapStage from './TacticalMapStage';
 import {
   type Get, type SetVal, type PinKind, type PinRef, type SectionKey, SECTION_KEYS,
 } from './runSession/types';
@@ -36,19 +44,41 @@ export { QuickDice, QuickInspire } from './runSession/widgets';
 export { MusicPlayer } from './runSession/MusicPlayer';
 
 export default function RunSessionView({
-  get, setVal, characters, onEndSession, onExitWithoutEnding, onOpenLibrary, campaignContext, campaignId, campaignName,
+  get, setVal, characters, pcs: pcsProp, onUpdatePcs, activePauseSignal, onDismissPauseSignal, onOpenGeminiBridge,
+  onEndSession, onExitWithoutEnding, onOpenLibrary, campaignContext, campaignId, campaignName,
   sessionPlaylistAnchor, setSessionPlaylistAnchor,
 }: Props) {
   const [section, setSection] = useState<Record<SectionKey, boolean>>({
     scenes: true, secrets: true, npcs: true, locations: true,
     monsters: true, magicItems: true, goals: true, clocks: true,
   });
-  const party = useMemo(() => normalizePcs(get('pcs', [])), [get]);
+  const party = useMemo(() => pcsProp ?? normalizePcs(get('pcs', [])), [pcsProp, get]);
+  const writePartyPcs = (nextPcs: typeof party) => {
+    if (onUpdatePcs) onUpdatePcs(nextPcs);
+    else setVal('pcs', nextPcs);
+  };
   const strongStartDone = !!get('__sessionStrongStartDelivered', false);
   const [toast, setToast] = useState<string | null>(null);
 
   const playerConfig = useMemo(() => (get('player', {}) as PlayerConfig) || {}, [get]);
   const playerLog = useMemo(() => (get('playerLog', []) as PlayerLogEntry[]) || [], [get]);
+  const worldClockState = useMemo(() => normalizeWorldClockState(get('worldClock', undefined)), [get]);
+  const mapsList = useMemo(() => readMaps({ maps: get('maps', []) }), [get]);
+  const gmWhispers = useMemo(() => (get('whispers', []) as CampaignWhisper[]) || [], [get]);
+  const handoutGallery = useMemo(() => (get('handoutGallery', []) as HandoutCard[]) || [], [get]);
+  const activeHandoutFlashId = (get('activeHandoutFlashId', null) as string | null) ?? null;
+  const activeHandoutFlash = useMemo(
+    () => (activeHandoutFlashId ? handoutGallery.find((h) => h.id === activeHandoutFlashId) ?? null : null),
+    [activeHandoutFlashId, handoutGallery],
+  );
+
+  const handleFlashHandout = (card: HandoutCard) => {
+    const existing = handoutGallery.filter((h) => h.id !== card.id);
+    const nextGallery = [card, ...existing];
+    setVal('handoutGallery', nextGallery);
+    setVal('activeHandoutFlashId', card.id);
+    setToast(`Flashed "${card.title}" to party screens!`);
+  };
 
   const { publishState } = useAutoPublish({
     get, setVal, playerConfig, playerLog, campaignId, campaignName, sessionPlaylistAnchor,
@@ -252,6 +282,89 @@ export default function RunSessionView({
           onEndSession={onEndSession}
         />
 
+        {/* In-World Calendar, Time Tracker & Automated 'dawn' / Timer Triggers */}
+        <WorldClockBar
+          role="gm"
+          worldClock={worldClockState}
+          pcs={party}
+          factionClocksCount={clocks.length}
+          onChangeWorldClock={(nextClock) => setVal('worldClock', nextClock)}
+          onUpdatePcs={(nextPcs) => writePartyPcs(nextPcs)}
+          onAwardPartyDowntimeDay={() => {
+            const nextPcs = party.map((pc) => ({
+              ...pc,
+              downtimeDays: (pc.downtimeDays ?? 0) + 1,
+            }));
+            writePartyPcs(nextPcs);
+            setToast('Awarded +1 Downtime Day to all party PCs!');
+          }}
+        />
+
+        {/* Tabletop OS Ergonomics, Whispers, Handouts & Zero-Key Gemini Bridge Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rule bg-parchment-soft px-3 py-2 shadow-sm">
+          <ExternalTablePiP
+            role="gm"
+            campaignName={campaignName}
+            initiative={(get('__initiative', null) as InitiativeState | null)}
+            activePc={party[0] ?? null}
+            latestFeedLine={
+              playerLog[playerLog.length - 1]?.text ??
+              events[events.length - 1]?.summary ??
+              scratchpad
+            }
+            onAdjustPcHp={(delta) => {
+              const first = party[0];
+              if (!first) return;
+              const nextHp = Math.max(0, Math.min(first.maxHp || 10, (first.currentHp ?? first.maxHp ?? 10) + delta));
+              writePartyPcs(party.map((p, idx) => (idx === 0 ? { ...p, currentHp: nextHp } : p)));
+            }}
+            onAdjustPcAc={(delta) => {
+              const first = party[0];
+              if (!first) return;
+              const nextAc = Math.max(1, (first.ac || 10) + delta);
+              writePartyPcs(party.map((p, idx) => (idx === 0 ? { ...p, ac: nextAc } : p)));
+            }}
+          />
+
+          <div className="flex flex-wrap items-center gap-2">
+            <WhisperDrawer
+              role="gm"
+              roster={roster}
+              gmWhispers={gmWhispers}
+              pcs={party}
+              activePauseSignal={activePauseSignal}
+              onDismissPauseSignal={onDismissPauseSignal}
+              tableSafetyEnabled={playerConfig.tableSafetyEnabled !== false}
+              onToggleTableSafetyEnabled={(enabled) =>
+                setVal('player', { ...playerConfig, tableSafetyEnabled: enabled })
+              }
+              onGmSendWhisper={(w) => {
+                setVal('whispers', [...gmWhispers, w]);
+                setToast('Sent secret whisper to selected player slot(s)');
+              }}
+            />
+
+            <HandoutOverlay
+              role="gm"
+              handouts={handoutGallery}
+              activeFlash={activeHandoutFlash}
+              onFlashHandout={handleFlashHandout}
+              onClearActiveFlash={() => setVal('activeHandoutFlashId', null)}
+            />
+
+            {onOpenGeminiBridge && (
+              <button
+                type="button"
+                onClick={onOpenGeminiBridge}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-500/25 dark:text-amber-200"
+                title="Open Zero-Key Gemini Studio & Recap Bridge (⌘G)"
+              >
+                <Sparkles size={13} /> Gemini Bridge (⌘G)
+              </button>
+            )}
+          </div>
+        </div>
+
         <SectionNav
           onNavigate={(k) => {
             setSection(s => ({ ...s, [k]: true }));
@@ -282,6 +395,26 @@ export default function RunSessionView({
           sceneDescriptions={sceneDescriptions}
           onUnpin={togglePin}
           onOpenStatBlock={(slug) => setStatBlockSlug(slug)}
+        />
+
+        {/* Lightweight Fog-of-War Map Stage, Token Pins & Live Player Pings */}
+        <TacticalMapStage
+          role="gm"
+          maps={mapsList}
+          pcs={party}
+          npcs={npcs}
+          onChangeMaps={(nextMaps: CampaignMap[]) => setVal('maps', nextMaps)}
+          onFlashMapAsHandout={(m) => {
+            handleFlashHandout({
+              id: `handout_map_${m.id}_${Date.now()}`,
+              title: m.name || 'Tactical Map',
+              kind: 'image',
+              body: 'Revealed tactical map handout.',
+              imageUrl: m.imageUrl,
+              flashedAtMs: Date.now(),
+              visibility: { mode: 'party' },
+            });
+          }}
         />
 
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_360px]">
@@ -336,7 +469,24 @@ export default function RunSessionView({
                         >
                           <Eye size={12} />
                         </button>
-                        <span className={`font-serif text-sm ${revealed ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{s}</span>
+                        <span className={`flex-1 font-serif text-sm ${revealed ? 'text-ink-mute line-through' : 'text-ink-soft'}`}>{s}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleFlashHandout({
+                              id: `handout_secret_${i}_${Date.now()}`,
+                              title: `Clue & Lore Parchment #${i + 1}`,
+                              kind: 'letter',
+                              body: s,
+                              flashedAtMs: Date.now(),
+                              visibility: { mode: 'party' },
+                            })
+                          }
+                          className="rounded border border-brass-deep/60 bg-brass/10 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
+                          title="Flash this secret/clue as a full-screen parchment Handout to the party"
+                        >
+                          ⚡ Flash Handout
+                        </button>
                       </li>
                     );
                   })}
@@ -448,6 +598,16 @@ export default function RunSessionView({
               get={get}
               shareToPlayerLog={shareToPlayerLog}
               pushEvent={pushEvent}
+              onFlashItemAsHandout={(item) =>
+                handleFlashHandout({
+                  id: `handout_item_${item.id}_${Date.now()}`,
+                  title: item.name || 'Relic',
+                  kind: 'magic_item',
+                  body: item.description || 'A mysterious relic discovered during the session.',
+                  flashedAtMs: Date.now(),
+                  visibility: { mode: 'party' },
+                })
+              }
             />
 
             <SectionShell id="section-goals" title={SECTION_META.goals.label} icon={SECTION_META.goals.icon} open={section.goals} onToggle={() => toggleSection('goals')} count={pcGoals.length}>
@@ -550,7 +710,14 @@ export default function RunSessionView({
           </div>
         </div>
 
-        <NoteSeed pushEvent={pushEvent} />
+        <NoteSeed
+          pushEvent={pushEvent}
+          mentionableNames={[
+            ...npcs.map((n: any) => n?.name).filter(Boolean),
+            ...locations.map((l: any) => l?.name).filter(Boolean),
+            ...factions.map((f: any) => f?.name).filter(Boolean),
+          ]}
+        />
       </div>
 
       {/* Mobile Tools Drawer */}
@@ -585,6 +752,16 @@ export default function RunSessionView({
             placeholder="Session scratchpad — what happened, threads, open questions. Seeds the log when you end the session."
             rows={2}
             className="flex-1 resize-y rounded border border-rule bg-parchment-soft px-2 py-1.5 font-serif text-sm text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
+          />
+          <VoiceDictationButton
+            entityNames={[
+              ...npcs.map((n: any) => n?.name).filter(Boolean),
+              ...locations.map((l: any) => l?.name).filter(Boolean),
+              ...factions.map((f: any) => f?.name).filter(Boolean),
+            ]}
+            onTranscript={(spoken) =>
+              setScratchpad(`${scratchpad ? `${scratchpad} ` : ''}${spoken}`)
+            }
           />
         </div>
       </div>

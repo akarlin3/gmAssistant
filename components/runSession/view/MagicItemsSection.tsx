@@ -30,6 +30,7 @@ type Props = {
   get: (key: string, fallback: unknown) => unknown;
   shareToPlayerLog: (text: string) => void;
   pushEvent: (e: ChangeEvent) => void;
+  onFlashItemAsHandout?: (item: NormalizedItem) => void;
 };
 
 export function MagicItemsSection({
@@ -47,6 +48,7 @@ export function MagicItemsSection({
   get,
   shareToPlayerLog,
   pushEvent,
+  onFlashItemAsHandout,
 }: Props) {
   const sectionKey: SectionKey = 'magicItems';
 
@@ -93,6 +95,16 @@ export function MagicItemsSection({
                       {item.name || 'Unnamed Item'}
                     </div>
                     <div className="flex items-center gap-1">
+                      {onFlashItemAsHandout && (
+                        <button
+                          type="button"
+                          onClick={() => onFlashItemAsHandout(item)}
+                          className="rounded border border-brass-deep/60 bg-brass/10 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
+                          title="Flash this Magic Item as a full-screen Handout to the party"
+                        >
+                          ⚡ Flash Handout
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           if (isShared) return;

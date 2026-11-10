@@ -1,5 +1,6 @@
 import type { CampaignContext } from '@/lib/generators/types';
 import type { Character } from '@/lib/character-schema';
+import type { PlayerCharacter, TablePauseSignal } from '@/lib/pc/types';
 import type { Get, SetVal, SectionKey } from '../types';
 
 export type SessionSyncAnchor = {
@@ -12,6 +13,11 @@ export type Props = {
   get: Get;
   setVal: SetVal;
   characters: Character[];
+  pcs?: PlayerCharacter[];
+  onUpdatePcs?: (next: PlayerCharacter[]) => void;
+  activePauseSignal?: TablePauseSignal | null;
+  onDismissPauseSignal?: () => void;
+  onOpenGeminiBridge?: () => void;
   onEndSession: () => void;
   onExitWithoutEnding: () => void;
   onOpenLibrary: () => void;
@@ -26,3 +32,4 @@ export type Props = {
 };
 
 export type { SectionKey };
+

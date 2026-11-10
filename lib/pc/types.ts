@@ -250,7 +250,41 @@ export type PlayerCharacter = {
   spellAttackBonus?: number | null;
   carryingCapacity?: number;
 
+  // VTT Map & Whisper Writeback state
+  tokenPosition?: PlayerTokenPosition;
+  mapPing?: PlayerMapPingPayload;
+  playerWhispers?: PlayerWhisperMessage[];
+
   ownership?: PcOwnership;
+};
+
+export type PlayerTokenPosition = {
+  mapId?: string;
+  x: number;
+  y: number;
+  updatedAt?: number;
+};
+
+export type PlayerMapPingPayload = {
+  mapId?: string;
+  pcId: string;
+  x: number;
+  y: number;
+  color: string;
+  timestamp: number;
+};
+
+export type PlayerWhisperMessage = {
+  id: string;
+  text: string;
+  entityId?: string;
+  entityName?: string;
+  timestamp: number;
+};
+
+export type TablePauseSignal = {
+  type: 'table_pause_requested';
+  timestamp: number;
 };
 
 export type PartyRole = 'Frontline' | 'Striker' | 'Controller' | 'Support' | 'Utility' | 'Face';

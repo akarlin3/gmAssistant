@@ -44,14 +44,26 @@ import { EntityPeekProvider } from './ui/EntityPeekDrawer';
 import { PreviewAsPartyDrawer } from './ui/PreviewAsPartyDrawer';
 import { makeLogEntryId, type PlayerLogEntry } from '@/lib/playerMode/sessionLog';
 import { useReactiveWorldEvents } from '@/lib/world/useReactiveWorldEvents';
+import { GeminiBridgeModal } from './GeminiBridgeModal';
+import {
+  captureVaultSnapshot,
+  computeSnapshotDiff,
+  getVaultSnapshotsSync,
+  loadVaultSnapshots,
+  restoreVaultSnapshot,
+  type VaultSnapshot,
+} from '@/lib/snapshotVault';
 
 export default function CampaignEditor(props: CampaignEditorProps) {
   const ed = useCampaignEditor(props);
   const [companionTab, setCompanionTab] = React.useState<PlayerCompanionTabId>('sheet');
   const [previewAsPartyOpen, setPreviewAsPartyOpen] = React.useState(false);
+  const [vaultSnapshots, setVaultSnapshots] = React.useState<VaultSnapshot[]>([]);
+  const [previewSnapshotId, setPreviewSnapshotId] = React.useState<string | null>(null);
   const {
     PREP_GROUPS,
     SyncPill,
+    activePauseSignal,
     activeTourMode,
     addPc,
     campaign,
@@ -64,6 +76,7 @@ export default function CampaignEditor(props: CampaignEditorProps) {
     exportJSON,
     fileInputRef,
     flashHighlight,
+    geminiBridgeOpen,
     generatorCampaignContext,
     generatorLogs,
     get,
@@ -100,8 +113,10 @@ export default function CampaignEditor(props: CampaignEditorProps) {
     scrollToEntity,
     session0Open,
     sessionPlaylistAnchor,
+    setActivePauseSignal,
     setActiveTourMode,
     setDone,
+    setGeminiBridgeOpen,
     setLogEntriesFor,
     setMode,
     setModeSwitcherOpen,
@@ -115,12 +130,14 @@ export default function CampaignEditor(props: CampaignEditorProps) {
     setSession0Open,
     setSessionPlaylistAnchor,
     setShortcutsOpen,
+    setSnapshotVaultOpen,
     setState,
     setSubview,
     setSummonState,
     setVal,
     shortcutsOpen,
     showUndoToast,
+    snapshotVaultOpen,
     soloMode,
     startSessionFromPrep,
     state,
@@ -138,6 +155,12 @@ export default function CampaignEditor(props: CampaignEditorProps) {
     worldOnlyMode,
     writePcs,
   } = ed;
+
+  React.useEffect(() => {
+    if (!snapshotVaultOpen) return;
+    setVaultSnapshots(getVaultSnapshotsSync(campaign.id));
+    void loadVaultSnapshots(campaign.id).then((list) => setVaultSnapshots(list));
+  }, [campaign.id, snapshotVaultOpen]);
 
   // Reactive world-events observer (propose-only): watches NPC death
   // transitions and enqueues bounded propagation into data.pendingWorldEvents.
@@ -242,6 +265,11 @@ export default function CampaignEditor(props: CampaignEditorProps) {
           get={get}
           setVal={setVal}
           characters={characters}
+          pcs={pcs}
+          onUpdatePcs={writePcs}
+          activePauseSignal={activePauseSignal}
+          onDismissPauseSignal={() => setActivePauseSignal(null)}
+          onOpenGeminiBridge={() => setGeminiBridgeOpen(true)}
           onEndSession={handleEndSession}
           onExitWithoutEnding={() => setVal('__runSessionOpen', false)}
           onOpenLibrary={() => {
@@ -253,6 +281,18 @@ export default function CampaignEditor(props: CampaignEditorProps) {
           campaignName={name}
           sessionPlaylistAnchor={sessionPlaylistAnchor}
           setSessionPlaylistAnchor={setSessionPlaylistAnchor}
+        />
+        <GeminiBridgeModal
+          open={geminiBridgeOpen}
+          onClose={() => setGeminiBridgeOpen(false)}
+          campaignId={campaign.id}
+          campaignName={name}
+          campaignData={state}
+          role={playMode === 'player' ? 'player' : 'gm'}
+          onApplyCampaignData={(nextData) => {
+            setState(nextData);
+            showUndoToast('Applied Gemini Studio payload to campaign', 3500);
+          }}
         />
         <SyncPill />
       </>
@@ -347,10 +387,18 @@ export default function CampaignEditor(props: CampaignEditorProps) {
                 showUndoToast('Import failed: unsupported file format', 4000);
                 return;
               }
+              captureVaultSnapshot({
+                campaignId: campaign.id,
+                campaignName: name,
+                reason: 'pre_json_import',
+                label: 'Pre-JSON Import Backup',
+                data: state,
+                done,
+              });
               if (data.campaignName) setName(data.campaignName);
               setState(data.state || {});
               setDone(data.done || {});
-              showUndoToast('Campaign imported successfully', 4000);
+              showUndoToast('Campaign imported (previous state saved to Snapshot Vault)', 4000);
             } catch {
               showUndoToast('Import failed: invalid JSON file', 4000);
             }
@@ -372,7 +420,7 @@ export default function CampaignEditor(props: CampaignEditorProps) {
         className="hidden"
       />
 
-      {/* Contextual Action Strip (GM Mode Quick Actions & Shared World Status) */}
+      {/* Contextual Action Strip (GM Mode Quick Actions, Gemini Studio Bridge, Snapshot Vault & Shared World Status) */}
       {workspaceRole === 'gm' && gmActiveTab !== 'run' && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/60 px-4 py-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -412,6 +460,23 @@ export default function CampaignEditor(props: CampaignEditorProps) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setGeminiBridgeOpen(true)}
+              title="Zero-Key Gemini Studio & Recap Bridge (⌘G)"
+              className="flex items-center gap-1.5 rounded-md border border-indigo-500/40 bg-indigo-500/10 px-2.5 py-1 font-sans text-xs font-medium text-indigo-400 hover:bg-indigo-500/20"
+            >
+              <Sparkles size={12} /> Gemini Bridge
+              <kbd className="rounded border border-indigo-500/30 px-1 py-px font-mono text-[10px]">⌘G</kbd>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSnapshotVaultOpen(true)}
+              title="7-Snapshot Rolling Safety Vault"
+              className="flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 font-sans text-xs font-medium text-amber-400 hover:bg-amber-500/20"
+            >
+              🛡️ Snapshot Vault
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -738,6 +803,149 @@ export default function CampaignEditor(props: CampaignEditorProps) {
             setActiveTourMode(null);
           }}
         />
+      )}
+
+      <GeminiBridgeModal
+        open={geminiBridgeOpen}
+        onClose={() => setGeminiBridgeOpen(false)}
+        campaignId={campaign.id}
+        campaignName={name}
+        campaignData={state}
+        role={playMode === 'player' ? 'player' : 'gm'}
+        onApplyCampaignData={(nextData) => {
+          setState(nextData);
+          showUndoToast('Applied Gemini Studio payload to campaign', 3500);
+        }}
+      />
+
+      {snapshotVaultOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="7-Snapshot Rolling Safety Vault"
+        >
+          <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-amber-500/40 bg-slate-950 p-5 text-slate-100 shadow-2xl space-y-4">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-3">
+              <div>
+                <h2 className="text-lg font-bold text-amber-300">
+                  🛡️ 7-Snapshot Rolling Safety Vault
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Automatic rolling ring buffer of the last 7 campaign snapshots (captured before JSON imports, Gemini Bridge applies, batch PC uploads, destructive deletes, and session checkpoints).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSnapshotVaultOpen(false);
+                  setPreviewSnapshotId(null);
+                }}
+                className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-slate-400">
+                Stored Snapshots: {vaultSnapshots.length} / 7
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  captureVaultSnapshot({
+                    campaignId: campaign.id,
+                    campaignName: name,
+                    reason: 'manual_checkpoint',
+                    label: 'Manual Safety Checkpoint',
+                    data: state,
+                  });
+                  setVaultSnapshots(getVaultSnapshotsSync(campaign.id));
+                  showUndoToast('Saved manual checkpoint to Snapshot Vault', 3000);
+                }}
+                className="rounded-lg border border-sky-500/50 bg-sky-500/20 px-3 py-1 text-xs font-semibold text-sky-200 hover:bg-sky-500/30"
+              >
+                + Capture Checkpoint Now
+              </button>
+            </div>
+
+            {vaultSnapshots.length === 0 ? (
+              <p className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 text-xs text-slate-400">
+                No automatic snapshots recorded yet for this campaign. Click &ldquo;+ Capture Checkpoint Now&rdquo; or run an import/Gemini apply to populate the ring buffer.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {vaultSnapshots.map((snap) => {
+                  const isPreviewing = previewSnapshotId === snap.id;
+                  const diff = isPreviewing ? computeSnapshotDiff(state, snap) : null;
+                  return (
+                    <div
+                      key={snap.id}
+                      className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-xs space-y-2"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="font-bold text-amber-200">{snap.label}</span>
+                          <span className="ml-2 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">
+                            {snap.reason}
+                          </span>
+                          <div className="text-[11px] text-slate-400">
+                            {new Date(snap.createdAt).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewSnapshotId(isPreviewing ? null : snap.id)
+                            }
+                            className="rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-700"
+                          >
+                            {isPreviewing ? 'Hide Diff' : '🔍 Preview Diff'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const restored = restoreVaultSnapshot(campaign.id, snap.id);
+                              if (restored) {
+                                setState(restored.data);
+                                setSnapshotVaultOpen(false);
+                                setPreviewSnapshotId(null);
+                                showUndoToast(`Restored snapshot: ${snap.label}`, 4000);
+                              }
+                            }}
+                            className="rounded border border-emerald-500/50 bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/30"
+                          >
+                            ⏪ Restore Snapshot
+                          </button>
+                        </div>
+                      </div>
+                      {isPreviewing && diff && (
+                        <div className="rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-[11px] text-slate-300 space-y-1">
+                          <div className="font-semibold text-sky-300">
+                            Diff Verification (Current → Snapshot):
+                          </div>
+                          <div>
+                            Changed top-level keys ({diff.changedKeys.length}):{' '}
+                            {diff.changedKeys.join(', ') || 'None (identical)'}
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-slate-400">
+                            {Object.entries(diff.entityCounts).map(([k, v]) => (
+                              <span key={k} className="rounded bg-slate-900 px-1.5 py-0.5">
+                                {k}: {v.current} → {v.snapshot}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </main>
     </EntityPeekProvider>

@@ -25,9 +25,22 @@ export type AccountMenuProps = {
   onRerunSession0?: () => void;
   onOpenPrepTargets?: () => void;
   onCopy?: () => void;
+  onOpenGeminiBridge?: () => void;
+  onOpenSnapshotVault?: () => void;
 };
 
-export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelete, onRerunSession0, onOpenPrepTargets, onCopy }: AccountMenuProps = {}) {
+export function AccountMenu({
+  onExport,
+  onImport,
+  onArchive,
+  isArchived,
+  onDelete,
+  onRerunSession0,
+  onOpenPrepTargets,
+  onCopy,
+  onOpenGeminiBridge,
+  onOpenSnapshotVault,
+}: AccountMenuProps = {}) {
   const { user, isPro, proSource, subscriptionStatus, currentPeriodEndMs, cancelAtPeriodEnd, isOnWaitlist, logout } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -228,11 +241,29 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
               </button>
             </div>
 
-            {(onExport || onImport || onArchive || onDelete || onRerunSession0 || onOpenPrepTargets || onCopy) && (
+            {(onExport || onImport || onArchive || onDelete || onRerunSession0 || onOpenPrepTargets || onCopy || onOpenGeminiBridge || onOpenSnapshotVault) && (
               <div className="space-y-1 border-t border-rule pt-1">
                 <div className="px-1 font-display text-[10px] uppercase tracking-wider text-brass-deep">
                   Campaign Actions
                 </div>
+                {onOpenGeminiBridge && (
+                  <button
+                    type="button"
+                    onClick={fireAndClose(onOpenGeminiBridge)}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
+                  >
+                    <Sparkles size={12} className="text-brass-deep" /> Gemini Studio / Recap Bridge (⌘G)
+                  </button>
+                )}
+                {onOpenSnapshotVault && (
+                  <button
+                    type="button"
+                    onClick={fireAndClose(onOpenSnapshotVault)}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-display text-xs uppercase tracking-wider text-ink-soft hover:bg-parchment-deep"
+                  >
+                    <RotateCcw size={12} className="text-brass-deep" /> Preview &amp; Restore Snapshot (7-Vault)
+                  </button>
+                )}
                 {onOpenPrepTargets && (
                   <button
                     type="button"

@@ -44,6 +44,7 @@ export class CrdtSync {
   private local: LocalPersistence | null = null;
   private remoteEnabled: boolean;
   private unsubRemote: (() => void) | null = null;
+  private broadcastChannel: BroadcastChannel | null = null;
   private updateHandler: ((update: Uint8Array, origin: any) => void) | null = null;
   private destroyed = false;
   private localClock = 0;
@@ -100,6 +101,28 @@ export class CrdtSync {
         seedFromJson(this.doc, legacyData, 'legacy-migration');
       }
 
+      // Wire BroadcastChannel('gmassistant_live_sync') for <16ms multi-monitor cross-tab sync
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          this.broadcastChannel = new BroadcastChannel('gmassistant_live_sync');
+          this.broadcastChannel.onmessage = (event: MessageEvent) => {
+            if (this.destroyed) return;
+            const msg = event?.data;
+            if (!msg || typeof msg !== 'object') return;
+            if (msg.campaignId !== this.campaignId || msg.senderId === this.clientId) return;
+            if (msg.type === 'yjs_binary_update' && Array.isArray(msg.update)) {
+              try {
+                Y.applyUpdate(this.doc, new Uint8Array(msg.update), REMOTE_ORIGIN);
+              } catch (err: any) {
+                this.onError(err);
+              }
+            }
+          };
+        } catch {
+          this.broadcastChannel = null;
+        }
+      }
+
       // Wire the update handler AFTER hydration so we don't echo replays as
       // outbound writes. doc.on('update') fires once per transaction with the
       // binary encoding of just that transaction's ops.
@@ -107,8 +130,21 @@ export class CrdtSync {
         if (this.destroyed) return;
         this.notifyChange();
         if (origin === REMOTE_ORIGIN || origin === SNAPSHOT_ORIGIN) return;
-        if (!this.remoteEnabled) return;
         if (!this.hydrated) return; // ignore any updates that fire during init
+        if (this.broadcastChannel) {
+          try {
+            this.broadcastChannel.postMessage({
+              type: 'yjs_binary_update',
+              campaignId: this.campaignId,
+              senderId: this.clientId,
+              update: Array.from(update),
+              timestamp: Date.now(),
+            });
+          } catch {
+            // ignore BroadcastChannel serialization errors
+          }
+        }
+        if (!this.remoteEnabled) return;
         this.shipUpdate(update);
       };
       this.doc.on('update', this.updateHandler);
@@ -266,6 +302,14 @@ export class CrdtSync {
     this.destroyed = true;
     if (this.updateHandler) {
       this.doc.off('update', this.updateHandler);
+    }
+    if (this.broadcastChannel) {
+      try {
+        this.broadcastChannel.close();
+      } catch {
+        // ignore
+      }
+      this.broadcastChannel = null;
     }
     if (this.unsubRemote) this.unsubRemote();
     if (this.local) await this.local.destroy();

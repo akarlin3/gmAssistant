@@ -28,6 +28,8 @@ import { Modal, ModalActions, ToolButton } from './mapsTab/ui';
 import { MapList } from './mapsTab/MapList';
 import { MarkerEditor, NodeEditor, LayerPanel } from './mapsTab/editors';
 import { EdgeEditModal, GenerateMapModal, buildEdge } from './mapsTab/modals';
+import TacticalMapStage from '@/components/TacticalMapStage';
+import { normalizePcs } from '@/lib/pc/factory';
 
 const MapCanvas = dynamic(() => import('./MapCanvas'), { ssr: false });
 
@@ -40,23 +42,34 @@ type Props = {
 
 export default function MapsTab({ data, onMapsChange, onDataChange, isPro }: Props) {
   const maps = useMemo(() => readMaps(data), [data]);
+  const pcs = useMemo(() => normalizePcs(data?.pcs), [data?.pcs]);
+  const npcs = useMemo(() => (Array.isArray(data?.npcs) ? data.npcs : []), [data?.npcs]);
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
   const selectedMap = maps.find((m) => m.id === selectedMapId) ?? null;
 
   if (!selectedMap) {
     return (
-      <MapList
-        maps={maps}
-        onOpen={setSelectedMapId}
-        onCreate={(m) => {
-          onMapsChange([...maps, m]);
-          setSelectedMapId(m.id);
-        }}
-        onDelete={(m) => {
-          if (m.imageStoragePath) void deleteMapImage(m.imageStoragePath);
-          onMapsChange(maps.filter((x) => x.id !== m.id));
-        }}
-      />
+      <div className="space-y-4">
+        <MapList
+          maps={maps}
+          onOpen={setSelectedMapId}
+          onCreate={(m) => {
+            onMapsChange([...maps, m]);
+            setSelectedMapId(m.id);
+          }}
+          onDelete={(m) => {
+            if (m.imageStoragePath) void deleteMapImage(m.imageStoragePath);
+            onMapsChange(maps.filter((x) => x.id !== m.id));
+          }}
+        />
+        <TacticalMapStage
+          role="gm"
+          maps={maps}
+          pcs={pcs}
+          npcs={npcs}
+          onChangeMaps={onMapsChange}
+        />
+      </div>
     );
   }
 

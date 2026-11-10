@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { startWritebackReconciler } from '@/lib/player/reconciler';
 import { getFirebaseAuth } from '@/lib/firebase/client';
-import type { PlayerCharacter } from '@/lib/pc/types';
+import type { PlayerCharacter, TablePauseSignal } from '@/lib/pc/types';
 
 /**
  * Registers an active subscription to the player writebacks collection in
@@ -17,6 +17,7 @@ export function usePlayerWriteback(
   worldOnlyMode: boolean,
   pcs: PlayerCharacter[],
   writePcs: (next: PlayerCharacter[]) => void,
+  onTablePauseRequested?: (signal: TablePauseSignal) => void,
 ) {
   const pcsRef = useRef(pcs);
   useEffect(() => {
@@ -64,6 +65,7 @@ export function usePlayerWriteback(
               }
             }
           },
+          onTablePauseRequested,
         );
       } catch (err) {
         console.error('Failed to start writeback reconciler:', err);

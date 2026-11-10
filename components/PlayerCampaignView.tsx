@@ -11,7 +11,7 @@
 //      coin tracker, and session journal with per-item & batch privacy toggles)
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Globe, UserCircle, Compass, ScrollText } from 'lucide-react';
+import { Globe, UserCircle, Compass, ScrollText, Sparkles } from 'lucide-react';
 import PlayerMapView from '@/components/maps/PlayerMapView';
 import CharacterCard from './CharacterCard';
 import { MusicPlayer } from './RunSessionView';
@@ -23,7 +23,11 @@ import PlanningTab from './playerCampaign/PlanningTab';
 import GoalsTab from './playerCampaign/GoalsTab';
 import ConnectionsTab from './playerCampaign/ConnectionsTab';
 import { usePlayerCampaign } from './playerCampaign/usePlayerCampaign';
-import { submitPlayerBatchUpdate } from '@/lib/playerMode/playerClient';
+import {
+  submitPlayerUpdate,
+  submitPlayerBatchUpdate,
+  submitAnonymousTablePauseSignal,
+} from '@/lib/playerMode/playerClient';
 import {
   loadLocalTrackerState,
   loadLocalTrackerStateIdb,
@@ -35,13 +39,19 @@ import {
   type PlayerLocalTrackerState,
 } from '@/lib/playerMode/playerTrackerStorage';
 import type { Character } from '@/lib/character-schema';
-import type { LoreAttitudeTag } from '@/lib/pc/types';
+import type { LoreAttitudeTag, PlayerWhisperMessage } from '@/lib/pc/types';
 import type { PlayerCampaignViewProps, ProjectionEntityKey } from './playerCampaign/types';
 import { TopHeaderBar, type PlayerPrimaryTab } from './TopHeaderBar';
 import { TableStageShell } from './tableStage/TableStageShell';
 import { EntityPeekProvider } from './ui/EntityPeekDrawer';
 import { GuidedEmptyState } from './ui/GuidedEmptyState';
 import { MentionText } from './wiki/MentionText';
+import WorldClockBar from './WorldClockBar';
+import ExternalTablePiP from './ExternalTablePiP';
+import WhisperDrawer from './WhisperDrawer';
+import HandoutOverlay from './HandoutOverlay';
+import TacticalMapStage from './TacticalMapStage';
+import GeminiBridgeModal from './GeminiBridgeModal';
 
 export type PlayerPrimarySubTab = 'world' | 'character' | 'tracker';
 
@@ -237,6 +247,9 @@ export default function PlayerCampaignView({
     [projection?.entities],
   );
 
+  const [geminiModalOpen, setGeminiModalOpen] = useState(false);
+  const [localPlayerSentWhispers, setLocalPlayerSentWhispers] = useState<PlayerWhisperMessage[]>([]);
+
   return (
     <EntityPeekProvider playerSafe campaignData={peekCampaignData}>
       <main className="min-h-screen w-full max-w-none bg-[var(--bg-canvas)] text-[var(--text-primary)]">
@@ -284,6 +297,106 @@ export default function PlayerCampaignView({
 
           {projection && (
             <>
+              {/* Projected In-World Calendar & Clock (when Party-visible) */}
+              {projection.worldClock && (
+                <WorldClockBar role="player" worldClock={projection.worldClock} />
+              )}
+
+              {/* Tabletop Ergonomics, Two-Way Whispers, Handouts & Safety Shield Toolbar */}
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 shadow-sm">
+                <ExternalTablePiP
+                  role="shared-player"
+                  campaignName={campaignName}
+                  activePc={(activePc as any) ?? null}
+                  latestFeedLine={
+                    projection.sessionLog && projection.sessionLog.length > 0
+                      ? String(projection.sessionLog[projection.sessionLog.length - 1]?.text ?? '')
+                      : undefined
+                  }
+                  onAdjustPcHp={(delta) => {
+                    if (!activePc || !campaignId || !token || !slotId) return;
+                    const maxHpVal = Number(activePc.maxHp ?? activePc.hp?.max ?? 10) || 10;
+                    const curHpVal = Number(activePc.currentHp ?? activePc.hp?.current ?? maxHpVal);
+                    const nextHp = Math.max(0, Math.min(maxHpVal, curHpVal + delta));
+                    void submitPlayerUpdate({
+                      campaignId,
+                      shareToken: token,
+                      slotId,
+                      pcId: activePc.id,
+                      field: 'currentHp',
+                      value: nextHp,
+                    });
+                  }}
+                  onAdjustPcAc={(delta) => {
+                    if (!activePc || !campaignId || !token || !slotId) return;
+                    const curAcVal = Number(activePc.ac ?? 10) || 10;
+                    const nextAc = Math.max(1, curAcVal + delta);
+                    void submitPlayerUpdate({
+                      campaignId,
+                      shareToken: token,
+                      slotId,
+                      pcId: activePc.id,
+                      field: 'ac',
+                      value: nextAc,
+                    });
+                  }}
+                />
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <WhisperDrawer
+                    role="player"
+                    activeSlotId={slotId}
+                    playerWhispers={projection.whispers ?? []}
+                    playerSentWhispers={[
+                      ...((activePc?.playerWhispers as PlayerWhisperMessage[] | undefined) ?? []),
+                      ...localPlayerSentWhispers,
+                    ]}
+                    tableSafetyEnabled={projection.tableSafetyEnabled !== false}
+                    onPlayerSendWhisperToGm={(msg) => {
+                      const nextList = [
+                        ...((activePc?.playerWhispers as PlayerWhisperMessage[] | undefined) ?? []),
+                        ...localPlayerSentWhispers,
+                        msg,
+                      ].slice(-50);
+                      setLocalPlayerSentWhispers((prev) => [...prev, msg]);
+                      if (activePc && campaignId && token && slotId) {
+                        void submitPlayerUpdate({
+                          campaignId,
+                          shareToken: token,
+                          slotId,
+                          pcId: activePc.id,
+                          field: 'playerWhispers',
+                          value: nextList,
+                        });
+                      }
+                    }}
+                    onRequestAnonymousTablePause={() => {
+                      if (campaignId && token) {
+                        void submitAnonymousTablePauseSignal({
+                          campaignId,
+                          shareToken: token,
+                        });
+                      }
+                    }}
+                  />
+
+                  <HandoutOverlay
+                    role="player"
+                    handouts={projection.handoutGallery ?? []}
+                    activeFlash={projection.activeHandoutFlash ?? null}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setGeminiModalOpen(true)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-500 hover:bg-amber-500/25"
+                    title="Open Zero-Key Gemini Journal & Recap Bridge"
+                  >
+                    <Sparkles size={13} /> Gemini Journal Bridge
+                  </button>
+                </div>
+              </div>
+
               {/* Primary 3 Sub-Tabs Navigation */}
               <div
                 role="tablist"
@@ -431,7 +544,38 @@ export default function PlayerCampaignView({
 
                             <div className="space-y-3">
                               {effectiveWorldTab === 'maps' ? (
-                                <PlayerMapView maps={projection.maps ?? []} />
+                                <div className="space-y-3">
+                                  <TacticalMapStage
+                                    role="shared-player"
+                                    maps={projection.maps ?? []}
+                                    pcs={partyPcs as any}
+                                    activePcId={activePc?.id}
+                                    activePcColor="#38bdf8"
+                                    onPlayerMoveOwnToken={(pos) => {
+                                      if (!activePc || !campaignId || !token || !slotId) return;
+                                      void submitPlayerUpdate({
+                                        campaignId,
+                                        shareToken: token,
+                                        slotId,
+                                        pcId: activePc.id,
+                                        field: 'tokenPosition',
+                                        value: pos,
+                                      });
+                                    }}
+                                    onPlayerEmitPing={(ping) => {
+                                      if (!activePc || !campaignId || !token || !slotId) return;
+                                      void submitPlayerUpdate({
+                                        campaignId,
+                                        shareToken: token,
+                                        slotId,
+                                        pcId: activePc.id,
+                                        field: 'mapPing',
+                                        value: ping,
+                                      });
+                                    }}
+                                  />
+                                  <PlayerMapView maps={projection.maps ?? []} />
+                                </div>
                               ) : effectiveWorldTab === 'connections' ? (
                                 <ConnectionsTab projection={projection} />
                               ) : effectiveWorldTab === 'pcs' ? (
@@ -598,6 +742,37 @@ export default function PlayerCampaignView({
                   revealedEntities={revealedEntitiesList}
                 />
               )}
+
+              <GeminiBridgeModal
+                open={geminiModalOpen}
+                onClose={() => setGeminiModalOpen(false)}
+                campaignId={campaignId || 'shared_player'}
+                campaignName={campaignName}
+                campaignData={{
+                  __playerCompanionQuests: trackerState.quests,
+                  __playerCompanionJournal: trackerState.journal,
+                }}
+                role="player"
+                playerState={{
+                  pcName: activePc?.name ?? displayName,
+                  quests: trackerState.quests,
+                  journal: trackerState.journal,
+                  revealedEntities: revealedEntitiesList,
+                }}
+                onApplyCampaignData={(nextData) => {
+                  const nextJournal = Array.isArray(nextData.__playerCompanionJournal)
+                    ? nextData.__playerCompanionJournal
+                    : trackerState.journal;
+                  const nextQuests = Array.isArray(nextData.__playerCompanionQuests)
+                    ? nextData.__playerCompanionQuests
+                    : trackerState.quests;
+                  void handleUpdateTrackerState({
+                    ...trackerState,
+                    journal: nextJournal,
+                    quests: nextQuests,
+                  });
+                }}
+              />
             </>
           )}
         </div>

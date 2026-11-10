@@ -80,17 +80,77 @@ export type PointcrawlData = {
   edges: PointcrawlEdge[];
 };
 
+export type MapTokenVisibility = 'private' | 'party';
+
+export type MapTokenPin = {
+  id: string;
+  label: string;
+  x: number; // 0–1 normalized
+  y: number; // 0–1 normalized
+  size: number; // relative grid size (e.g. 1 = medium, 2 = large)
+  color: string;
+  pcId?: string;
+  visibility: MapTokenVisibility;
+  gmNotes?: string; // GM-only; never published to players
+  isTrap?: boolean; // GM-only trap flag; never published to players
+};
+
+export type MapFogPoint = {
+  x: number;
+  y: number;
+};
+
+export type MapFogRegion = {
+  id: string;
+  label?: string;
+  shape?: 'rect' | 'polygon' | 'brush';
+  x: number; // 0–1 normalized
+  y: number; // 0–1 normalized
+  width: number; // 0–1 normalized
+  height: number; // 0–1 normalized
+  radius?: number; // 0–1 normalized brush radius
+  points?: MapFogPoint[];
+  revealed: boolean; // default: false (hidden) until brushed open or revealed room-by-room
+  gmNotes?: string; // GM-only room secret notes; never published to players
+};
+
+export type MapTrapPin = {
+  id: string;
+  label: string;
+  x: number; // 0–1 normalized
+  y: number; // 0–1 normalized
+  dc?: number;
+  damage?: string;
+  notes?: string; // GM-only trap mechanics
+  triggered?: boolean;
+};
+
+export type MapPing = {
+  id?: string;
+  pcId: string;
+  x: number; // 0–1 normalized
+  y: number; // 0–1 normalized
+  color: string;
+  timestamp: number;
+};
+
 export type CampaignMap = {
   id: string;
   name: string;
   type: MapType;
-  imageUrl?: string; // Firebase Storage download URL; absent for blank pointcrawl
+  imageUrl?: string; // Firebase Storage download URL or data URL; absent for blank pointcrawl
   imageStoragePath?: string;
   width: number; // intrinsic pixel width of image (or canvas)
   height: number;
   markers: MapMarker[];
   layers: MapLayer[];
   pointcrawl?: PointcrawlData; // present only when type === 'pointcrawl'
+  tokens?: MapTokenPin[];
+  fogEnabled?: boolean;
+  fogRevealedRegions?: MapFogRegion[];
+  traps?: MapTrapPin[]; // GM-only trap markers; strictly stripped in player projection
+  gmMapNotes?: string; // GM-only secret notes; strictly stripped in player projection
+  pings?: MapPing[];
   createdAt: number;
 };
 
@@ -183,6 +243,93 @@ function normalizeMap(m: any): CampaignMap {
         : [],
     };
   }
+  if (typeof m.fogEnabled === 'boolean') out.fogEnabled = m.fogEnabled;
+  if (Array.isArray(m.tokens)) {
+    out.tokens = m.tokens
+      .filter((t: any) => t && typeof t.id === 'string')
+      .map(normalizeTokenPin);
+  }
+  if (Array.isArray(m.fogRevealedRegions)) {
+    out.fogRevealedRegions = m.fogRevealedRegions
+      .filter((r: any) => r && typeof r.id === 'string')
+      .map(normalizeFogRegion);
+  }
+  if (Array.isArray(m.traps)) {
+    out.traps = m.traps
+      .filter((tr: any) => tr && typeof tr.id === 'string')
+      .map(normalizeTrapPin);
+  }
+  if (typeof m.gmMapNotes === 'string') {
+    out.gmMapNotes = m.gmMapNotes;
+  }
+  if (Array.isArray(m.pings)) {
+    out.pings = m.pings
+      .filter((p: any) => p && typeof p.pcId === 'string' && typeof p.timestamp === 'number')
+      .map(normalizeMapPing);
+  }
+  return out;
+}
+
+function normalizeTokenPin(t: any): MapTokenPin {
+  const out: MapTokenPin = {
+    id: String(t.id),
+    label: typeof t.label === 'string' ? t.label : 'Token',
+    x: clamp01(t.x),
+    y: clamp01(t.y),
+    size: typeof t.size === 'number' && t.size > 0 ? Math.min(6, Math.max(0.5, t.size)) : 1,
+    color: typeof t.color === 'string' && t.color ? t.color : '#38bdf8',
+    visibility: t.visibility === 'party' ? 'party' : 'private',
+  };
+  if (typeof t.pcId === 'string' && t.pcId) out.pcId = t.pcId;
+  if (typeof t.gmNotes === 'string') out.gmNotes = t.gmNotes;
+  if (t.isTrap === true) out.isTrap = true;
+  return out;
+}
+
+function normalizeFogRegion(r: any): MapFogRegion {
+  const out: MapFogRegion = {
+    id: String(r.id),
+    x: clamp01(r.x),
+    y: clamp01(r.y),
+    width: clamp01(typeof r.width === 'number' ? r.width : 0.2),
+    height: clamp01(typeof r.height === 'number' ? r.height : 0.2),
+    revealed: r.revealed === true, // Default false (hidden) until explicitly revealed
+  };
+  if (typeof r.label === 'string') out.label = r.label;
+  if (r.shape === 'rect' || r.shape === 'polygon' || r.shape === 'brush') out.shape = r.shape;
+  if (typeof r.radius === 'number' && r.radius > 0) out.radius = clamp01(r.radius);
+  if (Array.isArray(r.points)) {
+    out.points = r.points
+      .filter((pt: any) => pt && typeof pt.x === 'number' && typeof pt.y === 'number')
+      .map((pt: any) => ({ x: clamp01(pt.x), y: clamp01(pt.y) }));
+  }
+  if (typeof r.gmNotes === 'string') out.gmNotes = r.gmNotes;
+  return out;
+}
+
+function normalizeTrapPin(tr: any): MapTrapPin {
+  const out: MapTrapPin = {
+    id: String(tr.id),
+    label: typeof tr.label === 'string' ? tr.label : 'Trap',
+    x: clamp01(tr.x),
+    y: clamp01(tr.y),
+  };
+  if (typeof tr.dc === 'number') out.dc = tr.dc;
+  if (typeof tr.damage === 'string') out.damage = tr.damage;
+  if (typeof tr.notes === 'string') out.notes = tr.notes;
+  if (typeof tr.triggered === 'boolean') out.triggered = tr.triggered;
+  return out;
+}
+
+function normalizeMapPing(p: any): MapPing {
+  const out: MapPing = {
+    pcId: String(p.pcId),
+    x: clamp01(p.x),
+    y: clamp01(p.y),
+    color: typeof p.color === 'string' && p.color ? p.color : '#f59e0b',
+    timestamp: typeof p.timestamp === 'number' ? p.timestamp : 0,
+  };
+  if (typeof p.id === 'string') out.id = p.id;
   return out;
 }
 

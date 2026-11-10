@@ -6,7 +6,10 @@
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { getDb } from '@/lib/firebase/client';
 import { validatePlayerField } from '@/lib/player/allowlist';
-import { sanitizeOutboundWritebackUpdates } from './playerTrackerStorage';
+import {
+  sanitizeOutboundWritebackUpdates,
+  serializeAnonymousPauseWriteback,
+} from './playerTrackerStorage';
 import type { ShareMeta, SlotProjection } from './types';
 
 export function subscribeShareMeta(
@@ -90,6 +93,36 @@ export async function submitPlayerBatchUpdate(opts: {
     },
     { merge: true },
   );
+}
+
+/**
+ * Emits an anonymous `{ type: 'table_pause_requested', timestamp }` signal via `pcWritebacks`.
+ * Deliberately strips `pcId` and all sender identity from the payload so the GM sees
+ * an immediate, respectful pause request without attributing it to a specific PC.
+ */
+export async function submitAnonymousTablePauseSignal(opts: {
+  campaignId: string;
+  shareToken: string;
+  slotId?: string;
+  timestamp?: number;
+}): Promise<{ type: 'table_pause_requested'; timestamp: number }> {
+  const payload = serializeAnonymousPauseWriteback({ timestamp: opts.timestamp });
+  const docId = opts.slotId || 'anonymous_pause';
+  await setDoc(
+    doc(getDb(), 'campaigns', opts.campaignId, 'pcWritebacks', docId),
+    {
+      shareToken: opts.shareToken,
+      pcId: '',
+      slotId: docId,
+      updates: payload.updates,
+      updatedAt: payload.timestamp,
+    },
+    { merge: true },
+  );
+  return {
+    type: payload.type,
+    timestamp: payload.timestamp,
+  };
 }
 
 export function subscribeSlotProjection(

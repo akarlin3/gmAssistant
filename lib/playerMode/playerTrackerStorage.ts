@@ -341,11 +341,68 @@ export function serializeOutboundTrackerWriteback(
 }
 
 /**
+ * Builds an anonymous Table Safety Check-In (`X-Card / Pause`) signal.
+ * Deliberately strips `pcId`, `slotId`, `playerName`, `pcName`, and any
+ * local/private tracker state so the outbound signal contains ONLY:
+ * `{ type: 'table_pause_requested', timestamp }`.
+ */
+export function buildAnonymousTablePauseSignal(
+  rawInput?: unknown,
+  fallbackNowMs: number = Date.now(),
+): { type: 'table_pause_requested'; timestamp: number } {
+  const ts =
+    rawInput &&
+    typeof rawInput === 'object' &&
+    typeof (rawInput as any).timestamp === 'number' &&
+    Number.isFinite((rawInput as any).timestamp) &&
+    (rawInput as any).timestamp >= 0
+      ? Math.round((rawInput as any).timestamp)
+      : Math.max(0, Math.round(fallbackNowMs));
+  return {
+    type: 'table_pause_requested',
+    timestamp: ts,
+  };
+}
+
+/**
+ * Serializes an outbound `table_pause_requested` writeback envelope.
+ * Deliberately strips `pcId`, `slotId`, `playerName`, `pcName`, and all
+ * local `sharedWithGm: false` notes so zero identifying strings leave the
+ * client when a player taps the safety shield button.
+ */
+export function serializeAnonymousPauseWriteback(
+  input?: {
+    timestamp?: number;
+    pcId?: string;
+    slotId?: string;
+    playerName?: string;
+    pcName?: string;
+    tracker?: PlayerTrackerState;
+    [key: string]: unknown;
+  },
+  fallbackNowMs: number = Date.now(),
+): {
+  type: 'table_pause_requested';
+  timestamp: number;
+  updates: { tablePauseSignal: { type: 'table_pause_requested'; timestamp: number } };
+} {
+  const signal = buildAnonymousTablePauseSignal(input, fallbackNowMs);
+  return {
+    type: 'table_pause_requested',
+    timestamp: signal.timestamp,
+    updates: {
+      tablePauseSignal: signal,
+    },
+  };
+}
+
+/**
  * Sanitizes an arbitrary outbound `updates` map before staging to `pcWritebacks`
  * or applying in `mergePcWritebacks`. Guarantees that even if a caller passes
  * unfiltered arrays into `sharedQuests`, `sharedAnnotations`, `sharedJournal`,
  * or `inventory`, any item with `sharedWithGm === false` is stripped before
- * leaving the client or merging into CRDT state.
+ * leaving the client or merging into CRDT state, and any `tablePauseSignal`
+ * is stripped of all identifying player/PC fields.
  */
 export function sanitizeOutboundWritebackUpdates(
   updates: Record<string, unknown>,
@@ -366,6 +423,8 @@ export function sanitizeOutboundWritebackUpdates(
         .filter((j): j is PlayerJournalEntry => j !== null);
     } else if (field === 'inventory' && Array.isArray(value)) {
       out[field] = sanitizeInventoryForGm(value);
+    } else if (field === 'tablePauseSignal' && value && typeof value === 'object') {
+      out[field] = buildAnonymousTablePauseSignal(value);
     } else {
       out[field] = value;
     }

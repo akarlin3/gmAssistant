@@ -140,4 +140,123 @@ describe('map redaction invariant (property-based)', () => {
       RUNS,
     );
   });
+
+  it('M6–M9 — unrevealed fog regions, private map tokens, trap pins, and GM map notes NEVER appear in player projections', () => {
+    const ALLOWED_TOKEN_KEYS = new Set(['id', 'label', 'x', 'y', 'size', 'color', 'pcId', 'icon', 'visibility']);
+    const ALLOWED_FOG_KEYS = new Set(['id', 'shape', 'x', 'y', 'width', 'height', 'radius', 'w', 'h', 'r', 'points', 'label', 'revealed']);
+
+    const vttMapArb = mapArb().chain((baseMap) =>
+      fc.record({
+        tokens: fc.array(
+          fc.record({
+            id: fc.uuid(),
+            label: fc.constantFrom('Party Hero', 'SECRET_ASSASSIN_TOKEN'),
+            x: fc.double({ min: 0, max: 1, noNaN: true }),
+            y: fc.double({ min: 0, max: 1, noNaN: true }),
+            size: fc.constantFrom(1, 1.5, 2),
+            color: fc.constant('#ef4444'),
+            pcId: fc.option(fc.constant('pc-1'), { nil: undefined }),
+            visibility: fc.constantFrom<'private' | 'party'>('private', 'party'),
+            gmNotes: fc.constant('GM_SECRET_TOKEN_NOTE'),
+            entityId: fc.constant('secret-monster-id'),
+          }),
+          { maxLength: 6 },
+        ),
+        fogRevealedRegions: fc.array(
+          fc.record({
+            id: fc.uuid(),
+            shape: fc.constantFrom<'rect' | 'brush' | 'polygon'>('rect', 'brush', 'polygon'),
+            x: fc.double({ min: 0, max: 1, noNaN: true }),
+            y: fc.double({ min: 0, max: 1, noNaN: true }),
+            width: fc.double({ min: 0.05, max: 0.5, noNaN: true }),
+            height: fc.double({ min: 0.05, max: 0.5, noNaN: true }),
+            radius: fc.double({ min: 0.05, max: 0.3, noNaN: true }),
+            label: fc.constantFrom('Entry Hall', 'UNREVEALED_VAULT_ROOM'),
+            gmNotes: fc.constant('GM_SECRET_FOG_ROOM_NOTE'),
+            revealed: fc.boolean(),
+          }),
+          { maxLength: 6 },
+        ),
+        traps: fc.array(
+          fc.record({
+            id: fc.uuid(),
+            x: fc.double({ min: 0, max: 1, noNaN: true }),
+            y: fc.double({ min: 0, max: 1, noNaN: true }),
+            label: fc.constant('DEADLY_POISON_NEEDLE_TRAP'),
+            dc: fc.constant(18),
+            damage: fc.constant('4d10 poison'),
+            notes: fc.constant('GM_TRAP_SECRET_TRIGGER'),
+            triggered: fc.boolean(),
+          }),
+          { maxLength: 4 },
+        ),
+        gmMapNotes: fc.constant('GM_SECRET_DUNGEON_KEY_NOTES'),
+        fogEnabled: fc.boolean(),
+      }).map((extra) => ({
+        ...baseMap,
+        ...extra,
+      })),
+    );
+
+    fc.assert(
+      fc.property(fc.array(vttMapArb, { maxLength: 4 }), (maps) => {
+        const projected = projectPlayerMaps(maps as CampaignMap[]);
+        const serialized = JSON.stringify(projected);
+
+        // GM map notes, trap pins, and secret token/fog notes must never appear anywhere in output JSON
+        expect(serialized).not.toContain('GM_SECRET_DUNGEON_KEY_NOTES');
+        expect(serialized).not.toContain('DEADLY_POISON_NEEDLE_TRAP');
+        expect(serialized).not.toContain('GM_TRAP_SECRET_TRIGGER');
+        expect(serialized).not.toContain('GM_SECRET_TOKEN_NOTE');
+        expect(serialized).not.toContain('GM_SECRET_FOG_ROOM_NOTE');
+        expect(serialized).not.toContain('secret-monster-id');
+
+        for (const pm of projected) {
+          const src = maps.find((m) => m.id === pm.id)!;
+
+          // M6: No traps or gmMapNotes property on projected map
+          expect(pm).not.toHaveProperty('traps');
+          expect(pm).not.toHaveProperty('trapPins');
+          expect(pm).not.toHaveProperty('gmMapNotes');
+          expect(pm).not.toHaveProperty('gmNotes');
+
+          // M7: Every projected token must have had visibility === 'party' in source, and only allowed keys survive
+          const srcTokensById = new Map((src.tokens ?? []).map((t) => [t.id, t]));
+          for (const tk of pm.tokens ?? []) {
+            const orig = srcTokensById.get(tk.id);
+            expect(orig).toBeDefined();
+            expect(orig!.visibility).toBe('party');
+            for (const k of Object.keys(tk)) {
+              expect(ALLOWED_TOKEN_KEYS.has(k)).toBe(true);
+            }
+          }
+          // Every private token from source is absent
+          for (const orig of src.tokens ?? []) {
+            if (orig.visibility !== 'party') {
+              expect((pm.tokens ?? []).find((t) => t.id === orig.id)).toBeUndefined();
+            }
+          }
+
+          // M8: Every projected fog region must have had revealed === true in source, and only allowed keys survive
+          const srcFogById = new Map((src.fogRevealedRegions ?? []).map((f) => [f.id, f]));
+          for (const fg of pm.fogRevealedRegions ?? []) {
+            const orig = srcFogById.get(fg.id);
+            expect(orig).toBeDefined();
+            expect(orig!.revealed).toBe(true);
+            for (const k of Object.keys(fg)) {
+              expect(ALLOWED_FOG_KEYS.has(k)).toBe(true);
+            }
+          }
+          // Every unrevealed fog region from source is absent
+          for (const orig of src.fogRevealedRegions ?? []) {
+            if (orig.revealed !== true) {
+              expect((pm.fogRevealedRegions ?? []).find((f) => f.id === orig.id)).toBeUndefined();
+            }
+          }
+        }
+      }),
+      RUNS,
+    );
+  });
 });
+

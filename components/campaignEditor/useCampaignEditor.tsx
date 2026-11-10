@@ -14,8 +14,10 @@ import { initPlayerMode } from '@/lib/playerMode/migration';
 import type { PlayerConfig } from '@/lib/playerMode/types';
 import type { PlayerLogEntry } from '@/lib/playerMode/sessionLog';
 import { normalizePcs } from '@/lib/pc/factory';
+import type { TablePauseSignal } from '@/lib/pc/types';
 import { type PcMacros } from '@/lib/pc/macros';
 import { pushSnapshot, type Snapshot } from '@/lib/undoStack';
+import { captureVaultSnapshot, createLiveSyncBridge } from '@/lib/snapshotVault';
 import { getTarget, OVERRIDES_STATE_KEY, type PrepTargetKey, type PrepTargetOverrides } from '@/lib/prepTargets';
 import { hasSeenTour } from '@/lib/tutorials/mode-tours';
 import { type Mode, defaultSubview, isValidSubview, resolveInitialMode } from '@/lib/modes';
@@ -106,7 +108,60 @@ export function useCampaignEditor(props: CampaignEditorProps) {
   const soloMode = playMode === 'solo' || playMode === 'duet';
   const [modeSwitcherOpen, setModeSwitcherOpen] = useState(false);
   const [oracleOpen, setOracleOpen] = useState(false);
+  const [geminiBridgeOpen, setGeminiBridgeOpen] = useState(false);
+  const [snapshotVaultOpen, setSnapshotVaultOpen] = useState(false);
+  const [activePauseSignal, setActivePauseSignal] = useState<TablePauseSignal | null>(null);
   const [activeTourMode, setActiveTourMode] = useState<'solo' | 'duet' | null>(null);
+  const suppressBroadcastRef = useRef(false);
+  const liveSyncBridgeRef = useRef<ReturnType<typeof createLiveSyncBridge> | null>(null);
+
+  // Cmd/Ctrl + G hotkey for Zero-Key Gemini Studio / Recap Bridge
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'g' || e.key === 'G')) {
+        e.preventDefault();
+        setGeminiBridgeOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  // Multi-Monitor Cross-Tab Live Sync via BroadcastChannel('gmassistant_live_sync') (<16ms)
+  useEffect(() => {
+    const bridge = createLiveSyncBridge();
+    liveSyncBridgeRef.current = bridge;
+    const unsub = bridge.subscribe((msg) => {
+      if (msg.campaignId !== campaign.id) return;
+      if (msg.type === 'campaign_patch' || msg.type === 'reveal_change') {
+        const nextState = msg.payload?.state;
+        if (nextState && typeof nextState === 'object') {
+          suppressBroadcastRef.current = true;
+          skipNextSnapshotRef.current = true;
+          setState((prev) => ({ ...prev, ...(nextState as Record<string, any>) }));
+        }
+      }
+    });
+    return () => {
+      unsub();
+      bridge.close();
+      liveSyncBridgeRef.current = null;
+    };
+  }, [campaign.id]);
+
+  // Broadcast local state changes immediately (<16ms) across tabs
+  useEffect(() => {
+    if (initialLoadRef.current) return;
+    if (suppressBroadcastRef.current) {
+      suppressBroadcastRef.current = false;
+      return;
+    }
+    liveSyncBridgeRef.current?.publish({
+      type: 'campaign_patch',
+      campaignId: campaign.id,
+      payload: { state },
+    });
+  }, [campaign.id, state]);
 
   useEffect(() => {
     if (campaign.data && !campaign.data.modeMigratedAt) {
@@ -330,6 +385,13 @@ export function useCampaignEditor(props: CampaignEditorProps) {
   };
   const removeSessionLog = (id: string) => {
     const log = sessionLogs.find(l => l.id === id);
+    captureVaultSnapshot({
+      campaignId: campaign.id,
+      campaignName: name,
+      reason: 'destructive_delete',
+      label: `Before deleting session log "${log?.title || 'log'}"`,
+      data: state,
+    });
     setVal('sessionLogs', sessionLogs.filter(l => l.id !== id));
     setOpenLogs(o => { const next = { ...o }; delete next[id]; return next; });
     showUndoToast(`Deleted "${log?.title || 'session log'}" — Press ⌘Z to undo`, 5000);
@@ -338,14 +400,63 @@ export function useCampaignEditor(props: CampaignEditorProps) {
   // ── PCs ─────────────────────────────────────────────────────────────────
   const pcMacros = (state.pcMacros as PcMacros) || {};
   const {
-    writePcs, addPc, updatePc, removePc,
-    addCharacter, updateCharacter, removeCharacter,
-    uploadCharacterSheet, uploadPcSheet,
+    writePcs, addPc, updatePc, removePc: rawRemovePc,
+    addCharacter, updateCharacter, removeCharacter: rawRemoveCharacter,
+    uploadCharacterSheet: rawUploadCharacterSheet, uploadPcSheet: rawUploadPcSheet,
   } = buildPcManagement(
     pcs, characters, pcMacros, setState, setOpenPcs, setOpenChars,
     setCharUploadError, setUploadingChar, setPcUploadError, setUploadingPc, showUndoToast, setVal,
   );
-  const pcsRef = usePlayerWriteback(campaign.id, campaign.userId, playMode, worldOnlyMode, pcs, writePcs);
+  const removePc = (id: string) => {
+    captureVaultSnapshot({
+      campaignId: campaign.id,
+      campaignName: name,
+      reason: 'destructive_delete',
+      label: 'Before deleting PC',
+      data: state,
+    });
+    rawRemovePc(id);
+  };
+  const removeCharacter = (id: string) => {
+    captureVaultSnapshot({
+      campaignId: campaign.id,
+      campaignName: name,
+      reason: 'destructive_delete',
+      label: 'Before deleting Character',
+      data: state,
+    });
+    rawRemoveCharacter(id);
+  };
+  const uploadCharacterSheet = (e: React.ChangeEvent<HTMLInputElement>) => {
+    captureVaultSnapshot({
+      campaignId: campaign.id,
+      campaignName: name,
+      reason: 'batch_character_upload',
+      label: 'Before Character Sheet Upload',
+      data: state,
+    });
+    rawUploadCharacterSheet(e);
+  };
+  const uploadPcSheet = (e: React.ChangeEvent<HTMLInputElement>) => {
+    captureVaultSnapshot({
+      campaignId: campaign.id,
+      campaignName: name,
+      reason: 'batch_character_upload',
+      label: 'Before Batch PC Upload',
+      data: state,
+    });
+    rawUploadPcSheet(e);
+  };
+
+  const pcsRef = usePlayerWriteback(
+    campaign.id,
+    campaign.userId,
+    playMode,
+    worldOnlyMode,
+    pcs,
+    writePcs,
+    (signal) => setActivePauseSignal(signal),
+  );
 
   // ── Export / Import ─────────────────────────────────────────────────────
   const exportJSON = () => {
@@ -368,10 +479,17 @@ export function useCampaignEditor(props: CampaignEditorProps) {
       try {
         const data = JSON.parse(ev.target?.result as string);
         if (data._format !== 'campaign_prep_v1') { showUndoToast('Import failed: unsupported file format', 4000); return; }
+        captureVaultSnapshot({
+          campaignId: campaign.id,
+          campaignName: name,
+          reason: 'json_import',
+          label: `Before JSON Import (${file.name})`,
+          data: state,
+        });
         if (data.campaignName) setName(data.campaignName);
         setState(data.state || {});
         setDone(data.done || {});
-        showUndoToast('Campaign imported successfully', 4000);
+        showUndoToast('Campaign imported successfully (Pre-import snapshot saved to Vault)', 4000);
       } catch { showUndoToast('Import failed: invalid JSON file', 4000); }
     };
     reader.readAsText(file);
@@ -383,6 +501,13 @@ export function useCampaignEditor(props: CampaignEditorProps) {
     const ok = await confirmModal({ title: 'Delete Campaign', message: `Delete "${name}"? This cannot be undone.`, confirmText: 'Delete', isDestructive: true });
     if (!ok) return;
     try {
+      captureVaultSnapshot({
+        campaignId: campaign.id,
+        campaignName: name,
+        reason: 'destructive_delete',
+        label: `Before deleting campaign "${name}"`,
+        data: state,
+      });
       if (campaign.worldId) await deleteWorld(campaign.worldId);
       await deleteCampaignDoc(campaign.id);
       router.push('/campaign');
@@ -507,6 +632,13 @@ export function useCampaignEditor(props: CampaignEditorProps) {
     if (nextUp) {
       if (!window.confirm(`You have unfinished prep targets (e.g. ${nextUp.label}). Are you sure you want to start the session anyway?`)) return;
     }
+    captureVaultSnapshot({
+      campaignId: campaign.id,
+      campaignName: name,
+      reason: 'session_checkpoint',
+      label: `Session Start Checkpoint`,
+      data: state,
+    });
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     setState(s => {
       const next = { ...s };
@@ -531,6 +663,7 @@ export function useCampaignEditor(props: CampaignEditorProps) {
     SyncPill,
     ToolBtn,
     VIEW_META,
+    activePauseSignal,
     activeTourMode,
     addCharacter,
     addPc,
@@ -550,6 +683,7 @@ export function useCampaignEditor(props: CampaignEditorProps) {
     exportJSON,
     fileInputRef,
     flashHighlight,
+    geminiBridgeOpen,
     generatorCampaignContext,
     generatorDisabledDests,
     generatorLogs,
@@ -623,10 +757,12 @@ export function useCampaignEditor(props: CampaignEditorProps) {
     sessionLogs,
     sessionLogsV2,
     sessionPlaylistAnchor,
+    setActivePauseSignal,
     setActiveTourMode,
     setCanUndo,
     setCharUploadError,
     setDone,
+    setGeminiBridgeOpen,
     setHighlightEntityId,
     setLogEntriesFor,
     setMode,
@@ -646,6 +782,7 @@ export function useCampaignEditor(props: CampaignEditorProps) {
     setSession0Open,
     setSessionPlaylistAnchor,
     setShortcutsOpen,
+    setSnapshotVaultOpen,
     setState,
     setSubview,
     setSummonState,
@@ -659,6 +796,7 @@ export function useCampaignEditor(props: CampaignEditorProps) {
     shortcutsOpen,
     showUndoToast,
     skipNextSnapshotRef,
+    snapshotVaultOpen,
     soloMode,
     sortedSessionLogs,
     startSessionFromPrep,

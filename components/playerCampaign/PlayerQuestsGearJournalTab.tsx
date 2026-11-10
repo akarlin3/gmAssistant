@@ -28,6 +28,7 @@ import {
   type PlayerLocalTrackerState,
 } from '@/lib/playerMode/playerTrackerStorage';
 import type { CoinPurse, InventoryItem, PlayerQuestStatus } from '@/lib/pc/types';
+import { VoiceDictationButton } from '@/components/ExternalTablePiP';
 import { loadStagedEdits, saveStagedEdit } from './PlayerPcSheetCard';
 import type { PlayerPc } from './types';
 import { PlayerPrivacyPill } from '@/components/ui/VisibilityBadge';
@@ -862,13 +863,26 @@ export default function PlayerQuestsGearJournalTab({
               <Plus size={13} /> Add Entry
             </button>
           </div>
-          <textarea
-            value={newJournalContent}
-            onChange={(e) => setNewJournalContent(e.target.value)}
-            rows={3}
-            placeholder="Write your character's perspective, reflections, or session recap..."
-            className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5 font-sans text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
-          />
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[10px] uppercase text-[var(--text-muted)]">
+                Journal Entry (@-mention ready)
+              </span>
+              <VoiceDictationButton
+                entityNames={revealedEntities.map((e) => e.name)}
+                onTranscript={(spoken) =>
+                  setNewJournalContent((prev) => `${prev ? `${prev} ` : ''}${spoken}`)
+                }
+              />
+            </div>
+            <textarea
+              value={newJournalContent}
+              onChange={(e) => setNewJournalContent(e.target.value)}
+              rows={3}
+              placeholder="Write your character's perspective, reflections, or session recap..."
+              className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5 font-sans text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+            />
+          </div>
         </div>
 
         {/* Journal Entries List (Progressive Disclosure Cards) */}
