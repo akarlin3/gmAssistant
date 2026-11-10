@@ -16,6 +16,8 @@ import {
   toggleQuestShareWithGm,
   toggleAnnotationShareWithGm,
   toggleJournalShareWithGm,
+  buildAnonymousTablePauseSignal,
+  serializeAnonymousPauseWriteback,
   type PlayerLocalTrackerState,
 } from '@/lib/playerMode/playerTrackerStorage';
 import {

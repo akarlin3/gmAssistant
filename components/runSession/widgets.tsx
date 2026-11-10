@@ -9,6 +9,7 @@ import { generatePlotSegues } from '@/lib/generators/plot-segue';
 import { generateQuickInspire } from '@/lib/generators/quick-inspire';
 import type { CampaignContext } from '@/lib/generators/types';
 import { makeEvent, type ChangeEvent } from '@/lib/sessionEvents';
+import { VoiceDictationButton } from '@/components/ExternalTablePiP';
 import { rollDice, SEGUE_ENTRIES } from './helpers';
 
 type DiceRoll = { id: string; expr: string; result: number; breakdown: string; ts: number };
@@ -190,7 +191,13 @@ export function QuickInspire({ campaignContext }: { campaignContext?: CampaignCo
   );
 }
 
-export function NoteSeed({ pushEvent }: { pushEvent: (e: ChangeEvent) => void }) {
+export function NoteSeed({
+  pushEvent,
+  mentionableNames = [],
+}: {
+  pushEvent: (e: ChangeEvent) => void;
+  mentionableNames?: string[];
+}) {
   const [text, setText] = useState('');
   return (
     <details className="rounded border border-rule bg-parchment-soft shadow-card">
@@ -198,12 +205,18 @@ export function NoteSeed({ pushEvent }: { pushEvent: (e: ChangeEvent) => void })
         <Plus size={12} className="text-brass-deep" /> Add Session Note
       </summary>
       <div className="space-y-1.5 border-t border-rule px-3 pb-3 pt-1">
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="A moment to remember…"
-          className="w-full rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink"
-        />
+        <div className="flex items-center gap-1.5">
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="A moment to remember…"
+            className="flex-1 rounded border border-rule bg-parchment px-2 py-1 font-serif text-sm text-ink"
+          />
+          <VoiceDictationButton
+            entityNames={mentionableNames}
+            onTranscript={(spoken) => setText((prev) => `${prev ? `${prev} ` : ''}${spoken}`)}
+          />
+        </div>
         <button
           disabled={!text.trim()}
           onClick={() => { pushEvent(makeEvent('other', text.trim())); setText(''); }}
@@ -215,3 +228,4 @@ export function NoteSeed({ pushEvent }: { pushEvent: (e: ChangeEvent) => void })
     </details>
   );
 }
+

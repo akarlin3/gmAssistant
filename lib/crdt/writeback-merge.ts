@@ -39,7 +39,10 @@
 
 import { appendRollEventRingBuffer } from '@/lib/diceRoller';
 import { validatePlayerField, PLAYER_EDITABLE_FIELDS } from '@/lib/player/allowlist';
-import { sanitizeOutboundWritebackUpdates } from '@/lib/playerMode/playerTrackerStorage';
+import {
+  buildAnonymousTablePauseSignal,
+  sanitizeOutboundWritebackUpdates,
+} from '@/lib/playerMode/playerTrackerStorage';
 import type {
   CoinPurse,
   InventoryItem,
@@ -47,6 +50,7 @@ import type {
   PlayerCharacter,
   PlayerWritebackTombstone,
   RollEvent,
+  TablePauseSignal,
 } from '@/lib/pc/types';
 
 const PLAYER_AUTHORITATIVE = new Set<string>(PLAYER_EDITABLE_FIELDS);
@@ -55,7 +59,7 @@ const PLAYER_AUTHORITATIVE = new Set<string>(PLAYER_EDITABLE_FIELDS);
 export type StagedWriteback = {
   /** The roster slot that staged this writeback (the doc id). */
   slotId: string;
-  /** The PC the writeback targets. */
+  /** The PC the writeback targets (empty/anonymous when emitting a table_pause_requested signal). */
   pcId: string;
   /** field-path -> proposed value. */
   updates: Record<string, unknown>;
@@ -89,6 +93,8 @@ export type WritebackMergeResult = {
   changed: boolean;
   applied: AppliedField[];
   rejected: RejectedField[];
+  /** Anonymous X-Card / Table Pause signal extracted from writebacks (zero sender identity). */
+  pauseSignal?: TablePauseSignal;
 };
 
 /** True when the slot is the player-owner of this PC (fail-closed). */
@@ -210,6 +216,7 @@ export function mergePcWritebacks(
 ): WritebackMergeResult {
   const applied: AppliedField[] = [];
   const rejected: RejectedField[] = [];
+  let pauseSignal: TablePauseSignal | undefined;
 
   const pcById = new Map<string, number>();
   currentPcs.forEach((pc, i) => pcById.set(pc.id, i));
@@ -221,9 +228,30 @@ export function mergePcWritebacks(
   const winners = new Map<string, FieldWinner>(); // key = `${pcId} ${field}`
 
   for (const wb of writebacks) {
+    // Check for anonymous table_pause_requested signal BEFORE PC ownership check,
+    // because anonymous safety signals deliberately strip pcId / sender identity.
+    const rawPause = wb.updates?.tablePauseSignal;
+    if (
+      rawPause &&
+      typeof rawPause === 'object' &&
+      (rawPause as any).type === 'table_pause_requested'
+    ) {
+      const cleanSignal = buildAnonymousTablePauseSignal(rawPause, wb.updatedAtMs);
+      if (!pauseSignal || cleanSignal.timestamp >= pauseSignal.timestamp) {
+        pauseSignal = cleanSignal;
+      }
+    }
+
+    const remainingEntries = Object.entries(wb.updates ?? {}).filter(
+      ([field]) => field !== 'tablePauseSignal',
+    );
+    if (remainingEntries.length === 0) {
+      continue;
+    }
+
     const idx = pcById.get(wb.pcId);
     if (idx === undefined) {
-      for (const field of Object.keys(wb.updates)) {
+      for (const [field] of remainingEntries) {
         rejected.push({ slotId: wb.slotId, pcId: wb.pcId, field, reason: 'pc-not-found' });
       }
       continue;
@@ -233,13 +261,13 @@ export function mergePcWritebacks(
     // Ownership guard — the security fix. A writeback may only touch the PC its
     // staging slot owns.
     if (!ownsPc(pc, wb.slotId)) {
-      for (const field of Object.keys(wb.updates)) {
+      for (const [field] of remainingEntries) {
         rejected.push({ slotId: wb.slotId, pcId: wb.pcId, field, reason: 'not-owner' });
       }
       continue;
     }
 
-    for (const [field, rawValue] of Object.entries(wb.updates)) {
+    for (const [field, rawValue] of remainingEntries) {
       if (!PLAYER_AUTHORITATIVE.has(field)) {
         rejected.push({ slotId: wb.slotId, pcId: wb.pcId, field, reason: 'field-not-allowed' });
         continue;
@@ -272,7 +300,13 @@ export function mergePcWritebacks(
   }
 
   if (winners.size === 0) {
-    return { pcs: currentPcs, changed: false, applied, rejected };
+    return {
+      pcs: currentPcs,
+      changed: false,
+      applied,
+      rejected,
+      ...(pauseSignal ? { pauseSignal } : {}),
+    };
   }
 
   // Apply non-tombstone winners first, then apply tombstones so any item toggled
@@ -335,7 +369,13 @@ export function mergePcWritebacks(
     return filtered.length === p.inventory.length ? p : { ...p, inventory: filtered };
   });
 
-  return { pcs, changed: true, applied, rejected };
+  return {
+    pcs,
+    changed: true,
+    applied,
+    rejected,
+    ...(pauseSignal ? { pauseSignal } : {}),
+  };
 }
 
 /** a strictly newer than b: later timestamp, or equal timestamp + higher slotId. */

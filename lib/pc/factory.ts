@@ -96,6 +96,8 @@ export function makePc(partial: Partial<PlayerCharacter> = {}): PlayerCharacter 
   return { ...emptyPc(), ...partial };
 }
 
+export const newPc = makePc;
+
 // ---- normalization helpers ---------------------------------------------
 
 const asStr = (v: unknown, fb = ''): string =>

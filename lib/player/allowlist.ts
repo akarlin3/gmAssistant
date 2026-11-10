@@ -95,6 +95,12 @@ export const PLAYER_EDITABLE_FIELDS = [
   'resistances',         // Damage resistances
   'immunities',          // Damage/condition immunities
   'senses',              // Special senses (e.g., Darkvision 60 ft.)
+
+  // VTT Tactical Map, Two-Way Whispers & Anonymous Table Safety
+  'tokenPosition',       // Own PC token position on tactical map ({ mapId?, x, y, updatedAt? })
+  'mapPing',             // Live 3-second tactical map ping ({ mapId?, pcId, x, y, color, timestamp })
+  'playerWhispers',      // Private player -> GM whispers
+  'tablePauseSignal',    // Anonymous X-Card / Table Pause signal ({ type: 'table_pause_requested', timestamp })
 ] as const;
 
 export type PlayerEditableField = (typeof PLAYER_EDITABLE_FIELDS)[number];
@@ -361,6 +367,37 @@ const TurnEconomySchema = z.object({
   freeInteractionUsed: z.boolean().optional(),
 });
 
+const TokenPositionSchema = z.object({
+  mapId: z.string().optional(),
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+  updatedAt: z.number().optional(),
+});
+
+const MapPingSchema = z.object({
+  mapId: z.string().optional(),
+  pcId: z.string().min(1),
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+  color: z.string().min(1),
+  timestamp: z.number().nonnegative(),
+});
+
+const PlayerWhisperSchema = z.object({
+  id: z.string().min(1),
+  text: z.string().min(1).max(2000),
+  entityId: z.string().optional(),
+  entityName: z.string().optional(),
+  timestamp: z.number().nonnegative(),
+});
+
+const TablePauseSignalSchema = z
+  .object({
+    type: z.literal('table_pause_requested'),
+    timestamp: z.number().nonnegative(),
+  })
+  .strict();
+
 /**
  * Validates the value payload for a specific allowed property field.
  * Enforces strict, type-safe rules and range constraints tailored to each PC sheet statistic.
@@ -506,6 +543,18 @@ export function validatePlayerField(field: string, value: unknown): boolean {
 
     case 'renown':
       return z.number().int().min(-999).max(9999).safeParse(value).success;
+
+    case 'tokenPosition':
+      return TokenPositionSchema.safeParse(value).success;
+
+    case 'mapPing':
+      return MapPingSchema.safeParse(value).success;
+
+    case 'playerWhispers':
+      return z.array(PlayerWhisperSchema).safeParse(value).success;
+
+    case 'tablePauseSignal':
+      return TablePauseSignalSchema.safeParse(value).success;
 
     default:
       // Fail-closed for any path that falls outside our switch statement mapping

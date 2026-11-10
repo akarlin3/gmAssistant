@@ -13,7 +13,13 @@ import { ClocksPhase } from './planPrepView/ClocksPhase';
 import { ArcPhase } from './planPrepView/ArcPhase';
 import { EndingPhase } from './planPrepView/EndingPhase';
 
-export function PlanPrepView({ ed }: { ed: CampaignEditorModel }) {
+export function PlanPrepView({
+  ed,
+  visibilityFilter = 'all',
+}: {
+  ed: CampaignEditorModel;
+  visibilityFilter?: 'all' | 'party' | 'private';
+}) {
   const {
     campaign,
     completedCount,
@@ -68,7 +74,7 @@ export function PlanPrepView({ ed }: { ed: CampaignEditorModel }) {
       )}
 
       {mode === 'prep' && subview === 'flow' && (
-        <SessionPrepPhase ed={ed} />
+        <SessionPrepPhase ed={ed} visibilityFilter={visibilityFilter} />
       )}
 
       {mode === 'organize' && subview === 'players' && state.player && (

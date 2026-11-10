@@ -1,25 +1,10 @@
 import type { Metadata, Viewport } from 'next';
-import { Cinzel, EB_Garamond } from 'next/font/google';
 import { AuthProvider } from '@/lib/firebase/auth-context';
 import { ConfirmProvider } from '@/components/ConfirmDialog';
+import { ThemeProvider } from '@/lib/theme';
 import SyncIndicator from '@/components/SyncIndicator';
 import { PwaInstaller } from '@/src/components/PwaInstaller';
 import './globals.css';
-
-const cinzel = Cinzel({
-  subsets: ['latin'],
-  weight: ['500', '700'],
-  variable: '--font-cinzel',
-  display: 'swap',
-});
-
-const garamond = EB_Garamond({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  style: ['normal', 'italic'],
-  variable: '--font-garamond',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'GM Assistant — TTRPG Campaign & Table Suite',
@@ -55,15 +40,26 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${cinzel.variable} ${garamond.variable}`}>
-      <body className="bg-parchment font-serif text-ink antialiased">
-        <AuthProvider>
-          <ConfirmProvider>
-            <PwaInstaller />
-            {children}
-            <SyncIndicator />
-          </ConfirmProvider>
-        </AuthProvider>
+    <html lang="en" data-theme="slate" className="dark">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="bg-[var(--bg-canvas)] font-sans text-[var(--text-primary)] antialiased transition-colors duration-200">
+        <ThemeProvider defaultTheme="slate">
+          <AuthProvider>
+            <ConfirmProvider>
+              <PwaInstaller />
+              {children}
+              <SyncIndicator />
+            </ConfirmProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

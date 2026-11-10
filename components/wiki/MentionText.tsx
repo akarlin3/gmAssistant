@@ -7,6 +7,7 @@ import { useWiki } from './WikiContext';
 import { buildEntityIndex, type WikiEntity } from '@/lib/wiki/entities';
 import { ENTITY_COLORS, ENTITY_LABELS } from '@/lib/wiki/colors';
 import type { EntityType } from '@/lib/wiki/types';
+import { useEntityPeek } from '@/components/ui/EntityPeekDrawer';
 
 export type MentionTextProps = {
   text: string | undefined | null;
@@ -28,6 +29,7 @@ export function MentionText({
   className = '',
 }: MentionTextProps) {
   const wiki = useWiki();
+  const entityPeek = useEntityPeek();
   const [revealedSpoilers, setRevealedSpoilers] = useState<Record<number, boolean>>({});
 
   const fallbackEntities = useMemo<WikiEntity[]>(() => {
@@ -37,11 +39,14 @@ export function MentionText({
   }, [wiki, campaignData]);
 
   const handleClick = (type: EntityType, id: string, name: string) => {
+    if (entityPeek) {
+      entityPeek.openPeek(type, id, name);
+    }
     if (onEntityClick) {
       onEntityClick(type, id, name);
     } else if (onNavigate) {
       onNavigate(type, id);
-    } else {
+    } else if (!entityPeek) {
       wiki?.navigateToEntity?.(type, id);
     }
   };

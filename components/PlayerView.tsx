@@ -14,6 +14,7 @@ import type { ShareMeta } from '@/lib/playerMode/types';
 import PlayerCampaignView from './PlayerCampaignView';
 import { AccountMenu } from './AccountMenu';
 import { ChevronLeft } from 'lucide-react';
+import { GuidedEmptyState } from './ui/GuidedEmptyState';
 
 export default function PlayerView({ campaign, userEmail }: { campaign: Campaign; userEmail: string }) {
   const shareToken = campaign.data?.player?.shareToken;
@@ -87,16 +88,18 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
 
   if (!shareToken) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-parchment p-5">
-        <div className="w-full max-w-md space-y-4 rounded-lg border border-rule bg-parchment-soft p-6 text-center shadow-page">
-          <header className="mb-4 flex items-center justify-between border-b border-rule pb-3">
+      <main className="flex min-h-screen items-center justify-center bg-[var(--bg-canvas)] p-5 text-[var(--text-primary)]">
+        <div className="w-full max-w-md space-y-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 text-center shadow-lg">
+          <header className="mb-4 flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
             <Link href="/campaign" className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:text-crimson">
               <ChevronLeft size={14} /> Back
             </Link>
             <AccountMenu />
           </header>
-          <p className="font-serif text-crimson">Sharing is not enabled for this campaign yet.</p>
-          <p className="font-serif text-sm italic text-ink-soft">Ask your GM to activate Player Mode sharing.</p>
+          <GuidedEmptyState
+            title="Player Sharing Not Active"
+            description="Ask your GM to activate Player Mode sharing so you can claim your character slot."
+          />
         </div>
       </main>
     );
@@ -120,14 +123,7 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
   if (slotId) {
     const slot = roster.find((s) => s.slotId === slotId);
     return (
-      <div className="min-h-screen bg-parchment">
-        {/* Helper Navigation bar for authenticated players to return to dashboard */}
-        <div className="flex items-center justify-between border-b border-rule bg-parchment-deep/40 px-4 py-1.5 text-xs">
-          <Link href="/campaign" className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-brass-deep transition-colors hover:text-crimson">
-            <ChevronLeft size={12} /> Dashboard
-          </Link>
-          <AccountMenu />
-        </div>
+      <div className="min-h-screen w-full max-w-none bg-[var(--bg-canvas)] text-[var(--text-primary)]">
         <PlayerCampaignView
           token={shareToken}
           slotId={slotId}
@@ -145,32 +141,35 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
 
   // Slot picker for registered players
   return (
-    <main className="flex min-h-screen items-center justify-center bg-parchment p-5">
-      <div className="w-full max-w-md space-y-5 rounded-lg border border-rule bg-parchment-soft p-6 shadow-page">
-        <div className="flex items-center justify-between border-b border-rule pb-3">
+    <main className="flex min-h-screen items-center justify-center bg-[var(--bg-canvas)] p-5 text-[var(--text-primary)]">
+      <div className="w-full max-w-md space-y-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-lg">
+        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
           <Link href="/campaign" className="flex items-center gap-1 font-display text-xs uppercase tracking-wider text-brass-deep transition-colors hover:text-crimson">
             <ChevronLeft size={14} /> Back
           </Link>
           <AccountMenu />
         </div>
         <div className="text-center">
-          <div className="font-display text-[10px] uppercase tracking-[0.3em] text-brass-deep">Join as a player</div>
-          <h1 className="font-display text-2xl tracking-wide text-ink">{meta.campaignName}</h1>
-          <p className="mt-1 font-serif text-sm italic text-ink-soft">Pick your name to continue.</p>
+          <div className="font-sans text-[10px] font-semibold uppercase tracking-[0.25em] text-[var(--accent-primary)]">
+            Claim Your Character Slot
+          </div>
+          <h1 className="font-display text-2xl font-semibold tracking-wide text-[var(--text-primary)]">{meta.campaignName}</h1>
+          <p className="mt-1 font-sans text-xs text-[var(--text-muted)]">Select your player slot to enter the live table.</p>
         </div>
         {roster.length === 0 ? (
-          <p className="text-center font-serif text-sm italic text-ink-mute">
-            Your GM hasn’t set up the player roster yet. Check back soon.
-          </p>
+          <GuidedEmptyState
+            title="Claim Your Character Slot"
+            description="Your GM hasn't added player slots to the campaign roster yet. Check back once slots are configured."
+          />
         ) : (
           <div className="space-y-2">
             {roster.map((s) => (
               <button
                 key={s.slotId}
                 onClick={() => pick(s.slotId)}
-                className="flex w-full items-center gap-3 rounded border border-rule bg-parchment px-4 py-3 text-left font-display tracking-wide text-ink transition-colors hover:border-brass-deep hover:bg-brass/5"
+                className="flex w-full items-center gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-left font-display text-base font-semibold tracking-wide text-[var(--text-primary)] transition-colors hover:border-[var(--accent-primary)]"
               >
-                <span className="size-4 flex-shrink-0 rounded-full border border-rule" style={{ backgroundColor: s.color || '#8a6d3b' }} />
+                <span className="size-4 flex-shrink-0 rounded-full border border-[var(--border-subtle)]" style={{ backgroundColor: s.color || '#8a6d3b' }} />
                 {s.displayName}
               </button>
             ))}

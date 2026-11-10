@@ -2,19 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-  background: #f5ecd7;
-  color: #1a1410;
-  min-height: 100dvh;
-  -webkit-tap-highlight-color: transparent;
+:root,
+:root[data-theme='slate'] {
+  --bg-canvas: #090d16;
+  --bg-surface: rgba(255, 255, 255, 0.03);
+  --bg-elevated: #111827;
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --text-primary: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent-primary: #6366f1;
+
+  --color-parchment: #090d16;
+  --color-parchment-soft: #111726;
+  --color-parchment-deep: #1a2336;
+  --color-ink: #f1f5f9;
+  --color-ink-soft: #cbd5e1;
+  --color-ink-mute: #94a3b8;
+  --color-ink-faint: #64748b;
+  --color-crimson: #6366f1;
+  --color-crimson-deep: #4f46e5;
+  --color-crimson-soft: #818cf8;
+  --color-brass: #38bdf8;
+  --color-brass-soft: #7dd3fc;
+  --color-brass-deep: #0284c7;
+  --color-rule: rgba(255, 255, 255, 0.08);
+  --color-moss: #10b981;
+  --color-wine: #a855f7;
+
+  --shadow-page: inset 0 1px 0 0 rgba(255, 255, 255, 0.06), 0 4px 20px -2px rgba(0, 0, 0, 0.45);
+  --shadow-card: inset 0 1px 0 0 rgba(255, 255, 255, 0.05), 0 1px 3px rgba(0, 0, 0, 0.35);
+
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  --font-cinzel: var(--font-display);
+  --font-garamond: var(--font-sans);
 }
 
+:root[data-theme='parchment'] {
+  --bg-canvas: #f5efe4;
+  --bg-surface: #fbf8f2;
+  --bg-elevated: #efe6d5;
+  --border-subtle: rgba(41, 37, 36, 0.12);
+  --text-primary: #1c1917;
+  --text-muted: #57534e;
+  --accent-primary: #8b261d;
+
+  --color-parchment: #f5efe4;
+  --color-parchment-soft: #fbf8f2;
+  --color-parchment-deep: #ebdfc2;
+  --color-ink: #1c1917;
+  --color-ink-soft: #44403c;
+  --color-ink-mute: #78716c;
+  --color-ink-faint: #a8a29e;
+  --color-crimson: #8b261d;
+  --color-crimson-deep: #6e1d24;
+  --color-crimson-soft: #b91c1c;
+  --color-brass: #b45309;
+  --color-brass-soft: #d97706;
+  --color-brass-deep: #92400e;
+  --color-rule: rgba(41, 37, 36, 0.12);
+  --color-moss: #3d5a2a;
+  --color-wine: #5c1f3d;
+
+  --shadow-page: 0 1px 2px rgba(58, 38, 16, 0.08), 0 4px 12px rgba(58, 38, 16, 0.06);
+  --shadow-card: 0 1px 2px rgba(58, 38, 16, 0.06);
+}
+
+html,
 body {
-  background-image:
-    radial-gradient(rgba(122, 90, 30, 0.04) 1px, transparent 1px),
-    radial-gradient(rgba(122, 90, 30, 0.03) 1px, transparent 1px);
-  background-size: 24px 24px, 13px 13px;
-  background-position: 0 0, 7px 11px;
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  font-family: var(--font-sans), 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+.font-mono,
+.tabular-nums {
+  font-family: var(--font-mono), 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.gma-surface-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
 }
 
 .flourish {
@@ -28,19 +101,31 @@ body {
   content: '';
   flex: 1;
   height: 1px;
-  background: linear-gradient(to right, transparent, #d8c9a5 30%, #d8c9a5 70%, transparent);
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--border-subtle) 30%,
+    var(--border-subtle) 70%,
+    transparent
+  );
 }
 
 .flourish > span {
-  color: #a87f2e;
+  color: var(--color-brass);
   font-size: 0.75rem;
   letter-spacing: 0.2em;
 }
 
 @keyframes cp-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(177, 32, 30, 0.55); }
-  60%  { box-shadow: 0 0 0 8px rgba(177, 32, 30, 0);   }
-  100% { box-shadow: 0 0 0 0 rgba(177, 32, 30, 0);     }
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.55);
+  }
+  60% {
+    box-shadow: 0 0 0 8px rgba(99, 102, 241, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
 }
 
 .cp-highlight {
@@ -52,23 +137,33 @@ body {
 
 /* 1. Animated Theme Spinner */
 @keyframes gm-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .gm-spinner {
   width: 2.5rem;
   height: 2.5rem;
-  border: 3px solid #d8c9a5; /* brass-soft */
-  border-top-color: #b1201e; /* crimson */
+  border: 3px solid var(--border-subtle);
+  border-top-color: var(--accent-primary);
   border-radius: 50%;
   animation: gm-spin 1s linear infinite;
 }
 
 /* 2. Tab Fade-In Transition */
 @keyframes gm-fadeIn {
-  0% { opacity: 0; transform: translateY(4px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .gm-tab-enter {
@@ -77,8 +172,14 @@ body {
 
 /* 4. Styled Toast Animation */
 @keyframes gm-toast-in {
-  0% { transform: translateY(1rem) scale(0.95); opacity: 0; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
+  0% {
+    transform: translateY(1rem) scale(0.95);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 
 .gm-toast {
@@ -96,19 +197,19 @@ body {
   bottom: 125%;
   left: 50%;
   transform: translateX(-50%) scale(0.95);
-  background: #1a1410; /* ink */
-  color: #f5ecd7; /* parchment */
+  background: var(--bg-elevated);
+  color: var(--text-primary);
   padding: 0.35rem 0.6rem;
-  border-radius: 0.25rem;
+  border-radius: 0.375rem;
   font-size: 0.75rem;
-  font-family: var(--font-serif), ui-serif, serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
   white-space: nowrap;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px -1px rgba(0, 0, 0, 0.35);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.1s ease, transform 0.1s ease;
   z-index: 50;
-  border: 1px solid #a87f2e; /* brass */
+  border: 1px solid var(--border-subtle);
 }
 
 .gm-tooltip:hover::after {
@@ -118,10 +219,18 @@ body {
 
 /* 6. Dice Roll Bounce Animation */
 @keyframes gm-roll-bounce {
-  0% { transform: scale(1); }
-  30% { transform: scale(1.25); }
-  60% { transform: scale(0.95); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.25);
+  }
+  60% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .gm-roll-total {
@@ -149,16 +258,22 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid #b1201e !important; /* crimson */
+  outline: 2px solid var(--accent-primary) !important;
   outline-offset: 2px !important;
-  box-shadow: 0 0 0 4px rgba(177, 32, 30, 0.15) !important;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15) !important;
 }
 
 /* 10. Shimmer Effect for Pro Feature Panel Button */
 @keyframes gm-shimmer-anim {
-  0% { left: -150%; }
-  50% { left: 150%; }
-  100% { left: 150%; }
+  0% {
+    left: -150%;
+  }
+  50% {
+    left: 150%;
+  }
+  100% {
+    left: 150%;
+  }
 }
 
 .gm-shimmer {
@@ -184,6 +299,8 @@ textarea:focus-visible {
 }
 
 /* 11. Mobile fixes for inputs to prevent zooming on iOS */
-input, textarea, select {
+input,
+textarea,
+select {
   font-size: 16px;
 }

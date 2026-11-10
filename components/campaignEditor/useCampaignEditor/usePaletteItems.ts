@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import {
   Plus, User, Users, Map, Gift, Calendar, Target, Download, Upload,
-  ScrollText, Wand2, Skull, Footprints, Hash, SlidersHorizontal, Compass,
+  ScrollText, Wand2, Skull, Footprints, Hash, SlidersHorizontal, Eye, EyeOff, Sun, Sparkles,
 } from 'lucide-react';
 import { MODES } from '@/lib/modes';
 import type { Mode } from '@/lib/modes';
@@ -12,6 +12,12 @@ import type { GeneratorLogs } from '@/lib/generators/log';
 import type { DowntimeEntry } from '../prepTypes';
 import { DOWNTIME_TYPES } from '../cards';
 import { VIEW_META, PREP_SECTION_META, SECTION_TO_PHASE, PHASE_TO_VIEW } from './constants';
+import { useTheme } from '@/lib/theme';
+import spellsData from '@/lib/srd/spells.json';
+import type { Spell } from '@/components/SpellsTab';
+import { isEntityPlayerVisible, syncEntityPlayerVisibility } from '@/lib/playerMode/spoilers';
+
+const SPELLS = spellsData as Spell[];
 
 type NavigateFn = (target: {
   mode: Mode;
@@ -39,7 +45,10 @@ export function usePaletteItems(
   setModeSwitcherOpen: (v: boolean) => void,
   setPrepTargetsOpen: (v: boolean) => void,
   setPhaseOpen: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
+  setState?: React.Dispatch<React.SetStateAction<Record<string, any>>>,
+  pcFileInputRef?: React.RefObject<HTMLInputElement | null>,
 ): CommandItem[] {
+  const { theme, toggleTheme } = useTheme();
   const viewForSection = (sectionId: string): { mode: Mode; subview: string } => {
     const phase = SECTION_TO_PHASE[sectionId];
     return PHASE_TO_VIEW[phase] ?? { mode: 'prep', subview: 'flow' };
@@ -61,6 +70,30 @@ export function usePaletteItems(
     }
 
     items.push(
+      {
+        id: 'act:toggle-theme',
+        label: `Switch UI Theme (${theme === 'slate' ? 'Obsidian Slate → Warm Parchment' : 'Warm Parchment → Obsidian Slate'})`,
+        sublabel: 'Dual-Theme Engine',
+        group: 'Actions',
+        keywords: ['theme', 'dark', 'light', 'slate', 'parchment', 'mode'],
+        icon: Sun,
+        run: () => toggleTheme(),
+      },
+      {
+        id: 'act:upload-sheet',
+        label: 'Upload Character Sheet (.pdf / .json)',
+        sublabel: 'Auto-evaluate & merge into Party',
+        group: 'Actions',
+        keywords: ['upload', 'character', 'sheet', 'pdf', 'import', 'pc'],
+        icon: Upload,
+        run: () => {
+          if (pcFileInputRef?.current) {
+            pcFileInputRef.current.click();
+          } else {
+            navigateTo({ mode: 'organize', subview: 'party' });
+          }
+        },
+      },
       { id: 'act:new-session', label: 'New session log', group: 'Actions', icon: Plus, run: () => { addSessionLog(); navigateTo({ mode: 'organize', subview: 'log' }); } },
       { id: 'act:export', label: 'Export campaign JSON', group: 'Actions', icon: Download, run: () => exportJSON() },
       { id: 'act:import', label: 'Import campaign JSON', group: 'Actions', icon: Upload, run: () => fileInputRef.current?.click() },
@@ -81,19 +114,52 @@ export function usePaletteItems(
       });
     }
 
-    const npcs = (get('npcs', []) as Array<{ name?: string; type?: string; archetype?: string; faction?: string }>);
+    const playerCfg = get('player', {}) as any;
+
+    const npcs = (get('npcs', []) as Array<{ id?: string; name?: string; type?: string; archetype?: string; faction?: string; player_visible?: boolean; isPublic?: boolean }>);
     npcs.forEach((n, i) => {
       const label = (n.name || '').trim() || (n.archetype || '').trim() || `Unnamed NPC #${i + 1}`;
       const tag = [n.type, n.faction].filter(Boolean).join(' · ');
+      const nid = n.id || `npc-${i}`;
+      const isVisible = isEntityPlayerVisible({ ...n, id: nid }, 'npcs', playerCfg);
       items.push({
         id: `npc:${i}`,
         label,
-        sublabel: tag || undefined,
+        sublabel: `${isVisible ? '👁️ Party' : '🔒 Private'}${tag ? ` · ${tag}` : ''}`,
         group: 'NPCs',
-        keywords: [n.archetype || '', n.faction || ''],
+        keywords: [n.archetype || '', n.faction || '', isVisible ? 'party shared' : 'private'],
         icon: User,
         run: () => { const v = viewForSection('s6-npc'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 's6-npc', anchor: `npc:${i}` }); },
       });
+      if (setState) {
+        items.push({
+          id: `vis:npc:${i}`,
+          label: `Toggle ${label} visibility (${isVisible ? '👁️ Party → 🔒 Private' : '🔒 Private → 👁️ Party'})`,
+          sublabel: 'NPC Visibility',
+          group: 'Visibility',
+          keywords: ['visibility', 'reveal', 'hide', 'party', 'private', label],
+          icon: isVisible ? EyeOff : Eye,
+          run: () => {
+            setState((prev) => {
+              const arr = [...(prev.npcs || [])];
+              const target = arr[i];
+              if (!target) return prev;
+              const nextVis = !isVisible;
+              const synced = syncEntityPlayerVisibility(
+                { ...target, id: nid },
+                nextVis,
+                'npcs',
+                prev.player,
+              );
+              arr[i] = {
+                ...synced.entity,
+                visibility: { scope: nextVis ? 'party' : 'private' },
+              };
+              return { ...prev, npcs: arr, player: synced.playerConfig };
+            });
+          },
+        });
+      }
     });
 
     const locs = (get('locations', []) as Array<{ name?: string; type?: string; factions?: string }>);
@@ -318,9 +384,21 @@ export function usePaletteItems(
       });
     }
 
+    SPELLS.slice(0, 80).forEach((spell: Spell, idx: number) => {
+      items.push({
+        id: `spell:${spell.name}:${idx}`,
+        label: spell.name,
+        sublabel: `${spell.level === 0 ? 'Cantrip' : `Lvl ${spell.level}`} · ${spell.school} · ${spell.casting_time}`,
+        group: 'Spells',
+        keywords: [spell.school, ...(spell.classes || []), 'spell', 'srd'],
+        icon: Sparkles,
+        run: () => navigateTo({ mode: 'library', subview: 'spells' }),
+      });
+    });
+
     return items;
     // navigateTo and the action callbacks close over the latest state via the
     // setter callbacks they call; the deps below cover the fields we read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, soloMode, sortedSessionLogs, pcs, generatorLogs]);
+  }, [state, soloMode, sortedSessionLogs, pcs, generatorLogs, theme]);
 }

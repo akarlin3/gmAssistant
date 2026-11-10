@@ -233,10 +233,66 @@ describe('redaction invariant (property-based)', () => {
     );
   });
 
-  // I10: GM -> Player Encounter HUD & Progress Clock Redaction
+  // I10: Targeted whispers addressed to Player Slot A NEVER appear in Player Slot B's
+  // projection, and `toSlotIds` is stripped so recipients cannot see other targets.
+  it('I10 — whispers addressed to Slot A NEVER leak into Slot B’s projection, and toSlotIds is stripped', () => {
+    const whisperArb = (slotIds: string[]) =>
+      fc.array(
+        fc.record({
+          id: fc.uuid(),
+          toSlotIds: fc.subarray(slotIds, { minLength: 0 }),
+          text: fc.uuid().map((u) => `SECRET_WHISPER_${u}`),
+          entityType: fc.option(fc.constantFrom<'npcs' | 'locations' | 'items'>('npcs', 'locations', 'items'), {
+            nil: undefined,
+          }),
+          entityId: fc.option(fc.constant('entity-1'), { nil: undefined }),
+          entityLabel: fc.option(fc.constant('Secret Informant'), { nil: undefined }),
+          sentAtMs: fc.integer({ min: 1, max: 100000 }),
+          senderLabel: fc.constant('GM'),
+        }),
+        { maxLength: 8 },
+      );
+
+    fc.assert(
+      fc.property(
+        arbCampaign().chain((camp) =>
+          whisperArb(camp.slotIds).map((whispers) => ({ camp, whispers })),
+        ),
+        ({ camp, whispers }) => {
+          const dataWithWhispers: PlayerModeData = {
+            ...camp.data,
+            whispers,
+          };
+
+          for (const slotB of [...camp.slotIds, camp.outsiderSlotId]) {
+            const projB = buildSlotProjection(dataWithWhispers, 'Camp', slotB, 1000);
+            const serializedB = JSON.stringify(projB);
+            const projectedWhisperIds = new Set((projB.whispers ?? []).map((w) => w.id));
+
+            for (const w of whispers) {
+              const targetedToB = Array.isArray(w.toSlotIds) && w.toSlotIds.includes(slotB);
+              if (!targetedToB) {
+                // Whisper NOT addressed to slotB must NEVER appear in slotB's projection
+                expect(projectedWhisperIds.has(w.id)).toBe(false);
+                expect(serializedB).not.toContain(w.text);
+              } else {
+                // Whisper addressed to slotB appears, but `toSlotIds` is stripped
+                const found = (projB.whispers ?? []).find((pw) => pw.id === w.id);
+                expect(found).toBeDefined();
+                expect(found).not.toHaveProperty('toSlotIds');
+              }
+            }
+          }
+        },
+      ),
+      RUNS,
+    );
+  });
+
+  // I11: GM -> Player Encounter HUD & Progress Clock Redaction
   // Arbitrary adversarial campaign state with hidden monsters, monster HP/AC/stat blocks/GM notes,
   // and private clocks projects ZERO hidden combatants, monster stats, or private clocks into /player.
-  it('I10 — Encounter HUD and Revealed Progress Clocks never leak hidden monsters, monster AC/HP/stat blocks/notes, or private clocks', () => {
+  it('I11 — Encounter HUD and Revealed Progress Clocks never leak hidden monsters, monster AC/HP/stat blocks/notes, or private clocks', () => {
     const arbCombatant = (idx: number) =>
       fc.record({
         id: fc.constant(`comb-${idx}`),

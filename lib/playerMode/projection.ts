@@ -11,19 +11,24 @@ import { edgeVisibleToSlot, effectiveWeight } from '@/lib/wiki/edges';
 import type { EntityType, Relationship } from '@/lib/wiki/types';
 import { projectPlayerMaps } from '@/lib/maps/playerProjection';
 import type { PartyLootItem, RollEvent } from '@/lib/pc/types';
+import { projectWorldClockForPlayers } from '@/lib/worldClock';
 import {
   PLAYER_ENTITY_TYPES,
   normalizeItem,
   type ActiveEncounterHud,
   type ActiveEncounterHudEntry,
   type CampaignItem,
+  type CampaignWhisper,
   type EntityVisibility,
   type FieldPrivacyMap,
+  type HandoutCard,
   type PlayerConfig,
   type PlayerEntity,
   type PlayerEntityType,
   type PlayerLogEntry,
   type PlayerModeData,
+  type ProjectedHandoutCard,
+  type ProjectedWhisper,
   type PublicCombatStatusTag,
   type RevealedProgressClock,
   type ShareMeta,
@@ -39,6 +44,7 @@ const PLAYER_LOG_INTERNAL_FIELDS = new Set(['visibility']);
 const STRUCTURAL_FIELDS = new Set([
   'isSidekick', 'sidekickClass', 'sidekickSpellList', 'sidekickBase',
   'sidekickLevel', 'gestalt', 'pointBuy', 'isPublic',
+  'tokenPosition', 'mapPing', 'playerWhispers',
 ]);
 
 // Compiled once at module load: the candidate content fields per entity type,
@@ -607,6 +613,97 @@ export function buildSlotProjection(
   const rollEvents = projectTableRollEvents(data);
   const partyLootItems = projectPartyLootItems(data);
 
+  // Per-player whispers: strictly project ONLY whispers addressed to `slotId`
+  // or authored by `slotId` (including outbound whispers on a PC owned by `slotId`).
+  // Whispers addressed exclusively to Slot A NEVER appear in Slot B's projection,
+  // and `toSlotIds` is stripped from the projected payload so co-recipients are never leaked.
+  const whispers: ProjectedWhisper[] = [];
+  const rawWhispers = Array.isArray(data.whispers) ? data.whispers : [];
+  for (const w of rawWhispers as ReadonlyArray<CampaignWhisper>) {
+    if (!w || typeof w !== 'object' || typeof w.id !== 'string' || typeof w.text !== 'string') continue;
+    const toList = Array.isArray(w.toSlotIds) ? w.toSlotIds : [];
+    const fromVal = w.from || 'gm';
+    const addressedToSlot = toList.includes(slotId);
+    const authoredBySlot = fromVal === slotId;
+    if (!addressedToSlot && !authoredBySlot) continue;
+    const tsVal = typeof w.timestamp === 'number' ? w.timestamp : typeof w.sentAtMs === 'number' ? w.sentAtMs : 0;
+    const clean: ProjectedWhisper = {
+      id: w.id,
+      from: fromVal === 'gm' ? 'gm' : String(fromVal),
+      text: redactSpoilers(w.text),
+      timestamp: tsVal,
+    };
+    const labelVal = w.fromLabel || w.senderLabel;
+    if (typeof labelVal === 'string' && labelVal) clean.fromLabel = labelVal;
+    if (typeof w.entityId === 'string' && w.entityId) clean.entityId = w.entityId;
+    const entName = w.entityName || w.entityLabel;
+    if (typeof entName === 'string' && entName) clean.entityName = redactSpoilers(entName);
+    const entCat = w.entityCategory || w.entityType;
+    if (typeof entCat === 'string' && entCat) clean.entityCategory = entCat;
+    whispers.push(clean);
+  }
+
+  // Also include outbound whispers authored by this slot on its own PC (`pc.playerWhispers`)
+  const pcsArr = Array.isArray(data.pcs) ? data.pcs : [];
+  const existingWhisperIds = new Set(whispers.map((w) => w.id));
+  for (const pc of pcsArr) {
+    if (!pc || typeof pc !== 'object') continue;
+    const own = pc.ownership as { ownerType?: string; playerSlotId?: string } | undefined;
+    if (own?.ownerType === 'player' && own.playerSlotId === slotId && Array.isArray((pc as any).playerWhispers)) {
+      for (const pw of (pc as any).playerWhispers) {
+        if (!pw || typeof pw !== 'object' || typeof pw.id !== 'string' || typeof pw.text !== 'string') continue;
+        if (existingWhisperIds.has(pw.id)) continue;
+        existingWhisperIds.add(pw.id);
+        const clean: ProjectedWhisper = {
+          id: pw.id,
+          from: slotId,
+          fromLabel: typeof pc.name === 'string' ? pc.name : undefined,
+          text: pw.text,
+          timestamp: typeof pw.timestamp === 'number' ? pw.timestamp : 0,
+        };
+        if (typeof pw.entityId === 'string' && pw.entityId) clean.entityId = pw.entityId;
+        if (typeof pw.entityName === 'string' && pw.entityName) clean.entityName = pw.entityName;
+        whispers.push(clean);
+      }
+    }
+  }
+  whispers.sort((a, b) => a.timestamp - b.timestamp);
+
+  // Handout Gallery & Flash Handout Modal projection (redacted by visibility; GM notes stripped)
+  const handoutGallery: ProjectedHandoutCard[] = [];
+  let activeHandoutFlash: ProjectedHandoutCard | null = null;
+  const rawHandouts = Array.isArray(data.handoutGallery) ? data.handoutGallery : [];
+  const flashId = typeof data.activeHandoutFlashId === 'string' ? data.activeHandoutFlashId : null;
+
+  for (const h of rawHandouts as ReadonlyArray<HandoutCard>) {
+    if (!h || typeof h !== 'object' || typeof h.id !== 'string' || typeof h.title !== 'string') continue;
+    const vis = h.visibility;
+    // Default handout card visibility in handoutGallery is 'party' unless explicitly set to 'private' or 'custom'
+    const visible = !vis
+      ? true
+      : vis.mode === 'party' || (vis.mode === 'custom' && (vis.allowedSlotIds ?? []).includes(slotId));
+    if (!visible) continue;
+    const card: ProjectedHandoutCard = {
+      id: h.id,
+      title: redactSpoilers(h.title),
+      category: h.category || h.kind || 'lore',
+    };
+    const bodyText = typeof h.content === 'string' && h.content ? h.content : typeof h.body === 'string' ? h.body : '';
+    if (bodyText) card.content = redactSpoilers(bodyText);
+    if (typeof h.imageUrl === 'string' && h.imageUrl) card.imageUrl = h.imageUrl;
+    if (typeof h.subtitle === 'string' && h.subtitle) card.subtitle = redactSpoilers(h.subtitle);
+    if (h.style === 'parchment' || h.style === 'slate') card.style = h.style;
+    const flashedTs = typeof h.flashedAt === 'number' ? h.flashedAt : typeof h.flashedAtMs === 'number' ? h.flashedAtMs : undefined;
+    if (typeof flashedTs === 'number') card.flashedAt = flashedTs;
+    handoutGallery.push(card);
+    if ((flashId && h.id === flashId) || h.activeFlash === true) {
+      activeHandoutFlash = card;
+    }
+  }
+
+  // World Clock projection (only projected when worldClock.visibility === 'party')
+  const worldClock = projectWorldClockForPlayers(data as Record<string, unknown>);
+
   return {
     campaignName,
     tokenVersion: config.tokenVersion,
@@ -624,6 +721,11 @@ export function buildSlotProjection(
     planning,
     pcGoals: projectedGoals,
     maps,
+    whispers,
+    handoutGallery,
+    activeHandoutFlash,
+    ...(worldClock ? { worldClock } : {}),
+    tableSafetyEnabled: config.tableSafetyEnabled === true,
     playlistUrl: data.__sessionPlaylist || '',
     playlistPlaying: !!data.__sessionPlaylistPlaying,
     playlistIndex: typeof data.__sessionPlaylistIndex === 'number' ? data.__sessionPlaylistIndex : 0,

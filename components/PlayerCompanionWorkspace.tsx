@@ -79,6 +79,14 @@ import {
   type RollEvent,
   type TurnActionEconomy,
 } from '@/lib/pc/types';
+import { TableStageShell } from './tableStage/TableStageShell';
+import { GuidedEmptyState } from './ui/GuidedEmptyState';
+import { PlayerPrivacyPill } from './ui/VisibilityBadge';
+import { MentionText } from './wiki/MentionText';
+import { readMaps, type CampaignMap } from '@/lib/maps/types';
+import ExternalTablePiP, { VoiceDictationButton } from './ExternalTablePiP';
+import TacticalMapStage from './TacticalMapStage';
+import GeminiBridgeModal from './GeminiBridgeModal';
 
 export type PlayerCompanionTabId = 'sheet' | 'quests' | 'world' | 'gear' | 'play';
 
@@ -303,6 +311,7 @@ export default function PlayerCompanionWorkspace({
 
   // --- Quests & Clues Form State ---
   const [questCategoryFilter, setQuestCategoryFilter] = useState<'all' | 'quest' | 'goal' | 'rumor' | 'mystery'>('all');
+  const [questShareFilter, setQuestShareFilter] = useState<'all' | 'shared' | 'private'>('all');
   const [newQuestTitle, setNewQuestTitle] = useState('');
   const [newQuestCategory, setNewQuestCategory] = useState<'quest' | 'goal' | 'rumor' | 'mystery'>('quest');
   const [newQuestNotes, setNewQuestNotes] = useState('');
@@ -324,6 +333,7 @@ export default function PlayerCompanionWorkspace({
   const [journalDate, setJournalDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [journalTitle, setJournalTitle] = useState('');
   const [journalContent, setJournalContent] = useState('');
+  const [journalShareFilter, setJournalShareFilter] = useState<'all' | 'shared' | 'private'>('all');
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
 
   // --- Gear & Loot Splitter State ---
@@ -406,6 +416,9 @@ export default function PlayerCompanionWorkspace({
     });
   };
 
+  const [geminiModalOpen, setGeminiModalOpen] = useState(false);
+  const mapsList = useMemo(() => readMaps({ maps: get('maps', []) }), [get]);
+
   return (
     <div className="space-y-4 pb-24">
       {/* Standalone Player Companion Mode Banner & Tab Navigation */}
@@ -419,25 +432,52 @@ export default function PlayerCompanionWorkspace({
               Adventurer&apos;s Notebook &amp; Table HUD — built for playing in any campaign.
             </span>
           </div>
-          {pcs.length > 1 && (
-            <div className="flex items-center gap-1.5">
-              <span className="font-mono text-[10px] uppercase text-ink-faint">Character:</span>
-              {pcs.map((pc, idx) => (
-                <button
-                  key={pc.id}
-                  type="button"
-                  onClick={() => setSelectedPcIdx(idx)}
-                  className={`rounded border px-2 py-0.5 font-display text-xs ${
-                    selectedPcIdx === idx
-                      ? 'border-indigo-500 bg-indigo-500/15 text-indigo-600 font-semibold'
-                      : 'border-rule bg-parchment text-ink-soft'
-                  }`}
-                >
-                  {pc.name || `PC ${idx + 1}`}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <ExternalTablePiP
+              role="standalone-player"
+              activePc={activePc ?? null}
+              latestFeedLine={companionJournal[0]?.content ?? companionQuests[0]?.title}
+              onAdjustPcHp={(delta) => {
+                if (!activePc) return;
+                const nextHp = Math.max(
+                  0,
+                  Math.min(activePc.maxHp || 10, (activePc.currentHp ?? activePc.maxHp ?? 10) + delta),
+                );
+                patchActivePc({ currentHp: nextHp });
+              }}
+              onAdjustPcAc={(delta) => {
+                if (!activePc) return;
+                patchActivePc({ ac: Math.max(1, (activePc.ac || 10) + delta) });
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setGeminiModalOpen(true)}
+              className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 font-mono text-[11px] font-semibold text-amber-800 hover:bg-amber-500/25 dark:text-amber-200"
+              title="Open Zero-Key Gemini Journal & Recap Bridge"
+            >
+              <Sparkles size={12} /> Gemini Journal Bridge
+            </button>
+            {pcs.length > 1 && (
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono text-[10px] uppercase text-ink-faint">Character:</span>
+                {pcs.map((pc, idx) => (
+                  <button
+                    key={pc.id}
+                    type="button"
+                    onClick={() => setSelectedPcIdx(idx)}
+                    className={`rounded border px-2 py-0.5 font-display text-xs ${
+                      selectedPcIdx === idx
+                        ? 'border-indigo-500 bg-indigo-500/15 text-indigo-600 font-semibold'
+                        : 'border-rule bg-parchment text-ink-soft'
+                    }`}
+                  >
+                    {pc.name || `PC ${idx + 1}`}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <nav
@@ -633,11 +673,16 @@ export default function PlayerCompanionWorkspace({
           )}
 
           {!activePc ? (
-            <div className="rounded-lg border border-rule bg-parchment p-8 text-center shadow-card">
-              <p className="font-serif text-sm italic text-ink-soft">
-                No character sheet created yet. Click &ldquo;Create Character&rdquo;, &ldquo;Add Character&rdquo;, or &ldquo;Import Character Sheet&rdquo; above to begin!
-              </p>
-            </div>
+            <GuidedEmptyState
+              title="No Character Sheet Loaded"
+              description="Drop Party PDFs / JSONs to Auto-Evaluate, or create a blank character sheet to begin."
+              actions={[
+                { label: 'Create Character', onClick: () => setWizardMode('create'), primary: true },
+                ...(onUploadClick
+                  ? [{ label: 'Drop Party PDFs / JSONs to Auto-Evaluate', onClick: onUploadClick }]
+                  : []),
+              ]}
+            />
           ) : (
             <>
               {/* Quick Rest, Inspiration, Pact Magic & Class Resource Pools Dashboard */}
@@ -870,7 +915,28 @@ export default function PlayerCompanionWorkspace({
                 Track active party quests, personal character arcs, tavern rumors, and unsolved mysteries.
               </p>
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {/* Quick Filter Pill: Shared with GM */}
+              {(
+                [
+                  { id: 'all', label: 'All' },
+                  { id: 'shared', label: 'Filter: Shared with GM' },
+                  { id: 'private', label: '🔒 Private Only' },
+                ] as const
+              ).map((pill) => (
+                <button
+                  key={pill.id}
+                  type="button"
+                  onClick={() => setQuestShareFilter(pill.id)}
+                  className={`rounded-full border px-2.5 py-1 font-sans text-[11px] font-medium transition-colors ${
+                    questShareFilter === pill.id
+                      ? 'border-emerald-500/45 bg-emerald-500/15 text-emerald-500 font-semibold'
+                      : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {pill.label}
+                </button>
+              ))}
               {(['all', 'quest', 'goal', 'rumor', 'mystery'] as const).map((cat) => (
                 <button
                   key={cat}
@@ -882,7 +948,7 @@ export default function PlayerCompanionWorkspace({
                       : 'border-rule bg-parchment-soft text-ink-soft hover:text-ink'
                   }`}
                 >
-                  {cat === 'all' ? 'All Entries' : `${cat}s`}
+                  {cat === 'all' ? 'All Categories' : `${cat}s`}
                 </button>
               ))}
             </div>
@@ -942,25 +1008,44 @@ export default function PlayerCompanionWorkspace({
           <div className="grid gap-3 sm:grid-cols-2">
             {companionQuests
               .filter((q) => questCategoryFilter === 'all' || (q.category ?? 'quest') === questCategoryFilter)
+              .filter((q) =>
+                questShareFilter === 'all'
+                  ? true
+                  : questShareFilter === 'shared'
+                    ? q.sharedWithGm
+                    : !q.sharedWithGm,
+              )
               .map((q) => (
                 <div
                   key={q.id}
-                  className="space-y-2 rounded border border-rule bg-parchment-soft p-3 shadow-sm"
+                  className={`space-y-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 shadow-sm ${
+                    q.sharedWithGm ? 'border-l-[3px] border-l-emerald-500/80' : ''
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="rounded border border-rule bg-parchment px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-brass-deep">
+                      <span className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-[var(--accent-primary)]">
                         {q.category ?? 'quest'}
                       </span>
                       <h4
-                        className={`mt-1 font-display text-sm font-semibold ${
-                          q.status === 'completed' ? 'line-through text-ink-faint' : 'text-ink'
+                        className={`mt-1 font-display text-base font-semibold ${
+                          q.status === 'completed' ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-primary)]'
                         }`}
                       >
                         {q.title}
                       </h4>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <PlayerPrivacyPill
+                        sharedWithGm={Boolean(q.sharedWithGm)}
+                        onToggle={() =>
+                          setCompanionQuests(
+                            companionQuests.map((item) =>
+                              item.id === q.id ? { ...item, sharedWithGm: !item.sharedWithGm } : item,
+                            ),
+                          )
+                        }
+                      />
                       {(['active', 'completed', 'failed'] as PlayerQuestStatus[]).map((st) => (
                         <button
                           key={st}
@@ -1012,9 +1097,10 @@ export default function PlayerCompanionWorkspace({
               ))}
           </div>
           {companionQuests.length === 0 && (
-            <p className="py-6 text-center font-serif text-xs italic text-ink-faint">
-              No quests, personal goals, or rumors logged yet. Add your first lead above!
-            </p>
+            <GuidedEmptyState
+              title="No Quests or Rumors Logged"
+              description="Track active party quests, personal goals, or tavern rumors. Toggle any item to 👁️ Shared with GM when you want your GM to see it."
+            />
           )}
         </div>
       )}
@@ -1289,7 +1375,7 @@ export default function PlayerCompanionWorkspace({
 
           {/* Session Recaps & Journal with @-Mention Entity Linking */}
           <section className="space-y-3 rounded-lg border border-rule bg-parchment p-4 shadow-card sm:p-5">
-            <div className="flex items-center justify-between border-b border-rule pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-2">
               <div className="flex items-center gap-2">
                 <BookOpen size={18} className="text-wax" />
                 <div>
@@ -1300,6 +1386,28 @@ export default function PlayerCompanionWorkspace({
                     Type <code className="font-mono text-wax">@Name</code> to link any known NPC, Location, or Faction in your recap.
                   </p>
                 </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {(
+                  [
+                    { id: 'all', label: 'All' },
+                    { id: 'shared', label: 'Filter: Shared with GM' },
+                    { id: 'private', label: '🔒 Private Only' },
+                  ] as const
+                ).map((pill) => (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    onClick={() => setJournalShareFilter(pill.id)}
+                    className={`rounded-full border px-2.5 py-1 font-sans text-[11px] font-medium transition-colors ${
+                      journalShareFilter === pill.id
+                        ? 'border-emerald-500/45 bg-emerald-500/15 text-emerald-500 font-semibold'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -1396,44 +1504,78 @@ export default function PlayerCompanionWorkspace({
             </div>
 
             <div className="space-y-2.5">
-              {companionJournal.map((j) => (
-                <div key={j.id} className="space-y-1.5 rounded border border-rule bg-parchment-soft p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="font-mono text-[10px] font-bold uppercase text-wax">
-                        Session {j.sessionNumber} · {j.date}
-                      </span>
-                      <h4 className="font-display text-sm font-semibold text-ink">{j.title}</h4>
+              {companionJournal
+                .filter((j) =>
+                  journalShareFilter === 'all'
+                    ? true
+                    : journalShareFilter === 'shared'
+                      ? j.sharedWithGm
+                      : !j.sharedWithGm,
+                )
+                .map((j) => (
+                  <div
+                    key={j.id}
+                    className={`space-y-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 ${
+                      j.sharedWithGm ? 'border-l-[3px] border-l-emerald-500/80' : ''
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <span className="font-mono text-[10px] font-bold uppercase text-wax">
+                          Session {j.sessionNumber} · {j.date}
+                        </span>
+                        <h4 className="font-display text-base font-semibold text-[var(--text-primary)]">{j.title}</h4>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <PlayerPrivacyPill
+                          sharedWithGm={Boolean(j.sharedWithGm)}
+                          onToggle={() =>
+                            setCompanionJournal(
+                              companionJournal.map((item) =>
+                                item.id === j.id ? { ...item, sharedWithGm: !item.sharedWithGm } : item,
+                              ),
+                            )
+                          }
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setCompanionJournal(companionJournal.filter((item) => item.id !== j.id))}
+                          className="text-ink-faint hover:text-crimson"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setCompanionJournal(companionJournal.filter((item) => item.id !== j.id))}
-                      className="text-ink-faint hover:text-crimson"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    <p className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-[var(--text-primary)]">
+                      <MentionText
+                        text={j.content}
+                        campaignData={{ npcs, locations, factions }}
+                      />
+                    </p>
+                    {j.linkedEntityIds && j.linkedEntityIds.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {j.linkedEntityIds.map((id) => {
+                          const ent = allMentionableEntities.find((e) => e.id === id);
+                          return (
+                            <span
+                              key={id}
+                              className="inline-flex items-center gap-0.5 rounded-full border border-gold/50 bg-gold/15 px-2 py-0.5 font-mono text-[9px] text-gold-deep"
+                            >
+                              <AtSign size={9} />
+                              {ent?.name ?? id}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <p className="whitespace-pre-wrap font-serif text-xs leading-relaxed text-ink">
-                    {j.content}
-                  </p>
-                  {j.linkedEntityIds && j.linkedEntityIds.length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {j.linkedEntityIds.map((id) => {
-                        const ent = allMentionableEntities.find((e) => e.id === id);
-                        return (
-                          <span
-                            key={id}
-                            className="inline-flex items-center gap-0.5 rounded-full border border-gold/50 bg-gold/15 px-2 py-0.5 font-mono text-[9px] text-gold-deep"
-                          >
-                            <AtSign size={9} />
-                            {ent?.name ?? id}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ))}
+                ))}
+              {companionJournal.length === 0 && (
+                <GuidedEmptyState
+                  title="No Session Recaps Logged Yet"
+                  description="Jot down session notes and type @Name to link NPCs, Locations, or Factions."
+                />
+              )}
             </div>
           </section>
         </div>
@@ -1443,11 +1585,13 @@ export default function PlayerCompanionWorkspace({
       {activeTab === 'gear' && (
         <div className="space-y-4">
           {!activePc ? (
-            <div className="rounded-lg border border-rule bg-parchment p-8 text-center">
-              <p className="font-serif text-sm italic text-ink-soft">
-                Create a character in the Sheet tab first to track personal gear, attunement, and coins.
-              </p>
-            </div>
+            <GuidedEmptyState
+              title="Create a Character to Track Gear"
+              description="Create or import a character sheet first to track personal equipment, attunement slots, and coins."
+              actions={[
+                { label: 'Create Character', onClick: () => { onAddPc(); onSelectTab('sheet'); }, primary: true },
+              ]}
+            />
           ) : (
             <>
               <section className="space-y-4 rounded-lg border border-rule bg-parchment p-4 shadow-card sm:p-5">
@@ -1717,327 +1861,389 @@ export default function PlayerCompanionWorkspace({
         </div>
       )}
 
-      {/* TAB 5: PLAY (TABLE HUD) */}
+      {/* TAB 5: PLAY (3-PANE TABLE STAGE HUD) */}
       {activeTab === 'play' && (
-        <div className="grid gap-4 lg:grid-cols-12">
-          {/* Left Column: My Turn Action Economy Checklist + Concentration + Renown/Downtime */}
-          <div className="space-y-4 lg:col-span-7">
-            {/* My Turn Action Economy Checklist */}
-            <section className="space-y-3 rounded-lg border border-rule bg-parchment p-4 shadow-card">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-2.5">
-                <div className="flex items-center gap-2">
-                  <Swords size={17} className="text-wax" />
-                  <div>
-                    <h3 className="font-display text-base tracking-wide text-ink">
-                      My Turn Action Economy
-                    </h3>
-                    <p className="font-serif text-xs text-ink-faint">
-                      Check off your actions as you take them in combat, then tap &ldquo;Next Turn&rdquo; to reset.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={resetNextTurn}
-                  className="inline-flex items-center gap-1.5 rounded border border-wax bg-wax px-3 py-1.5 font-mono text-xs font-semibold text-ivory shadow-sm hover:bg-wax/90"
-                >
-                  <RotateCcw size={13} /> Next Turn
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
-                {(
-                  [
-                    { key: 'actionUsed', label: 'Action', desc: 'Attack, Cast, Dash, Dodge, Help' },
-                    { key: 'bonusActionUsed', label: 'Bonus Action', desc: 'Off-hand, Healing Word, Cunning' },
-                    { key: 'movementUsed', label: 'Movement', desc: `${activePc?.speed ?? 30} ft speed` },
-                    { key: 'reactionUsed', label: 'Reaction', desc: 'Opportunity Atk, Shield, Counter' },
-                    { key: 'freeInteractionUsed', label: 'Free Object', desc: 'Draw weapon, open door' },
-                  ] as const
-                ).map((item) => {
-                  const used = turnEconomy[item.key];
-                  return (
+        <div className="-mx-3 sm:-mx-5">
+          <TableStageShell
+            rightHudTitle="Character HUD & Sheet"
+            campaignData={{
+              npcs,
+              locations,
+              factions,
+              pcs,
+            }}
+            onUpdateCampaignKey={setVal}
+            centerStage={
+              <div className="space-y-4">
+                {/* My Turn Action Economy Checklist */}
+                <section className="space-y-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <Swords size={17} className="text-[var(--accent-primary)]" />
+                      <div>
+                        <h3 className="font-display text-base font-semibold tracking-wide text-[var(--text-primary)]">
+                          My Turn Action Economy
+                        </h3>
+                        <p className="font-sans text-xs text-[var(--text-muted)]">
+                          Check off your actions as you take them in combat, then tap &ldquo;Next Turn&rdquo; to reset.
+                        </p>
+                      </div>
+                    </div>
                     <button
-                      key={item.key}
                       type="button"
-                      onClick={() => toggleTurnEconomyItem(item.key)}
-                      className={`flex flex-col items-start justify-between rounded border p-2.5 text-left transition-all ${
-                        used
-                          ? 'border-rule bg-parchment-deep/60 text-ink-faint line-through'
-                          : 'border-gold/60 bg-parchment-soft text-ink shadow-sm hover:border-wax'
-                      }`}
+                      onClick={resetNextTurn}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-3 py-1.5 font-mono text-xs font-semibold text-white shadow-sm hover:opacity-90"
                     >
-                      <div className="flex w-full items-center justify-between">
-                        <span className="font-display text-xs font-bold">{item.label}</span>
-                        <span
-                          className={`size-3.5 rounded-sm border ${
-                            used ? 'border-wax bg-wax' : 'border-rule bg-parchment'
+                      <RotateCcw size={13} /> Next Turn
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
+                    {(
+                      [
+                        { key: 'actionUsed', label: 'Action', desc: 'Attack, Cast, Dash, Dodge, Help' },
+                        { key: 'bonusActionUsed', label: 'Bonus Action', desc: 'Off-hand, Healing Word, Cunning' },
+                        { key: 'movementUsed', label: 'Movement', desc: `${activePc?.speed ?? 30} ft speed` },
+                        { key: 'reactionUsed', label: 'Reaction', desc: 'Opportunity Atk, Shield, Counter' },
+                        { key: 'freeInteractionUsed', label: 'Free Object', desc: 'Draw weapon, open door' },
+                      ] as const
+                    ).map((item) => {
+                      const used = turnEconomy[item.key];
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => toggleTurnEconomyItem(item.key)}
+                          className={`flex flex-col items-start justify-between rounded-lg border p-2.5 text-left transition-all ${
+                            used
+                              ? 'border-[var(--border-subtle)] bg-[var(--bg-canvas)]/60 text-[var(--text-muted)] line-through'
+                              : 'border-[var(--accent-primary)]/40 bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm hover:border-[var(--accent-primary)]'
                           }`}
+                        >
+                          <div className="flex w-full items-center justify-between">
+                            <span className="font-display text-xs font-bold">{item.label}</span>
+                            <span
+                              className={`size-3.5 rounded-sm border ${
+                                used ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]' : 'border-[var(--border-subtle)] bg-[var(--bg-canvas)]'
+                              }`}
+                            />
+                          </div>
+                          <span className="mt-1 font-sans text-[10px] leading-tight text-[var(--text-muted)] no-underline">
+                            {item.desc}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                {/* Concentration Tracker & DC Helper */}
+                <section className="space-y-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert size={16} className="text-amber-500" />
+                      <h3 className="font-display text-base font-semibold tracking-wide text-[var(--text-primary)]">
+                        Concentration Tracker
+                      </h3>
+                    </div>
+                    {activePc?.concentrationSpell ? (
+                      <button
+                        type="button"
+                        onClick={() => patchActivePc({ concentrationSpell: '' })}
+                        className="rounded-full border border-amber-500/50 bg-amber-500/15 px-2.5 py-0.5 font-mono text-[10px] font-semibold text-amber-500"
+                      >
+                        ⚡ Concentrating on: {activePc.concentrationSpell} (Click to Drop)
+                      </button>
+                    ) : (
+                      <span className="font-mono text-[10px] uppercase text-[var(--text-muted)]">Not Concentrating</span>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="font-mono text-[10px] uppercase text-[var(--text-muted)]">
+                        Active Concentration Spell
+                      </label>
+                      <input
+                        type="text"
+                        value={activePc?.concentrationSpell ?? ''}
+                        onChange={(e) => patchActivePc({ concentrationSpell: e.target.value })}
+                        placeholder="e.g. Bless, Hex, Haste, Spirit Guardians..."
+                        className="mt-1 w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1.5 font-sans text-xs text-[var(--text-primary)]"
+                      />
+                    </div>
+                    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-2.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[10px] uppercase text-[var(--text-muted)]">Damage Taken:</span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={damageTakenInput}
+                          onChange={(e) => setDamageTakenInput(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                          className="w-16 rounded border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2 py-0.5 text-right font-mono text-xs tabular-nums"
                         />
                       </div>
-                      <span className="mt-1 font-serif text-[10px] leading-tight text-ink-faint no-underline">
-                        {item.desc}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* Concentration Tracker & DC Helper */}
-            <section className="space-y-3 rounded-lg border border-rule bg-parchment p-4 shadow-card">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-2">
-                <div className="flex items-center gap-2">
-                  <ShieldAlert size={16} className="text-gold-deep" />
-                  <h3 className="font-display text-base tracking-wide text-ink">
-                    Concentration Tracker
-                  </h3>
-                </div>
-                {activePc?.concentrationSpell ? (
-                  <button
-                    type="button"
-                    onClick={() => patchActivePc({ concentrationSpell: '' })}
-                    className="rounded-full border border-wax/50 bg-wax/15 px-2.5 py-0.5 font-mono text-[10px] font-semibold text-wax"
-                  >
-                    ⚡ Concentrating on: {activePc.concentrationSpell} (Click to Drop)
-                  </button>
-                ) : (
-                  <span className="font-mono text-[10px] uppercase text-ink-faint">Not Concentrating</span>
-                )}
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="font-mono text-[10px] uppercase text-ink-soft">
-                    Active Concentration Spell
-                  </label>
-                  <input
-                    type="text"
-                    value={activePc?.concentrationSpell ?? ''}
-                    onChange={(e) => patchActivePc({ concentrationSpell: e.target.value })}
-                    placeholder="e.g. Bless, Hex, Haste, Spirit Guardians..."
-                    className="mt-1 w-full rounded border border-rule bg-parchment-soft px-2.5 py-1.5 font-serif text-xs text-ink"
-                  />
-                </div>
-                <div className="rounded border border-rule bg-parchment-soft p-2.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] uppercase text-ink-soft">Damage Taken:</span>
-                    <input
-                      type="number"
-                      min={1}
-                      value={damageTakenInput}
-                      onChange={(e) => setDamageTakenInput(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                      className="w-16 rounded border border-rule bg-parchment px-2 py-0.5 text-right font-mono text-xs"
-                    />
+                      <div className="mt-1.5 flex items-center justify-between font-mono text-xs tabular-nums">
+                        <span>CON Save DC:</span>
+                        <strong className="text-[var(--accent-primary)]">
+                          DC {Math.max(10, Math.floor(damageTakenInput / 2))}
+                        </strong>
+                      </div>
+                      {activePc && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleEmitCompanionRoll(
+                              rollConcentrationCheck(activePc, damageTakenInput, {
+                                rollMode: playRollMode,
+                                secretRoll: playSecretRoll,
+                              }),
+                            )
+                          }
+                          data-testid="companion-roll-concentration-btn"
+                          className="mt-2 w-full rounded border border-wax bg-wax py-1 font-mono text-[11px] font-bold text-ivory hover:bg-wax/90"
+                        >
+                          🎲 Roll Concentration Save (CON DC {Math.max(10, Math.floor(damageTakenInput / 2))})
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="mt-1.5 flex items-center justify-between font-mono text-xs">
-                    <span>CON Save DC:</span>
-                    <strong className="text-wax">
-                      DC {Math.max(10, Math.floor(damageTakenInput / 2))}
-                    </strong>
-                  </div>
-                  {activePc && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleEmitCompanionRoll(
-                          rollConcentrationCheck(activePc, damageTakenInput, {
-                            rollMode: playRollMode,
-                            secretRoll: playSecretRoll,
-                          }),
-                        )
-                      }
-                      data-testid="companion-roll-concentration-btn"
-                      className="mt-2 w-full rounded border border-wax bg-wax py-1 font-mono text-[11px] font-bold text-ivory hover:bg-wax/90"
-                    >
-                      🎲 Roll Concentration Save (CON DC {Math.max(10, Math.floor(damageTakenInput / 2))})
-                    </button>
-                  )}
-                </div>
-              </div>
-            </section>
+                </section>
 
-            {/* Renown & Downtime Trackers */}
-            <section className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2 rounded-lg border border-rule bg-parchment p-4 shadow-card">
-                <div className="flex items-center gap-1.5 font-display text-xs font-semibold uppercase tracking-wider text-brass-deep">
-                  <Calendar size={14} /> Downtime Days
-                </div>
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      patchActivePc({ downtimeDays: Math.max(0, (activePc?.downtimeDays ?? 0) - 1) })
-                    }
-                    className="rounded border border-rule bg-parchment-soft px-3 py-1 font-mono text-sm font-bold"
-                  >
-                    -1
-                  </button>
-                  <span className="font-display text-2xl font-bold text-ink">
-                    {activePc?.downtimeDays ?? 0}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => patchActivePc({ downtimeDays: (activePc?.downtimeDays ?? 0) + 1 })}
-                    className="rounded border border-rule bg-parchment-soft px-3 py-1 font-mono text-sm font-bold"
-                  >
-                    +1
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2 rounded-lg border border-rule bg-parchment p-4 shadow-card">
-                <div className="flex items-center gap-1.5 font-display text-xs font-semibold uppercase tracking-wider text-brass-deep">
-                  <Award size={14} /> Campaign Renown
-                </div>
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = typeof activePc?.renown === 'number' ? activePc.renown : 0;
-                      patchActivePc({ renown: cur - 1 });
-                    }}
-                    className="rounded border border-rule bg-parchment-soft px-3 py-1 font-mono text-sm font-bold"
-                  >
-                    -1
-                  </button>
-                  <span className="font-display text-2xl font-bold text-ink">
-                    {typeof activePc?.renown === 'number' ? activePc.renown : 0}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = typeof activePc?.renown === 'number' ? activePc.renown : 0;
-                      patchActivePc({ renown: cur + 1 });
-                    }}
-                    className="rounded border border-rule bg-parchment-soft px-3 py-1 font-mono text-sm font-bold"
-                  >
-                    +1
-                  </button>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          {/* Right Column: Dice Roller, Quick Character Rolls & Spell Lookup */}
-          <div className="space-y-4 lg:col-span-5">
-            <CollapsibleTableRollFeed rolls={combinedRolls} currentPcId={activePc?.id} />
-
-            {activePc && (
-              <section className="space-y-2.5 rounded-lg border border-rule bg-parchment p-4 shadow-card">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="flex items-center gap-1.5 font-display text-sm font-semibold uppercase tracking-wider text-brass-deep">
-                    <Dices size={14} /> Quick Sheet Rolls ({activePc.name})
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleEmitCompanionRoll(
-                        rollInitiativeCheck(activePc, {
-                          rollMode: playRollMode,
-                          secretRoll: playSecretRoll,
-                        }),
-                      )
-                    }
-                    className="rounded border border-wax/50 bg-wax/10 px-2.5 py-0.5 font-mono text-[10px] font-bold text-wax hover:bg-wax hover:text-ivory"
-                  >
-                    ⚡ Roll Initiative
-                  </button>
-                </div>
-                <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
-                  {ABILITY_NAMES.map((abi) => (
-                    <div key={abi} className="flex flex-col gap-1">
+                {/* Renown & Downtime Trackers */}
+                <section className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-sm">
+                    <div className="flex items-center gap-1.5 font-sans text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                      <Calendar size={14} className="text-[var(--accent-primary)]" /> Downtime Days
+                    </div>
+                    <div className="flex items-center justify-between">
                       <button
                         type="button"
                         onClick={() =>
-                          handleEmitCompanionRoll(
-                            rollAbilityCheck(activePc, abi, {
-                              rollMode: playRollMode,
-                              secretRoll: playSecretRoll,
-                            }),
-                          )
+                          patchActivePc({ downtimeDays: Math.max(0, (activePc?.downtimeDays ?? 0) - 1) })
                         }
-                        className="rounded border border-rule bg-parchment-soft py-1 font-mono text-[10px] font-bold text-ink hover:border-wax"
+                        className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 py-1 font-mono text-sm font-bold tabular-nums"
                       >
-                        {abi} Check
+                        -1
                       </button>
+                      <span className="font-mono text-2xl font-bold tabular-nums text-[var(--text-primary)]">
+                        {activePc?.downtimeDays ?? 0}
+                      </span>
                       <button
                         type="button"
-                        onClick={() =>
-                          handleEmitCompanionRoll(
-                            rollSavingThrow(activePc, abi, {
-                              rollMode: playRollMode,
-                              secretRoll: playSecretRoll,
-                            }),
-                          )
-                        }
-                        className="rounded border border-crimson/30 bg-crimson/10 py-0.5 font-mono text-[9px] font-semibold text-crimson hover:bg-crimson hover:text-ivory"
+                        onClick={() => patchActivePc({ downtimeDays: (activePc?.downtimeDays ?? 0) + 1 })}
+                        className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 py-1 font-mono text-sm font-bold tabular-nums"
                       >
-                        {abi} Save
+                        +1
                       </button>
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
+                  </div>
 
-            <section className="space-y-2 rounded-lg border border-rule bg-parchment p-4 shadow-card">
-              <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-brass-deep">
-                Table Dice Roller
-              </h3>
-              <QuickDice />
-            </section>
+                  <div className="space-y-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-sm">
+                    <div className="flex items-center gap-1.5 font-sans text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                      <Award size={14} className="text-[var(--accent-primary)]" /> Campaign Renown
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur = typeof activePc?.renown === 'number' ? activePc.renown : 0;
+                          patchActivePc({ renown: cur - 1 });
+                        }}
+                        className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 py-1 font-mono text-sm font-bold tabular-nums"
+                      >
+                        -1
+                      </button>
+                      <span className="font-mono text-2xl font-bold tabular-nums text-[var(--text-primary)]">
+                        {typeof activePc?.renown === 'number' ? activePc.renown : 0}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur = typeof activePc?.renown === 'number' ? activePc.renown : 0;
+                          patchActivePc({ renown: cur + 1 });
+                        }}
+                        className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 py-1 font-mono text-sm font-bold tabular-nums"
+                      >
+                        +1
+                      </button>
+                    </div>
+                  </div>
+                </section>
 
-            <section className="space-y-2.5 rounded-lg border border-rule bg-parchment p-4 shadow-card">
-              <div className="flex items-center justify-between">
-                <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-brass-deep">
-                  Quick Spell Lookup
-                </h3>
-                <span className="font-mono text-[10px] text-ink-faint">5e SRD Reference</span>
-              </div>
-              <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-2.5 text-ink-faint" />
-                <input
-                  type="text"
-                  value={spellQuery}
-                  onChange={(e) => setSpellQuery(e.target.value)}
-                  placeholder="Search spells by name, school, or effect..."
-                  className="w-full rounded border border-rule bg-parchment-soft py-1.5 pl-8 pr-2.5 font-serif text-xs text-ink"
-                />
-              </div>
-              <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-                {filteredSpells.map((sp) => (
-                  <div
-                    key={sp.name}
-                    className="space-y-1 rounded border border-rule bg-parchment-soft p-2.5 text-xs"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-display font-semibold text-ink">{sp.name}</span>
-                      <div className="flex items-center gap-1">
-                        {sp.concentration && (
+                <CollapsibleTableRollFeed rolls={combinedRolls} currentPcId={activePc?.id} />
+
+                {activePc && (
+                  <section className="space-y-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="flex items-center gap-1.5 font-display text-sm font-semibold uppercase tracking-wider text-brass-deep">
+                        <Dices size={14} /> Quick Sheet Rolls ({activePc.name})
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleEmitCompanionRoll(
+                            rollInitiativeCheck(activePc, {
+                              rollMode: playRollMode,
+                              secretRoll: playSecretRoll,
+                            }),
+                          )
+                        }
+                        className="rounded border border-wax/50 bg-wax/10 px-2.5 py-0.5 font-mono text-[10px] font-bold text-wax hover:bg-wax hover:text-ivory"
+                      >
+                        ⚡ Roll Initiative
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+                      {ABILITY_NAMES.map((abi) => (
+                        <div key={abi} className="flex flex-col gap-1">
                           <button
                             type="button"
-                            onClick={() => patchActivePc({ concentrationSpell: sp.name })}
-                            className="rounded border border-gold/50 bg-gold/15 px-1.5 py-0.5 font-mono text-[9px] text-gold-deep"
-                            title="Click to concentrate on this spell"
+                            onClick={() =>
+                              handleEmitCompanionRoll(
+                                rollAbilityCheck(activePc, abi, {
+                                  rollMode: playRollMode,
+                                  secretRoll: playSecretRoll,
+                                }),
+                              )
+                            }
+                            className="rounded border border-rule bg-parchment-soft py-1 font-mono text-[10px] font-bold text-ink hover:border-wax"
                           >
-                            ⚡ Conc.
+                            {abi} Check
                           </button>
-                        )}
-                        <span className="font-mono text-[10px] text-brass-deep">
-                          {sp.level === 0 ? 'Cantrip' : `Lvl ${sp.level}`} · {sp.school}
-                        </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleEmitCompanionRoll(
+                                rollSavingThrow(activePc, abi, {
+                                  rollMode: playRollMode,
+                                  secretRoll: playSecretRoll,
+                                }),
+                              )
+                            }
+                            className="rounded border border-crimson/30 bg-crimson/10 py-0.5 font-mono text-[9px] font-semibold text-crimson hover:bg-crimson hover:text-ivory"
+                          >
+                            {abi} Save
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                <section className="space-y-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-sm">
+                  <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-brass-deep">
+                    Table Dice Roller
+                  </h3>
+                  <QuickDice />
+                </section>
+
+                <section className="space-y-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-brass-deep">
+                      Quick Spell Lookup
+                    </h3>
+                    <span className="font-mono text-[10px] text-ink-faint">5e SRD Reference</span>
+                  </div>
+                  <div className="relative">
+                    <Search size={13} className="absolute left-2.5 top-2.5 text-ink-faint" />
+                    <input
+                      type="text"
+                      value={spellQuery}
+                      onChange={(e) => setSpellQuery(e.target.value)}
+                      placeholder="Search spells by name, school, or effect..."
+                      className="w-full rounded border border-rule bg-parchment-soft py-1.5 pl-8 pr-2.5 font-serif text-xs text-ink"
+                    />
+                  </div>
+                  <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                    {filteredSpells.map((sp) => (
+                      <div
+                        key={sp.name}
+                        className="space-y-1 rounded border border-rule bg-parchment-soft p-2.5 text-xs"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-display font-semibold text-ink">{sp.name}</span>
+                          <div className="flex items-center gap-1">
+                            {sp.concentration && (
+                              <button
+                                type="button"
+                                onClick={() => patchActivePc({ concentrationSpell: sp.name })}
+                                className="rounded border border-gold/50 bg-gold/15 px-1.5 py-0.5 font-mono text-[9px] text-gold-deep"
+                                title="Click to concentrate on this spell"
+                              >
+                                ⚡ Conc.
+                              </button>
+                            )}
+                            <span className="font-mono text-[10px] text-brass-deep">
+                              {sp.level === 0 ? 'Cantrip' : `Lvl ${sp.level}`} · {sp.school}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="font-serif text-[11px] leading-snug text-ink-soft">{sp.summary}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <TacticalMapStage
+                  role="standalone-player"
+                  maps={mapsList}
+                  pcs={pcs}
+                  npcs={npcs as Array<{ id?: string; name: string }>}
+                  activePcId={activePc?.id}
+                  activePcColor="#38bdf8"
+                  onChangeMaps={(nextMaps: CampaignMap[]) => setVal('maps', nextMaps)}
+                />
+              </div>
+            }
+            rightHudRail={
+              !activePc ? (
+                <GuidedEmptyState
+                  title="No Active Character"
+                  description="Create or upload a character sheet to see your live HP, AC, and Click-to-Roll HUD."
+                  actions={[
+                    { label: 'Create Character', onClick: onAddPc, primary: true },
+                  ]}
+                />
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
+                    <div>
+                      <div className="font-display text-base font-semibold text-[var(--text-primary)]">
+                        {activePc.name || 'Unnamed Adventurer'}
+                      </div>
+                      <div className="font-mono text-[11px] tabular-nums text-[var(--text-muted)]">
+                        HP {activePc.hp?.current ?? 0}/{activePc.hp?.max ?? 0} · AC {activePc.ac ?? 10}
                       </div>
                     </div>
-                    <div className="font-mono text-[10px] text-ink-faint">
-                      {sp.time} · Range: {sp.range}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onUpdatePc(shortRest(activePc))}
+                        className="rounded-md border border-amber-500/40 bg-amber-500/15 px-2 py-1 font-mono text-[10px] font-semibold text-amber-500"
+                      >
+                        Short Rest
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onUpdatePc(longRest(activePc))}
+                        className="rounded-md border border-[var(--accent-primary)]/40 bg-[var(--accent-primary)]/15 px-2 py-1 font-mono text-[10px] font-semibold text-[var(--accent-primary)]"
+                      >
+                        Long Rest
+                      </button>
                     </div>
-                    <p className="font-serif text-ink-soft">{sp.summary}</p>
                   </div>
-                ))}
-              </div>
-            </section>
-          </div>
+                  <PcSheet
+                    pc={activePc}
+                    open={openPcMap[activePc.id] ?? true}
+                    onToggleOpen={() => onTogglePcOpen(activePc.id)}
+                    onChange={onUpdatePc}
+                    onRemove={() => onRemovePc(activePc.id)}
+                  />
+                </div>
+              )
+            }
+          />
         </div>
       )}
 
@@ -2075,6 +2281,38 @@ export default function PlayerCompanionWorkspace({
           onUpdatePc={(patch) => patchActivePc(patch as Partial<PlayerCharacter>)}
         />
       )}
+
+      <GeminiBridgeModal
+        open={geminiModalOpen}
+        onClose={() => setGeminiModalOpen(false)}
+        campaignId="standalone_player"
+        campaignName={activePc?.name ? `${activePc.name}'s Campaign` : 'Player Companion'}
+        campaignData={{
+          pcs,
+          npcs,
+          locations,
+          factions,
+          __playerCompanionQuests: companionQuests,
+          __playerCompanionJournal: companionJournal,
+        }}
+        role="player"
+        playerState={{
+          pcName: activePc?.name,
+          quests: companionQuests,
+          journal: companionJournal,
+          revealedEntities: allMentionableEntities,
+        }}
+        onApplyCampaignData={(nextData) => {
+          if (Array.isArray(nextData.__playerCompanionJournal)) {
+            setCompanionJournal(nextData.__playerCompanionJournal);
+          }
+          if (Array.isArray(nextData.__playerCompanionQuests)) {
+            setCompanionQuests(nextData.__playerCompanionQuests);
+          }
+          if (Array.isArray(nextData.npcs)) setVal('npcs', nextData.npcs);
+          if (Array.isArray(nextData.locations)) setVal('locations', nextData.locations);
+        }}
+      />
     </div>
   );
 }

@@ -172,7 +172,8 @@ service cloud.firestore {
           'downtimeDays', 'renown',
           'evaluation', 'attacks', 'spellsKnown', 'spellcastingAbility',
           'classes', 'race', 'background', 'alignment', 'abilities',
-          'proficiencies', 'skillExpertise', 'resistances', 'immunities', 'senses'
+          'proficiencies', 'skillExpertise', 'resistances', 'immunities', 'senses',
+          'tokenPosition', 'mapPing', 'playerWhispers', 'tablePauseSignal'
         ])
         && get(/databases/$(database)/documents/playerShares/$(request.resource.data.shareToken)).data.campaignId == campaignId
         && exists(/databases/$(database)/documents/playerShares/$(request.resource.data.shareToken)/slots/$(playerSlotId));

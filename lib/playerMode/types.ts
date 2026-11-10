@@ -44,6 +44,63 @@ export type RosterSlot = {
   createdAtMs?: number;
 };
 
+export type CampaignWhisper = {
+  id: string;
+  from?: 'gm' | string; // 'gm' or authoring slotId
+  fromLabel?: string;
+  senderLabel?: string;
+  toSlotIds: string[]; // targeted player slotIds (never projected to other slots)
+  text: string;
+  entityId?: string;
+  entityName?: string;
+  entityLabel?: string;
+  entityCategory?: string;
+  entityType?: string;
+  timestamp?: number;
+  sentAtMs?: number;
+};
+
+export type ProjectedWhisper = {
+  id: string;
+  from: 'gm' | string;
+  fromLabel?: string;
+  text: string;
+  entityId?: string;
+  entityName?: string;
+  entityCategory?: string;
+  timestamp: number;
+};
+
+export type HandoutCardCategory = 'image' | 'letter' | 'riddle' | 'magic_item' | 'lore';
+
+export type HandoutCard = {
+  id: string;
+  title: string;
+  category?: HandoutCardCategory;
+  kind?: HandoutCardCategory;
+  content?: string;
+  body?: string;
+  imageUrl?: string;
+  subtitle?: string;
+  style?: 'parchment' | 'slate';
+  flashedAt?: number;
+  flashedAtMs?: number;
+  activeFlash?: boolean;
+  visibility?: EntityVisibility;
+  gmNotes?: string; // GM-only; stripped in projection
+};
+
+export type ProjectedHandoutCard = {
+  id: string;
+  title: string;
+  category: HandoutCardCategory;
+  content?: string;
+  imageUrl?: string;
+  subtitle?: string;
+  style?: 'parchment' | 'slate';
+  flashedAt?: number;
+};
+
 // Per-campaign player-mode configuration. Stored at campaign.data.player.
 export type PlayerConfig = {
   shareToken: string;
@@ -54,6 +111,8 @@ export type PlayerConfig = {
   entityVisibility: Partial<Record<PlayerEntityType, Record<string, EntityVisibility>>>;
   // Whole-string handout visibility (handouts is a single string field).
   handouts?: EntityVisibility;
+  // Optional anonymous X-Card / Table Pause safety button in /player
+  tableSafetyEnabled?: boolean;
   // Premise & Worldbuilding visibility configs
   planningVisibility?: {
     pitch?: boolean;
@@ -159,6 +218,15 @@ export type SlotProjection = {
   // Player-visible maps: only layers flagged visibleToPlayers, with GM-only
   // fields (marker notes, entity links, edge travel times) already stripped.
   maps?: import('@/lib/maps/playerProjection').PlayerMap[];
+  // Targeted two-way whispers strictly scoped to this slotId
+  whispers?: ProjectedWhisper[];
+  // Revealed handouts gallery and currently flashed handout modal
+  handoutGallery?: ProjectedHandoutCard[];
+  activeHandoutFlash?: ProjectedHandoutCard | null;
+  // Projected In-World Calendar & Clock (when visibility === 'party')
+  worldClock?: import('@/lib/worldClock').ProjectedWorldClock;
+  // Whether the optional anonymous Table Safety Check-In button is enabled
+  tableSafetyEnabled?: boolean;
   playlistUrl?: string;
   playlistPlaying?: boolean;
   playlistIndex?: number;
@@ -218,6 +286,10 @@ export type PlayerModeData = Partial<Record<PlayerEntityType, PlayerEntity[]>> &
   activeEncounter?: unknown;
   rollEvents?: readonly import('@/lib/pc/types').RollEvent[];
   partyLootItems?: readonly import('@/lib/pc/types').PartyLootItem[];
+  whispers?: readonly CampaignWhisper[];
+  handoutGallery?: readonly HandoutCard[];
+  activeHandoutFlashId?: string | null;
+  worldClock?: unknown;
   __sessionPlaylist?: string;
   __sessionPlaylistPlaying?: boolean;
   __sessionPlaylistIndex?: number;

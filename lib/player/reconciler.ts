@@ -15,7 +15,7 @@
 
 import { collection, onSnapshot, writeBatch } from 'firebase/firestore';
 import { getDb } from '@/lib/firebase/client';
-import { type PlayerCharacter } from '@/lib/pc/types';
+import { type PlayerCharacter, type TablePauseSignal } from '@/lib/pc/types';
 import { mergePcWritebacks, type StagedWriteback } from '@/lib/crdt/writeback-merge';
 
 /**
@@ -26,13 +26,15 @@ import { mergePcWritebacks, type StagedWriteback } from '@/lib/crdt/writeback-me
  * @param getCurrentPcs Getter function retrieving the current list of PC states from React state
  * @param onPcsUpdate Callback triggered to update the local React state immediately (optimistic UI)
  * @param onError Optional error handler callback (used for retry backoff on permission errors)
+ * @param onTablePauseRequested Optional callback invoked when an anonymous X-Card / Table Pause signal arrives
  * @returns {Unsubscribe} The unsubscription function to cleanly detach the real-time listener
  */
 export function startWritebackReconciler(
   campaignId: string,
   getCurrentPcs: () => PlayerCharacter[],
   onPcsUpdate: (nextPcs: PlayerCharacter[]) => void,
-  onError?: (err: Error) => void
+  onError?: (err: Error) => void,
+  onTablePauseRequested?: (signal: TablePauseSignal) => void,
 ) {
   const db = getDb();
   const writebacksCol = collection(db, 'campaigns', campaignId, 'pcWritebacks');
@@ -56,13 +58,17 @@ export function startWritebackReconciler(
         const data = d.data();
         return {
           slotId: typeof data.slotId === 'string' ? data.slotId : d.id,
-          pcId: data.pcId,
+          pcId: typeof data.pcId === 'string' ? data.pcId : '',
           updates: data.updates || {},
           updatedAtMs: typeof data.updatedAt === 'number' ? data.updatedAt : 0,
         };
       });
 
       const result = mergePcWritebacks(getCurrentPcs(), staged);
+
+      if (result.pauseSignal && onTablePauseRequested) {
+        onTablePauseRequested(result.pauseSignal);
+      }
 
       for (const r of result.rejected) {
         console.warn('Rejecting player writeback', { ...r });
