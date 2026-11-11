@@ -241,4 +241,169 @@ describe('WorkspaceArchitectModal', () => {
     expect(screen.getByText('Eurodollars')).toBeInTheDocument();
     expect(screen.getByText('Gigs')).toBeInTheDocument();
   });
+
+  it('mocks /api/workspace-architect offline, opens via Cmd/Ctrl+Shift+K, renders guardrail warnings + Diff Preview, applies, and rolls back cleanly on Cmd/Ctrl+Z', async () => {
+    mockUseAuth.mockReturnValue({
+      user: {
+        uid: 'pro-player-uid',
+        getIdToken: vi.fn().mockResolvedValue('mock-id-token'),
+      },
+      isPro: true,
+      loading: false,
+    });
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          provider: 'cloud_pro',
+          turn: {
+            reply: 'Prepared Investigation HUD and Sanity tracker for your character.',
+            patch: {
+              campaignMode: {
+                mode: 'duet',
+                prepTargetOverrides: { secrets: 9 },
+              },
+              systemFlavorAndTrackers: {
+                resourcePoolTemplates: [
+                  { name: 'Sanity', max: 10, rechargeOn: 'manual' },
+                ],
+              },
+              terminologyMap: { gold: 'Credits' },
+              hudLayoutPrefs: {
+                widgetOrder: ['clocks', 'conspiracyBoard'],
+                widgets: { clocks: { visible: true, pinnedTop: true, order: 0 } },
+              },
+              pcPatches: [
+                {
+                  pcId: 'pc_unowned_rival',
+                  updates: { 'hp.max': 999 },
+                },
+              ],
+            },
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    const writebacks: Array<{ pcId: string; updates: Record<string, unknown> }> = [];
+
+    function PlayerShortcutHarness() {
+      const [open, setOpen] = useState(false);
+      const [pcsState, setPcsState] = useState<any[]>([
+        {
+          id: 'pc_claimed_1',
+          name: 'Detective Ada',
+          hp: { current: 24, max: 24, temp: 0 },
+          ownership: { ownerType: 'player', playerSlotId: 'slot_ada' },
+          resourcePools: [],
+        },
+        {
+          id: 'pc_unowned_rival',
+          name: 'Rival Agent',
+          hp: { current: 40, max: 40, temp: 0 },
+          ownership: { ownerType: 'player', playerSlotId: 'slot_other' },
+          resourcePools: [],
+        },
+      ]);
+
+      React.useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+          if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            setOpen((prev) => !prev);
+          }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, []);
+
+      return (
+        <div>
+          <div data-testid="owned-pools-count">
+            {pcsState[0].resourcePools.length}
+          </div>
+          <div data-testid="unowned-max-hp">{pcsState[1].hp.max}</div>
+          <WorkspaceArchitectModal
+            open={open}
+            onClose={() => setOpen(false)}
+            campaignId="camp_offline_ci"
+            campaignName="Midnight Casebook"
+            role="player"
+            isCampaignOwner={false}
+            activeSlotId="slot_ada"
+            ownedPcIds={['pc_claimed_1']}
+            pcs={pcsState}
+            onApplyPlayerPcWriteback={(pcId, updates) => {
+              writebacks.push({ pcId, updates });
+              setPcsState((prev) =>
+                prev.map((p) =>
+                  p.id === pcId ? { ...p, ...updates } : p,
+                ),
+              );
+            }}
+          />
+        </div>
+      );
+    }
+
+    render(<PlayerShortcutHarness />);
+
+    // 1. Open Customizer via Cmd/Ctrl + Shift + K
+    fireEvent.keyDown(window, { key: 'K', ctrlKey: true, shiftKey: true });
+    expect(
+      screen.getByRole('dialog', {
+        name: /Conversational Campaign & Table Customizer/i,
+      }),
+    ).toBeInTheDocument();
+
+    // 2. Submit mixed prompt (intercepted offline by mocked /api/workspace-architect)
+    const input = screen.getByLabelText(
+      /Describe your system, custom trackers, terminology, or HUD layout/i,
+    );
+    fireEvent.change(input, {
+      target: {
+        value:
+          'Switch to Duet prep counts, set Rival max HP to 999, pin Clocks, rename Gold to Credits, and add Sanity to my sheet',
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Compile/i }));
+
+    // 3. Inspect Diff Preview + CRDT Privacy & Authority Guard warning
+    await waitFor(() => {
+      expect(screen.getByTestId('workspace-diff-preview')).toBeInTheDocument();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/CRDT Privacy & Authority Guard/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Blocked modification to unowned PC "pc_unowned_rival"/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Campaign mode and prep target overrides require GM campaign-owner authority/i,
+      ),
+    ).toBeInTheDocument();
+
+    // 4. Click Apply to Local HUD & My Sheet
+    fireEvent.click(
+      screen.getByRole('button', { name: /Apply to Local HUD & My Sheet/i }),
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('owned-pools-count').textContent).toBe('1');
+    });
+    expect(screen.getByTestId('unowned-max-hp').textContent).toBe('40');
+
+    const scope = buildHudScopeKey('camp_offline_ci', 'player', 'slot_ada');
+    expect(loadLocalHudPrefs(scope)?.widgets?.clocks?.pinnedTop).toBe(true);
+    expect(loadLocalTerminologyPrefs(scope)?.gold).toBe('Credits');
+
+    // 5. Press Cmd/Ctrl + Z to roll back cleanly
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    await waitFor(() => {
+      expect(screen.getByTestId('owned-pools-count').textContent).toBe('0');
+    });
+    expect(loadLocalHudPrefs(scope)).toBeNull();
+    expect(loadLocalTerminologyPrefs(scope)).toBeNull();
+    expect(screen.getByText(/Rolled back workspace customization/i)).toBeInTheDocument();
+  });
 });

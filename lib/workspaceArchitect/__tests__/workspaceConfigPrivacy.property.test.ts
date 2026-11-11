@@ -1,13 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import {
+  applyPlayerWorkspacePatchToPcs,
   applyValidatedPatchToPlayerTracker,
   applyWorkspacePatchToCampaignData,
+  buildArchitectRelayPrompt,
   buildSafeArchitectContextSummary,
+  buildWorkspacePatchDiff,
   projectPublicWorkspaceConfig,
   scrubUntrustedObject,
   validateWorkspacePatch,
   WORKSPACE_CONFIG_STATE_KEY,
+  type HudWidgetId,
   type WorkspaceAuthorityContext,
 } from '@/lib/workspaceConfigCompiler';
 import { PLAYER_EDITABLE_FIELDS, validatePlayerField } from '@/lib/player/allowlist';
@@ -453,6 +457,200 @@ describe('workspaceConfigCompiler — fast-check CRDT & Privacy Authority Invari
         },
       ),
       { numRuns: 120 },
+    );
+  });
+
+  it('Property 5 (250 runs): Unified authority proof — unowned PCs byte-identical, non-public GM fields absent from context & diffs, and sharedWithGm: false never flips conversationally', () => {
+    const widgetArb = fc.constantFrom<HudWidgetId>(
+      'initiative',
+      'rollFeed',
+      'clocks',
+      'audioNarration',
+      'actionEconomy',
+      'conspiracyBoard',
+    );
+    const nonPublicVisArb = fc.constantFrom('gm', 'hidden', 'private', 'secret');
+    const canaryArb = fc.stringMatching(/^REDACTED_[A-Z0-9]{8,12}$/);
+    const labelArb = fc.stringMatching(/^[A-Za-z][A-Za-z0-9]{2,10}$/);
+
+    fc.assert(
+      fc.property(
+        fc.record({
+          nonPublicVis: nonPublicVisArb,
+          canaryEntity: canaryArb,
+          canaryConfig: canaryArb,
+          canarySpoiler: canaryArb,
+          poolName: labelArb,
+          poolMax: fc.integer({ min: 1, max: 50 }),
+          goldTerm: labelArb,
+          pinnedWidget: widgetArb,
+          ownedHpCur: fc.integer({ min: 1, max: 40 }),
+          unownedMaxHpAttempt: fc.integer({ min: 80, max: 999 }),
+          attemptShareFlip: fc.boolean(),
+        }),
+        (s) => {
+          const ownedPc = {
+            id: 'pc_claimed',
+            name: `Scout [[gm:${s.canarySpoiler}]]`,
+            hp: { current: 30, max: 30, temp: 0 },
+            ownership: { ownerType: 'player', playerSlotId: 'slot_claimed' },
+            gmNotes: s.canaryEntity,
+            resourcePools: [
+              {
+                id: 'gm_hidden_pool',
+                name: s.canaryConfig,
+                current: 2,
+                max: 2,
+                rechargeOn: 'long',
+                visibility: s.nonPublicVis,
+              },
+            ],
+            inventory: [
+              {
+                id: 'inv_secret_note',
+                name: 'Encrypted Ledger',
+                qty: 1,
+                sharedWithGm: false,
+              },
+            ],
+          };
+          const unownedPc = {
+            id: 'pc_other',
+            name: 'Paladin',
+            hp: { current: 52, max: 52, temp: 4 },
+            ac: 18,
+            ownership: { ownerType: 'player', playerSlotId: 'slot_other' },
+            resourcePools: [],
+          };
+          const unownedBeforeBytes = Buffer.from(JSON.stringify(unownedPc), 'utf8');
+
+          const trackerState = {
+            ...emptyPlayerTrackerState(),
+            quests: [
+              {
+                id: 'q_private',
+                title: 'Personal Lead',
+                notes: 'Keep private',
+                status: 'active' as const,
+                linkedEntityIds: [],
+                sharedWithGm: false,
+                updatedAt: 1000,
+              },
+            ],
+            annotations: [
+              {
+                id: 'ann_private',
+                entityId: 'npc_pub',
+                entityName: 'Innkeeper',
+                privateNotes: 'Private theory',
+                sharedWithGm: false,
+              },
+            ],
+          };
+
+          const campaignData = {
+            mode: 'standard',
+            npcs: [
+              {
+                id: 'npc_gm_only',
+                name: s.canaryEntity,
+                visibility: s.nonPublicVis,
+              },
+            ],
+            [WORKSPACE_CONFIG_STATE_KEY]: {
+              visibility: s.nonPublicVis,
+              terminologyMap: { quests: s.canaryConfig },
+            },
+            pcs: [ownedPc, unownedPc],
+          };
+
+          const authority: WorkspaceAuthorityContext = {
+            callerRole: 'player',
+            isCampaignOwner: false,
+            activeSlotId: 'slot_claimed',
+            ownedPcIds: ['pc_claimed'],
+            pcs: [ownedPc, unownedPc],
+            currentTrackerState: trackerState,
+          };
+
+          const patchPayload = {
+            campaignMode: { mode: 'duet', prepTargetOverrides: { secrets: 8 } },
+            systemFlavorAndTrackers: {
+              resourcePoolTemplates: [
+                { name: s.poolName, max: s.poolMax, rechargeOn: 'manual' },
+              ],
+            },
+            terminologyMap: {
+              gold: `${s.goldTerm} [[gm:${s.canarySpoiler}]]`,
+            },
+            hudLayoutPrefs: {
+              widgetOrder: [s.pinnedWidget],
+              widgets: { [s.pinnedWidget]: { visible: true, pinnedTop: true } },
+            },
+            pcPatches: [
+              {
+                pcId: 'pc_claimed',
+                updates: {
+                  'hp.current': s.ownedHpCur,
+                  inventory: [
+                    { ...ownedPc.inventory[0], sharedWithGm: s.attemptShareFlip },
+                  ],
+                },
+              },
+              {
+                pcId: 'pc_other',
+                updates: { 'hp.max': s.unownedMaxHpAttempt },
+              },
+            ],
+            trackerPatch: {
+              quests: [{ ...trackerState.quests[0], sharedWithGm: s.attemptShareFlip }],
+              annotations: [
+                { ...trackerState.annotations[0], sharedWithGm: s.attemptShareFlip },
+              ],
+            },
+          };
+
+          const validated = validateWorkspacePatch(patchPayload, authority);
+
+          // 1. Unowned PC byte-for-byte unchanged
+          const afterPcs = applyPlayerWorkspacePatchToPcs(
+            [ownedPc, unownedPc],
+            validated,
+          );
+          const unownedAfterBytes = Buffer.from(JSON.stringify(afterPcs[1]), 'utf8');
+          expect(Buffer.compare(unownedBeforeBytes, unownedAfterBytes)).toBe(0);
+
+          // 2. Non-public (`visibility !== 'public'`) fields absent from context & diff previews
+          const ctx = buildSafeArchitectContextSummary(
+            `Table [[gm:${s.canarySpoiler}]]`,
+            campaignData,
+            authority,
+          );
+          const prompt = buildArchitectRelayPrompt(
+            'Update HUD',
+            [],
+            'Table',
+            campaignData,
+            authority,
+          );
+          const diffs = buildWorkspacePatchDiff(campaignData, undefined, validated);
+          const combined = JSON.stringify({ ctx, prompt, diffs });
+          expect(combined).not.toContain(s.canaryEntity);
+          expect(combined).not.toContain(s.canaryConfig);
+          expect(combined).not.toContain(s.canarySpoiler);
+
+          // 3. Private notes (`sharedWithGm: false`) never flip to `true`
+          const nextTracker = applyValidatedPatchToPlayerTracker(
+            trackerState,
+            validated,
+          );
+          expect(nextTracker.nextTracker.quests[0].sharedWithGm).toBe(false);
+          expect(nextTracker.nextTracker.annotations[0].sharedWithGm).toBe(false);
+          const outInv = (validated.pcWritebacks['pc_claimed']?.inventory as any[]) ?? [];
+          expect(outInv[0]?.sharedWithGm).toBe(false);
+        },
+      ),
+      { numRuns: 250 },
     );
   });
 });

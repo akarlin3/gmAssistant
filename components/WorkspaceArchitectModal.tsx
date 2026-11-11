@@ -85,6 +85,8 @@ export interface WorkspaceArchitectModalProps {
   ) => void | Promise<void>;
   /** Optional toast callback. */
   onNotify?: (message: string) => void;
+  /** Test-only hook allowing offline E2E route mocks to exercise `/api/workspace-architect` without Firebase Auth emulators. */
+  allowUnauthenticatedCloudFetch?: boolean;
 }
 
 type ProviderBadge =
@@ -199,6 +201,12 @@ function mergeWorkspacePatches(
     hudLayoutPrefs: incoming.hudLayoutPrefs
       ? mergeHudLayoutPrefs(base.hudLayoutPrefs, incoming.hudLayoutPrefs)
       : base.hudLayoutPrefs,
+    pcPatches: incoming.pcPatches
+      ? [...(base.pcPatches ?? []), ...incoming.pcPatches]
+      : base.pcPatches,
+    trackerPatch: incoming.trackerPatch
+      ? { ...(base.trackerPatch ?? {}), ...incoming.trackerPatch }
+      : base.trackerPatch,
   };
 }
 
@@ -219,6 +227,7 @@ export function WorkspaceArchitectModal({
   onApplyPlayerPcWriteback,
   onApplyPlayerTrackerState,
   onNotify,
+  allowUnauthenticatedCloudFetch = false,
 }: WorkspaceArchitectModalProps) {
   const { user, isPro } = useAuth();
   const canEditCampaign = Boolean(isCampaignOwner) && role === 'gm';
@@ -242,6 +251,8 @@ export function WorkspaceArchitectModal({
   const [lastUndo, setLastUndo] = useState<WorkspaceUndoBundle | null>(null);
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const writtenPcFieldsRef = useRef<Record<string, PlayerEditableField[]>>({});
+  const lastUndoRef = useRef<WorkspaceUndoBundle | null>(null);
 
   const authorityContext = useMemo<WorkspaceAuthorityContext>(() => {
     const derivedOwnedIds =
@@ -279,18 +290,6 @@ export function WorkspaceArchitectModal({
       clearTimeout(t);
     };
   }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
 
   const currentHudPrefs = useMemo(
     () => (open ? loadLocalHudPrefs(hudScopeKey) : null),
@@ -376,9 +375,9 @@ export function WorkspaceArchitectModal({
         let usedProvider: ProviderBadge = 'local_compiler';
 
         // Tier 1: Cloud Pro Structured JSON Proxy (when signed-in Pro & not explicitly forcing on-device)
-        if (isPro && user && !preferChromeAi) {
+        if (((isPro && user) || allowUnauthenticatedCloudFetch) && !preferChromeAi) {
           try {
-            const idToken = await user.getIdToken();
+            const idToken = user ? await user.getIdToken() : 'e2e-offline-mock-token';
             const safeContextData = buildSafeArchitectContextSummary(
               campaignName,
               canEditCampaign ? campaignData : undefined,
@@ -412,6 +411,11 @@ export function WorkspaceArchitectModal({
                 resolvedTurn = json.turn;
                 usedProvider =
                   json.provider === 'cloud_pro' ? 'cloud_pro' : 'local_compiler';
+                const cloudValidated = validateWorkspacePatch(
+                  json.turn.patch,
+                  authorityContext,
+                );
+                setTurnWarnings(cloudValidated.warnings);
               }
             }
           } catch {
@@ -468,6 +472,7 @@ export function WorkspaceArchitectModal({
       stagedPatch,
       isPro,
       user,
+      allowUnauthenticatedCloudFetch,
       preferChromeAi,
       campaignName,
       canEditCampaign,
@@ -536,13 +541,15 @@ export function WorkspaceArchitectModal({
     const nextMode = validatedResult.campaignPatch.campaignMode?.mode;
     onApplyCampaignData(nextData, nextMode);
 
-    setLastUndo({
+    const undoBundle: WorkspaceUndoBundle = {
       createdAtMs: Date.now(),
       summary: 'Applied customizations to Campaign & Table HUD',
       previousCampaignData: undoSnapshot,
       previousHudPrefs: prevHud,
       previousLocalTerms: prevTerms,
-    });
+    };
+    lastUndoRef.current = undoBundle;
+    setLastUndo(undoBundle);
     setStagedPatch(null);
     const msg = 'Applied campaign & HUD configuration (1-tap Undo ready)';
     setStatusBanner(msg);
@@ -555,6 +562,40 @@ export function WorkspaceArchitectModal({
     const prevHud = loadLocalHudPrefs(hudScopeKey);
     const prevTerms = loadLocalTerminologyPrefs(hudScopeKey);
     const prevOwnedSnapshots: Record<string, PlayerCharacter> = {};
+    const nextWrittenFields: Record<string, PlayerEditableField[]> = {};
+
+    if (
+      includeOwnedSheetWriteback &&
+      onApplyPlayerPcWriteback &&
+      Object.keys(validatedResult.pcWritebacks).length > 0
+    ) {
+      for (const [pcId, fields] of Object.entries(validatedResult.pcWritebacks)) {
+        const existingPc = pcs?.find((p) => p.id === pcId);
+        if (existingPc) {
+          prevOwnedSnapshots[pcId] = JSON.parse(JSON.stringify(existingPc));
+        }
+        nextWrittenFields[pcId] = Object.keys(fields) as PlayerEditableField[];
+      }
+    }
+    writtenPcFieldsRef.current = nextWrittenFields;
+
+    const prevTrackerSnapshot = currentTrackerState
+      ? (JSON.parse(JSON.stringify(currentTrackerState)) as PlayerLocalTrackerState)
+      : undefined;
+
+    const undoBundle: WorkspaceUndoBundle = {
+      createdAtMs: Date.now(),
+      summary: includeOwnedSheetWriteback
+        ? 'Applied to Local HUD & Owned Character Sheet'
+        : 'Applied to Local HUD Only',
+      previousHudPrefs: prevHud,
+      previousLocalTerms: prevTerms,
+      previousOwnedPcSnapshots:
+        Object.keys(prevOwnedSnapshots).length > 0 ? prevOwnedSnapshots : undefined,
+      previousTrackerState: prevTrackerSnapshot,
+    };
+    lastUndoRef.current = undoBundle;
+    setLastUndo(undoBundle);
 
     if (validatedResult.localHudPrefs) {
       const mergedHud = mergeHudLayoutPrefs(prevHud, validatedResult.localHudPrefs);
@@ -574,10 +615,6 @@ export function WorkspaceArchitectModal({
       Object.keys(validatedResult.pcWritebacks).length > 0
     ) {
       for (const [pcId, fields] of Object.entries(validatedResult.pcWritebacks)) {
-        const existingPc = pcs?.find((p) => p.id === pcId);
-        if (existingPc) {
-          prevOwnedSnapshots[pcId] = JSON.parse(JSON.stringify(existingPc));
-        }
         await onApplyPlayerPcWriteback(pcId, fields);
       }
     }
@@ -595,19 +632,6 @@ export function WorkspaceArchitectModal({
       await onApplyPlayerTrackerState(nextTracker);
     }
 
-    setLastUndo({
-      createdAtMs: Date.now(),
-      summary: includeOwnedSheetWriteback
-        ? 'Applied to Local HUD & Owned Character Sheet'
-        : 'Applied to Local HUD Only',
-      previousHudPrefs: prevHud,
-      previousLocalTerms: prevTerms,
-      previousOwnedPcSnapshots:
-        Object.keys(prevOwnedSnapshots).length > 0 ? prevOwnedSnapshots : undefined,
-      previousTrackerState: currentTrackerState
-        ? JSON.parse(JSON.stringify(currentTrackerState))
-        : undefined,
-    });
     setStagedPatch(null);
     const msg = includeOwnedSheetWriteback
       ? 'Applied to Local HUD & Owned Sheet (1-tap Undo ready)'
@@ -617,41 +641,91 @@ export function WorkspaceArchitectModal({
   };
 
   const handleUndoLastApply = async () => {
-    if (!lastUndo) return;
+    const activeUndo = lastUndoRef.current ?? lastUndo;
+    if (!activeUndo) return;
 
     if (
-      lastUndo.previousCampaignData &&
+      activeUndo.previousCampaignData &&
       canEditCampaign &&
       onApplyCampaignData
     ) {
-      const restoredMode = (lastUndo.previousCampaignData.mode ??
-        (lastUndo.previousCampaignData.__soloMode
+      const restoredMode = (activeUndo.previousCampaignData.mode ??
+        (activeUndo.previousCampaignData.__soloMode
           ? 'duet'
           : 'standard')) as CampaignModeOption;
-      onApplyCampaignData(lastUndo.previousCampaignData, restoredMode);
+      onApplyCampaignData(activeUndo.previousCampaignData, restoredMode);
     }
 
-    saveLocalHudPrefs(hudScopeKey, lastUndo.previousHudPrefs ?? null);
-    saveLocalTerminologyPrefs(hudScopeKey, lastUndo.previousLocalTerms ?? null);
+    saveLocalHudPrefs(hudScopeKey, activeUndo.previousHudPrefs ?? null);
+    saveLocalTerminologyPrefs(hudScopeKey, activeUndo.previousLocalTerms ?? null);
 
-    if (lastUndo.previousOwnedPcSnapshots && onApplyPlayerPcWriteback) {
-      for (const [pcId, snap] of Object.entries(lastUndo.previousOwnedPcSnapshots)) {
-        await onApplyPlayerPcWriteback(pcId, {
-          resourcePools: snap.resourcePools,
-          activeBuffs: snap.activeBuffs ?? [],
-        });
+    if (activeUndo.previousOwnedPcSnapshots && onApplyPlayerPcWriteback) {
+      for (const [pcId, snap] of Object.entries(activeUndo.previousOwnedPcSnapshots)) {
+        const fieldsToRestore = writtenPcFieldsRef.current[pcId] ?? [
+          'resourcePools',
+          'activeBuffs',
+        ];
+        const restorePayload: Partial<Record<PlayerEditableField, unknown>> = {};
+        const snapAny = snap as Record<string, any>;
+        for (const fKey of fieldsToRestore) {
+          if (fKey.includes('.')) {
+            const [parentK, childK] = fKey.split('.', 2);
+            const val = snapAny[parentK]?.[childK];
+            if (val !== undefined) restorePayload[fKey] = val;
+          } else if (fKey === 'resourcePools' || fKey === 'activeBuffs') {
+            restorePayload[fKey] = snapAny[fKey] ?? [];
+          } else if (snapAny[fKey] !== undefined) {
+            restorePayload[fKey] = snapAny[fKey];
+          }
+        }
+        await onApplyPlayerPcWriteback(pcId, restorePayload);
       }
     }
 
-    if (lastUndo.previousTrackerState && onApplyPlayerTrackerState) {
-      await onApplyPlayerTrackerState(lastUndo.previousTrackerState);
+    if (activeUndo.previousTrackerState && onApplyPlayerTrackerState) {
+      await onApplyPlayerTrackerState(activeUndo.previousTrackerState);
     }
 
+    writtenPcFieldsRef.current = {};
+    lastUndoRef.current = null;
     setLastUndo(null);
     const msg = 'Rolled back workspace customization';
     setStatusBanner(msg);
     onNotify?.(msg);
   };
+
+  const handleUndoRef = useRef(handleUndoLastApply);
+  handleUndoRef.current = handleUndoLastApply;
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (open && e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (
+        lastUndoRef.current &&
+        (e.metaKey || e.ctrlKey) &&
+        !e.shiftKey &&
+        !e.altKey &&
+        e.key.toLowerCase() === 'z'
+      ) {
+        const el = e.target as HTMLElement | null;
+        const tag = el?.tagName;
+        const isNonEmptyInput =
+          (tag === 'INPUT' || tag === 'TEXTAREA') &&
+          Boolean((el as HTMLInputElement | HTMLTextAreaElement).value);
+        if (isNonEmptyInput) return;
+        if (!open && e.defaultPrevented) return;
+        e.preventDefault();
+        e.stopPropagation();
+        void handleUndoRef.current();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown, open);
+    return () => window.removeEventListener('keydown', onKeyDown, open);
+  }, [open, onClose]);
 
   if (!open) return null;
 

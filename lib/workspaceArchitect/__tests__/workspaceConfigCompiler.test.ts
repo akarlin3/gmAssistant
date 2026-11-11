@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
+  applyPlayerWorkspacePatchToPcs,
   applyWorkspacePatchToCampaignData,
   buildArchitectRelayPrompt,
   buildHudScopeKey,
@@ -318,5 +319,103 @@ describe('workspaceConfigCompiler', () => {
       { role: 'player', isCampaignOwner: false, activeSlotId: 'slot_1' },
     );
     expect(relayPrompt).not.toContain('TOP_SECRET_VILLAIN');
+  });
+
+  it('enforces GM vs Player callerRole smoke scenarios (unowned PC max HP, prep targets, and GM-only fields blocked)', () => {
+    const gmSmoke = validateWorkspacePatch(
+      {
+        campaignMode: {
+          mode: 'duet',
+          prepTargetOverrides: { secrets: 6, npcs: 4 },
+        },
+        systemFlavorAndTrackers: {
+          resourcePoolTemplates: [
+            { name: 'Sanity', max: 10, rechargeOn: 'manual' },
+            { name: 'Luck', max: 5, rechargeOn: 'long' },
+          ],
+        },
+        terminologyMap: { gold: 'Cash', quests: 'Leads' },
+        hudLayoutPrefs: {
+          widgetOrder: ['clocks', 'initiative'],
+          widgets: { clocks: { visible: true, pinnedTop: true, order: 0 } },
+        },
+      },
+      { callerRole: 'gm', isCampaignOwner: true },
+    );
+    expect(gmSmoke.ok).toBe(true);
+    expect(gmSmoke.canApplyToCampaign).toBe(true);
+    expect(gmSmoke.campaignPatch.campaignMode?.mode).toBe('duet');
+    expect(gmSmoke.localHudPrefs?.widgets?.clocks?.pinnedTop).toBe(true);
+
+    const pcs = [
+      {
+        id: 'pc_claimed',
+        name: 'Aria',
+        hp: { current: 26, max: 26, temp: 0 },
+        ownership: { ownerType: 'player', playerSlotId: 'slot_aria' },
+        resourcePools: [],
+      },
+      {
+        id: 'pc_unowned',
+        name: 'Garrick',
+        hp: { current: 44, max: 44, temp: 0 },
+        ownership: { ownerType: 'player', playerSlotId: 'slot_garrick' },
+        resourcePools: [],
+      },
+    ];
+    const unownedBeforeJson = JSON.stringify(pcs[1]);
+
+    const playerSmoke = validateWorkspacePatch(
+      {
+        campaignMode: { mode: 'duet', prepTargetOverrides: { secrets: 10 } },
+        gmNotes: 'SECRET_GM_PLOT',
+        systemFlavorAndTrackers: {
+          resourcePoolTemplates: [{ name: 'Sanity', max: 10, rechargeOn: 'manual' }],
+        },
+        hudLayoutPrefs: {
+          widgetOrder: ['clocks', 'rollFeed'],
+          widgets: { clocks: { visible: true, pinnedTop: true, order: 0 } },
+        },
+        pcPatches: [
+          {
+            pcId: 'pc_claimed',
+            updates: {
+              'hp.current': 20,
+              gmNotes: 'FORBIDDEN_GM_FIELD',
+              maxHp: 999,
+            },
+          },
+          {
+            pcId: 'pc_unowned',
+            updates: {
+              'hp.max': 999,
+              maxHp: 999,
+            },
+          },
+        ],
+      },
+      {
+        callerRole: 'player',
+        isCampaignOwner: false,
+        activeSlotId: 'slot_aria',
+        ownedPcIds: ['pc_claimed'],
+        pcs,
+      },
+    );
+
+    expect(playerSmoke.canApplyToCampaign).toBe(false);
+    expect(playerSmoke.campaignPatch).toEqual({});
+    expect(playerSmoke.blockedScopes).toContain('campaignMode');
+    expect(playerSmoke.blockedPcIds).toContain('pc_unowned');
+    expect(playerSmoke.pcWritebacks['pc_unowned']).toBeUndefined();
+    expect(playerSmoke.pcWritebacks['pc_claimed']?.['hp.current']).toBe(20);
+    expect(playerSmoke.pcWritebacks['pc_claimed']).not.toHaveProperty('gmNotes');
+    expect(playerSmoke.pcWritebacks['pc_claimed']).not.toHaveProperty('maxHp');
+    expect(playerSmoke.localHudPrefs?.widgetOrder).toEqual(['clocks', 'rollFeed']);
+
+    const afterPcs = applyPlayerWorkspacePatchToPcs(pcs, playerSmoke);
+    expect(JSON.stringify(afterPcs[1])).toBe(unownedBeforeJson);
+    expect(afterPcs[0].hp.current).toBe(20);
+    expect(afterPcs[0].hp.max).toBe(26);
   });
 });

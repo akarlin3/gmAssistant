@@ -532,12 +532,14 @@ export function normalizePrepTargetKey(rawKey: string): PrepTargetKey | null {
 
 export interface WorkspaceAuthorityContext {
   /** Current workspace role (`'gm'` or `'player'`). */
-  role: 'gm' | 'player';
+  role?: 'gm' | 'player';
+  /** Alias for `role` (`'gm'` or `'player'`). */
+  callerRole?: 'gm' | 'player';
   /**
    * True ONLY when the authenticated user is the owner (GM) of the campaign.
    * Must be `false` on `/player`, `/play/[shareToken]`, or non-owner sessions.
    */
-  isCampaignOwner: boolean;
+  isCampaignOwner?: boolean;
   /** Active player slot ID when in shared player mode (`/play/[shareToken]`). */
   activeSlotId?: string;
   /** Explicit list of PC IDs owned by this player (cross-checked against `pcs` when present). */
@@ -552,6 +554,30 @@ export interface WorkspaceAuthorityContext {
    * can ever flip `sharedWithGm` from `false` to `true`.
    */
   confirmedShareItemIds?: ReadonlySet<string> | string[];
+}
+
+export function resolveAuthorityRole(
+  context: WorkspaceAuthorityContext,
+): 'gm' | 'player' {
+  const r = context.callerRole ?? context.role;
+  return r === 'gm' ? 'gm' : 'player';
+}
+
+export function hasCampaignEditAuthority(
+  context: WorkspaceAuthorityContext,
+): boolean {
+  const effectiveRole = resolveAuthorityRole(context);
+  if (effectiveRole !== 'gm') return false;
+  if (typeof context.isCampaignOwner === 'boolean') {
+    return context.isCampaignOwner;
+  }
+  return context.callerRole === 'gm';
+}
+
+export function isPublicVisibility(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return true;
+  const vis = (value as Record<string, unknown>).visibility;
+  return vis === undefined || vis === 'public';
 }
 
 export interface ValidatedWorkspacePatch {
@@ -684,8 +710,7 @@ export function validateWorkspacePatch(
   rawInput: unknown,
   context: WorkspaceAuthorityContext,
 ): ValidatedWorkspacePatch {
-  const canApplyToCampaign =
-    Boolean(context.isCampaignOwner) && context.role === 'gm';
+  const canApplyToCampaign = hasCampaignEditAuthority(context);
   const confirmedSet = buildConfirmedSet(context.confirmedShareItemIds);
   const strippedRedactedSet = new Set<string>();
   const blockedScopes: string[] = [];
@@ -1050,6 +1075,9 @@ export function validateWorkspacePatch(
   ) => {
     if (!(PLAYER_EDITABLE_FIELDS as readonly string[]).includes(rawField)) {
       blockedFields.push(`${pcId}.${rawField}`);
+      warnings.push(
+        `Blocked non-editable or GM-only field "${rawField}" on "${pcId}".`,
+      );
       return;
     }
     const field = rawField as PlayerEditableField;
@@ -1140,6 +1168,12 @@ export function validateWorkspacePatch(
     }
   }
 
+  if (blockedShareFlips.length > 0) {
+    warnings.push(
+      `Preserved private visibility (sharedWithGm: false) on ${blockedShareFlips.length} item(s); sharing requires explicit item-level confirmation.`,
+    );
+  }
+
   // Enforce Campaign-Wide vs Player-Only Routing
   if (!canApplyToCampaign) {
     if (validPatch.campaignMode) {
@@ -1185,7 +1219,15 @@ export function validateWorkspacePatch(
           validPatch.systemFlavorAndTrackers.resourcePoolTemplates.length > 0
         ) {
           const existingPools: PcResourcePool[] = Array.isArray(pcRec?.resourcePools)
-            ? [...pcRec.resourcePools]
+            ? pcRec.resourcePools.filter(isPublicVisibility).map((p: any) => ({
+                id: String(p.id || 'pool'),
+                name: stripInlineSpoilers(String(p.name ?? '')),
+                current: Number(p.current) || 0,
+                max: Number(p.max) || 1,
+                rechargeOn: RECHARGE_TIMING_OPTIONS.includes(p.rechargeOn)
+                  ? p.rechargeOn
+                  : 'long',
+              }))
             : [];
           const mergedPools = mergeResourcePoolTemplatesIntoPcPools(
             existingPools,
@@ -1199,7 +1241,10 @@ export function validateWorkspacePatch(
           validPatch.systemFlavorAndTrackers.conditionBuffPresets.length > 0
         ) {
           const existingBuffs: ActiveBuff[] = Array.isArray(pcRec?.activeBuffs)
-            ? [...pcRec.activeBuffs]
+            ? pcRec.activeBuffs.filter(isPublicVisibility).map((b: any) => ({
+                ...b,
+                name: stripInlineSpoilers(String(b.name ?? '')),
+              }))
             : [];
           const mergedBuffs = mergeBuffPresetsIntoPcBuffs(
             existingBuffs,
@@ -1483,7 +1528,9 @@ export function buildWorkspacePatchDiff(
     ? validated.campaignPatch.terminologyMap
     : validated.localTerminologyMap;
   if (termMap && Object.keys(termMap).length > 0) {
-    const prevTerms = existingConfig.terminologyMap ?? {};
+    const prevTerms = validated.canApplyToCampaign
+      ? (existingConfig.terminologyMap ?? {})
+      : (projectPublicWorkspaceConfig(data)?.terminologyMap ?? {});
     for (const [k, v] of Object.entries(termMap)) {
       const fallback =
         DEFAULT_TERMINOLOGY_LABELS[k as CanonicalTerminologyKey] ?? k;
@@ -1493,7 +1540,7 @@ export function buildWorkspacePatchDiff(
         category: 'Terminology Override',
         label: `Rename "${fallback}"`,
         before: prevTerms[k] || fallback,
-        after: v,
+        after: validated.canApplyToCampaign ? v : stripInlineSpoilers(v),
       });
     }
   }
@@ -1508,6 +1555,9 @@ export function buildWorkspacePatchDiff(
           .join(', ');
       } else if (fieldKey === 'activeBuffs' && Array.isArray(val)) {
         summaryAfter = (val as ActiveBuff[]).map((b) => b.name).join(', ');
+      }
+      if (!validated.canApplyToCampaign) {
+        summaryAfter = stripInlineSpoilers(summaryAfter);
       }
       items.push({
         id: `pc.${pcId}.${fieldKey}`,
@@ -1787,26 +1837,85 @@ export function applyValidatedPatchToPlayerTracker(
 }
 
 /**
+ * Applies `validated.pcWritebacks` strictly to PCs present in `validated.pcWritebacks`,
+ * supporting dotted allowlist paths (e.g. `'hp.current'`, `'hitDice.used'`) while
+ * leaving every unowned / untouched PC record byte-for-byte identical.
+ */
+export function applyPlayerWorkspacePatchToPcs<T extends Record<string, any>>(
+  pcs: readonly T[],
+  validated: ValidatedWorkspacePatch,
+): T[] {
+  if (!Array.isArray(pcs)) return [];
+  return pcs.map((pc) => {
+    if (!pc || typeof pc !== 'object') return pc;
+    const pcId = typeof pc.id === 'string' ? pc.id : '';
+    const writebacks = pcId ? validated.pcWritebacks[pcId] : undefined;
+    if (!writebacks || Object.keys(writebacks).length === 0) {
+      // Return an unmutated deep clone so unowned PCs remain byte-for-byte identical
+      return JSON.parse(JSON.stringify(pc)) as T;
+    }
+
+    const nextPc: Record<string, any> = JSON.parse(JSON.stringify(pc));
+    for (const [fieldPath, val] of Object.entries(writebacks)) {
+      if (!(PLAYER_EDITABLE_FIELDS as readonly string[]).includes(fieldPath)) {
+        continue;
+      }
+      if (!validatePlayerField(fieldPath, val)) {
+        continue;
+      }
+      if (fieldPath.includes('.')) {
+        const [parentKey, childKey] = fieldPath.split('.', 2);
+        const prevParent =
+          nextPc[parentKey] && typeof nextPc[parentKey] === 'object'
+            ? { ...nextPc[parentKey] }
+            : {};
+        prevParent[childKey] = JSON.parse(JSON.stringify(val));
+        nextPc[parentKey] = prevParent;
+      } else {
+        nextPc[fieldPath] = JSON.parse(JSON.stringify(val));
+      }
+    }
+    return nextPc as T;
+  });
+}
+
+/**
  * Projects ONLY public, spoiler-scrubbed `terminologyMap` and
  * `systemFlavorAndTrackers` templates from GM campaign data for `SlotProjection`.
- * Never reads or emits entities, secrets, GM notes, or visibility configs.
+ * Never reads or emits entities, secrets, GM notes, or non-public (`visibility !== 'public'`) configs.
  */
 export function projectPublicWorkspaceConfig(
   data: Record<string, unknown> | undefined,
 ): ProjectedWorkspaceConfig | undefined {
   if (!data || typeof data !== 'object') return undefined;
+  const playerCfg = (data as Record<string, any>).player;
+  if (
+    playerCfg?.entityVisibility &&
+    typeof playerCfg.entityVisibility === 'object' &&
+    playerCfg.entityVisibility[WORKSPACE_CONFIG_STATE_KEY] !== undefined &&
+    playerCfg.entityVisibility[WORKSPACE_CONFIG_STATE_KEY] !== 'public'
+  ) {
+    return undefined;
+  }
+
   const rawCfg = data[WORKSPACE_CONFIG_STATE_KEY] as StoredWorkspaceConfig | undefined;
   if (!rawCfg || typeof rawCfg !== 'object') return undefined;
+  if (!isPublicVisibility(rawCfg)) return undefined;
 
   const out: ProjectedWorkspaceConfig = {};
-  if (rawCfg.terminologyMap && typeof rawCfg.terminologyMap === 'object') {
+  if (
+    rawCfg.terminologyMap &&
+    typeof rawCfg.terminologyMap === 'object' &&
+    isPublicVisibility(rawCfg.terminologyMap)
+  ) {
     const cleanTerms = sanitizeTerminologyMap(rawCfg.terminologyMap, true);
     if (cleanTerms) out.terminologyMap = cleanTerms;
   }
 
   if (
     rawCfg.systemFlavorAndTrackers &&
-    typeof rawCfg.systemFlavorAndTrackers === 'object'
+    typeof rawCfg.systemFlavorAndTrackers === 'object' &&
+    isPublicVisibility(rawCfg.systemFlavorAndTrackers)
   ) {
     const sft = rawCfg.systemFlavorAndTrackers;
     const pubSft: NonNullable<ProjectedWorkspaceConfig['systemFlavorAndTrackers']> = {};
@@ -1823,45 +1932,51 @@ export function projectPublicWorkspaceConfig(
       Array.isArray(sft.resourcePoolTemplates) &&
       sft.resourcePoolTemplates.length > 0
     ) {
-      pubSft.resourcePoolTemplates = sft.resourcePoolTemplates.map((p) => ({
-        ...(p.id ? { id: p.id } : {}),
-        name: stripInlineSpoilers(p.name).trim().slice(0, 60),
-        max: clampInt(p.max, 1, 999),
-        rechargeOn: p.rechargeOn,
-      }));
+      const visiblePools = sft.resourcePoolTemplates.filter(isPublicVisibility);
+      if (visiblePools.length > 0) {
+        pubSft.resourcePoolTemplates = visiblePools.map((p) => ({
+          ...(p.id ? { id: p.id } : {}),
+          name: stripInlineSpoilers(p.name).trim().slice(0, 60),
+          max: clampInt(p.max, 1, 999),
+          rechargeOn: p.rechargeOn,
+        }));
+      }
     }
     if (
       Array.isArray(sft.conditionBuffPresets) &&
       sft.conditionBuffPresets.length > 0
     ) {
-      pubSft.conditionBuffPresets = sft.conditionBuffPresets.map((b) => ({
-        ...(b.id ? { id: b.id } : {}),
-        ...(b.presetKey ? { presetKey: b.presetKey } : {}),
-        name: stripInlineSpoilers(b.name).trim().slice(0, 60),
-        ...(b.description
-          ? { description: stripInlineSpoilers(b.description).trim().slice(0, 240) }
-          : {}),
-        ...(typeof b.acBonus === 'number' ? { acBonus: b.acBonus } : {}),
-        ...(typeof b.speedBonus === 'number' ? { speedBonus: b.speedBonus } : {}),
-        ...(typeof b.speedMultiplier === 'number'
-          ? { speedMultiplier: b.speedMultiplier }
-          : {}),
-        ...(b.saveBonusFormula ? { saveBonusFormula: b.saveBonusFormula } : {}),
-        ...(b.attackBonusFormula ? { attackBonusFormula: b.attackBonusFormula } : {}),
-        ...(b.checkBonusFormula ? { checkBonusFormula: b.checkBonusFormula } : {}),
-        ...(b.damageBonusFormula ? { damageBonusFormula: b.damageBonusFormula } : {}),
-        ...(b.rollModeOverride ? { rollModeOverride: b.rollModeOverride } : {}),
-        ...(typeof b.affectsChecks === 'boolean'
-          ? { affectsChecks: b.affectsChecks }
-          : {}),
-        ...(typeof b.affectsAttacks === 'boolean'
-          ? { affectsAttacks: b.affectsAttacks }
-          : {}),
-        ...(typeof b.affectsSaves === 'boolean'
-          ? { affectsSaves: b.affectsSaves }
-          : {}),
-        ...(b.expiresOn ? { expiresOn: b.expiresOn } : {}),
-      }));
+      const visibleBuffs = sft.conditionBuffPresets.filter(isPublicVisibility);
+      if (visibleBuffs.length > 0) {
+        pubSft.conditionBuffPresets = visibleBuffs.map((b) => ({
+          ...(b.id ? { id: b.id } : {}),
+          ...(b.presetKey ? { presetKey: b.presetKey } : {}),
+          name: stripInlineSpoilers(b.name).trim().slice(0, 60),
+          ...(b.description
+            ? { description: stripInlineSpoilers(b.description).trim().slice(0, 240) }
+            : {}),
+          ...(typeof b.acBonus === 'number' ? { acBonus: b.acBonus } : {}),
+          ...(typeof b.speedBonus === 'number' ? { speedBonus: b.speedBonus } : {}),
+          ...(typeof b.speedMultiplier === 'number'
+            ? { speedMultiplier: b.speedMultiplier }
+            : {}),
+          ...(b.saveBonusFormula ? { saveBonusFormula: b.saveBonusFormula } : {}),
+          ...(b.attackBonusFormula ? { attackBonusFormula: b.attackBonusFormula } : {}),
+          ...(b.checkBonusFormula ? { checkBonusFormula: b.checkBonusFormula } : {}),
+          ...(b.damageBonusFormula ? { damageBonusFormula: b.damageBonusFormula } : {}),
+          ...(b.rollModeOverride ? { rollModeOverride: b.rollModeOverride } : {}),
+          ...(typeof b.affectsChecks === 'boolean'
+            ? { affectsChecks: b.affectsChecks }
+            : {}),
+          ...(typeof b.affectsAttacks === 'boolean'
+            ? { affectsAttacks: b.affectsAttacks }
+            : {}),
+          ...(typeof b.affectsSaves === 'boolean'
+            ? { affectsSaves: b.affectsSaves }
+            : {}),
+          ...(b.expiresOn ? { expiresOn: b.expiresOn } : {}),
+        }));
+      }
     }
     if (Array.isArray(sft.clockCategories) && sft.clockCategories.length > 0) {
       pubSft.clockCategories = sft.clockCategories
@@ -2278,19 +2393,21 @@ export function buildSafeArchitectContextSummary(
   authority: WorkspaceAuthorityContext,
   currentHudPrefs?: HudLayoutPrefs | null,
 ): Record<string, unknown> {
-  const canEditCampaign = authority.isCampaignOwner && authority.role === 'gm';
+  const canEditCampaign = hasCampaignEditAuthority(authority);
   const publicCfg = projectPublicWorkspaceConfig(campaignData);
-  const ownedPcs = getOwnedPcsList(authority).map((p) => ({
-    id: p.id,
-    name: stripInlineSpoilers(String(p.name ?? 'Character')),
-    resourcePools: Array.isArray(p.resourcePools)
-      ? p.resourcePools.map((r: any) => ({
-          name: String(r.name ?? ''),
-          max: Number(r.max) || 1,
-          rechargeOn: r.rechargeOn || 'long',
-        }))
-      : [],
-  }));
+  const ownedPcs = getOwnedPcsList(authority)
+    .filter(isPublicVisibility)
+    .map((p) => ({
+      id: p.id,
+      name: stripInlineSpoilers(String(p.name ?? 'Character')),
+      resourcePools: Array.isArray(p.resourcePools)
+        ? p.resourcePools.filter(isPublicVisibility).map((r: any) => ({
+            name: stripInlineSpoilers(String(r.name ?? '')),
+            max: Number(r.max) || 1,
+            rechargeOn: r.rechargeOn || 'long',
+          }))
+        : [],
+    }));
 
   if (!canEditCampaign) {
     // Player-safe context ONLY — zero campaign internals
@@ -2325,7 +2442,7 @@ export function buildSafeArchitectContextSummary(
 export function buildArchitectSystemPrompt(
   authority: WorkspaceAuthorityContext,
 ): string {
-  const canEditCampaign = authority.isCampaignOwner && authority.role === 'gm';
+  const canEditCampaign = hasCampaignEditAuthority(authority);
   return [
     'You are the GM Assistant Conversational Campaign & Table Customizer.',
     'Compile the user request into a strict JSON object matching { reply, patch, followUpOptions }.',
@@ -2366,7 +2483,7 @@ export function buildArchitectRelayPrompt(
     ...(recentHistory ? ['', '### Recent Conversation', recentHistory] : []),
     '',
     '### User Customization Request',
-    authority.isCampaignOwner && authority.role === 'gm'
+    hasCampaignEditAuthority(authority)
       ? userPrompt
       : stripInlineSpoilers(userPrompt),
     '',
@@ -2414,7 +2531,7 @@ export function parseArchitectRelayResponse(
   }
 
   const scrubbed = scrubUntrustedObject(parsedJson, {
-    stripSpoilers: !(authority.isCampaignOwner && authority.role === 'gm'),
+    stripSpoilers: !hasCampaignEditAuthority(authority),
   }) as Record<string, unknown>;
 
   // Accept either `{ reply, patch, followUpOptions }` or a direct `CampaignWorkspacePatch` object
@@ -2690,7 +2807,7 @@ export function compileNaturalLanguageArchitectTurn(
   validated: ValidatedWorkspacePatch;
 } {
   const text = userPrompt.trim();
-  const canEditCampaign = authority.isCampaignOwner && authority.role === 'gm';
+  const canEditCampaign = hasCampaignEditAuthority(authority);
 
   const rawPatch: Record<string, any> = {};
   const followUpOptions: FollowUpOptionChip[] = [];

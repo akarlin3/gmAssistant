@@ -1,4 +1,26 @@
-import { defineConfig, devices } from '@playwright/test';
+import fs from 'node:fs';
+import { chromium, defineConfig, devices } from '@playwright/test';
+
+function resolveFallbackLaunchOptions() {
+  try {
+    if (fs.existsSync(chromium.executablePath())) {
+      return undefined;
+    }
+  } catch {
+    // Fall through to system binary probe
+  }
+  for (const candidate of ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome']) {
+    if (fs.existsSync(candidate)) {
+      return {
+        executablePath: candidate,
+        args: ['--no-sandbox'],
+      };
+    }
+  }
+  return undefined;
+}
+
+const fallbackLaunchOptions = resolveFallbackLaunchOptions();
 
 // E2E config. The dev server is started automatically with stable CI dummy
 // Firebase config (public NEXT_PUBLIC_* values) so the app boots without real
@@ -16,7 +38,15 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: 'on-first-retry',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        ...(fallbackLaunchOptions ? { launchOptions: fallbackLaunchOptions } : {}),
+      },
+    },
+  ],
   webServer: {
     command: `npm run dev -- --port ${PORT}`,
     url: `http://localhost:${PORT}/login`,
