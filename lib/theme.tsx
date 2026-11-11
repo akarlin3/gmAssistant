@@ -9,6 +9,7 @@ import React, {
   useState,
 } from 'react';
 import { Moon, Scroll } from 'lucide-react';
+import { createLiveSyncBridge } from '@/lib/snapshotVault';
 
 export type UITheme = 'slate' | 'parchment';
 export const THEME_STORAGE_KEY = 'gma_ui_theme';
@@ -89,6 +90,17 @@ export function ThemeProvider({
   }, []);
 
   useEffect(() => {
+    const bridge = createLiveSyncBridge({
+      onThemeSwitch: (incoming) => {
+        if (incoming === 'slate' || incoming === 'parchment') {
+          setThemeState((prev) => (prev === incoming ? prev : incoming));
+        }
+      },
+    });
+    return () => bridge.close();
+  }, []);
+
+  useEffect(() => {
     applyDomTheme(theme);
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, theme);
@@ -99,10 +111,19 @@ export function ThemeProvider({
 
   const setTheme = useCallback((next: UITheme) => {
     setThemeState(next);
+    const bridge = createLiveSyncBridge();
+    bridge.postThemeSwitch(next);
+    bridge.close();
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setThemeState((prev) => (prev === 'slate' ? 'parchment' : 'slate'));
+    setThemeState((prev) => {
+      const next = prev === 'slate' ? 'parchment' : 'slate';
+      const bridge = createLiveSyncBridge();
+      bridge.postThemeSwitch(next);
+      bridge.close();
+      return next;
+    });
   }, []);
 
   const value = useMemo(

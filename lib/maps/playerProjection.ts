@@ -61,6 +61,7 @@ export type PlayerMapFogRegion = {
 };
 
 export type PlayerMapPing = {
+  id: string;
   pcId: string;
   x: number;
   y: number;
@@ -160,6 +161,7 @@ export function projectMapPings(
   for (const p of combined) {
     if (!p || typeof p !== 'object' || typeof p.pcId !== 'string' || typeof p.timestamp !== 'number') continue;
     out.push({
+      id: typeof p.id === 'string' && p.id ? p.id : `ping_${p.pcId}_${p.timestamp}`,
       pcId: p.pcId,
       x: typeof p.x === 'number' ? Math.max(0, Math.min(1, p.x)) : 0.5,
       y: typeof p.y === 'number' ? Math.max(0, Math.min(1, p.y)) : 0.5,
@@ -276,6 +278,7 @@ export function projectPlayerMaps(
         const targetMap = typeof pc.mapPing.mapId === 'string' ? pc.mapPing.mapId : '*';
         const bucket = pcPingsByMap.get(targetMap) ?? [];
         bucket.push({
+          id: typeof pc.mapPing.id === 'string' && pc.mapPing.id ? pc.mapPing.id : `ping_${pc.id}_${pc.mapPing.timestamp}`,
           pcId: pc.id,
           x: pc.mapPing.x,
           y: pc.mapPing.y,

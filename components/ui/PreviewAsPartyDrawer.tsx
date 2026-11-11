@@ -18,6 +18,10 @@ import { isEntityPlayerVisible } from '@/lib/playerMode/spoilers';
 import EntityCard from '@/components/playerCampaign/EntityCard';
 import PlayerModePanel from '@/components/PlayerModePanel';
 import { GuidedEmptyState } from '@/components/ui/GuidedEmptyState';
+import WorldClockBar from '@/components/WorldClockBar';
+import TacticalMapStage from '@/components/TacticalMapStage';
+import WhisperDrawer from '@/components/WhisperDrawer';
+import HandoutOverlay from '@/components/HandoutOverlay';
 import type { PlayerConfig } from '@/lib/playerMode/types';
 import type { PlayerLogEntry } from '@/lib/playerMode/sessionLog';
 import type { PlayerCharacter } from '@/lib/pc/types';
@@ -330,7 +334,12 @@ export function PreviewAsPartyDrawer({
               {totalVisibleEntities === 0 &&
               projection.sessionLog.length === 0 &&
               !projection.handouts &&
-              (!projection.items || projection.items.length === 0) ? (
+              (!projection.items || projection.items.length === 0) &&
+              !projection.worldClock &&
+              (!projection.maps || projection.maps.length === 0) &&
+              (!projection.whispers || projection.whispers.length === 0) &&
+              (!projection.handoutGallery || projection.handoutGallery.length === 0) &&
+              !projection.activeHandoutFlash ? (
                 <GuidedEmptyState
                   icon={<ShieldCheck size={20} />}
                   title="Zero GM Secrets Leaked — Nothing Revealed Yet"
@@ -344,6 +353,40 @@ export function PreviewAsPartyDrawer({
                 />
               ) : (
                 <>
+                  {/* Projected In-World Calendar & Clock */}
+                  {projection.worldClock && (
+                    <WorldClockBar role="player" worldClock={projection.worldClock} />
+                  )}
+
+                  {/* Projected Whispers, Table Safety & Handouts Strip */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <WhisperDrawer
+                      role="player"
+                      activeSlotId={effectiveSlotId}
+                      playerWhispers={projection.whispers ?? []}
+                      tableSafetyEnabled={projection.tableSafetyEnabled !== false}
+                    />
+                    <HandoutOverlay
+                      role="player"
+                      handouts={projection.handoutGallery ?? []}
+                      activeFlash={projection.activeHandoutFlash ?? null}
+                    />
+                  </div>
+
+                  {/* Projected Tactical Fog-of-War Map Stage */}
+                  {projection.maps && projection.maps.length > 0 && (
+                    <section className="space-y-2">
+                      <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">
+                        Revealed Tactical Maps ({projection.maps.length})
+                      </h3>
+                      <TacticalMapStage
+                        role="shared-player"
+                        maps={projection.maps}
+                        compact
+                      />
+                    </section>
+                  )}
+
                   {/* Session Narration Feed */}
                   {projection.sessionLog.length > 0 && (
                     <section className="space-y-2">

@@ -20,6 +20,7 @@ import {
   LogOut,
   RefreshCw,
   SlidersHorizontal,
+  Shield,
 } from 'lucide-react';
 import { ThemeToggleButton } from '@/lib/theme';
 import { UnifiedSyncDot } from '@/components/SyncIndicator';
@@ -69,6 +70,8 @@ export interface TopHeaderBarProps {
   saveStatus?: 'saved' | 'saving' | 'error';
   idbHydrated?: boolean;
   onOpenCommandPalette?: () => void;
+  onOpenGeminiBridge?: () => void;
+  onOpenSnapshotVault?: () => void;
   onOpenWorkspaceArchitect?: () => void;
   terminologyMap?: TerminologyMap;
   onOpenShortcuts?: () => void;
@@ -99,6 +102,8 @@ export function TopHeaderBar({
   saveStatus = 'saved',
   idbHydrated = true,
   onOpenCommandPalette,
+  onOpenGeminiBridge,
+  onOpenSnapshotVault,
   onOpenWorkspaceArchitect,
   terminologyMap,
   onOpenShortcuts,
@@ -515,6 +520,39 @@ export function TopHeaderBar({
                   >
                     <Upload size={13} className="text-[var(--text-muted)]" />
                     <span>Import Campaign JSON</span>
+                  </button>
+                )}
+
+                {onOpenGeminiBridge && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenGeminiBridge();
+                      setOverflowOpen(false);
+                    }}
+                    className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left font-sans text-xs text-[var(--text-primary)] hover:bg-white/5"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <Sparkles size={13} className="text-amber-400" />
+                      <span>Gemini Studio &amp; Recap Bridge</span>
+                    </span>
+                    <kbd className="rounded border border-[var(--border-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">
+                      ⌘G
+                    </kbd>
+                  </button>
+                )}
+
+                {onOpenSnapshotVault && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenSnapshotVault();
+                      setOverflowOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left font-sans text-xs text-[var(--text-primary)] hover:bg-white/5"
+                  >
+                    <Shield size={13} className="text-amber-500" />
+                    <span>Preview &amp; Restore Snapshot</span>
                   </button>
                 )}
 

@@ -355,6 +355,7 @@ export type PlayerTokenPosition = {
 };
 
 export type PlayerMapPingPayload = {
+  id?: string;
   mapId?: string;
   pcId: string;
   x: number;

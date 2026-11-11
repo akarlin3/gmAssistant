@@ -455,6 +455,9 @@ export default function PlayerCampaignView({
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setArchitectModalOpen((prev) => !prev);
+      } else if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        setGeminiModalOpen((prev) => !prev);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -473,6 +476,7 @@ export default function PlayerCampaignView({
           playerActiveTab={headerTab}
           onPlayerTabChange={handleHeaderTabChange}
           onSyncCapsule={() => setSyncCapsuleOpen(true)}
+          onOpenGeminiBridge={() => setGeminiModalOpen(true)}
           onOpenWorkspaceArchitect={() => setArchitectModalOpen(true)}
           terminologyMap={workspaceCust.terminologyMap}
         />
@@ -615,7 +619,7 @@ export default function PlayerCampaignView({
                       shareToken: token,
                       slotId,
                       pcId: activePc.id,
-                      field: 'currentHp',
+                      field: 'hp.current',
                       value: nextHp,
                     });
                   }}

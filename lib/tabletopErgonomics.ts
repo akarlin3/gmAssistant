@@ -186,7 +186,7 @@ export function cloneDocumentStylesToPiPWindow(sourceDoc: Document, targetDoc: D
 }
 
 /**
- * Renders the universal fallback Mini-HUD onto a 340x210 `<canvas>` for
+ * Renders the universal fallback Mini-HUD onto a 340x220 `<canvas>` for
  * browsers without `documentPictureInPicture` (piped into `canvas.captureStream(10)`
  * and `<video>.requestPictureInPicture()`).
  */
@@ -197,7 +197,7 @@ export function renderFallbackHudCanvas(
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const w = (canvas.width = 340);
-  const h = (canvas.height = 210);
+  const h = (canvas.height = 220);
 
   ctx.fillStyle = '#1c1917';
   ctx.fillRect(0, 0, w, h);

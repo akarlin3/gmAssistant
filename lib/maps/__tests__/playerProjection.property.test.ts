@@ -258,5 +258,72 @@ describe('map redaction invariant (property-based)', () => {
       RUNS,
     );
   });
+
+  it('M10 — live player map pings preserve { id, pcId, x, y, color, timestamp }, clamp [0, 1], and strip secret keys', () => {
+    const ALLOWED_PING_KEYS = new Set(['id', 'pcId', 'x', 'y', 'color', 'timestamp']);
+    fc.assert(
+      fc.property(
+        mapArb(),
+        fc.array(
+          fc.record({
+            id: fc.uuid(),
+            pcId: fc.constantFrom('pc-1', 'pc-2'),
+            x: fc.double({ min: -0.5, max: 1.5, noNaN: true }),
+            y: fc.double({ min: -0.5, max: 1.5, noNaN: true }),
+            color: fc.constant('#38bdf8'),
+            timestamp: fc.integer({ min: 1000, max: 999999 }),
+            gmSecretPingNote: fc.constant('SECRET_GM_PING_METADATA'),
+          }),
+          { minLength: 1, maxLength: 5 },
+        ),
+        (baseMap, rawPings) => {
+          const mapWithVisibleLayer: CampaignMap = {
+            ...baseMap,
+            layers: baseMap.layers.map((l, idx) =>
+              idx === 0 ? { ...l, visibleToPlayers: true } : l,
+            ),
+            pings: rawPings as any,
+          };
+
+          const projected = projectPlayerMaps({
+            maps: [mapWithVisibleLayer],
+            pcs: [
+              {
+                id: 'pc-1',
+                mapPing: {
+                  id: 'wb-ping-1',
+                  mapId: mapWithVisibleLayer.id,
+                  pcId: 'pc-1',
+                  x: 0.42,
+                  y: 0.73,
+                  color: '#10b981',
+                  timestamp: 55555,
+                  secretExtra: 'STRIP_ME',
+                },
+              },
+            ],
+          });
+
+          expect(projected).toHaveLength(1);
+          const json = JSON.stringify(projected);
+          expect(json).not.toContain('SECRET_GM_PING_METADATA');
+          expect(json).not.toContain('STRIP_ME');
+
+          for (const ping of projected[0].pings ?? []) {
+            for (const k of Object.keys(ping)) {
+              expect(ALLOWED_PING_KEYS.has(k)).toBe(true);
+            }
+            expect(typeof ping.id).toBe('string');
+            expect(ping.id.length).toBeGreaterThan(0);
+            expect(ping.x).toBeGreaterThanOrEqual(0);
+            expect(ping.x).toBeLessThanOrEqual(1);
+            expect(ping.y).toBeGreaterThanOrEqual(0);
+            expect(ping.y).toBeLessThanOrEqual(1);
+          }
+        },
+      ),
+      RUNS,
+    );
+  });
 });
 

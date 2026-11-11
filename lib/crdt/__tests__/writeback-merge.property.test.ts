@@ -588,5 +588,144 @@ describe('writeback merge preserves the bidirectional privacy invariant', () => 
       RUNS,
     );
   });
+
+  it('5. Anonymous Table Safety & Owned Token/Ping/Whisper Authority: table_pause_requested strips 100% of player/PC identifiers, sharedWithGm:false inventory items never leak, and players can ONLY mutate their owned PC token/ping/whisper slot', () => {
+    fc.assert(
+      fc.property(
+        fc.uuid().map((u) => `pc-${u}`),
+        fc.uuid().map((u) => `slot-${u}`),
+        fc.uuid().map((u) => `PLAYER_NAME_${u}`),
+        fc.uuid().map((u) => `HERO_NAME_${u}`),
+        fc.integer({ min: 1000, max: 9999999 }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        fc.boolean(),
+        (ownerPcId, ownerSlotId, playerName, pcName, ts, x, y, isIntruder) => {
+          // A. Anonymous safety signal & serializer strip ALL player/PC/slot identifiers
+          const adversarialInput = {
+            type: 'table_pause_requested',
+            timestamp: ts,
+            pcId: ownerPcId,
+            slotId: ownerSlotId,
+            playerName,
+            pcName,
+            secretNote: 'DO_NOT_IDENTIFY_ME',
+          };
+
+          const signal = buildAnonymousTablePauseSignal(adversarialInput, ts);
+          expect(Object.keys(signal).sort()).toEqual(['timestamp', 'type']);
+          expect(signal.type).toBe('table_pause_requested');
+          expect(signal.timestamp).toBe(ts);
+
+          const serializedWb = serializeAnonymousPauseWriteback(adversarialInput, ts);
+          const wbJson = JSON.stringify(serializedWb);
+          expect(wbJson).not.toContain(ownerPcId);
+          expect(wbJson).not.toContain(ownerSlotId);
+          expect(wbJson).not.toContain(playerName);
+          expect(wbJson).not.toContain(pcName);
+          expect(wbJson).not.toContain('DO_NOT_IDENTIFY_ME');
+          expect(Object.keys(serializedWb.updates.tablePauseSignal).sort()).toEqual([
+            'timestamp',
+            'type',
+          ]);
+
+          // B. Private inventory items (`sharedWithGm: false`) never enter pcWritebacks,
+          //    and tokenPosition / mapPing / playerWhispers ONLY apply when slot owns PC
+          const otherPcId = `${ownerPcId}-other`;
+          const initialPcs: any[] = [
+            {
+              id: ownerPcId,
+              name: pcName,
+              hp: { current: 30, max: 30, temp: 0 },
+              ac: 16,
+              conditions: [],
+              exhaustion: 0,
+              deathSaves: { successes: 0, failures: 0 },
+              ownership: { ownerType: 'player', playerSlotId: ownerSlotId },
+            },
+            {
+              id: otherPcId,
+              name: 'Other Hero',
+              hp: { current: 24, max: 24, temp: 0 },
+              ac: 14,
+              conditions: [],
+              exhaustion: 0,
+              deathSaves: { successes: 0, failures: 0 },
+              ownership: { ownerType: 'player', playerSlotId: 'other-slot' },
+            },
+          ];
+
+          const writerSlot = isIntruder ? 'intruder-slot' : ownerSlotId;
+          const mergeRes = mergePcWritebacks(initialPcs, [
+            {
+              slotId: writerSlot,
+              pcId: ownerPcId,
+              updates: {
+                tablePauseSignal: adversarialInput,
+                tokenPosition: { mapId: 'map-1', x, y, updatedAt: ts },
+                mapPing: {
+                  id: `ping-${ts}`,
+                  mapId: 'map-1',
+                  pcId: ownerPcId,
+                  x,
+                  y,
+                  color: '#38bdf8',
+                  timestamp: ts,
+                },
+                playerWhispers: [
+                  { id: `w-${ts}`, text: 'Private whisper to GM', timestamp: ts },
+                ],
+                inventory: [
+                  { id: 'inv-pub', name: 'Torch', qty: 2, equipped: true, sharedWithGm: true },
+                  {
+                    id: 'inv-secret',
+                    name: 'CURSED_THIEVES_DAGGER_SECRET',
+                    qty: 1,
+                    equipped: false,
+                    sharedWithGm: false,
+                  },
+                ],
+              },
+              updatedAtMs: ts,
+            },
+          ]);
+
+          // Pause signal is extracted cleanly with zero identity attached
+          expect(mergeRes.pauseSignal).toEqual({
+            type: 'table_pause_requested',
+            timestamp: ts,
+          });
+          const pauseJson = JSON.stringify(mergeRes.pauseSignal);
+          expect(pauseJson).not.toContain(ownerPcId);
+          expect(pauseJson).not.toContain(ownerSlotId);
+          expect(pauseJson).not.toContain(playerName);
+
+          if (isIntruder) {
+            // Intruder cannot move another player's token, emit pings as them, or mutate their PC
+            expect(mergeRes.changed).toBe(false);
+            expect(mergeRes.pcs).toBe(initialPcs);
+            expect(mergeRes.rejected.every((r) => r.reason === 'not-owner')).toBe(true);
+          } else {
+            // Legitimate owner updates ONLY their own PC; other PC is untouched
+            expect(mergeRes.changed).toBe(true);
+            expect(mergeRes.pcs[1]).toBe(initialPcs[1]);
+            const updatedOwner = mergeRes.pcs[0];
+            expect(updatedOwner.tokenPosition).toEqual({
+              mapId: 'map-1',
+              x,
+              y,
+              updatedAt: ts,
+            });
+            expect(updatedOwner.mapPing?.id).toBe(`ping-${ts}`);
+            expect(updatedOwner.playerWhispers).toHaveLength(1);
+            const invJson = JSON.stringify(updatedOwner.inventory);
+            expect(invJson).not.toContain('CURSED_THIEVES_DAGGER_SECRET');
+            expect(invJson).toContain('Torch');
+          }
+        },
+      ),
+      RUNS,
+    );
+  });
 });
 

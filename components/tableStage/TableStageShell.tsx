@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { LeftReferenceDrawer } from './LeftReferenceDrawer';
+import { VoiceDictationButton } from '@/components/ExternalTablePiP';
 import {
   parseFormula,
   evalExpr,
@@ -227,6 +228,18 @@ export function TableStageShell({
                 onChange={(e) => setQuickText(e.target.value)}
                 placeholder={quickInputPlaceholder}
                 className="h-8 min-w-0 flex-1 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 font-sans text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+              />
+              <VoiceDictationButton
+                compact
+                entityNames={[
+                  ...((Array.isArray(campaignData?.npcs) ? campaignData.npcs : []).map((n: any) => n?.name).filter(Boolean)),
+                  ...((Array.isArray(campaignData?.locations) ? campaignData.locations : []).map((l: any) => l?.name).filter(Boolean)),
+                  ...((Array.isArray(campaignData?.factions) ? campaignData.factions : []).map((f: any) => f?.name).filter(Boolean)),
+                  ...((Array.isArray(campaignData?.pcs) ? campaignData.pcs : []).map((p: any) => p?.name).filter(Boolean)),
+                ]}
+                onTranscript={(spoken) =>
+                  setQuickText((prev) => `${prev ? `${prev} ` : ''}${spoken}`)
+                }
               />
               <button
                 type="submit"

@@ -9,7 +9,7 @@
 import type { PlayerCharacter, PcResourcePool } from '@/lib/pc/types';
 import { readWorldClock, type WorldClock } from '@/lib/world/types';
 
-export type TimeOfDayBadge = 'Dawn' | 'Morning' | 'Dusk' | 'Midnight';
+export type TimeOfDayBadge = 'Dawn' | 'Morning' | 'Afternoon' | 'Dusk' | 'Night';
 
 export const ROUND_SECONDS = 6;
 export const DUNGEON_TURN_SECONDS = 10 * 60; // 600s (10 minutes)
@@ -33,6 +33,8 @@ export type ActiveWorldTimer = {
 
 export type CalendarConfig = {
   preset?: 'standard' | 'harptos' | 'greyhawk' | 'custom';
+  calendarName?: string;
+  customDayLabel?: string;
   monthNames: string[];
   daysPerMonth: number;
   weekdayNames?: string[];
@@ -49,7 +51,7 @@ export type ExtendedWorldClock = WorldClock & {
   day: number;
   /** Current hour of day [0, 23]. */
   hour: number;
-  /** Current Time-of-Day badge ('Dawn' | 'Morning' | 'Dusk' | 'Midnight'). */
+  /** Current Time-of-Day badge ('Dawn' | 'Morning' | 'Afternoon' | 'Dusk' | 'Night'). */
   timeOfDay: TimeOfDayBadge;
   /** Active countdown timers for torches, spells, and effects. */
   activeTimers: ActiveWorldTimer[];
@@ -165,10 +167,11 @@ export function defaultCalendarConfig(): CalendarConfig {
 
 /**
  * Determine the Time-of-Day badge from `timeOfDaySeconds` (0..86399) or an hour (0..23).
- * - Dawn:     05:00 – 07:59
- * - Morning:  08:00 – 16:59
- * - Dusk:     17:00 – 20:59
- * - Midnight: 21:00 – 04:59
+ * - Dawn:      05:00 – 07:59
+ * - Morning:   08:00 – 11:59
+ * - Afternoon: 12:00 – 16:59
+ * - Dusk:      17:00 – 20:59
+ * - Night:     21:00 – 04:59
  */
 export function getTimeOfDayBadge(value: number): TimeOfDayBadge {
   const isHourOnly = value >= 0 && value < 24 && Number.isInteger(value);
@@ -176,9 +179,10 @@ export function getTimeOfDayBadge(value: number): TimeOfDayBadge {
   const normalized = ((Math.floor(seconds) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
   const hour = Math.floor(normalized / HOUR_SECONDS);
   if (hour >= 5 && hour < 8) return 'Dawn';
-  if (hour >= 8 && hour < 17) return 'Morning';
+  if (hour >= 8 && hour < 12) return 'Morning';
+  if (hour >= 12 && hour < 17) return 'Afternoon';
   if (hour >= 17 && hour < 21) return 'Dusk';
-  return 'Midnight';
+  return 'Night';
 }
 
 export const computeTimeOfDayBadge = getTimeOfDayBadge;
@@ -242,6 +246,12 @@ export function normalizeExtendedWorldClock(
       calRaw?.preset === 'custom'
         ? calRaw.preset
         : defCal.preset,
+    ...(typeof calRaw?.calendarName === 'string' && calRaw.calendarName.trim()
+      ? { calendarName: calRaw.calendarName.trim() }
+      : {}),
+    ...(typeof calRaw?.customDayLabel === 'string' && calRaw.customDayLabel.trim()
+      ? { customDayLabel: calRaw.customDayLabel.trim() }
+      : {}),
     monthNames:
       Array.isArray(calRaw?.monthNames) && calRaw.monthNames.length > 0
         ? calRaw.monthNames.map((m: any) => String(m))
@@ -258,8 +268,19 @@ export function normalizeExtendedWorldClock(
     eraLabel: typeof calRaw?.eraLabel === 'string' ? calRaw.eraLabel : defCal.eraLabel,
   };
 
-  const visibleToParty =
-    r.visibleToParty === true || r.visibility === 'party';
+  let visibleToParty = false;
+  if (typeof r.visibleToParty === 'boolean') {
+    visibleToParty = r.visibleToParty;
+    if (r.visibility === 'private' && r.visibleToParty === true && !('visibleToParty' in (raw ?? {}))) {
+      visibleToParty = false;
+    }
+  } else if (r.visibility === 'party') {
+    visibleToParty = true;
+  }
+  if (r.visibility === 'private' && r.visibleToParty !== true) {
+    visibleToParty = false;
+  }
+
   const visibility: 'party' | 'private' = visibleToParty ? 'party' : 'private';
   const hour = Math.floor(timeOfDaySeconds / HOUR_SECONDS);
   const timeOfDay = getTimeOfDayBadge(timeOfDaySeconds);
@@ -348,13 +369,15 @@ export function formatInWorldDate(clock: Partial<ExtendedWorldClock> | Projected
   const monthName = cal.monthNames[monthIdx] || `Month ${monthIdx + 1}`;
   const year = (cal.yearOffset ?? 1492) + yearDelta;
   const era = cal.eraLabel ? ` ${cal.eraLabel}` : '';
+  const dayLabel = cal.customDayLabel?.trim() || 'Day';
+  const calPrefix = cal.calendarName?.trim() ? `[${cal.calendarName.trim()}] ` : '';
 
   const weekday =
     cal.weekdayNames && cal.weekdayNames.length > 0
       ? `${cal.weekdayNames[dayIndex % cal.weekdayNames.length]}, `
       : '';
 
-  return `Day ${c.currentDay} · ${weekday}${dayOfMonth} ${monthName}, ${year}${era}`;
+  return `${calPrefix}${dayLabel} ${c.currentDay} · ${weekday}${dayOfMonth} ${monthName}, ${year}${era}`;
 }
 
 export function addExplorationTimer(

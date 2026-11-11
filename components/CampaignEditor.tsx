@@ -10,7 +10,7 @@ import SummonModal from './SummonModal';
 import WellsOracle from './WellsOracle';
 import type { OracleRoll } from '@/lib/oracle/wells';
 import InitiativePanel from './InitiativePanel';
-import type { InitiativeState } from '@/lib/initiative';
+import { advanceTurn, type InitiativeState } from '@/lib/initiative';
 import { applySession0Patch } from '@/lib/session0';
 import { WhileYouWereAway } from './world/WhileYouWereAway';
 import { AccountMenu } from './AccountMenu';
@@ -43,9 +43,15 @@ import { GmPartyHudRail } from './tableStage/GmPartyHudRail';
 import { EntityPeekProvider } from './ui/EntityPeekDrawer';
 import { PreviewAsPartyDrawer } from './ui/PreviewAsPartyDrawer';
 import { makeLogEntryId, type PlayerLogEntry } from '@/lib/playerMode/sessionLog';
+import type { CampaignWhisper, HandoutCard } from '@/lib/playerMode/types';
+import { normalizeWorldClockState } from '@/lib/worldClock';
 import { useReactiveWorldEvents } from '@/lib/world/useReactiveWorldEvents';
 import { GeminiBridgeModal } from './GeminiBridgeModal';
 import { WorkspaceArchitectModal } from './WorkspaceArchitectModal';
+import WorldClockBar from './WorldClockBar';
+import WhisperDrawer, { TableSafetyBanner } from './WhisperDrawer';
+import HandoutOverlay from './HandoutOverlay';
+import ExternalTablePiP from './ExternalTablePiP';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { useWorkspaceCustomization } from '@/lib/useWorkspaceHudPrefs';
 import {
@@ -304,6 +310,7 @@ export default function CampaignEditor(props: CampaignEditorProps) {
           campaignId={campaign.id}
           campaignName={name}
           campaignData={state}
+          prepScale={prepScale}
           role={playMode === 'player' ? 'player' : 'gm'}
           onApplyCampaignData={(nextData) => {
             setState(nextData);
@@ -354,6 +361,29 @@ export default function CampaignEditor(props: CampaignEditorProps) {
     );
   }
 
+  const runInitRaw = (state.__initiative ?? state.initiative) as InitiativeState | null;
+  const runActiveTurnLabel =
+    runInitRaw && Array.isArray(runInitRaw.combatants) && runInitRaw.combatants.length > 0
+      ? runInitRaw.combatants[runInitRaw.activeIndex ?? 0]?.name
+      : undefined;
+  const runHandoutGallery = ((state.handoutGallery as HandoutCard[] | undefined) ?? []);
+  const runActiveHandoutFlash = state.activeHandoutFlashId
+    ? runHandoutGallery.find((h) => h.id === state.activeHandoutFlashId) ?? null
+    : null;
+  const runWhispers = ((state.whispers as CampaignWhisper[] | undefined) ?? []);
+  const runEntitiesForWhisper = [
+    ...((Array.isArray(state.npcs) ? state.npcs : []).map((n: any, i: number) => ({
+      id: String(n?.id || `npc-${i}`),
+      name: String(n?.name || `NPC ${i + 1}`),
+      category: 'npcs',
+    }))),
+    ...((Array.isArray(state.locations) ? state.locations : []).map((l: any, i: number) => ({
+      id: String(l?.id || `loc-${i}`),
+      name: String(l?.name || `Location ${i + 1}`),
+      category: 'locations',
+    }))),
+  ];
+
   return (
     <WikiProvider value={wikiValue}>
     <CampaignPlayModeContext.Provider value={playMode}>
@@ -390,6 +420,8 @@ export default function CampaignEditor(props: CampaignEditorProps) {
               : 'saved'
         }
         onOpenCommandPalette={() => setPaletteOpen(true)}
+        onOpenGeminiBridge={() => setGeminiBridgeOpen(true)}
+        onOpenSnapshotVault={() => setSnapshotVaultOpen(true)}
         onOpenWorkspaceArchitect={() => setWorkspaceArchitectOpen(true)}
         terminologyMap={workspaceCust.terminologyMap}
         onOpenShortcuts={() => setShortcutsOpen(true)}
@@ -593,50 +625,171 @@ export default function CampaignEditor(props: CampaignEditorProps) {
           </div>
         ) : gmActiveTab === 'run' ? (
           /* 3-PANE TABLE STAGE FOR GM RUN MODE */
-          <TableStageShell
-            rightHudTitle="Party HUD & Passive Stats"
-            campaignData={state}
-            onUpdateCampaignKey={setVal}
-            onPostQuickNarration={handlePostQuickNarration}
-            centerToolbar={
-              <div className="flex flex-wrap items-center gap-1">
-                {(
-                  [
-                    { id: 'cockpit', label: 'Cockpit' },
-                    { id: 'session', label: 'Session Feed' },
-                    { id: 'scene', label: 'Scene AI' },
-                    { id: 'maps', label: 'Maps' },
-                    { id: 'lookup', label: 'Lookup' },
-                    { id: 'assistant', label: 'Assistant' },
-                  ] as const
-                ).map((sv) => (
-                  <button
-                    key={sv.id}
-                    type="button"
-                    onClick={() => {
-                      setMode('run');
-                      setSubview(sv.id);
-                    }}
-                    className={`rounded-md px-2.5 py-1 font-sans text-xs font-medium transition-colors ${
-                      subview === sv.id
-                        ? 'bg-[var(--accent-primary)] text-white shadow-sm'
-                        : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
-                    }`}
-                  >
-                    {sv.label}
-                  </button>
-                ))}
-              </div>
-            }
-            centerStage={<EditorSubviews ed={ed} />}
-            rightHudRail={
-              <GmPartyHudRail
+          <div className="w-full max-w-none">
+            <div className="space-y-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/80 px-4 py-2">
+              {activePauseSignal && (
+                <TableSafetyBanner
+                  signal={activePauseSignal}
+                  onDismiss={() => setActivePauseSignal(null)}
+                />
+              )}
+              <WorldClockBar
+                role="gm"
+                worldClock={normalizeWorldClockState(state.worldClock)}
                 pcs={pcs}
+                factionClocksCount={Array.isArray(state.clocks) ? state.clocks.length : 0}
+                onChangeWorldClock={(nextClock) => setVal('worldClock', nextClock)}
                 onUpdatePcs={writePcs}
-                onAddPc={addPc}
+                onAwardPartyDowntimeDay={() => {
+                  writePcs(
+                    pcs.map((pc) => ({
+                      ...pc,
+                      downtimeDays: (pc.downtimeDays ?? 0) + 1,
+                    })),
+                  );
+                  showUndoToast('Awarded +1 Downtime Day to all party PCs!', 3000);
+                }}
+                onOpenFactionClocks={() => {
+                  setMode('run');
+                  setSubview('cockpit');
+                }}
               />
-            }
-          />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <ExternalTablePiP
+                  role="gm"
+                  campaignName={name}
+                  activeTurnLabel={runActiveTurnLabel}
+                  round={runInitRaw?.round ?? 1}
+                  activePc={pcs[0] ?? null}
+                  latestFeedLine={playerLog[0]?.text}
+                  onAdvanceTurn={() => {
+                    if (
+                      runInitRaw &&
+                      Array.isArray(runInitRaw.combatants) &&
+                      runInitRaw.combatants.length > 0
+                    ) {
+                      const nextInit = advanceTurn(runInitRaw);
+                      setState((s) => ({ ...s, __initiative: nextInit, initiative: nextInit }));
+                    }
+                  }}
+                  onAdjustPcHp={(delta) => {
+                    const first = pcs[0];
+                    if (!first) return;
+                    const maxHpVal = first.maxHp ?? first.hp?.max ?? 10;
+                    const curHpVal = first.currentHp ?? first.hp?.current ?? maxHpVal;
+                    const nextHp = Math.max(0, Math.min(maxHpVal, curHpVal + delta));
+                    writePcs(
+                      pcs.map((p, idx) =>
+                        idx === 0
+                          ? { ...p, currentHp: nextHp, hp: { ...p.hp, current: nextHp } }
+                          : p,
+                      ),
+                    );
+                  }}
+                  onAdjustPcAc={(delta) => {
+                    const first = pcs[0];
+                    if (!first) return;
+                    const nextAc = Math.max(1, (first.ac || 10) + delta);
+                    writePcs(pcs.map((p, idx) => (idx === 0 ? { ...p, ac: nextAc } : p)));
+                  }}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <WhisperDrawer
+                    role="gm"
+                    roster={roster}
+                    gmWhispers={runWhispers}
+                    pcs={pcs}
+                    entities={runEntitiesForWhisper}
+                    activePauseSignal={activePauseSignal}
+                    onDismissPauseSignal={() => setActivePauseSignal(null)}
+                    tableSafetyEnabled={playerConfig.tableSafetyEnabled !== false}
+                    onToggleTableSafetyEnabled={(enabled) =>
+                      setVal('player', { ...playerConfig, tableSafetyEnabled: enabled })
+                    }
+                    onGmSendWhisper={(w) => {
+                      setVal('whispers', [...runWhispers, w]);
+                      showUndoToast('Sent secret whisper to selected player slot(s)', 2500);
+                    }}
+                  />
+                  <HandoutOverlay
+                    role="gm"
+                    handouts={runHandoutGallery}
+                    activeFlash={runActiveHandoutFlash}
+                    onFlashHandout={(card) => {
+                      const existing = runHandoutGallery.filter((h) => h.id !== card.id);
+                      setState((s) => ({
+                        ...s,
+                        handoutGallery: [card, ...existing],
+                        activeHandoutFlashId: card.id,
+                      }));
+                      showUndoToast(`Flashed "${card.title}" to party screens!`, 3000);
+                    }}
+                    onClearActiveFlash={() => setVal('activeHandoutFlashId', null)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setGeminiBridgeOpen(true)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-500 hover:bg-amber-500/25"
+                    title="Zero-Key Gemini Studio & Recap Bridge (⌘G)"
+                  >
+                    <Sparkles size={12} /> Gemini Bridge (⌘G)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSnapshotVaultOpen(true)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)]"
+                    title="Preview & Restore Snapshot (7-Snapshot Vault)"
+                  >
+                    🛡️ Vault
+                  </button>
+                </div>
+              </div>
+            </div>
+            <TableStageShell
+              rightHudTitle="Party HUD & Passive Stats"
+              campaignData={state}
+              onUpdateCampaignKey={setVal}
+              onPostQuickNarration={handlePostQuickNarration}
+              centerToolbar={
+                <div className="flex flex-wrap items-center gap-1">
+                  {(
+                    [
+                      { id: 'cockpit', label: 'Cockpit' },
+                      { id: 'session', label: 'Session Feed' },
+                      { id: 'scene', label: 'Scene AI' },
+                      { id: 'maps', label: 'Maps' },
+                      { id: 'lookup', label: 'Lookup' },
+                      { id: 'assistant', label: 'Assistant' },
+                    ] as const
+                  ).map((sv) => (
+                    <button
+                      key={sv.id}
+                      type="button"
+                      onClick={() => {
+                        setMode('run');
+                        setSubview(sv.id);
+                      }}
+                      className={`rounded-md px-2.5 py-1 font-sans text-xs font-medium transition-colors ${
+                        subview === sv.id
+                          ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                          : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      {sv.label}
+                    </button>
+                  ))}
+                </div>
+              }
+              centerStage={<EditorSubviews ed={ed} />}
+              rightHudRail={
+                <GmPartyHudRail
+                  pcs={pcs}
+                  onUpdatePcs={writePcs}
+                  onAddPc={addPc}
+                />
+              }
+            />
+          </div>
         ) : (
           /* 2-PANE MASTER-DETAIL WORKSPACE FOR PREP, WORLD & ROSTER, AND REFERENCE */
           <MasterDetailWorkspace
@@ -829,7 +982,22 @@ export default function CampaignEditor(props: CampaignEditorProps) {
         campaignId={campaign.id}
         campaignName={name}
         campaignData={state}
+        prepScale={prepScale}
         role={playMode === 'player' ? 'player' : 'gm'}
+        playerState={
+          playMode === 'player'
+            ? {
+                pcName: pcs[0]?.name,
+                quests: Array.isArray(state.__playerCompanionQuests)
+                  ? state.__playerCompanionQuests
+                  : [],
+                journal: Array.isArray(state.__playerCompanionJournal)
+                  ? state.__playerCompanionJournal
+                  : [],
+                revealedEntities: runEntitiesForWhisper,
+              }
+            : undefined
+        }
         onApplyCampaignData={(nextData) => {
           setState(nextData);
           showUndoToast('Applied Gemini Studio payload to campaign', 3500);
@@ -864,13 +1032,13 @@ export default function CampaignEditor(props: CampaignEditorProps) {
           aria-modal="true"
           aria-label="7-Snapshot Rolling Safety Vault"
         >
-          <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-amber-500/40 bg-slate-950 p-5 text-slate-100 shadow-2xl space-y-4">
-            <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-3">
+          <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-amber-500/40 bg-[var(--bg-elevated)] p-5 text-[var(--text-primary)] shadow-2xl space-y-4">
+            <div className="flex items-start justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
               <div>
-                <h2 className="text-lg font-bold text-amber-300">
+                <h2 className="font-display text-lg font-bold text-amber-500 dark:text-amber-300">
                   🛡️ 7-Snapshot Rolling Safety Vault
                 </h2>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[var(--text-muted)]">
                   Automatic rolling ring buffer of the last 7 campaign snapshots (captured before JSON imports, Gemini Bridge applies, batch PC uploads, destructive deletes, and session checkpoints).
                 </p>
               </div>
@@ -880,14 +1048,14 @@ export default function CampaignEditor(props: CampaignEditorProps) {
                   setSnapshotVaultOpen(false);
                   setPreviewSnapshotId(null);
                 }}
-                className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs text-[var(--text-primary)] hover:border-[var(--accent-primary)]"
               >
                 ✕ Close
               </button>
             </div>
 
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-[var(--text-muted)]">
                 Stored Snapshots: {vaultSnapshots.length} / 7
               </span>
               <button
@@ -903,14 +1071,14 @@ export default function CampaignEditor(props: CampaignEditorProps) {
                   setVaultSnapshots(getVaultSnapshotsSync(campaign.id));
                   showUndoToast('Saved manual checkpoint to Snapshot Vault', 3000);
                 }}
-                className="rounded-lg border border-sky-500/50 bg-sky-500/20 px-3 py-1 text-xs font-semibold text-sky-200 hover:bg-sky-500/30"
+                className="rounded-lg border border-sky-500/50 bg-sky-500/20 px-3 py-1 text-xs font-semibold text-sky-600 dark:text-sky-200 hover:bg-sky-500/30"
               >
                 + Capture Checkpoint Now
               </button>
             </div>
 
             {vaultSnapshots.length === 0 ? (
-              <p className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 text-xs text-slate-400">
+              <p className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 text-xs text-[var(--text-muted)]">
                 No automatic snapshots recorded yet for this campaign. Click &ldquo;+ Capture Checkpoint Now&rdquo; or run an import/Gemini apply to populate the ring buffer.
               </p>
             ) : (
@@ -921,15 +1089,15 @@ export default function CampaignEditor(props: CampaignEditorProps) {
                   return (
                     <div
                       key={snap.id}
-                      className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-xs space-y-2"
+                      className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-xs space-y-2"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
-                          <span className="font-bold text-amber-200">{snap.label}</span>
-                          <span className="ml-2 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">
+                          <span className="font-bold text-amber-600 dark:text-amber-200">{snap.label}</span>
+                          <span className="ml-2 rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]">
                             {snap.reason}
                           </span>
-                          <div className="text-[11px] text-slate-400">
+                          <div className="text-[11px] text-[var(--text-muted)]">
                             {new Date(snap.createdAt).toLocaleString()}
                           </div>
                         </div>
@@ -939,7 +1107,7 @@ export default function CampaignEditor(props: CampaignEditorProps) {
                             onClick={() =>
                               setPreviewSnapshotId(isPreviewing ? null : snap.id)
                             }
-                            className="rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-700"
+                            className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2.5 py-1 text-xs text-[var(--text-primary)] hover:border-[var(--accent-primary)]"
                           >
                             {isPreviewing ? 'Hide Diff' : '🔍 Preview Diff'}
                           </button>
@@ -954,24 +1122,24 @@ export default function CampaignEditor(props: CampaignEditorProps) {
                                 showUndoToast(`Restored snapshot: ${snap.label}`, 4000);
                               }
                             }}
-                            className="rounded border border-emerald-500/50 bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/30"
+                            className="rounded border border-emerald-500/50 bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-200 hover:bg-emerald-500/30"
                           >
                             ⏪ Restore Snapshot
                           </button>
                         </div>
                       </div>
                       {isPreviewing && diff && (
-                        <div className="rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-[11px] text-slate-300 space-y-1">
-                          <div className="font-semibold text-sky-300">
+                        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-2.5 text-[11px] text-[var(--text-primary)] space-y-1">
+                          <div className="font-semibold text-sky-600 dark:text-sky-300">
                             Diff Verification (Current → Snapshot):
                           </div>
                           <div>
                             Changed top-level keys ({diff.changedKeys.length}):{' '}
                             {diff.changedKeys.join(', ') || 'None (identical)'}
                           </div>
-                          <div className="flex flex-wrap gap-2 text-slate-400">
+                          <div className="flex flex-wrap gap-2 text-[var(--text-muted)]">
                             {Object.entries(diff.entityCounts).map(([k, v]) => (
-                              <span key={k} className="rounded bg-slate-900 px-1.5 py-0.5">
+                              <span key={k} className="rounded border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-0.5">
                                 {k}: {v.current} → {v.snapshot}
                               </span>
                             ))}

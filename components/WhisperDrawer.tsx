@@ -91,6 +91,7 @@ export function WhisperDrawer({
   gmWhispers = [],
   pcs = [],
   playerWhispers = [],
+  playerSentWhispers = [],
   entities = [],
   onGmSendWhisper,
   onPlayerSendWhisperToGm,
@@ -131,6 +132,26 @@ export function WhisperDrawer({
     }
     return list.sort((a, b) => (a.timestamp ?? a.sentAtMs ?? 0) - (b.timestamp ?? b.sentAtMs ?? 0));
   }, [gmWhispers, pcs, role]);
+
+  const mergedPlayerThread = useMemo(() => {
+    if (role !== 'player') return [];
+    const list: ProjectedWhisper[] = [...playerWhispers];
+    const seenIds = new Set(list.map((w) => w.id));
+    for (const sent of playerSentWhispers) {
+      if (!sent || typeof sent.id !== 'string' || seenIds.has(sent.id)) continue;
+      seenIds.add(sent.id);
+      list.push({
+        id: sent.id,
+        from: activeSlotId || 'player',
+        fromLabel: 'You',
+        text: sent.text,
+        entityId: sent.entityId,
+        entityName: sent.entityName,
+        timestamp: sent.timestamp || 0,
+      });
+    }
+    return list.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+  }, [activeSlotId, playerSentWhispers, playerWhispers, role]);
 
   const slotLabelById = useMemo(() => {
     const map = new Map<string, string>();
@@ -191,7 +212,7 @@ export function WhisperDrawer({
     window.setTimeout(() => setPauseConfirmed(false), 4000);
   };
 
-  const unreadCount = role === 'gm' ? mergedGmThread.length : playerWhispers.length;
+  const unreadCount = role === 'gm' ? mergedGmThread.length : mergedPlayerThread.length;
 
   return (
     <div className="space-y-2">
@@ -209,13 +230,13 @@ export function WhisperDrawer({
           onClick={() => setOpen((v) => !v)}
           className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
             open
-              ? 'border-purple-500/60 bg-purple-500/20 text-purple-200'
-              : 'border-slate-700 bg-slate-900/80 text-slate-300 hover:border-purple-500/40'
+              ? 'border-purple-500/60 bg-purple-500/20 text-purple-600 dark:text-purple-200'
+              : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-purple-500/40'
           }`}
         >
           <span>🤫 Secret Whispers</span>
           {unreadCount > 0 && (
-            <span className="rounded-full bg-purple-500/30 px-1.5 py-0.2 text-[10px] font-bold text-purple-200">
+            <span className="rounded-full bg-purple-500/30 px-1.5 py-0.2 text-[10px] font-bold text-purple-700 dark:text-purple-200">
               {unreadCount}
             </span>
           )}
@@ -227,7 +248,7 @@ export function WhisperDrawer({
             type="button"
             onClick={handleAnonymousPauseClick}
             title="Anonymous Table Safety Check-In (X-Card / Pause) — notifies the GM with zero player/PC identity attached"
-            className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-950/50 px-2.5 py-1 text-xs font-medium text-amber-200 hover:bg-amber-900/60"
+            className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-200 hover:bg-amber-500/25"
           >
             <span>🛡️ {pauseConfirmed ? 'Pause Signal Sent (Anonymous)' : 'Table Pause / Check-In'}</span>
           </button>
@@ -235,20 +256,20 @@ export function WhisperDrawer({
       </div>
 
       {open && (
-        <div className="rounded-xl border border-purple-500/30 bg-slate-950/95 p-3.5 text-slate-100 shadow-xl space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+        <div className="rounded-xl border border-purple-500/30 bg-[var(--bg-elevated)] p-3.5 text-[var(--text-primary)] shadow-xl space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2">
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-purple-300">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-300">
                 🤫 Two-Way Secret Whispers
               </h4>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-[var(--text-muted)]">
                 {role === 'gm'
                   ? 'Whispers are projected ONLY into the selected player slot(s) and never leak to other players.'
-                  : 'Private channel between your slot and the GM via encrypted slot projection & pcWritebacks.'}
+                  : 'Private channel between your slot and the GM via per-slot projection & pcWritebacks.'}
               </p>
             </div>
             {role === 'gm' && onToggleTableSafetyEnabled && (
-              <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+              <label className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={tableSafetyEnabled}
@@ -263,7 +284,7 @@ export function WhisperDrawer({
           <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
             {role === 'gm' ? (
               mergedGmThread.length === 0 ? (
-                <p className="text-xs text-slate-500 py-2">
+                <p className="text-xs text-[var(--text-muted)] py-2">
                   No secret whispers sent or received yet.
                 </p>
               ) : (
@@ -272,11 +293,11 @@ export function WhisperDrawer({
                     key={w.id}
                     className={`rounded-lg border px-2.5 py-1.5 text-xs ${
                       w.from === 'gm'
-                        ? 'border-purple-500/30 bg-purple-950/30 text-purple-100'
-                        : 'border-sky-500/30 bg-sky-950/30 text-sky-100'
+                        ? 'border-purple-500/30 bg-purple-500/10 text-[var(--text-primary)]'
+                        : 'border-sky-500/30 bg-sky-500/10 text-[var(--text-primary)]'
                     }`}
                   >
-                    <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
                       <span>
                         {w.from === 'gm'
                           ? `GM → ${w.toSlotIds.map((id) => slotLabelById.get(id) || id).join(', ')}`
@@ -291,30 +312,30 @@ export function WhisperDrawer({
                           : ''}
                       </span>
                     </div>
-                    <div className="mt-0.5 text-slate-100">{w.text}</div>
+                    <div className="mt-0.5 text-[var(--text-primary)]">{w.text}</div>
                     {w.entityName && (
-                      <span className="mt-1 inline-block rounded bg-slate-900 px-1.5 py-0.5 text-[10px] text-amber-300">
+                      <span className="mt-1 inline-block rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-1.5 py-0.5 text-[10px] text-amber-600 dark:text-amber-300">
                         📎 {w.entityName}
                       </span>
                     )}
                   </div>
                 ))
               )
-            ) : playerWhispers.length === 0 ? (
-              <p className="text-xs text-slate-500 py-2">
+            ) : mergedPlayerThread.length === 0 ? (
+              <p className="text-xs text-[var(--text-muted)] py-2">
                 No private whispers for your slot yet.
               </p>
             ) : (
-              playerWhispers.map((w) => (
+              mergedPlayerThread.map((w) => (
                 <div
                   key={w.id}
                   className={`rounded-lg border px-2.5 py-1.5 text-xs ${
                     w.from === 'gm'
-                      ? 'border-purple-500/30 bg-purple-950/30 text-purple-100'
-                      : 'border-sky-500/30 bg-sky-950/30 text-sky-100'
+                      ? 'border-purple-500/30 bg-purple-500/10 text-[var(--text-primary)]'
+                      : 'border-sky-500/30 bg-sky-500/10 text-[var(--text-primary)]'
                   }`}
                 >
-                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                  <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
                     <span>
                       {w.from === 'gm' ? '🔒 From GM (Private to you)' : `You (${activeSlotId || 'Player'}) → GM`}
                     </span>
@@ -327,9 +348,9 @@ export function WhisperDrawer({
                         : ''}
                     </span>
                   </div>
-                  <div className="mt-0.5 text-slate-100">{w.text}</div>
+                  <div className="mt-0.5 text-[var(--text-primary)]">{w.text}</div>
                   {w.entityName && (
-                    <span className="mt-1 inline-block rounded bg-slate-900 px-1.5 py-0.5 text-[10px] text-amber-300">
+                    <span className="mt-1 inline-block rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-1.5 py-0.5 text-[10px] text-amber-600 dark:text-amber-300">
                       📎 {w.entityName}
                     </span>
                   )}
@@ -339,10 +360,10 @@ export function WhisperDrawer({
           </div>
 
           {/* Compose Form */}
-          <form onSubmit={handleSend} className="space-y-2 border-t border-slate-800 pt-2">
+          <form onSubmit={handleSend} className="space-y-2 border-t border-[var(--border-subtle)] pt-2">
             {role === 'gm' && roster.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] text-slate-400">To Slot(s):</span>
+                <span className="text-[11px] text-[var(--text-muted)]">To Slot(s):</span>
                 {roster.map((slot) => {
                   const active = selectedSlotIds.includes(slot.slotId);
                   return (
@@ -352,8 +373,8 @@ export function WhisperDrawer({
                       onClick={() => toggleSlotRecipient(slot.slotId)}
                       className={`rounded px-2 py-0.5 text-[11px] font-medium ${
                         active
-                          ? 'bg-purple-500/30 text-purple-200 border border-purple-500/50'
-                          : 'bg-slate-900 text-slate-400 border border-slate-800'
+                          ? 'bg-purple-500/30 text-purple-700 dark:text-purple-200 border border-purple-500/50'
+                          : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
                       }`}
                     >
                       {slot.displayName || slot.slotId}
@@ -373,13 +394,13 @@ export function WhisperDrawer({
                     ? 'Write a private whisper to selected player slot(s)…'
                     : 'Send a secret whisper to the GM…'
                 }
-                className="flex-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-100"
+                className="flex-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
               />
               {entities.length > 0 && (
                 <select
                   value={linkedEntityId}
                   onChange={(e) => setLinkedEntityId(e.target.value)}
-                  className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1.5 text-xs text-slate-300"
+                  className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-1.5 text-xs text-[var(--text-secondary)]"
                 >
                   <option value="">Attach Lore…</option>
                   {entities.map((en) => (
@@ -391,7 +412,7 @@ export function WhisperDrawer({
               )}
               <button
                 type="submit"
-                className="rounded-lg bg-purple-500/25 border border-purple-500/50 px-3 py-1.5 text-xs font-semibold text-purple-200 hover:bg-purple-500/35"
+                className="rounded-lg bg-purple-500/25 border border-purple-500/50 px-3 py-1.5 text-xs font-semibold text-purple-700 dark:text-purple-200 hover:bg-purple-500/35"
               >
                 Send Whisper
               </button>

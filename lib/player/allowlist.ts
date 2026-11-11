@@ -375,6 +375,7 @@ const TokenPositionSchema = z.object({
 });
 
 const MapPingSchema = z.object({
+  id: z.string().min(1).optional(),
   mapId: z.string().optional(),
   pcId: z.string().min(1),
   x: z.number().min(0).max(1),

@@ -191,7 +191,7 @@ export function ExternalTablePiP({
     if (isDocumentPiPSupported()) {
       try {
         const dpip = (window as any).documentPictureInPicture;
-        const pipWin: Window = await dpip.requestWindow({ width: 340, height: 210 });
+        const pipWin: Window = await dpip.requestWindow({ width: 340, height: 220 });
         pipWindowRef.current = pipWin;
         cloneDocumentStylesToPiPWindow(document, pipWin.document);
         pipWin.document.body.style.margin = '0';
@@ -216,7 +216,7 @@ export function ExternalTablePiP({
       if (!canvas) {
         canvas = document.createElement('canvas');
         canvas.width = 340;
-        canvas.height = 210;
+        canvas.height = 220;
         fallbackCanvasRef.current = canvas;
       }
       renderFallbackHudCanvas(canvas, {
@@ -464,8 +464,8 @@ export function ExternalTablePiP({
         title="Prevent phone/tablet screen from dimming at the physical table (Wake Lock API)"
         className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
           wakeLockActive
-            ? 'border-amber-500/60 bg-amber-500/20 text-amber-200'
-            : 'border-slate-700 bg-slate-900/80 text-slate-300 hover:border-slate-600'
+            ? 'border-amber-500/60 bg-amber-500/20 text-amber-600 dark:text-amber-200'
+            : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-amber-500/40'
         }`}
       >
         {wakeLockActive ? '☀️ Screen Awake' : '🌙 Keep Screen Awake'}
@@ -478,8 +478,8 @@ export function ExternalTablePiP({
         title="Pop Out Always-On-Top Floating Table Mini-HUD (Hotkey: P)"
         className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
           isPipOpen
-            ? 'border-sky-500/60 bg-sky-500/20 text-sky-200'
-            : 'border-slate-700 bg-slate-900/80 text-slate-300 hover:border-slate-600'
+            ? 'border-sky-500/60 bg-sky-500/20 text-sky-600 dark:text-sky-200'
+            : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-sky-500/40'
         }`}
       >
         {isPipOpen ? '🪟 Close Floating HUD (P)' : '🪟 Pop Out Table HUD (P)'}
@@ -520,6 +520,7 @@ export interface VoiceDictationButtonProps {
   entityNames?: string[];
   className?: string;
   label?: string;
+  compact?: boolean;
 }
 
 export function VoiceDictationButton({
@@ -528,6 +529,7 @@ export function VoiceDictationButton({
   entityNames,
   className = '',
   label = 'Dictate',
+  compact = false,
 }: VoiceDictationButtonProps) {
   const resolvedEntityNames = entityNames ?? knownEntityNames ?? [];
   const [listening, setListening] = useState(false);
@@ -569,13 +571,15 @@ export function VoiceDictationButton({
           ? 'Hands-Free Voice Dictation (Web Speech API) — auto-formats @-mentions'
           : 'Web Speech API dictation (browser support required)'
       }
-      className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
+      className={`inline-flex items-center gap-1 rounded-lg border font-medium transition ${
+        compact ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs'
+      } ${
         listening
-          ? 'border-rose-500/60 bg-rose-500/20 text-rose-200 animate-pulse'
-          : 'border-slate-700 bg-slate-900/80 text-slate-300 hover:border-slate-600'
+          ? 'animate-pulse border-rose-500/60 bg-rose-500/20 text-rose-600 dark:text-rose-200'
+          : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-amber-500/40'
       } ${className}`}
     >
-      <span>{listening ? '🎙️ Listening…' : `🎤 ${label}`}</span>
+      <span>{listening ? '🎙️ Listening…' : compact ? '🎤' : `🎤 ${label}`}</span>
     </button>
   );
 }

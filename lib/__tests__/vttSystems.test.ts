@@ -8,6 +8,8 @@ import {
   addPresetTimer,
   addCustomTimer,
   computeTimeOfDayBadge,
+  formatInWorldDate,
+  projectWorldClockForPlayers,
 } from '../worldClock';
 import {
   MAX_VAULT_SNAPSHOTS,
@@ -29,6 +31,42 @@ import { formatSpokenTextWithMentions } from '../tabletopErgonomics';
 import { newPc } from '../pc/factory';
 
 describe('worldClock: duration expiry & automated dawn pool recharges', () => {
+  it('computes all 5 time-of-day badges, custom calendar/day labels, and party/private visibility round-trips', () => {
+    assert.equal(computeTimeOfDayBadge(6 * 3600), 'Dawn');
+    assert.equal(computeTimeOfDayBadge(9 * 3600), 'Morning');
+    assert.equal(computeTimeOfDayBadge(14 * 3600), 'Afternoon');
+    assert.equal(computeTimeOfDayBadge(19 * 3600), 'Dusk');
+    assert.equal(computeTimeOfDayBadge(23 * 3600), 'Night');
+
+    const customClock = normalizeWorldClockState({
+      currentDay: 12,
+      timeOfDaySeconds: 18 * 3600,
+      visibleToParty: true,
+      calendar: {
+        calendarName: 'Barovian Lunar Reckoning',
+        customDayLabel: 'Blood Moon Eve',
+        monthNames: ['Mistfall'],
+        daysPerMonth: 30,
+      },
+    });
+    assert.equal(customClock.timeOfDay, 'Dusk');
+    assert.equal(customClock.visibleToParty, true);
+    assert.equal(customClock.visibility, 'party');
+    const formatted = formatInWorldDate(customClock);
+    assert.ok(formatted.includes('Blood Moon Eve'));
+    assert.ok(formatted.includes('Barovian Lunar Reckoning'));
+    assert.ok(projectWorldClockForPlayers({ worldClock: customClock }));
+
+    const toggledPrivate = normalizeWorldClockState({
+      ...customClock,
+      visibleToParty: false,
+      visibility: 'private',
+    });
+    assert.equal(toggledPrivate.visibleToParty, false);
+    assert.equal(toggledPrivate.visibility, 'private');
+    assert.equal(projectWorldClockForPlayers({ worldClock: toggledPrivate }), undefined);
+  });
+
   it('tracks exploration timers (Torch 60m, Light 60m, Mage Armor 8h) and alerts immediately on expiry', () => {
     let clock = normalizeWorldClockState({
       elapsedSeconds: 8 * 3600, // 08:00 Morning
@@ -178,6 +216,15 @@ describe('geminiCampaignBridge: fence stripping, Zod validation, diff preview & 
     assert.ok(gmRecapPrompt.includes('Shadows of Vesper'));
     assert.ok(gmRecapPrompt.includes('The party entered the Obsidian Spire.'));
 
+    const structuredPrompt = buildGeminiBridgePrompt({
+      preset: 'structured_entities',
+      campaignName: 'Shadows of Vesper',
+      campaignData,
+      prepScale: 'dungeon',
+    });
+    assert.ok(structuredPrompt.includes('dungeon'));
+    assert.ok(structuredPrompt.includes('encounters'));
+
     const playerPrompt = buildGeminiBridgePrompt({
       preset: 'player_journal_summary',
       campaignName: 'Shadows of Vesper',
@@ -193,7 +240,7 @@ describe('geminiCampaignBridge: fence stripping, Zod validation, diff preview & 
     assert.ok(!playerPrompt.includes('TOP_SECRET_VILLAIN_TWIST'));
   });
 
-  it('strips markdown fences, validates Gemini JSON against schema, previews diffs, and merges into campaign state', () => {
+  it('strips markdown fences, validates Gemini JSON against schema, previews diffs, and supports selective checkbox merges', () => {
     const rawFencedResponse = [
       'Here is your structured campaign JSON:',
       '```json',
@@ -208,6 +255,9 @@ describe('geminiCampaignBridge: fence stripping, Zod validation, diff preview & 
         ],
         monsters: [
           { name: 'Gloom Stalker Construct', cr: '5', summary: 'Clockwork sentinel powered by shadowgems.' },
+        ],
+        encounters: [
+          { name: 'Ambush on the Glass Bridge', difficulty: 'Hard', monsters: ['Gloom Stalker Construct'], tactics: 'Push foes off the bridge.' },
         ],
         items: [
           { name: 'Lantern of True Dawn', rarity: 'Rare', description: 'Sheds sunlight in a 30-ft radius.' },
@@ -233,20 +283,24 @@ describe('geminiCampaignBridge: fence stripping, Zod validation, diff preview & 
     assert.equal(validation.diff.hasRecap, true);
     assert.equal(validation.diff.npcsCount, 1);
     assert.equal(validation.diff.monstersCount, 1);
+    assert.equal(validation.diff.encountersCount, 1);
     assert.equal(validation.diff.itemsCount, 1);
     assert.equal(validation.diff.secretsCount, 1);
     assert.equal(validation.diff.hasPlayerJournal, true);
 
     const nextState = applyGeminiBridgePayload({
-      campaignData: { npcs: [], items: [], secrets: [], playerLog: [] },
+      campaignData: { npcs: [], items: [], secrets: [], encounters: [], playerLog: [] },
       payload: validation.payload,
       publishRecapToPartyFeed: true,
+      selection: { secrets: false },
       now: 123456789,
     });
 
     assert.equal((nextState.npcs as unknown[]).length, 1);
+    assert.equal((nextState.encounters as unknown[]).length, 1);
     assert.equal((nextState.items as unknown[]).length, 1);
-    assert.equal((nextState.secrets as unknown[]).length, 1);
+    // Deselected via Diff Preview checkbox -> untouched!
+    assert.equal((nextState.secrets as unknown[]).length, 0);
     assert.equal((nextState.playerLog as unknown[]).length, 1);
     assert.equal((nextState.__playerCompanionJournal as unknown[]).length, 1);
   });

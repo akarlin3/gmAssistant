@@ -407,5 +407,134 @@ describe('redaction invariant (property-based)', () => {
       RUNS,
     );
   });
+
+  // I12: Combined Map & Two-Way Whisper Cross-Slot Isolation in buildSlotProjection:
+  // Unrevealed fog geometry, private tokens, traps, GM map notes, GM whispers to Slot A,
+  // and Slot A's outbound `pc.playerWhispers` NEVER leak into Slot B's projection.
+  it('I12 — combined Map redaction & two-way Whisper isolation holds across all slots in buildSlotProjection', () => {
+    fc.assert(
+      fc.property(arbCampaign(), (camp) => {
+        if (camp.slotIds.length < 2) return;
+        const [slotA, slotB] = camp.slotIds;
+
+        const pcsWithOutboundWhisper = ((camp.data as any).pcs ?? []).map((pc: any, i: number) =>
+          i === 0
+            ? {
+                ...pc,
+                ownership: { ownerType: 'player', playerSlotId: slotA },
+                playerWhispers: [
+                  {
+                    id: 'pw-slotA-1',
+                    text: 'OUTBOUND_WHISPER_FROM_SLOT_A_TO_GM_ONLY',
+                    timestamp: 5000,
+                  },
+                ],
+              }
+            : pc,
+        );
+
+        const dataWithMapsAndWhispers: PlayerModeData = {
+          ...camp.data,
+          pcs: pcsWithOutboundWhisper,
+          whispers: [
+            {
+              id: 'gm-w-slotA',
+              toSlotIds: [slotA],
+              text: 'GM_SECRET_WHISPER_ONLY_FOR_SLOT_A',
+              sentAtMs: 6000,
+              senderLabel: 'GM',
+            },
+          ],
+          maps: [
+            {
+              id: 'dungeon-1',
+              name: 'Sunless Vault',
+              type: 'dungeon',
+              width: 1000,
+              height: 800,
+              createdAt: 1,
+              gmMapNotes: 'GM_DUNGEON_KEY_SECRET_99',
+              fogEnabled: true,
+              layers: [
+                {
+                  id: 'layer-vis',
+                  name: 'Walls',
+                  color: '#94a3b8',
+                  visible: true,
+                  visibleToPlayers: true,
+                  order: 0,
+                },
+              ],
+              markers: [],
+              pointcrawl: { nodes: [], edges: [] },
+              tokens: [
+                {
+                  id: 'tok-priv',
+                  label: 'INVISIBLE_STALKER_BOSS',
+                  x: 0.5,
+                  y: 0.5,
+                  size: 1,
+                  color: '#ef4444',
+                  visibility: 'private',
+                },
+                {
+                  id: 'tok-pub',
+                  label: 'Torchbearer',
+                  x: 0.2,
+                  y: 0.2,
+                  size: 1,
+                  color: '#10b981',
+                  visibility: 'party',
+                },
+              ],
+              fogRevealedRegions: [
+                {
+                  id: 'fog-hidden-room',
+                  label: 'SECRET_LICH_PHYLACTERY_CHAMBER',
+                  shape: 'polygon',
+                  x: 0.6,
+                  y: 0.6,
+                  width: 0.2,
+                  height: 0.2,
+                  points: [
+                    { x: 0.6, y: 0.6 },
+                    { x: 0.8, y: 0.6 },
+                    { x: 0.7, y: 0.8 },
+                  ],
+                  revealed: false,
+                },
+              ],
+              traps: [
+                {
+                  id: 'trap-1',
+                  x: 0.4,
+                  y: 0.4,
+                  label: 'SPHERE_OF_ANNIHILATION_TRAP',
+                  dc: 20,
+                },
+              ],
+            },
+          ] as any,
+        };
+
+        const projB = buildSlotProjection(dataWithMapsAndWhispers, 'Camp', slotB, 10000);
+        const jsonB = JSON.stringify(projB);
+
+        // 1. Slot A's inbound & outbound whispers never appear in Slot B
+        expect(jsonB).not.toContain('GM_SECRET_WHISPER_ONLY_FOR_SLOT_A');
+        expect(jsonB).not.toContain('OUTBOUND_WHISPER_FROM_SLOT_A_TO_GM_ONLY');
+
+        // 2. Unrevealed fog polygon, private token, trap pin, and GM map notes never appear
+        expect(jsonB).not.toContain('GM_DUNGEON_KEY_SECRET_99');
+        expect(jsonB).not.toContain('INVISIBLE_STALKER_BOSS');
+        expect(jsonB).not.toContain('SECRET_LICH_PHYLACTERY_CHAMBER');
+        expect(jsonB).not.toContain('SPHERE_OF_ANNIHILATION_TRAP');
+
+        // 3. Party-visible token DOES appear cleanly
+        expect(projB.maps?.[0]?.tokens?.some((t) => t.id === 'tok-pub')).toBe(true);
+      }),
+      RUNS,
+    );
+  });
 });
 

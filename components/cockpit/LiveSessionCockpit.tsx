@@ -56,7 +56,7 @@ import {
   syncEntityPlayerVisibility,
 } from '@/lib/playerMode/spoilers';
 import { makeEntityId } from '@/lib/playerMode/share';
-import { normalizeItem } from '@/lib/playerMode/types';
+import { normalizeItem, type HandoutCard } from '@/lib/playerMode/types';
 import type { EntityType } from '@/lib/wiki/types';
 import { buildEntityIndex } from '@/lib/wiki/entities';
 import { extractAllMentions } from '@/lib/wiki/mentions';
@@ -511,6 +511,22 @@ export default function LiveSessionCockpit({
       }
       return next;
     });
+  };
+
+  const [cockpitFlashMsg, setCockpitFlashMsg] = useState<string | null>(null);
+  const handleFlashHandoutCard = (card: HandoutCard) => {
+    setState((prev) => {
+      const prevGallery: HandoutCard[] = Array.isArray(prev.handoutGallery)
+        ? prev.handoutGallery.filter((h: HandoutCard) => h.id !== card.id)
+        : [];
+      return {
+        ...prev,
+        handoutGallery: [card, ...prevGallery],
+        activeHandoutFlashId: card.id,
+      };
+    });
+    setCockpitFlashMsg(`⚡ Flashed "${card.title}" to party /player screens!`);
+    setTimeout(() => setCockpitFlashMsg(null), 2800);
   };
 
   // Update active location fields inline from the Pinned Scene Card
@@ -1338,34 +1354,66 @@ export default function LiveSessionCockpit({
                   )}
                 </select>
                 {activeLocation && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleToggleEntityVisibility(
-                        'location',
-                        activeLocationEntityId,
-                        !isEntityPlayerVisible(activeLocation, state.player, 'locations')
-                      )
-                    }
-                    className={`inline-flex items-center gap-1 rounded border px-2 py-1 font-display text-[10px] uppercase tracking-wider ${
-                      isEntityPlayerVisible(activeLocation, state.player, 'locations')
-                        ? 'border-moss bg-moss text-parchment'
-                        : 'border-rule bg-parchment-soft text-ink-mute'
-                    }`}
-                    title="Toggle player_visible for this Location"
-                  >
-                    {isEntityPlayerVisible(activeLocation, state.player, 'locations') ? (
-                      <Eye size={11} />
-                    ) : (
-                      <EyeOff size={11} />
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleToggleEntityVisibility(
+                          'location',
+                          activeLocationEntityId,
+                          !isEntityPlayerVisible(activeLocation, state.player, 'locations')
+                        )
+                      }
+                      className={`inline-flex items-center gap-1 rounded border px-2 py-1 font-display text-[10px] uppercase tracking-wider ${
+                        isEntityPlayerVisible(activeLocation, state.player, 'locations')
+                          ? 'border-moss bg-moss text-parchment'
+                          : 'border-rule bg-parchment-soft text-ink-mute'
+                      }`}
+                      title="Toggle player_visible for this Location"
+                    >
+                      {isEntityPlayerVisible(activeLocation, state.player, 'locations') ? (
+                        <Eye size={11} />
+                      ) : (
+                        <EyeOff size={11} />
+                      )}
+                      {isEntityPlayerVisible(activeLocation, state.player, 'locations')
+                        ? 'Shared'
+                        : 'Private'}
+                    </button>
+                    {isEntityPlayerVisible(activeLocation, state.player, 'locations') && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleFlashHandoutCard({
+                            id: `handout_loc_${activeLocationEntityId}_${Date.now()}`,
+                            title: activeLocation.name || 'Scene Location',
+                            category: activeLocation.imageUrl ? 'image' : 'lore',
+                            kind: activeLocation.imageUrl ? 'image' : 'lore',
+                            content:
+                              String(activeLocation.description || '').replace(/\|\|[\s\S]*?\|\|/g, '').trim() ||
+                              (Array.isArray(activeLocation.aspects) ? activeLocation.aspects.filter(Boolean).join(' · ') : ''),
+                            imageUrl: activeLocation.imageUrl,
+                            flashedAt: Date.now(),
+                            flashedAtMs: Date.now(),
+                            visibility: { mode: 'party' },
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded border border-brass-deep/60 bg-brass/15 px-2 py-1 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
+                        title="Flash revealed Location as a full-screen Handout to connected /player screens"
+                      >
+                        ⚡ Flash Handout
+                      </button>
                     )}
-                    {isEntityPlayerVisible(activeLocation, state.player, 'locations')
-                      ? 'Shared'
-                      : 'Private'}
-                  </button>
+                  </>
                 )}
               </div>
             </div>
+
+            {cockpitFlashMsg && (
+              <div className="rounded border border-moss/50 bg-moss/10 px-3 py-1.5 font-serif text-xs text-moss">
+                {cockpitFlashMsg}
+              </div>
+            )}
 
             {/* Scene Description, Lighting & Terrain Tags */}
             <div className="space-y-2 rounded border border-rule bg-parchment-soft p-2.5">
@@ -1529,6 +1577,32 @@ export default function LiveSessionCockpit({
                       >
                         {visible ? <Eye size={11} /> : <EyeOff size={11} />}
                       </button>
+                      {visible && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleFlashHandoutCard({
+                              id: `handout_npc_${id}_${Date.now()}`,
+                              title: n.name || 'NPC Portrait',
+                              category: n.portraitUrl || n.imageUrl ? 'image' : 'lore',
+                              kind: n.portraitUrl || n.imageUrl ? 'image' : 'lore',
+                              content:
+                                [n.archetype, n.mannerism]
+                                  .filter(Boolean)
+                                  .join(' — ')
+                                  .replace(/\|\|[\s\S]*?\|\|/g, '') || 'Encountered character.',
+                              imageUrl: n.portraitUrl || n.imageUrl,
+                              flashedAt: Date.now(),
+                              flashedAtMs: Date.now(),
+                              visibility: { mode: 'party' },
+                            })
+                          }
+                          className="rounded border border-brass-deep/40 bg-brass/10 px-1 py-0.2 font-display text-[9px] uppercase text-brass-deep hover:bg-brass hover:text-parchment"
+                          title="Flash NPC portrait/card to party /player screens"
+                        >
+                          ⚡
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -1565,6 +1639,31 @@ export default function LiveSessionCockpit({
                         }
                       >
                         {visible ? <Eye size={11} /> : <EyeOff size={11} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!visible) {
+                            handleToggleEntityVisibility('magicItem', item.id, true);
+                          }
+                          handleFlashHandoutCard({
+                            id: `handout_item_${item.id}_${Date.now()}`,
+                            title: item.name || 'Relic',
+                            category: 'magic_item',
+                            kind: 'magic_item',
+                            content:
+                              String(item.description || item.mechanic || 'A mysterious relic discovered during the session.')
+                                .replace(/\|\|[\s\S]*?\|\|/g, '')
+                                .trim(),
+                            flashedAt: Date.now(),
+                            flashedAtMs: Date.now(),
+                            visibility: { mode: 'party' },
+                          });
+                        }}
+                        className="rounded border border-brass-deep/40 bg-brass/10 px-1 py-0.2 font-display text-[9px] uppercase text-brass-deep hover:bg-brass hover:text-parchment"
+                        title="Flash Item Handout to party /player screens"
+                      >
+                        ⚡ Flash
                       </button>
                     </div>
                   );

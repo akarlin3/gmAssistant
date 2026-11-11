@@ -88,8 +88,8 @@ export function HandoutOverlay({
           onClick={() => setDrawerOpen((v) => !v)}
           className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
             drawerOpen
-              ? 'border-amber-500/60 bg-amber-500/20 text-amber-200'
-              : 'border-slate-700 bg-slate-900/80 text-slate-300 hover:border-amber-500/40'
+              ? 'border-amber-500/60 bg-amber-500/20 text-amber-600 dark:text-amber-200'
+              : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-amber-500/40'
           }`}
         >
           <span>📜 Handouts ({handouts.length})</span>
@@ -98,13 +98,13 @@ export function HandoutOverlay({
 
       {/* Handouts Gallery & GM Flash Composer Drawer */}
       {drawerOpen && (
-        <div className="mt-2 rounded-xl border border-amber-500/30 bg-slate-950/95 p-3.5 text-slate-100 shadow-xl space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+        <div className="mt-2 rounded-xl border border-amber-500/30 bg-[var(--bg-elevated)] p-3.5 text-[var(--text-primary)] shadow-xl space-y-3">
+          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-300">
                 📜 Party Handouts Gallery &amp; Live Flash
               </h4>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-[var(--text-muted)]">
                 {role === 'gm'
                   ? 'Flash a parchment letter, riddle, image, or magic item full-screen onto connected /player screens.'
                   : 'Archived letters, riddles, maps, and magic items revealed by the GM.'}
@@ -113,7 +113,7 @@ export function HandoutOverlay({
             <button
               type="button"
               onClick={() => setDrawerOpen(false)}
-              className="text-xs text-slate-400 hover:text-white"
+              className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             >
               ✕
             </button>
@@ -121,30 +121,30 @@ export function HandoutOverlay({
 
           {/* Gallery Cards */}
           {handouts.length === 0 ? (
-            <p className="text-xs text-slate-500 py-1">No handouts flashed yet.</p>
+            <p className="text-xs text-[var(--text-muted)] py-1">No handouts flashed yet.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
               {handouts.map((h) => (
                 <div
                   key={h.id}
-                  className="flex flex-col justify-between rounded-lg border border-slate-800 bg-slate-900/70 p-2.5 text-xs"
+                  className="flex flex-col justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2.5 text-xs"
                 >
                   <div>
                     <div className="flex items-center justify-between gap-1">
-                      <span className="font-semibold text-amber-200 truncate">{h.title}</span>
-                      <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] uppercase text-slate-400">
+                      <span className="font-semibold text-amber-600 dark:text-amber-200 truncate">{h.title}</span>
+                      <span className="rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] px-1.5 py-0.5 text-[10px] uppercase text-[var(--text-muted)]">
                         {h.category}
                       </span>
                     </div>
                     {h.content && (
-                      <p className="mt-1 line-clamp-2 text-[11px] text-slate-400">{h.content}</p>
+                      <p className="mt-1 line-clamp-2 text-[11px] text-[var(--text-muted)]">{h.content}</p>
                     )}
                   </div>
                   <div className="mt-2 flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setSelectedGalleryCard(h)}
-                      className="rounded bg-slate-800 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-700"
+                      className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-1 text-[11px] text-[var(--text-primary)] hover:opacity-80"
                     >
                       👁️ View Fullscreen
                     </button>
@@ -159,7 +159,7 @@ export function HandoutOverlay({
                             visibility: { mode: 'party' },
                           })
                         }
-                        className="rounded bg-amber-500/20 px-2 py-1 text-[11px] font-medium text-amber-200 border border-amber-500/40 hover:bg-amber-500/30"
+                        className="rounded bg-amber-500/20 px-2 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-200 border border-amber-500/40 hover:bg-amber-500/30"
                       >
                         ⚡ Flash to Party
                       </button>
@@ -174,9 +174,9 @@ export function HandoutOverlay({
           {role === 'gm' && onFlashHandout && (
             <form
               onSubmit={handleCreateAndFlash}
-              className="space-y-2 border-t border-slate-800 pt-2.5"
+              className="space-y-2 border-t border-[var(--border-subtle)] pt-2.5"
             >
-              <div className="text-xs font-semibold text-amber-300">
+              <div className="text-xs font-semibold text-amber-600 dark:text-amber-300">
                 ⚡ Flash New Handout to Party
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -185,12 +185,12 @@ export function HandoutOverlay({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Handout title (e.g. Sealed Royal Decree)"
-                  className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-100"
+                  className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
                 />
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as HandoutCardCategory)}
-                  className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
+                  className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-1.5 text-xs text-[var(--text-primary)]"
                 >
                   <option value="letter">📜 Letter / Note</option>
                   <option value="riddle">🧩 Riddle / Prophecy</option>
@@ -201,7 +201,7 @@ export function HandoutOverlay({
                 <select
                   value={style}
                   onChange={(e) => setStyle(e.target.value as 'parchment' | 'slate')}
-                  className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
+                  className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-1.5 text-xs text-[var(--text-primary)]"
                 >
                   <option value="parchment">📜 Dramatic Parchment</option>
                   <option value="slate">🪨 Obsidian Slate</option>
@@ -212,7 +212,7 @@ export function HandoutOverlay({
                 onChange={(e) => setContent(e.target.value)}
                 rows={2}
                 placeholder="Inscription, riddle text, or item lore…"
-                className="w-full rounded-lg border border-slate-800 bg-slate-900 p-2 text-xs text-slate-100"
+                className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2 text-xs text-[var(--text-primary)]"
               />
               <div className="flex flex-wrap items-center gap-2">
                 <input
@@ -220,11 +220,11 @@ export function HandoutOverlay({
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
                   placeholder="Optional image URL or data URI…"
-                  className="flex-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-100"
+                  className="flex-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
                 />
                 <button
                   type="submit"
-                  className="rounded-lg bg-amber-500/25 border border-amber-500/50 px-3.5 py-1.5 text-xs font-bold text-amber-200 hover:bg-amber-500/35"
+                  className="rounded-lg bg-amber-500/25 border border-amber-500/50 px-3.5 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-200 hover:bg-amber-500/35"
                 >
                   ⚡ Flash Handout to Party
                 </button>

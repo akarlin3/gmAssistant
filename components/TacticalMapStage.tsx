@@ -38,13 +38,13 @@ export interface TacticalMapStageProps {
   /** Callback for claimed player in /player to move their own PC token via pcWritebacks. */
   onPlayerMoveOwnToken?: (pos: { mapId: string; x: number; y: number; updatedAt: number }) => void;
   /** Callback for claimed player in /player to emit a 3-second live map ping via pcWritebacks. */
-  onPlayerEmitPing?: (ping: { mapId: string; pcId: string; x: number; y: number; color: string; timestamp: number }) => void;
+  onPlayerEmitPing?: (ping: { id: string; mapId: string; pcId: string; x: number; y: number; color: string; timestamp: number }) => void;
   /** Optional callback to flash the map image as a party handout (GM only). */
   onFlashMapAsHandout?: (map: CampaignMap) => void;
   compact?: boolean;
 }
 
-type GmMapTool = 'select' | 'ping' | 'fog-room' | 'fog-brush' | 'add-token' | 'add-trap';
+type GmMapTool = 'select' | 'ping' | 'fog-room' | 'fog-poly' | 'fog-brush' | 'add-token' | 'add-trap';
 
 const PRESET_GRID_BACKGROUNDS = [
   { label: 'Dungeon Stone Grid', value: '' },
@@ -83,6 +83,7 @@ const PRESET_GRID_BACKGROUNDS = [
 ];
 
 const PING_LIFETIME_MS = 3000;
+const LONG_PRESS_MS = 420;
 
 export function TacticalMapStage({
   role,
@@ -91,6 +92,7 @@ export function TacticalMapStage({
   monsters = [],
   npcs = [],
   activePcId,
+  activePcColor,
   onChangeMaps,
   onPlayerMoveOwnToken,
   onPlayerEmitPing,
@@ -135,6 +137,7 @@ export function TacticalMapStage({
   const [newTokenSize, setNewTokenSize] = useState(1);
   const [newTokenVisibility, setNewTokenVisibility] = useState<'party' | 'private'>('party');
   const [newRoomLabel, setNewRoomLabel] = useState('');
+  const [polygonDraftPoints, setPolygonDraftPoints] = useState<Array<{ x: number; y: number }>>([]);
   const [draggingTokenId, setDraggingTokenId] = useState<string | null>(null);
   const [localTokenOverrides, setLocalTokenOverrides] = useState<Record<string, { x: number; y: number }>>({});
   const [localPings, setLocalPings] = useState<MapPing[]>([]);
@@ -142,6 +145,8 @@ export function TacticalMapStage({
   const [previewPlayerRedaction, setPreviewPlayerRedaction] = useState(false);
 
   const stageRef = useRef<SVGSVGElement | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressOriginRef = useRef<{ clientX: number; clientY: number; triggered: boolean } | null>(null);
 
   const activeMap: CampaignMap | null = useMemo(() => {
     if (normalizedMaps.length === 0) return null;
@@ -153,6 +158,14 @@ export function TacticalMapStage({
       setSelectedMapId(activeMap.id);
     }
   }, [activeMap, selectedMapId]);
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current !== null) {
+        window.clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, []);
 
   // Prune expired 3-second map pings automatically
   useEffect(() => {
@@ -273,9 +286,10 @@ export function TacticalMapStage({
       if (!activeMap) return;
       const now = Date.now();
       const pingPcId = activePcId || (isGm ? 'gm' : 'player');
-      const pingColor = isGm ? '#f43f5e' : '#f59e0b';
+      const pingColor = activePcColor || (isGm ? '#f43f5e' : '#f59e0b');
+      const pingId = newId('ping');
       const ping: MapPing = {
-        id: newId('ping'),
+        id: pingId,
         pcId: pingPcId,
         x,
         y,
@@ -292,6 +306,7 @@ export function TacticalMapStage({
         }));
       } else if (role === 'shared-player' && activePcId && onPlayerEmitPing) {
         onPlayerEmitPing({
+          id: pingId,
           mapId: activeMap.id,
           pcId: activePcId,
           x,
@@ -301,23 +316,91 @@ export function TacticalMapStage({
         });
       }
     },
-    [activeMap, activePcId, canAuthorMap, commitMapUpdate, isGm, onChangeMaps, onPlayerEmitPing, role],
+    [activeMap, activePcColor, activePcId, canAuthorMap, commitMapUpdate, isGm, onChangeMaps, onPlayerEmitPing, role],
   );
+
+  const commitPolygonFogRoom = useCallback(
+    (points: Array<{ x: number; y: number }>) => {
+      if (!activeMap || points.length < 3) return;
+      const xs = points.map((p) => p.x);
+      const ys = points.map((p) => p.y);
+      const minX = Math.min(...xs);
+      const minY = Math.min(...ys);
+      const maxX = Math.max(...xs);
+      const maxY = Math.max(...ys);
+      const roomIndex = (activeMap.fogRevealedRegions?.length ?? 0) + 1;
+      const polyRegion: MapFogRegion = {
+        id: newId('fog_poly'),
+        label: newRoomLabel.trim() || `Polygon Zone ${roomIndex}`,
+        shape: 'polygon',
+        x: minX,
+        y: minY,
+        width: Math.max(0.05, maxX - minX),
+        height: Math.max(0.05, maxY - minY),
+        points,
+        revealed: false, // hidden by default until revealed by GM
+      };
+      commitMapUpdate((m) => ({
+        ...m,
+        fogEnabled: true,
+        fogRevealedRegions: [...(m.fogRevealedRegions ?? []), polyRegion],
+      }));
+      setPolygonDraftPoints([]);
+      setNewRoomLabel('');
+    },
+    [activeMap, commitMapUpdate, newRoomLabel],
+  );
+
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleStagePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!activeMap || draggingTokenId) return;
+    clearLongPressTimer();
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    longPressOriginRef.current = { clientX, clientY, triggered: false };
+    longPressTimerRef.current = window.setTimeout(() => {
+      const coords = toNormalizedCoords(clientX, clientY);
+      if (coords && longPressOriginRef.current) {
+        longPressOriginRef.current.triggered = true;
+        emitMapPingAt(coords.x, coords.y);
+      }
+    }, LONG_PRESS_MS);
+  };
 
   const handleStageClick = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!activeMap || draggingTokenId) return;
+    if (longPressOriginRef.current?.triggered) {
+      longPressOriginRef.current.triggered = false;
+      return;
+    }
     const coords = toNormalizedCoords(e.clientX, e.clientY);
     if (!coords) return;
 
-    // Double-click or Ping tool emits a 3-second animated Map Ping
+    // Shared players can single-click empty map canvas (or use Ping / double-click / long-press) to emit a 3s Map Ping
     if (tool === 'ping' || e.detail === 2 || role === 'shared-player') {
-      if (tool === 'ping' || e.detail === 2) {
+      if (tool !== 'fog-poly') {
         emitMapPingAt(coords.x, coords.y);
+        return;
       }
-      return;
     }
 
     if (!canAuthorMap) return;
+
+    if (tool === 'fog-poly') {
+      const nextPts = [...polygonDraftPoints, coords];
+      if (e.detail === 2 && nextPts.length >= 3) {
+        commitPolygonFogRoom(nextPts);
+      } else {
+        setPolygonDraftPoints(nextPts);
+      }
+      return;
+    }
 
     if (tool === 'fog-brush') {
       const brushRegion: MapFogRegion = {
@@ -387,6 +470,13 @@ export function TacticalMapStage({
   };
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (longPressOriginRef.current) {
+      const dx = e.clientX - longPressOriginRef.current.clientX;
+      const dy = e.clientY - longPressOriginRef.current.clientY;
+      if (Math.hypot(dx, dy) > 8) {
+        clearLongPressTimer();
+      }
+    }
     if (!draggingTokenId || !activeMap) return;
     const coords = toNormalizedCoords(e.clientX, e.clientY);
     if (!coords) return;
@@ -397,6 +487,7 @@ export function TacticalMapStage({
   };
 
   const handlePointerUp = () => {
+    clearLongPressTimer();
     if (!draggingTokenId || !activeMap) return;
     const moved = localTokenOverrides[draggingTokenId];
     const token = (activeMap.tokens ?? []).find((t) => t.id === draggingTokenId);
@@ -507,13 +598,13 @@ export function TacticalMapStage({
 
   if (!activeMap) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 text-slate-200">
+      <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 text-[var(--text-primary)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-amber-300">
+            <h3 className="text-sm font-semibold text-amber-500">
               🗺️ Tactical Fog-of-War Map Stage
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[var(--text-muted)]">
               {canAuthorMap
                 ? 'Create a player-safe battlemap or dungeon stage with room-by-room Fog of War, token pins, and live 3-second Map Pings.'
                 : 'No player-visible tactical map has been revealed by the GM yet.'}
@@ -526,12 +617,12 @@ export function TacticalMapStage({
                 value={newMapName}
                 onChange={(e) => setNewMapName(e.target.value)}
                 placeholder="Map title (e.g. Sunless Citadel)"
-                className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100"
+                className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
               />
               <button
                 type="button"
                 onClick={handleCreateDefaultTacticalMap}
-                className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-200 border border-amber-500/40 hover:bg-amber-500/30"
+                className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-600 dark:text-amber-200 border border-amber-500/40 hover:bg-amber-500/30"
               >
                 + Initialize Tactical Stage
               </button>
@@ -547,11 +638,11 @@ export function TacticalMapStage({
   );
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/90 p-3 text-slate-100 shadow-lg space-y-3">
+    <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 text-[var(--text-primary)] shadow-lg space-y-3">
       {/* Top Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-500">
             🗺️ Tactical Stage
           </span>
           {normalizedMaps.length > 1 && (
@@ -559,7 +650,7 @@ export function TacticalMapStage({
               value={activeMap.id}
               onChange={(e) => setSelectedMapId(e.target.value)}
               aria-label="Select tactical map"
-              className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+              className="rounded border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)]"
             >
               {normalizedMaps.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -572,7 +663,7 @@ export function TacticalMapStage({
             <button
               type="button"
               onClick={handleCreateDefaultTacticalMap}
-              className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-300 hover:border-amber-500/50"
+              className="rounded border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-1 text-[11px] text-[var(--text-secondary)] hover:border-amber-500/50"
             >
               + New Stage
             </button>
@@ -586,8 +677,8 @@ export function TacticalMapStage({
             onClick={() => setTool('select')}
             className={`rounded px-2 py-1 text-xs font-medium ${
               tool === 'select'
-                ? 'bg-sky-500/25 text-sky-200 border border-sky-500/50'
-                : 'bg-slate-900 text-slate-400 border border-slate-800'
+                ? 'bg-sky-500/25 text-sky-600 dark:text-sky-200 border border-sky-500/50'
+                : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
             }`}
           >
             ✥ Move Token
@@ -597,10 +688,10 @@ export function TacticalMapStage({
             onClick={() => setTool('ping')}
             className={`rounded px-2 py-1 text-xs font-medium ${
               tool === 'ping'
-                ? 'bg-amber-500/25 text-amber-200 border border-amber-500/50'
-                : 'bg-slate-900 text-slate-400 border border-slate-800'
+                ? 'bg-amber-500/25 text-amber-600 dark:text-amber-200 border border-amber-500/50'
+                : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
             }`}
-            title="Click or double-click map to drop a 3-second animated Map Ping"
+            title="Click or long-press map to drop a 3-second animated Map Ping"
           >
             📍 Ping (3s)
           </button>
@@ -612,8 +703,8 @@ export function TacticalMapStage({
                 onClick={() => setTool('fog-brush')}
                 className={`rounded px-2 py-1 text-xs font-medium ${
                   tool === 'fog-brush'
-                    ? 'bg-emerald-500/25 text-emerald-200 border border-emerald-500/50'
-                    : 'bg-slate-900 text-slate-400 border border-slate-800'
+                    ? 'bg-emerald-500/25 text-emerald-600 dark:text-emerald-200 border border-emerald-500/50'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
                 }`}
               >
                 🖌️ Brush Fog Open
@@ -623,19 +714,34 @@ export function TacticalMapStage({
                 onClick={() => setTool('fog-room')}
                 className={`rounded px-2 py-1 text-xs font-medium ${
                   tool === 'fog-room'
-                    ? 'bg-purple-500/25 text-purple-200 border border-purple-500/50'
-                    : 'bg-slate-900 text-slate-400 border border-slate-800'
+                    ? 'bg-purple-500/25 text-purple-600 dark:text-purple-200 border border-purple-500/50'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
                 }`}
               >
                 ⬛ Add Fog Room
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  setPolygonDraftPoints([]);
+                  setTool('fog-poly');
+                }}
+                className={`rounded px-2 py-1 text-xs font-medium ${
+                  tool === 'fog-poly'
+                    ? 'bg-indigo-500/25 text-indigo-600 dark:text-indigo-200 border border-indigo-500/50'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
+                }`}
+                title="Click 3+ vertices on the map to create a vector polygon fog region"
+              >
+                ⬠ Polygon Fog
+              </button>
+              <button
+                type="button"
                 onClick={() => setTool('add-token')}
                 className={`rounded px-2 py-1 text-xs font-medium ${
                   tool === 'add-token'
-                    ? 'bg-rose-500/25 text-rose-200 border border-rose-500/50'
-                    : 'bg-slate-900 text-slate-400 border border-slate-800'
+                    ? 'bg-rose-500/25 text-rose-600 dark:text-rose-200 border border-rose-500/50'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
                 }`}
               >
                 ♟️ Drop Token
@@ -650,8 +756,8 @@ export function TacticalMapStage({
                 onClick={() => setTool('add-trap')}
                 className={`rounded px-2 py-1 text-xs font-medium ${
                   tool === 'add-trap'
-                    ? 'bg-red-500/25 text-red-200 border border-red-500/50'
-                    : 'bg-slate-900 text-slate-400 border border-slate-800'
+                    ? 'bg-red-500/25 text-red-600 dark:text-red-200 border border-red-500/50'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
                 }`}
               >
                 ⚠️ Trap Pin (GM)
@@ -661,8 +767,8 @@ export function TacticalMapStage({
                 onClick={() => setPreviewPlayerRedaction((v) => !v)}
                 className={`rounded px-2 py-1 text-xs font-medium ${
                   previewPlayerRedaction
-                    ? 'bg-teal-500/25 text-teal-200 border border-teal-500/50'
-                    : 'bg-slate-900 text-slate-400 border border-slate-800'
+                    ? 'bg-teal-500/25 text-teal-600 dark:text-teal-200 border border-teal-500/50'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
                 }`}
               >
                 {previewPlayerRedaction ? '👁️ Player Safe View' : '🔒 GM X-Ray View'}
@@ -671,7 +777,7 @@ export function TacticalMapStage({
                 <button
                   type="button"
                   onClick={() => onFlashMapAsHandout(activeMap)}
-                  className="rounded bg-amber-500/20 px-2 py-1 text-xs font-medium text-amber-200 border border-amber-500/40 hover:bg-amber-500/30"
+                  className="rounded bg-amber-500/20 px-2 py-1 text-xs font-medium text-amber-600 dark:text-amber-200 border border-amber-500/40 hover:bg-amber-500/30"
                 >
                   ⚡ Flash Map Handout
                 </button>
@@ -683,8 +789,8 @@ export function TacticalMapStage({
 
       {/* Secondary Authoring Sub-bar for GM / Standalone Player */}
       {canAuthorMap && !compact && (
-        <div className="flex flex-wrap items-center gap-2 text-xs bg-slate-900/70 p-2 rounded-lg border border-slate-800/70">
-          <label className="flex items-center gap-1.5 text-slate-300">
+        <div className="flex flex-wrap items-center gap-2 text-xs bg-[var(--bg-surface)] p-2 rounded-lg border border-[var(--border-subtle)]">
+          <label className="flex items-center gap-1.5 text-[var(--text-secondary)]">
             <span>Base Map:</span>
             <select
               value={
@@ -697,7 +803,7 @@ export function TacticalMapStage({
                   commitMapUpdate((m) => ({ ...m, imageUrl: e.target.value || undefined }));
                 }
               }}
-              className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200"
+              className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-1 text-xs text-[var(--text-primary)]"
             >
               {PRESET_GRID_BACKGROUNDS.map((p) => (
                 <option key={p.label} value={p.value}>
@@ -708,7 +814,7 @@ export function TacticalMapStage({
             </select>
           </label>
 
-          <label className="cursor-pointer rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-300 hover:border-slate-500">
+          <label className="cursor-pointer rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:border-amber-500/50">
             📤 Upload Image
             <input
               type="file"
@@ -718,7 +824,7 @@ export function TacticalMapStage({
             />
           </label>
 
-          <label className="flex items-center gap-1 text-slate-300">
+          <label className="flex items-center gap-1 text-[var(--text-secondary)]">
             <input
               type="checkbox"
               checked={activeMap.fogEnabled !== false}
@@ -733,10 +839,46 @@ export function TacticalMapStage({
             <button
               type="button"
               onClick={spawnPartyPcTokens}
-              className="rounded border border-sky-500/40 bg-sky-500/15 px-2 py-1 text-xs text-sky-200 hover:bg-sky-500/25"
+              className="rounded border border-sky-500/40 bg-sky-500/15 px-2 py-1 text-xs text-sky-600 dark:text-sky-200 hover:bg-sky-500/25"
             >
               + Spawn Party PCs ({pcs.length})
             </button>
+          )}
+
+          {(tool === 'fog-room' || tool === 'fog-poly') && (
+            <div className="flex flex-wrap items-center gap-1.5 ml-auto">
+              <input
+                type="text"
+                value={newRoomLabel}
+                onChange={(e) => setNewRoomLabel(e.target.value)}
+                placeholder="Room label (e.g. Vault)"
+                className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-1 text-xs text-[var(--text-primary)] w-36"
+              />
+              {tool === 'fog-poly' && (
+                <>
+                  <span className="text-[11px] text-[var(--text-muted)]">
+                    Vertices: {polygonDraftPoints.length}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={polygonDraftPoints.length < 3}
+                    onClick={() => commitPolygonFogRoom(polygonDraftPoints)}
+                    className="rounded border border-indigo-500/40 bg-indigo-500/20 px-2 py-1 text-xs text-indigo-600 dark:text-indigo-200 disabled:opacity-40"
+                  >
+                    ✓ Finish Polygon
+                  </button>
+                  {polygonDraftPoints.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPolygonDraftPoints([])}
+                      className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-1 text-xs text-[var(--text-muted)]"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           )}
 
           {tool === 'add-token' && (
@@ -746,7 +888,7 @@ export function TacticalMapStage({
                 value={newTokenLabel}
                 onChange={(e) => setNewTokenLabel(e.target.value)}
                 placeholder="Token label (e.g. Goblin Boss)"
-                className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100 w-36"
+                className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-1 text-xs text-[var(--text-primary)] w-36"
               />
               {(monsters.length > 0 || npcs.length > 0) && (
                 <select
@@ -754,7 +896,7 @@ export function TacticalMapStage({
                   onChange={(e) => {
                     if (e.target.value) setNewTokenLabel(e.target.value);
                   }}
-                  className="rounded border border-slate-700 bg-slate-950 px-1.5 py-1 text-xs text-slate-300"
+                  className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-1 text-xs text-[var(--text-secondary)]"
                 >
                   <option value="">Quick Pick NPC/Monster…</option>
                   {monsters.map((mo, i) => (
@@ -773,13 +915,13 @@ export function TacticalMapStage({
                 type="color"
                 value={newTokenColor}
                 onChange={(e) => setNewTokenColor(e.target.value)}
-                className="h-6 w-7 cursor-pointer rounded border border-slate-700 bg-slate-950"
+                className="h-6 w-7 cursor-pointer rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)]"
                 title="Token Color"
               />
               <select
                 value={newTokenSize}
                 onChange={(e) => setNewTokenSize(Number(e.target.value))}
-                className="rounded border border-slate-700 bg-slate-950 px-1.5 py-1 text-xs text-slate-200"
+                className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-1 text-xs text-[var(--text-primary)]"
               >
                 <option value={1}>Medium (1x)</option>
                 <option value={1.5}>Large (1.5x)</option>
@@ -789,7 +931,7 @@ export function TacticalMapStage({
                 <select
                   value={newTokenVisibility}
                   onChange={(e) => setNewTokenVisibility(e.target.value as 'party' | 'private')}
-                  className="rounded border border-slate-700 bg-slate-950 px-1.5 py-1 text-xs text-slate-200"
+                  className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-1 text-xs text-[var(--text-primary)]"
                 >
                   <option value="party">📢 Party Visible</option>
                   <option value="private">🔒 GM Private</option>
@@ -801,13 +943,14 @@ export function TacticalMapStage({
       )}
 
       {/* Interactive SVG Map & Dungeon Stage */}
-      <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-950 select-none">
+      <div className="relative overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-slate-950 select-none">
         <svg
           ref={stageRef}
           viewBox="0 0 1000 625"
-          className={`w-full ${compact ? 'max-h-[340px]' : 'max-h-[520px]'} block cursor-${
-            tool === 'ping' ? 'crosshair' : 'pointer'
+          className={`w-full ${compact ? 'max-h-[340px]' : 'max-h-[520px]'} block ${
+            tool === 'ping' || tool === 'fog-poly' ? 'cursor-crosshair' : 'cursor-pointer'
           }`}
+          onPointerDown={handleStagePointerDown}
           onClick={handleStageClick}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -885,17 +1028,27 @@ export function TacticalMapStage({
           {!effectivePlayerView &&
             (activeMap.fogRevealedRegions ?? []).map((r) => (
               <g key={`gm_fog_${r.id}`}>
-                <rect
-                  x={r.x * 1000}
-                  y={r.y * 625}
-                  width={Math.max(24, r.width * 1000)}
-                  height={Math.max(24, r.height * 625)}
-                  fill="none"
-                  stroke={r.revealed ? '#10b981' : '#f59e0b'}
-                  strokeWidth="2"
-                  strokeDasharray={r.revealed ? 'none' : '6 4'}
-                  rx="6"
-                />
+                {r.shape === 'polygon' && Array.isArray(r.points) && r.points.length >= 3 ? (
+                  <polygon
+                    points={r.points.map((pt) => `${pt.x * 1000},${pt.y * 625}`).join(' ')}
+                    fill="none"
+                    stroke={r.revealed ? '#10b981' : '#f59e0b'}
+                    strokeWidth="2"
+                    strokeDasharray={r.revealed ? 'none' : '6 4'}
+                  />
+                ) : (
+                  <rect
+                    x={r.x * 1000}
+                    y={r.y * 625}
+                    width={Math.max(24, r.width * 1000)}
+                    height={Math.max(24, r.height * 625)}
+                    fill="none"
+                    stroke={r.revealed ? '#10b981' : '#f59e0b'}
+                    strokeWidth="2"
+                    strokeDasharray={r.revealed ? 'none' : '6 4'}
+                    rx="6"
+                  />
+                )}
                 {r.label && (
                   <text
                     x={r.x * 1000 + 8}
@@ -909,6 +1062,30 @@ export function TacticalMapStage({
                 )}
               </g>
             ))}
+
+          {/* Active Polygon Fog Authoring Preview */}
+          {canAuthorMap && polygonDraftPoints.length > 0 && (
+            <g>
+              <polyline
+                points={polygonDraftPoints.map((pt) => `${pt.x * 1000},${pt.y * 625}`).join(' ')}
+                fill="rgba(99, 102, 241, 0.18)"
+                stroke="#818cf8"
+                strokeWidth="2.5"
+                strokeDasharray="5 3"
+              />
+              {polygonDraftPoints.map((pt, idx) => (
+                <circle
+                  key={`poly_pt_${idx}`}
+                  cx={pt.x * 1000}
+                  cy={pt.y * 625}
+                  r="5"
+                  fill="#c7d2fe"
+                  stroke="#4f46e5"
+                  strokeWidth="1.5"
+                />
+              ))}
+            </g>
+          )}
 
           {!effectivePlayerView &&
             (activeMap.traps ?? []).map((tr) => (
@@ -952,6 +1129,7 @@ export function TacticalMapStage({
                 onPointerDown={(e) => {
                   if (!draggable) return;
                   e.stopPropagation();
+                  clearLongPressTimer();
                   setDraggingTokenId(token.id);
                 }}
               >
@@ -1012,7 +1190,7 @@ export function TacticalMapStage({
             const ringRadius = 12 + progress * 48;
             const opacity = Math.max(0, 1 - progress);
             return (
-              <g key={`${ping.pcId}_${ping.timestamp}_${idx}`} transform={`translate(${cx}, ${cy})`}>
+              <g key={ping.id || `${ping.pcId}_${ping.timestamp}_${idx}`} transform={`translate(${cx}, ${cy})`}>
                 <circle
                   r={ringRadius}
                   fill="none"
@@ -1031,13 +1209,13 @@ export function TacticalMapStage({
         </svg>
 
         {/* Bottom Status Overlay */}
-        <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/90 px-3 py-1.5 text-[11px] text-slate-400 border-t border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-[var(--bg-surface)] px-3 py-1.5 text-[11px] text-[var(--text-muted)] border-t border-[var(--border-subtle)]">
           <span>
             {role === 'shared-player'
               ? activePcId
-                ? '💡 Drag your own PC token to move, or double-click / use Ping to point out targets (3s live ping).'
-                : '💡 Claim your PC slot to drag your token, or use Ping to point on the map.'
-              : '💡 Double-click anywhere to drop a 3s Map Ping. Drag tokens to reposition.'}
+                ? '💡 Drag your own PC token to move, or click / long-press map to emit a 3s Map Ping.'
+                : '💡 Claim your PC slot to drag your token, or click / long-press map to Ping.'
+              : '💡 Double-click or long-press anywhere to drop a 3s Map Ping. Drag tokens to reposition.'}
           </span>
           <span>
             Tokens: {displayedTokens.length} • Revealed Zones:{' '}
@@ -1050,9 +1228,9 @@ export function TacticalMapStage({
       {canAuthorMap && !compact && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
           {/* Fog of War Rooms Control */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-2.5 space-y-2">
+          <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2.5 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-200">
+              <span className="text-xs font-semibold text-[var(--text-primary)]">
                 🌫️ Fog-of-War Rooms ({(activeMap.fogRevealedRegions ?? []).length})
               </span>
               <div className="flex items-center gap-1">
@@ -1067,7 +1245,7 @@ export function TacticalMapStage({
                       })),
                     }))
                   }
-                  className="rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] text-emerald-300 border border-emerald-500/30"
+                  className="rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] text-emerald-600 dark:text-emerald-300 border border-emerald-500/30"
                 >
                   Reveal All
                 </button>
@@ -1082,7 +1260,7 @@ export function TacticalMapStage({
                       })),
                     }))
                   }
-                  className="rounded bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300"
+                  className="rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]"
                 >
                   Hide All (Default)
                 </button>
@@ -1090,16 +1268,16 @@ export function TacticalMapStage({
             </div>
             <div className="max-h-32 overflow-y-auto space-y-1">
               {(activeMap.fogRevealedRegions ?? []).length === 0 ? (
-                <p className="text-[11px] text-slate-500">
-                  Map is hidden under fog by default. Use &ldquo;Add Fog Room&rdquo; or &ldquo;Brush Fog Open&rdquo; to carve revealed areas.
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  Map is hidden under fog by default. Use &ldquo;Add Fog Room&rdquo;, &ldquo;Polygon Fog&rdquo;, or &ldquo;Brush Fog Open&rdquo; to carve revealed areas.
                 </p>
               ) : (
                 (activeMap.fogRevealedRegions ?? []).map((r) => (
                   <div
                     key={r.id}
-                    className="flex items-center justify-between gap-2 rounded bg-slate-950/70 px-2 py-1 text-xs"
+                    className="flex items-center justify-between gap-2 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] px-2 py-1 text-xs"
                   >
-                    <span className="truncate text-slate-200">
+                    <span className="truncate text-[var(--text-primary)]">
                       {r.label || r.id}
                     </span>
                     <button
@@ -1107,8 +1285,8 @@ export function TacticalMapStage({
                       onClick={() => toggleFogRegionReveal(r.id)}
                       className={`rounded px-2 py-0.5 text-[11px] font-medium ${
                         r.revealed
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                          : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40'
+                          : 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/40'
                       }`}
                     >
                       {r.revealed ? 'Revealed to Party' : 'Hidden in Fog'}
@@ -1120,22 +1298,22 @@ export function TacticalMapStage({
           </div>
 
           {/* Token Roster & GM Secret Map Notes */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-2.5 space-y-2">
-            <span className="text-xs font-semibold text-slate-200 block">
+          <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2.5 space-y-2">
+            <span className="text-xs font-semibold text-[var(--text-primary)] block">
               ♟️ Stage Tokens ({(activeMap.tokens ?? []).length})
             </span>
             <div className="max-h-24 overflow-y-auto space-y-1">
               {(activeMap.tokens ?? []).map((t) => (
                 <div
                   key={t.id}
-                  className="flex items-center justify-between gap-2 rounded bg-slate-950/70 px-2 py-1 text-xs"
+                  className="flex items-center justify-between gap-2 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] px-2 py-1 text-xs"
                 >
                   <div className="flex items-center gap-1.5 truncate">
                     <span
                       className="inline-block h-2.5 w-2.5 rounded-full"
                       style={{ backgroundColor: t.color }}
                     />
-                    <span className="truncate text-slate-200">{t.label}</span>
+                    <span className="truncate text-[var(--text-primary)]">{t.label}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     {isGm && (
@@ -1144,8 +1322,8 @@ export function TacticalMapStage({
                         onClick={() => toggleTokenVisibility(t.id)}
                         className={`rounded px-1.5 py-0.5 text-[10px] ${
                           t.visibility === 'party'
-                            ? 'bg-sky-500/20 text-sky-300'
-                            : 'bg-amber-500/20 text-amber-300'
+                            ? 'bg-sky-500/20 text-sky-600 dark:text-sky-300'
+                            : 'bg-amber-500/20 text-amber-600 dark:text-amber-300'
                         }`}
                       >
                         {t.visibility === 'party' ? 'Party' : 'Private'}
@@ -1154,7 +1332,7 @@ export function TacticalMapStage({
                     <button
                       type="button"
                       onClick={() => removeToken(t.id)}
-                      className="rounded bg-rose-500/15 px-1.5 py-0.5 text-[10px] text-rose-300"
+                      className="rounded bg-rose-500/15 px-1.5 py-0.5 text-[10px] text-rose-600 dark:text-rose-300"
                     >
                       ✕
                     </button>
@@ -1170,7 +1348,7 @@ export function TacticalMapStage({
                   commitMapUpdate((m) => ({ ...m, gmMapNotes: e.target.value }))
                 }
                 placeholder="🔒 Secret GM Map Notes / Trap DCs (never projected to /player)…"
-                className="w-full rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs text-slate-200"
+                className="w-full rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-1 text-xs text-[var(--text-primary)]"
               />
             )}
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   UserCircle,
   Compass,
@@ -417,6 +417,17 @@ export default function PlayerCompanionWorkspace({
   };
 
   const [geminiModalOpen, setGeminiModalOpen] = useState(false);
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'g' && !e.shiftKey && !e.altKey) {
+        if (e.defaultPrevented) return;
+        e.preventDefault();
+        setGeminiModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
   const mapsList = useMemo(() => readMaps({ maps: get('maps', []) }), [get]);
 
   return (
@@ -1465,7 +1476,18 @@ export default function PlayerCompanionWorkspace({
                 </button>
               </div>
 
-              <div className="relative">
+              <div className="relative space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] uppercase text-ink-faint">
+                    Journal Recap (@-mention ready)
+                  </span>
+                  <VoiceDictationButton
+                    entityNames={allMentionableEntities.map((e) => e.name)}
+                    onTranscript={(spoken) =>
+                      setJournalContent((prev) => `${prev ? `${prev} ` : ''}${spoken}`)
+                    }
+                  />
+                </div>
                 <textarea
                   value={journalContent}
                   onChange={(e) => {

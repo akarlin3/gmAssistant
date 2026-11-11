@@ -36,29 +36,41 @@ export const GEMINI_BRIDGE_PRESETS: ReadonlyArray<{
     label: 'Compile "Previously On..." Session Recap',
     shortLabel: '"Previously On..." Recap',
     description:
-      'Serializes recent revealed Session Log entries, active Quests, and visited Locations/NPCs into a dramatic TV-style recap.',
+      'Serializes recent revealed Session Log entries, active Quests, and encountered NPCs/Locations into a dramatic TV-style recap.',
     playerAllowed: false,
     playerSafe: false,
   },
   {
     id: 'structured_entities',
-    label: 'Generate Structured NPCs / Monsters / Magic Items / Secrets',
-    shortLabel: 'Generate Entities & Secrets',
+    label: 'Generate Structured NPCs / Monsters / Encounters / Secrets',
+    shortLabel: 'Generate NPCs / Encounters / Secrets',
     description:
-      'Serializes campaign tone, world facts, and active party level to generate drop-in NPCs, locations, monsters, magic items, and secrets.',
+      'Serializes campaign tone, prep scale, world facts, and party level to generate drop-in NPCs, locations, monsters, encounters, items, and secrets.',
     playerAllowed: false,
     playerSafe: false,
   },
   {
     id: 'player_journal_summary',
-    label: 'Player Journal Summary',
-    shortLabel: 'Player Journal Summary',
+    label: 'Summarize My Adventurer Journal',
+    shortLabel: 'Summarize My Adventurer Journal',
     description:
-      'Uses only player-visible lore and your local player tracker notes to synthesize a first-person adventurer journal entry and quest checklist.',
+      'Reads strictly player-visible lore and your local player state to synthesize a first-person adventurer journal entry and quest checklist.',
     playerAllowed: true,
     playerSafe: true,
   },
 ];
+
+export type GeminiBridgeSelectionKey =
+  | 'recap'
+  | 'npcs'
+  | 'locations'
+  | 'monsters'
+  | 'encounters'
+  | 'items'
+  | 'secrets'
+  | 'scenes'
+  | 'journalEntry'
+  | 'quests';
 
 // ---- Zod Schemas for Validating Returned Gemini JSON -----------------------
 
@@ -93,6 +105,18 @@ const BridgeMonsterObjectSchema = z.object({
 });
 
 const BridgeMonsterSchema = z.union([z.string().min(1), BridgeMonsterObjectSchema]);
+
+const BridgeEncounterObjectSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1),
+  difficulty: z.string().optional(),
+  environment: z.string().optional(),
+  monsters: z.array(z.string()).optional(),
+  tactics: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+const BridgeEncounterSchema = z.union([z.string().min(1), BridgeEncounterObjectSchema]);
 
 const BridgeItemObjectSchema = z.object({
   id: z.string().optional(),
@@ -143,6 +167,7 @@ export const GeminiBridgePayloadSchema = z
     npcs: z.array(BridgeNpcSchema).optional(),
     locations: z.array(BridgeLocationSchema).optional(),
     monsters: z.array(BridgeMonsterSchema).optional(),
+    encounters: z.array(BridgeEncounterSchema).optional(),
     items: z.array(BridgeItemSchema).optional(),
     secrets: z.array(z.string().min(1)).optional(),
     scenes: z.array(z.string().min(1)).optional(),
@@ -163,6 +188,7 @@ export const GeminiBridgePayloadSchema = z
           (val.npcs && val.npcs.length > 0) ||
           (val.locations && val.locations.length > 0) ||
           (val.monsters && val.monsters.length > 0) ||
+          (val.encounters && val.encounters.length > 0) ||
           (val.items && val.items.length > 0) ||
           (val.secrets && val.secrets.length > 0) ||
           (val.scenes && val.scenes.length > 0) ||
@@ -173,11 +199,18 @@ export const GeminiBridgePayloadSchema = z
     },
     {
       message:
-        'JSON payload must include at least one recap, journalEntry, NPC, location, monster, magic item, secret, scene, or quest.',
+        'JSON payload must include at least one recap, journalEntry, NPC, location, monster, encounter, magic item, secret, scene, or quest.',
     },
   );
 
 export type ValidatedGeminiBridgePayload = z.infer<typeof GeminiBridgePayloadSchema>;
+
+export type GeminiBridgeDiffItem = {
+  key: GeminiBridgeSelectionKey;
+  label: string;
+  count: number;
+  detail?: string;
+};
 
 export type GeminiBridgeDiffPreview = {
   hasRecap: boolean;
@@ -188,6 +221,7 @@ export type GeminiBridgeDiffPreview = {
   npcsCount: number;
   locationsCount: number;
   monstersCount: number;
+  encountersCount: number;
   itemsCount: number;
   secretsCount: number;
   scenesCount: number;
@@ -195,6 +229,7 @@ export type GeminiBridgeDiffPreview = {
   hasJournalEntry: boolean;
   hasPlayerJournal: boolean;
   totalDetectedItems: number;
+  selectableItems: GeminiBridgeDiffItem[];
   summaryLines: string[];
   summary: string[];
 };
@@ -205,6 +240,7 @@ export function buildGeminiBridgePrompt(opts: {
   preset: GeminiBridgePreset;
   campaignName?: string;
   campaignData?: Record<string, any> | null;
+  prepScale?: string;
   playerProjection?: SlotProjection | null;
   playerTracker?: PlayerTrackerState | null;
   playerVisibleEntities?: Record<string, Array<Record<string, unknown>>>;
@@ -374,6 +410,11 @@ export function buildGeminiBridgePrompt(opts: {
   // Preset: 'structured_entities'
   const genre = typeof data.genre === 'string' && data.genre.trim() ? data.genre.trim() : 'Fantasy Adventure';
   const pitch = typeof data.pitch === 'string' && data.pitch.trim() ? data.pitch.trim() : '';
+  const prepScale =
+    opts.prepScale?.trim() ||
+    (typeof data.prepScale === 'string' && data.prepScale.trim() ? data.prepScale.trim() : '') ||
+    (typeof data.campaignScale === 'string' && data.campaignScale.trim() ? data.campaignScale.trim() : '') ||
+    'session';
   const tone = Array.isArray(data.tone)
     ? data.tone.filter(Boolean).join(', ')
     : typeof data.tone === 'string' && data.tone.trim()
@@ -395,11 +436,12 @@ export function buildGeminiBridgePrompt(opts: {
 
   return [
     `You are a Lazy DM Campaign Prep Architect for "${campaignTitle}".`,
-    `Generate structured, table-ready NPCs, Locations, Monsters, Magic Items, and Secrets tailored to this campaign.`,
+    `Generate structured, table-ready NPCs, Locations, Monsters, Encounters, Magic Items, and Secrets tailored to this campaign.`,
     focusLine,
     `=== CAMPAIGN SETTING & PARTY ===`,
     `Genre: ${genre}`,
     `Tone Pillars: ${tone}`,
+    `Prep Scale: ${prepScale}`,
     ...(pitch ? [`Campaign Pitch: ${pitch}`] : []),
     `Active Party Level: Level ${avgPartyLevel} (${pcs.length || 4} adventurers)`,
     `World Facts:\n${worldFacts.length > 0 ? worldFacts.map((f) => `- ${f}`).join('\n') : '- Classic high-adventure setting'}`,
@@ -431,6 +473,15 @@ export function buildGeminiBridgePrompt(opts: {
     `      "hp": "65",`,
     `      "ac": "15",`,
     `      "notes": "Signature tactical move"`,
+    `    }`,
+    `  ],`,
+    `  "encounters": [`,
+    `    {`,
+    `      "name": "Encounter Title",`,
+    `      "difficulty": "Hard (Level ${avgPartyLevel})",`,
+    `      "environment": "Terrain or hazard twist",`,
+    `      "monsters": ["Monster or Adversary Name"],`,
+    `      "tactics": "Opening round gambit and objective"`,
     `    }`,
     `  ],`,
     `  "items": [`,
@@ -506,6 +557,7 @@ export function buildGeminiDiffPreview(
   const npcsCount = payload.npcs?.length ?? 0;
   const locationsCount = payload.locations?.length ?? 0;
   const monstersCount = payload.monsters?.length ?? 0;
+  const encountersCount = payload.encounters?.length ?? 0;
   const itemsCount = payload.items?.length ?? 0;
   const secretsCount = payload.secrets?.length ?? 0;
   const scenesCount = payload.scenes?.length ?? 0;
@@ -514,27 +566,76 @@ export function buildGeminiDiffPreview(
   const hasJournalEntry = Boolean(journalEntryObj);
 
   const summaryLines: string[] = [];
-  if (hasRecap) summaryLines.push(`Session Recap: "${recapTitle}" (${recapText.length} chars)`);
-  if (npcsCount > 0) summaryLines.push(`${npcsCount} NPC${npcsCount === 1 ? '' : 's'} (${payload.npcs!.map((n) => n.name).join(', ')})`);
-  if (locationsCount > 0) summaryLines.push(`${locationsCount} Location${locationsCount === 1 ? '' : 's'} (${payload.locations!.map((l) => l.name).join(', ')})`);
+  const selectableItems: GeminiBridgeDiffItem[] = [];
+
+  if (hasRecap) {
+    const label = `Session Recap: "${recapTitle}" (${recapText.length} chars)`;
+    summaryLines.push(label);
+    selectableItems.push({ key: 'recap', label, count: 1, detail: recapText.slice(0, 140) });
+  }
+  if (npcsCount > 0) {
+    const names = payload.npcs!.map((n) => n.name).join(', ');
+    const label = `${npcsCount} NPC${npcsCount === 1 ? '' : 's'} (${names})`;
+    summaryLines.push(label);
+    selectableItems.push({ key: 'npcs', label, count: npcsCount, detail: names });
+  }
+  if (locationsCount > 0) {
+    const names = payload.locations!.map((l) => l.name).join(', ');
+    const label = `${locationsCount} Location${locationsCount === 1 ? '' : 's'} (${names})`;
+    summaryLines.push(label);
+    selectableItems.push({ key: 'locations', label, count: locationsCount, detail: names });
+  }
   if (monstersCount > 0) {
-    const names = payload.monsters!.map((m) => (typeof m === 'string' ? m : m.name));
-    summaryLines.push(`${monstersCount} Monster${monstersCount === 1 ? '' : 's'} (${names.join(', ')})`);
+    const names = payload.monsters!.map((m) => (typeof m === 'string' ? m : m.name)).join(', ');
+    const label = `${monstersCount} Monster${monstersCount === 1 ? '' : 's'} (${names})`;
+    summaryLines.push(label);
+    selectableItems.push({ key: 'monsters', label, count: monstersCount, detail: names });
+  }
+  if (encountersCount > 0) {
+    const names = payload.encounters!.map((e) => (typeof e === 'string' ? e : e.name)).join(', ');
+    const label = `${encountersCount} Encounter${encountersCount === 1 ? '' : 's'} (${names})`;
+    summaryLines.push(label);
+    selectableItems.push({ key: 'encounters', label, count: encountersCount, detail: names });
   }
   if (itemsCount > 0) {
-    const names = payload.items!.map((i) => (typeof i === 'string' ? i : i.name));
-    summaryLines.push(`${itemsCount} Magic Item${itemsCount === 1 ? '' : 's'} (${names.join(', ')})`);
+    const names = payload.items!.map((i) => (typeof i === 'string' ? i : i.name)).join(', ');
+    const label = `${itemsCount} Magic Item${itemsCount === 1 ? '' : 's'} (${names})`;
+    summaryLines.push(label);
+    selectableItems.push({ key: 'items', label, count: itemsCount, detail: names });
   }
-  if (secretsCount > 0) summaryLines.push(`${secretsCount} Secret${secretsCount === 1 ? '' : 's'} & Clues`);
-  if (scenesCount > 0) summaryLines.push(`${scenesCount} Scene${scenesCount === 1 ? '' : 's'}`);
-  if (hasJournalEntry) summaryLines.push(`Player Journal: "${journalEntryObj!.title}"`);
-  if (questsCount > 0) summaryLines.push(`${questsCount} Quest${questsCount === 1 ? '' : 's'} / Leads`);
+  if (secretsCount > 0) {
+    const label = `${secretsCount} Secret${secretsCount === 1 ? '' : 's'} & Clues`;
+    summaryLines.push(label);
+    selectableItems.push({ key: 'secrets', label, count: secretsCount, detail: payload.secrets![0] });
+  }
+  if (scenesCount > 0) {
+    const label = `${scenesCount} Scene${scenesCount === 1 ? '' : 's'}`;
+    summaryLines.push(label);
+    selectableItems.push({ key: 'scenes', label, count: scenesCount, detail: payload.scenes![0] });
+  }
+  if (hasJournalEntry) {
+    const label = `Player Journal: "${journalEntryObj!.title}"`;
+    summaryLines.push(label);
+    selectableItems.push({
+      key: 'journalEntry',
+      label,
+      count: 1,
+      detail: (journalEntryObj!.summary || journalEntryObj!.content || '').slice(0, 140),
+    });
+  }
+  if (questsCount > 0) {
+    const names = payload.quests!.map((q) => q.title).join(', ');
+    const label = `${questsCount} Quest${questsCount === 1 ? '' : 's'} / Leads`;
+    summaryLines.push(label);
+    selectableItems.push({ key: 'quests', label, count: questsCount, detail: names });
+  }
 
   const totalDetectedItems =
     (hasRecap ? 1 : 0) +
     npcsCount +
     locationsCount +
     monstersCount +
+    encountersCount +
     itemsCount +
     secretsCount +
     scenesCount +
@@ -550,6 +651,7 @@ export function buildGeminiDiffPreview(
     npcsCount,
     locationsCount,
     monstersCount,
+    encountersCount,
     itemsCount,
     secretsCount,
     scenesCount,
@@ -557,6 +659,7 @@ export function buildGeminiDiffPreview(
     hasJournalEntry,
     hasPlayerJournal: hasJournalEntry,
     totalDetectedItems,
+    selectableItems,
     summaryLines,
     summary: summaryLines,
   };
@@ -630,6 +733,7 @@ export function applyGeminiBridgePayload(args: {
   campaignData?: Record<string, any>;
   currentTracker?: PlayerTrackerState | null;
   payload: ValidatedGeminiBridgePayload;
+  selection?: Partial<Record<GeminiBridgeSelectionKey, boolean>>;
   publishRecapToPartyFeed?: boolean;
   captureSnapshot?: boolean;
   nowMs?: number;
@@ -649,6 +753,8 @@ export function applyGeminiBridgePayload(args: {
   const undoSnapshotState = structuredClone(baseState);
   const nextState = structuredClone(baseState);
   const preview = buildGeminiDiffPreview(args.payload);
+  const isSelected = (key: GeminiBridgeSelectionKey): boolean =>
+    args.selection ? args.selection[key] !== false : true;
 
   const campId = args.campaignId || 'local_campaign';
   let preApplySnapshot: VaultSnapshot | null = null;
@@ -679,7 +785,7 @@ export function applyGeminiBridgePayload(args: {
   const { payload } = args;
 
   // 1. Merge NPCs
-  if (payload.npcs && payload.npcs.length > 0) {
+  if (isSelected('npcs') && payload.npcs && payload.npcs.length > 0) {
     const existingNpcs = Array.isArray(nextState.npcs) ? [...nextState.npcs] : [];
     payload.npcs.forEach((n, idx) => {
       existingNpcs.push({
@@ -696,7 +802,7 @@ export function applyGeminiBridgePayload(args: {
   }
 
   // 2. Merge Locations
-  if (payload.locations && payload.locations.length > 0) {
+  if (isSelected('locations') && payload.locations && payload.locations.length > 0) {
     const existingLocations = Array.isArray(nextState.locations) ? [...nextState.locations] : [];
     payload.locations.forEach((l, idx) => {
       existingLocations.push({
@@ -713,7 +819,7 @@ export function applyGeminiBridgePayload(args: {
   }
 
   // 3. Merge Monsters
-  if (payload.monsters && payload.monsters.length > 0) {
+  if (isSelected('monsters') && payload.monsters && payload.monsters.length > 0) {
     const existingMonsters = Array.isArray(nextState.monsters) ? [...nextState.monsters] : [];
     payload.monsters.forEach((m) => {
       if (typeof m === 'string') {
@@ -733,8 +839,42 @@ export function applyGeminiBridgePayload(args: {
     nextState.monsters = existingMonsters;
   }
 
+  // 3b. Merge Encounters
+  if (isSelected('encounters') && payload.encounters && payload.encounters.length > 0) {
+    const existingEncounters = Array.isArray(nextState.encounters) ? [...nextState.encounters] : [];
+    const existingScenes = Array.isArray(nextState.scenes) ? [...nextState.scenes] : [];
+    payload.encounters.forEach((enc, idx) => {
+      if (typeof enc === 'string') {
+        existingEncounters.push({ id: makeEntityId('enc', idx, nowMs), name: enc.trim() });
+        existingScenes.push(`⚔️ Encounter: ${enc.trim()}`);
+      } else {
+        const formatted = {
+          id: enc.id || makeEntityId('enc', idx, nowMs),
+          name: enc.name.trim(),
+          ...(enc.difficulty ? { difficulty: enc.difficulty } : {}),
+          ...(enc.environment ? { environment: enc.environment } : {}),
+          ...(Array.isArray(enc.monsters) ? { monsters: enc.monsters } : {}),
+          ...(enc.tactics ? { tactics: enc.tactics } : {}),
+          ...(enc.notes ? { notes: enc.notes } : {}),
+        };
+        existingEncounters.push(formatted);
+        const sceneBits = [
+          enc.difficulty ? `[${enc.difficulty}]` : '',
+          enc.environment || '',
+          Array.isArray(enc.monsters) && enc.monsters.length > 0 ? `Foes: ${enc.monsters.join(', ')}` : '',
+          enc.tactics || enc.notes || '',
+        ]
+          .filter(Boolean)
+          .join(' — ');
+        existingScenes.push(sceneBits ? `⚔️ ${enc.name.trim()}: ${sceneBits}` : `⚔️ ${enc.name.trim()}`);
+      }
+    });
+    nextState.encounters = existingEncounters;
+    nextState.scenes = existingScenes;
+  }
+
   // 4. Merge Magic Items
-  if (payload.items && payload.items.length > 0) {
+  if (isSelected('items') && payload.items && payload.items.length > 0) {
     const existingItems = Array.isArray(nextState.items) ? [...nextState.items] : [];
     payload.items.forEach((it, idx) => {
       if (typeof it === 'string') {
@@ -755,7 +895,7 @@ export function applyGeminiBridgePayload(args: {
   }
 
   // 5. Merge Secrets & Scenes
-  if (payload.secrets && payload.secrets.length > 0) {
+  if (isSelected('secrets') && payload.secrets && payload.secrets.length > 0) {
     const existingSecrets = Array.isArray(nextState.secrets) ? [...nextState.secrets] : [];
     for (const s of payload.secrets) {
       if (s.trim()) existingSecrets.push(s.trim());
@@ -763,7 +903,7 @@ export function applyGeminiBridgePayload(args: {
     nextState.secrets = existingSecrets;
   }
 
-  if (payload.scenes && payload.scenes.length > 0) {
+  if (isSelected('scenes') && payload.scenes && payload.scenes.length > 0) {
     const existingScenes = Array.isArray(nextState.scenes) ? [...nextState.scenes] : [];
     for (const sc of payload.scenes) {
       if (sc.trim()) existingScenes.push(sc.trim());
@@ -772,7 +912,7 @@ export function applyGeminiBridgePayload(args: {
   }
 
   // 6. Merge "Previously On..." Session Recap
-  if (preview.hasRecap) {
+  if (isSelected('recap') && preview.hasRecap) {
     const existingLogs = Array.isArray(nextState.sessionLogV2) ? [...nextState.sessionLogV2] : [];
     const nextNumber =
       existingLogs.reduce((max: number, e: any) => Math.max(max, typeof e?.number === 'number' ? e.number : 0), 0) + 1;
@@ -825,7 +965,7 @@ export function applyGeminiBridgePayload(args: {
     ? structuredClone(args.currentTracker)
     : undefined;
 
-  if (je) {
+  if (isSelected('journalEntry') && je) {
     const existingJournal = Array.isArray(nextState.__playerCompanionJournal)
       ? [...nextState.__playerCompanionJournal]
       : [];
@@ -860,7 +1000,7 @@ export function applyGeminiBridgePayload(args: {
     }
   }
 
-  if (payload.quests && payload.quests.length > 0) {
+  if (isSelected('quests') && payload.quests && payload.quests.length > 0) {
     const existingQuests = Array.isArray(nextState.__playerCompanionQuests)
       ? [...nextState.__playerCompanionQuests]
       : [];
