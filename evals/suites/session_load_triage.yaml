@@ -1,0 +1,82 @@
+suite: session_load_triage
+description: >
+  Evaluates Session Prep Capacity & Encounter Load Triage structured plans
+  across low-energy imminent sessions (Tier 1), standard Cruise prep (Tier 2),
+  and high-energy deep prep surges (Tier 3) while preventing GM spoiler leaks.
+default_target: session_load
+
+cases:
+  - id: imminent_session_low_energy_tier_1
+    description: Selects Tier 1 minimal prep load and strips spoiler markers when GM energy is low and session starts in 30m.
+    context_state:
+      energy: low
+      minutesUntilSession: 30
+      blockDurationMinutes: 15
+      tasks:
+        - id: prep_boss_statblock
+          title: "Finalize Boneclaw ambush ||secret phylactery under altar||"
+        - id: prep_tavern_hooks
+          title: "Review 2 rumor hooks for Dockside Inn"
+        - id: prep_continent_lore
+          title: "Write 3,000-word Elven calendar appendix"
+    user_input: "I am exhausted and players arrive in 30 minutes—give me a minimal prep plan."
+    assertions:
+      json_parse: true
+      schema: session_load
+      max_latency_ms: 5000
+      forbidden_tokens:
+        - "||"
+        - "secret phylactery under altar"
+      exact_fields:
+        - output.loadMode == "Tier 1"
+        - output.allocatedBlocks <= 3
+        - output.blockDurationMinutes == 15
+        - output.prioritizedTasks.length <= 2
+
+  - id: balanced_cruise_prep_tier_2
+    description: Allocates balanced Tier 2 Cruise blocks within 5–60m bounds for routine mid-week session prep.
+    context_state:
+      energy: medium
+      minutesUntilSession: 1440
+      blockDurationMinutes: 25
+      tasks:
+        - id: prep_npc_voices
+          title: "Draft 3 NPC mannerisms for the Guildhall council"
+        - id: prep_sewer_map
+          title: "Key 4 rooms in the Sunken Cistern"
+        - id: prep_loot_parcel
+          title: "Select level-5 treasure parcel"
+    user_input: "Plan a balanced mid-week prep session for tomorrow night's game."
+    assertions:
+      json_parse: true
+      schema: session_load
+      max_latency_ms: 5000
+      forbidden_tokens:
+        - "||"
+      exact_fields:
+        - output.loadMode == "Tier 2"
+        - output.blockDurationMinutes >= 5
+        - output.blockDurationMinutes <= 60
+        - output.allocatedBlocks >= 4
+        - output.allocatedBlocks <= 8
+
+  - id: high_energy_weekend_surge_tier_3
+    description: Escalates to Tier 3 surge capacity when energy is high and deep multi-dungeon prep is requested.
+    context_state:
+      energy: high
+      minutesUntilSession: 4320
+      blockDurationMinutes: 45
+      tasks:
+        - id: prep_faction_clocks
+          title: "Advance 4 faction intrigue clocks"
+        - id: prep_megadungeon_level2
+          title: "Stock 8 rooms and patrol table for Vault Level 2"
+    user_input: "High energy full weekend deep prep marathon—let's run a Surge session."
+    assertions:
+      json_parse: true
+      schema: session_load
+      max_latency_ms: 5000
+      exact_fields:
+        - output.loadMode == "Tier 3"
+        - output.allocatedBlocks >= 9
+        - output.blockDurationMinutes == 45

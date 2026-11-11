@@ -49,6 +49,17 @@ import {
 import type { PlayerEditableField } from '@/lib/player/allowlist';
 import type { PlayerCharacter } from '@/lib/pc/types';
 import type { PlayerLocalTrackerState } from '@/lib/playerMode/playerTrackerStorage';
+import {
+  buildKeyValueDiff,
+  computeJsonPatch,
+  invertJsonPatch,
+  isUndoDirective,
+  loadCustomizationHistory,
+  popCustomizationHistory,
+  pushCustomizationHistory,
+  type CustomizationHistoryEntry,
+  type JsonPatchOp,
+} from '@/lib/customization';
 
 export interface WorkspaceArchitectModalProps {
   open: boolean;
@@ -151,6 +162,42 @@ function mergeWorkspacePatches(
           },
         }
       : base.campaignMode,
+    workflow: incoming.workflow
+      ? {
+          ...(base.workflow ?? {}),
+          ...incoming.workflow,
+          channels: incoming.workflow.channels
+            ? [
+                ...(base.workflow?.channels ?? []).filter(
+                  (prev) =>
+                    !incoming.workflow!.channels!.some((n) => n.key === prev.key),
+                ),
+                ...incoming.workflow.channels,
+              ]
+            : base.workflow?.channels,
+          activePillars: incoming.workflow.activePillars
+            ? Array.from(
+                new Set([
+                  ...(base.workflow?.activePillars ?? []),
+                  ...incoming.workflow.activePillars,
+                ]),
+              )
+            : base.workflow?.activePillars,
+        }
+      : base.workflow,
+    houseRules: incoming.houseRules
+      ? [
+          ...(base.houseRules ?? []).filter(
+            (prev) =>
+              !incoming.houseRules!.some(
+                (n) =>
+                  n.id === prev.id ||
+                  n.title.toLowerCase() === prev.title.toLowerCase(),
+              ),
+          ),
+          ...incoming.houseRules,
+        ]
+      : base.houseRules,
     systemFlavorAndTrackers: incoming.systemFlavorAndTrackers
       ? {
           ...(base.systemFlavorAndTrackers ?? {}),
@@ -249,10 +296,14 @@ export function WorkspaceArchitectModal({
   const [stagedPatch, setStagedPatch] = useState<CampaignWorkspacePatch | null>(null);
   const [turnWarnings, setTurnWarnings] = useState<string[]>([]);
   const [lastUndo, setLastUndo] = useState<WorkspaceUndoBundle | null>(null);
+  const [historyRing, setHistoryRing] = useState<CustomizationHistoryEntry[]>([]);
+  const [showJsonPatch, setShowJsonPatch] = useState(false);
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const lastDirectiveRef = useRef<string>('Workspace customization');
   const writtenPcFieldsRef = useRef<Record<string, PlayerEditableField[]>>({});
   const lastUndoRef = useRef<WorkspaceUndoBundle | null>(null);
+  const handleUndoRef = useRef<() => Promise<void>>(async () => {});
 
   const authorityContext = useMemo<WorkspaceAuthorityContext>(() => {
     const derivedOwnedIds =
@@ -281,6 +332,7 @@ export function WorkspaceArchitectModal({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    setHistoryRing(loadCustomizationHistory(hudScopeKey));
     isChromeLanguageModelAvailable().then((avail) => {
       if (!cancelled) setChromeAiAvailable(avail);
     });
@@ -289,7 +341,7 @@ export function WorkspaceArchitectModal({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [open]);
+  }, [open, hudScopeKey]);
 
   const currentHudPrefs = useMemo(
     () => (open ? loadLocalHudPrefs(hudScopeKey) : null),
@@ -309,6 +361,26 @@ export function WorkspaceArchitectModal({
       currentHudPrefs ?? undefined,
       validatedResult,
     );
+  }, [validatedResult, canEditCampaign, campaignData, currentHudPrefs]);
+
+  const stagedRfc6902Patch = useMemo<JsonPatchOp[]>(() => {
+    if (!validatedResult || !validatedResult.ok) return [];
+    const beforePreviewState = {
+      ...(canEditCampaign ? { campaign: campaignData ?? {} } : {}),
+      hudPrefs: currentHudPrefs ?? {},
+    };
+    const afterCampaign =
+      canEditCampaign && validatedResult.canApplyToCampaign
+        ? applyWorkspacePatchToCampaignData(campaignData ?? {}, validatedResult).nextData
+        : undefined;
+    const afterHud = validatedResult.localHudPrefs
+      ? mergeHudLayoutPrefs(currentHudPrefs, validatedResult.localHudPrefs)
+      : currentHudPrefs ?? {};
+    const afterPreviewState = {
+      ...(canEditCampaign ? { campaign: afterCampaign ?? {} } : {}),
+      hudPrefs: afterHud,
+    };
+    return computeJsonPatch(beforePreviewState, afterPreviewState);
   }, [validatedResult, canEditCampaign, campaignData, currentHudPrefs]);
 
   const chatHistoryForPrompt = useMemo<ArchitectChatMessage[]>(
@@ -352,6 +424,38 @@ export function WorkspaceArchitectModal({
       ]);
       setPromptInput('');
       setRelayError(null);
+
+      // Conversational Undo: "undo last change", "revert", "undo"
+      if (isUndoDirective(trimmed)) {
+        const currentRing = loadCustomizationHistory(hudScopeKey);
+        if (lastUndoRef.current || currentRing.length > 0) {
+          await handleUndoRef.current();
+          setTurns((prev) => [
+            ...prev,
+            {
+              id: `a_undo_${Date.now()}`,
+              role: 'assistant',
+              content:
+                'Reverted your most recent customization from customization_history.',
+              provider: 'local_compiler',
+            },
+          ]);
+        } else {
+          setTurns((prev) => [
+            ...prev,
+            {
+              id: `a_undo_empty_${Date.now()}`,
+              role: 'assistant',
+              content:
+                'No applied customizations found in customization_history to undo.',
+              provider: 'local_compiler',
+            },
+          ]);
+        }
+        return;
+      }
+
+      lastDirectiveRef.current = trimmed;
 
       // If an Option A / Option B chip supplied an immediate structured patch override, merge it directly!
       if (explicitOverridePatch) {
@@ -470,6 +574,7 @@ export function WorkspaceArchitectModal({
     [
       busy,
       stagedPatch,
+      hudScopeKey,
       isPro,
       user,
       allowUnauthenticatedCloudFetch,
@@ -533,9 +638,10 @@ export function WorkspaceArchitectModal({
       validatedResult,
     );
 
+    let nextHud = prevHud;
     if (validatedResult.localHudPrefs) {
-      const mergedHud = mergeHudLayoutPrefs(prevHud, validatedResult.localHudPrefs);
-      saveLocalHudPrefs(hudScopeKey, mergedHud);
+      nextHud = mergeHudLayoutPrefs(prevHud, validatedResult.localHudPrefs);
+      saveLocalHudPrefs(hudScopeKey, nextHud);
     }
 
     const nextMode = validatedResult.campaignPatch.campaignMode?.mode;
@@ -548,6 +654,26 @@ export function WorkspaceArchitectModal({
       previousHudPrefs: prevHud,
       previousLocalTerms: prevTerms,
     };
+
+    const beforeCombined = { campaign: undoSnapshot, hudPrefs: prevHud ?? {} };
+    const afterCombined = { campaign: nextData, hudPrefs: nextHud ?? {} };
+    const fwdPatch = computeJsonPatch(beforeCombined, afterCombined);
+    const updatedRing = pushCustomizationHistory(
+      {
+        scopeKey: hudScopeKey,
+        directive: lastDirectiveRef.current,
+        summary: undoBundle.summary,
+        jsonPatch: fwdPatch,
+        inverseJsonPatch: invertJsonPatch(beforeCombined, fwdPatch),
+        keyValueDiff: buildKeyValueDiff(beforeCombined, afterCombined, fwdPatch),
+        beforeState: beforeCombined,
+        afterState: afterCombined,
+        auxiliaryUndo: undoBundle as unknown as Record<string, unknown>,
+      },
+      hudScopeKey,
+    );
+    setHistoryRing(updatedRing);
+
     lastUndoRef.current = undoBundle;
     setLastUndo(undoBundle);
     setStagedPatch(null);
@@ -597,17 +723,42 @@ export function WorkspaceArchitectModal({
     lastUndoRef.current = undoBundle;
     setLastUndo(undoBundle);
 
+    let nextHud = prevHud;
     if (validatedResult.localHudPrefs) {
-      const mergedHud = mergeHudLayoutPrefs(prevHud, validatedResult.localHudPrefs);
-      saveLocalHudPrefs(hudScopeKey, mergedHud);
+      nextHud = mergeHudLayoutPrefs(prevHud, validatedResult.localHudPrefs);
+      saveLocalHudPrefs(hudScopeKey, nextHud);
     }
 
+    let nextTerms = prevTerms;
     if (validatedResult.localTerminologyMap) {
-      saveLocalTerminologyPrefs(hudScopeKey, {
+      nextTerms = {
         ...(prevTerms ?? {}),
         ...validatedResult.localTerminologyMap,
-      });
+      };
+      saveLocalTerminologyPrefs(hudScopeKey, nextTerms);
     }
+
+    const beforeLocal = { hudPrefs: prevHud ?? {}, terms: prevTerms ?? {} };
+    const afterLocal = { hudPrefs: nextHud ?? {}, terms: nextTerms ?? {} };
+    const localPatch = computeJsonPatch(beforeLocal, afterLocal);
+    const updatedRing = pushCustomizationHistory(
+      {
+        scopeKey: hudScopeKey,
+        directive: lastDirectiveRef.current,
+        summary: undoBundle.summary,
+        jsonPatch: localPatch,
+        inverseJsonPatch: invertJsonPatch(beforeLocal, localPatch),
+        keyValueDiff: buildKeyValueDiff(beforeLocal, afterLocal, localPatch),
+        beforeState: beforeLocal,
+        afterState: afterLocal,
+        auxiliaryUndo: {
+          ...undoBundle,
+          writtenPcFields: nextWrittenFields,
+        } as unknown as Record<string, unknown>,
+      },
+      hudScopeKey,
+    );
+    setHistoryRing(updatedRing);
 
     if (
       includeOwnedSheetWriteback &&
@@ -641,7 +792,15 @@ export function WorkspaceArchitectModal({
   };
 
   const handleUndoLastApply = async () => {
-    const activeUndo = lastUndoRef.current ?? lastUndo;
+    const { popped, remaining } = popCustomizationHistory(hudScopeKey);
+    setHistoryRing(remaining);
+
+    const ringUndo = popped?.auxiliaryUndo as
+      | (WorkspaceUndoBundle & {
+          writtenPcFields?: Record<string, PlayerEditableField[]>;
+        })
+      | undefined;
+    const activeUndo = ringUndo ?? lastUndoRef.current ?? lastUndo;
     if (!activeUndo) return;
 
     if (
@@ -660,8 +819,10 @@ export function WorkspaceArchitectModal({
     saveLocalTerminologyPrefs(hudScopeKey, activeUndo.previousLocalTerms ?? null);
 
     if (activeUndo.previousOwnedPcSnapshots && onApplyPlayerPcWriteback) {
+      const recordedFieldsMap =
+        ringUndo?.writtenPcFields ?? writtenPcFieldsRef.current;
       for (const [pcId, snap] of Object.entries(activeUndo.previousOwnedPcSnapshots)) {
-        const fieldsToRestore = writtenPcFieldsRef.current[pcId] ?? [
+        const fieldsToRestore = recordedFieldsMap[pcId] ?? [
           'resourcePools',
           'activeBuffs',
         ];
@@ -686,15 +847,20 @@ export function WorkspaceArchitectModal({
       await onApplyPlayerTrackerState(activeUndo.previousTrackerState);
     }
 
+    const nextTopUndo =
+      remaining.length > 0
+        ? (remaining[remaining.length - 1].auxiliaryUndo as
+            | WorkspaceUndoBundle
+            | undefined) ?? null
+        : null;
     writtenPcFieldsRef.current = {};
-    lastUndoRef.current = null;
-    setLastUndo(null);
+    lastUndoRef.current = nextTopUndo;
+    setLastUndo(nextTopUndo);
     const msg = 'Rolled back workspace customization';
     setStatusBanner(msg);
     onNotify?.(msg);
   };
 
-  const handleUndoRef = useRef(handleUndoLastApply);
   handleUndoRef.current = handleUndoLastApply;
 
   useEffect(() => {
@@ -842,14 +1008,29 @@ export function WorkspaceArchitectModal({
           </div>
         </div>
 
-        {/* 1-Tap Undo Rollback Banner */}
-        {(lastUndo || statusBanner) && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-500/30 bg-emerald-500/10 px-5 py-2 text-xs">
+        {/* 1-Tap Undo Rollback Banner (customization_history Ring Buffer) */}
+        {(lastUndo || historyRing.length > 0 || statusBanner) && (
+          <div
+            data-testid="customization-history-banner"
+            className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-500/30 bg-emerald-500/10 px-5 py-2 text-xs"
+          >
             <span className="flex items-center gap-1.5 font-medium text-emerald-300">
               <Check size={13} />
-              {statusBanner || lastUndo?.summary}
+              <span>
+                {statusBanner ||
+                  lastUndo?.summary ||
+                  historyRing[historyRing.length - 1]?.summary}
+              </span>
+              {historyRing.length > 0 && (
+                <span
+                  data-testid="customization-history-count"
+                  className="rounded border border-emerald-400/40 bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px]"
+                >
+                  History {historyRing.length}/10
+                </span>
+              )}
             </span>
-            {lastUndo && (
+            {(lastUndo || historyRing.length > 0) && (
               <button
                 type="button"
                 onClick={() => void handleUndoLastApply()}
@@ -1082,23 +1263,35 @@ export function WorkspaceArchitectModal({
             );
           })()}
 
-          {/* Interactive Diff Preview */}
+          {/* Interactive Diff Preview (Structured Key-Value + RFC 6902 JSON Patch) */}
           {stagedPatch && (
             <div
               data-testid="workspace-diff-preview"
               className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 space-y-2.5"
             >
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-sans text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
                   Diff Preview ({diffItems.length} change{diffItems.length === 1 ? '' : 's'})
                 </h3>
-                <button
-                  type="button"
-                  onClick={() => setStagedPatch(null)}
-                  className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                >
-                  Clear Staged Changes
-                </button>
+                <div className="flex items-center gap-2">
+                  {stagedRfc6902Patch.length > 0 && (
+                    <button
+                      type="button"
+                      data-testid="toggle-rfc6902-patch"
+                      onClick={() => setShowJsonPatch((v) => !v)}
+                      className="rounded border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    >
+                      {showJsonPatch ? 'Hide JSON Patch' : `RFC 6902 (${stagedRfc6902Patch.length} ops)`}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setStagedPatch(null)}
+                    className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  >
+                    Revert Preview
+                  </button>
+                </div>
               </div>
 
               {diffItems.length === 0 ? (
@@ -1144,6 +1337,15 @@ export function WorkspaceArchitectModal({
                     </div>
                   ))}
                 </div>
+              )}
+
+              {showJsonPatch && stagedRfc6902Patch.length > 0 && (
+                <pre
+                  data-testid="rfc6902-json-patch-view"
+                  className="max-h-40 overflow-y-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-2.5 font-mono text-[10px] text-emerald-300"
+                >
+                  {JSON.stringify(stagedRfc6902Patch, null, 2)}
+                </pre>
               )}
             </div>
           )}

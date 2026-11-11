@@ -291,9 +291,100 @@ export const ProposedTrackerPatchSchema = z
 
 export type ProposedTrackerPatch = z.infer<typeof ProposedTrackerPatchSchema>;
 
+export const WORKSPACE_HOUSE_RULE_CATEGORIES = [
+  'combat',
+  'exploration',
+  'social',
+  'resting',
+  'magic',
+  'gritty_survival',
+  'custom',
+] as const;
+
+export const WORKSPACE_PILLAR_OPTIONS = [
+  'combat',
+  'exploration',
+  'social',
+  'mystery',
+  'intrigue',
+  'worldbuilding',
+  'craft',
+] as const;
+
+export const WORKSPACE_CHANNEL_OPTIONS = [
+  'initiative',
+  'rollFeed',
+  'clocks',
+  'audioNarration',
+  'actionEconomy',
+  'conspiracyBoard',
+  'whispers',
+  'houseRules',
+  'prepNotes',
+  'deepPrep',
+  'worldbuilding',
+  'encounterDesign',
+  'Guitar',
+  'Reading',
+  'Writing',
+] as const;
+
+export const WORKSPACE_LOAD_MODE_OPTIONS = [
+  'Tier 1',
+  'Tier 2',
+  'Tier 3',
+  'Cruise',
+  'Surge',
+  'Recovery',
+] as const;
+
+export const HouseRulePatchEntrySchema = z
+  .object({
+    id: z.string().trim().min(1).max(64),
+    title: z.string().trim().min(1).max(80),
+    category: z.enum(WORKSPACE_HOUSE_RULE_CATEGORIES),
+    ruleText: z.string().trim().min(3).max(500),
+    mechanicalSummary: z.string().trim().max(160).optional(),
+    enabled: z.boolean().default(true),
+    op: z.enum(['upsert', 'disable']).optional(),
+  })
+  .strict();
+
+export type HouseRulePatchEntry = z.infer<typeof HouseRulePatchEntrySchema>;
+
+export const WorkflowChannelPatchSchema = z
+  .object({
+    key: z.enum(WORKSPACE_CHANNEL_OPTIONS),
+    sticky: z.boolean(),
+    pillar: z.enum(WORKSPACE_PILLAR_OPTIONS).optional(),
+    blockMinutes: z.number().int().min(5).max(60).optional(),
+  })
+  .strict();
+
+export type WorkflowChannelPatch = z.infer<typeof WorkflowChannelPatchSchema>;
+
+export const WorkflowPatchSchema = z
+  .object({
+    blockDurationMinutes: z.number().int().min(5).max(60).optional(),
+    cruiseCeilingBlocks: z.number().int().min(1).max(24).optional(),
+    surgeCeilingBlocks: z.number().int().min(1).max(32).optional(),
+    loadMode: z.enum(WORKSPACE_LOAD_MODE_OPTIONS).optional(),
+    restVariant: z
+      .enum(['standard_5e', 'gritty_realism', 'heroic', 'custom'])
+      .optional(),
+    activePillars: z.array(z.enum(WORKSPACE_PILLAR_OPTIONS)).min(1).max(7).optional(),
+    channels: z.array(WorkflowChannelPatchSchema).min(1).max(15).optional(),
+    autoSnapshotIntervalMinutes: z.number().int().min(5).max(60).optional(),
+  })
+  .strict();
+
+export type WorkflowPatch = z.infer<typeof WorkflowPatchSchema>;
+
 export const CampaignWorkspacePatchSchema = z
   .object({
     campaignMode: CampaignModePatchSchema.optional(),
+    workflow: WorkflowPatchSchema.optional(),
+    houseRules: z.array(HouseRulePatchEntrySchema).min(1).max(25).optional(),
     systemFlavorAndTrackers: SystemFlavorAndTrackersSchema.optional(),
     terminologyMap: TerminologyMapSchema.optional(),
     hudLayoutPrefs: HudLayoutPrefsSchema.optional(),
@@ -327,12 +418,15 @@ export const ArchitectTurnResponseSchema = z
 export type ArchitectTurnResponse = z.infer<typeof ArchitectTurnResponseSchema>;
 
 export type StoredWorkspaceConfig = {
+  workflow?: WorkflowPatch;
+  houseRules?: HouseRulePatchEntry[];
   systemFlavorAndTrackers?: SystemFlavorAndTrackers;
   terminologyMap?: TerminologyMap;
   updatedAtMs?: number;
 };
 
 export type ProjectedWorkspaceConfig = {
+  houseRules?: HouseRulePatchEntry[];
   systemFlavorAndTrackers?: {
     genre?: string;
     toneTags?: string[];
@@ -751,6 +845,8 @@ export function validateWorkspacePatch(
   // Keep only recognized top-level keys (record unknown top-level campaign mutation attempts)
   const ALLOWED_TOP_KEYS = new Set([
     'campaignMode',
+    'workflow',
+    'houseRules',
     'systemFlavorAndTrackers',
     'terminologyMap',
     'hudLayoutPrefs',
@@ -1182,6 +1278,18 @@ export function validateWorkspacePatch(
         'Campaign mode and prep target overrides require GM campaign-owner authority and were stripped.',
       );
     }
+    if (validPatch.workflow) {
+      blockedScopes.push('workflow');
+      warnings.push(
+        'Workflow ceilings, block durations, and global sticky channels require GM campaign-owner authority and were stripped.',
+      );
+    }
+    if (validPatch.houseRules && validPatch.houseRules.length > 0) {
+      blockedScopes.push('houseRules');
+      warnings.push(
+        'Campaign house rules can only be added or modified by the GM campaign owner.',
+      );
+    }
 
     if (validPatch.systemFlavorAndTrackers) {
       if (
@@ -1276,6 +1384,8 @@ export function validateWorkspacePatch(
   // GM Campaign Owner path: full campaign patch allowed (still preserving player share confirmation!)
   const gmCampaignPatch: CampaignWorkspacePatch = {
     ...(validPatch.campaignMode ? { campaignMode: validPatch.campaignMode } : {}),
+    ...(validPatch.workflow ? { workflow: validPatch.workflow } : {}),
+    ...(validPatch.houseRules ? { houseRules: validPatch.houseRules } : {}),
     ...(validPatch.systemFlavorAndTrackers
       ? { systemFlavorAndTrackers: validPatch.systemFlavorAndTrackers }
       : {}),
@@ -1455,6 +1565,118 @@ export function buildWorkspacePatchDiff(
           after: afterStr,
         });
       }
+    }
+  }
+
+  // 1b. Workflow Ceilings, Block Durations & Sticky Channels (GM Campaign)
+  if (validated.canApplyToCampaign && validated.campaignPatch.workflow) {
+    const wf = validated.campaignPatch.workflow;
+    const prevWf = existingConfig.workflow ?? {};
+    if (typeof wf.blockDurationMinutes === 'number') {
+      items.push({
+        id: 'workflow.blockDurationMinutes',
+        scope: 'campaign',
+        category: 'Workflow & Pacing',
+        label: 'Block Duration',
+        before: prevWf.blockDurationMinutes ? `${prevWf.blockDurationMinutes}m` : '25m',
+        after: `${wf.blockDurationMinutes}m`,
+      });
+    }
+    if (typeof wf.cruiseCeilingBlocks === 'number') {
+      items.push({
+        id: 'workflow.cruiseCeilingBlocks',
+        scope: 'campaign',
+        category: 'Workflow & Pacing',
+        label: 'Cruise Ceiling',
+        before: prevWf.cruiseCeilingBlocks
+          ? `${prevWf.cruiseCeilingBlocks} blocks`
+          : '8 blocks',
+        after: `${wf.cruiseCeilingBlocks} blocks`,
+      });
+    }
+    if (typeof wf.surgeCeilingBlocks === 'number') {
+      items.push({
+        id: 'workflow.surgeCeilingBlocks',
+        scope: 'campaign',
+        category: 'Workflow & Pacing',
+        label: 'Surge Ceiling',
+        before: prevWf.surgeCeilingBlocks
+          ? `${prevWf.surgeCeilingBlocks} blocks`
+          : '12 blocks',
+        after: `${wf.surgeCeilingBlocks} blocks`,
+      });
+    }
+    if (wf.loadMode) {
+      items.push({
+        id: 'workflow.loadMode',
+        scope: 'campaign',
+        category: 'Workflow & Pacing',
+        label: 'Load Mode',
+        before: prevWf.loadMode || 'Cruise',
+        after: wf.loadMode,
+      });
+    }
+    if (wf.restVariant) {
+      items.push({
+        id: 'workflow.restVariant',
+        scope: 'campaign',
+        category: 'Workflow & Pacing',
+        label: 'Rest Variant',
+        before: prevWf.restVariant || 'standard_5e',
+        after: wf.restVariant,
+      });
+    }
+    if (wf.activePillars && wf.activePillars.length > 0) {
+      items.push({
+        id: 'workflow.activePillars',
+        scope: 'campaign',
+        category: 'Workflow & Pacing',
+        label: 'Active Pillars',
+        before: (prevWf.activePillars ?? ['combat', 'exploration', 'social']).join(', '),
+        after: wf.activePillars.join(', '),
+      });
+    }
+    if (wf.channels && wf.channels.length > 0) {
+      for (const ch of wf.channels) {
+        const prevCh = (prevWf.channels ?? []).find((c) => c.key === ch.key);
+        items.push({
+          id: `workflow.channel.${ch.key}`,
+          scope: 'campaign',
+          category: 'Workflow Channels',
+          label: `Channel "${ch.key}"`,
+          before: prevCh ? (prevCh.sticky ? 'Sticky' : 'Standard') : 'Standard',
+          after: ch.sticky ? 'Sticky' : 'Standard',
+        });
+      }
+    }
+  }
+
+  // 1c. Campaign House Rules (Non-destructive upserts)
+  if (
+    validated.canApplyToCampaign &&
+    validated.campaignPatch.houseRules &&
+    validated.campaignPatch.houseRules.length > 0
+  ) {
+    const prevRules = existingConfig.houseRules ?? [];
+    for (const rule of validated.campaignPatch.houseRules) {
+      const existingRule = prevRules.find(
+        (r) =>
+          r.id === rule.id ||
+          r.title.trim().toLowerCase() === rule.title.trim().toLowerCase(),
+      );
+      const nextEnabled = rule.op === 'disable' ? false : (rule.enabled ?? true);
+      items.push({
+        id: `houseRule.${rule.id}`,
+        scope: 'campaign',
+        category: 'House Rules',
+        label: `House Rule: ${rule.title}`,
+        before: existingRule
+          ? existingRule.enabled
+            ? existingRule.ruleText.slice(0, 48)
+            : 'Disabled'
+          : 'Not set',
+        after: nextEnabled ? rule.ruleText.slice(0, 64) : 'Disabled',
+      });
     }
   }
 
@@ -1776,6 +1998,66 @@ export function applyWorkspacePatchToCampaignData(
     prevConfig.systemFlavorAndTrackers = prevSft;
   }
 
+  if (patch.workflow) {
+    const prevWf: WorkflowPatch = { ...(prevConfig.workflow ?? {}) };
+    if (typeof patch.workflow.blockDurationMinutes === 'number') {
+      prevWf.blockDurationMinutes = patch.workflow.blockDurationMinutes;
+    }
+    if (typeof patch.workflow.cruiseCeilingBlocks === 'number') {
+      prevWf.cruiseCeilingBlocks = patch.workflow.cruiseCeilingBlocks;
+    }
+    if (typeof patch.workflow.surgeCeilingBlocks === 'number') {
+      prevWf.surgeCeilingBlocks = patch.workflow.surgeCeilingBlocks;
+    }
+    if (patch.workflow.loadMode) {
+      prevWf.loadMode = patch.workflow.loadMode;
+    }
+    if (patch.workflow.restVariant) {
+      prevWf.restVariant = patch.workflow.restVariant;
+    }
+    if (typeof patch.workflow.autoSnapshotIntervalMinutes === 'number') {
+      prevWf.autoSnapshotIntervalMinutes =
+        patch.workflow.autoSnapshotIntervalMinutes;
+    }
+    if (patch.workflow.activePillars && patch.workflow.activePillars.length > 0) {
+      prevWf.activePillars = Array.from(
+        new Set([
+          ...(prevWf.activePillars ?? []),
+          ...patch.workflow.activePillars,
+        ]),
+      );
+    }
+    if (patch.workflow.channels && patch.workflow.channels.length > 0) {
+      const mergedChannels = [...(prevWf.channels ?? [])];
+      for (const ch of patch.workflow.channels) {
+        const idx = mergedChannels.findIndex((c) => c.key === ch.key);
+        if (idx >= 0) mergedChannels[idx] = { ...mergedChannels[idx], ...ch };
+        else mergedChannels.push({ ...ch });
+      }
+      prevWf.channels = mergedChannels;
+    }
+    prevConfig.workflow = prevWf;
+  }
+
+  if (patch.houseRules && patch.houseRules.length > 0) {
+    const mergedRules = [...(prevConfig.houseRules ?? [])];
+    for (const incoming of patch.houseRules) {
+      const idx = mergedRules.findIndex(
+        (r) =>
+          r.id === incoming.id ||
+          r.title.trim().toLowerCase() === incoming.title.trim().toLowerCase(),
+      );
+      const enabled = incoming.op === 'disable' ? false : (incoming.enabled ?? true);
+      const entry: HouseRulePatchEntry = {
+        ...incoming,
+        enabled,
+      };
+      if (idx >= 0) mergedRules[idx] = { ...mergedRules[idx], ...entry };
+      else mergedRules.push(entry);
+    }
+    prevConfig.houseRules = mergedRules;
+  }
+
   if (patch.terminologyMap) {
     prevConfig.terminologyMap = {
       ...(prevConfig.terminologyMap ?? {}),
@@ -1783,7 +2065,12 @@ export function applyWorkspacePatchToCampaignData(
     };
   }
 
-  if (patch.systemFlavorAndTrackers || patch.terminologyMap) {
+  if (
+    patch.workflow ||
+    patch.houseRules ||
+    patch.systemFlavorAndTrackers ||
+    patch.terminologyMap
+  ) {
     prevConfig.updatedAtMs = Date.now();
     nextData[WORKSPACE_CONFIG_STATE_KEY] = prevConfig;
   }
@@ -3081,6 +3368,106 @@ export function compileNaturalLanguageArchitectTurn(
   }
   if (Object.keys(hudPrefs).length > 0) {
     rawPatch.hudLayoutPrefs = hudPrefs;
+  }
+
+  // 4b. Detect Workflow Ceilings, 5–60m Block Durations, Sticky Channels & House Rules
+  const wfPatch: Record<string, any> = {};
+  const blockDurMatch =
+    text.match(
+      /\b(?:prep\s+|session\s+|focus\s+|default\s+)?block\s+durations?\s*(?:to|=|:|of)?\s*(\d{1,3})\s*(?:m|min|mins|minutes?)?\b/i,
+    ) ||
+    text.match(
+      /\b(?:set|change|use)\s+(\d{1,3})\s*(?:m|min|mins|minutes?)\s+(?:prep\s+|focus\s+|capacity\s+)?blocks?\b/i,
+    );
+  if (blockDurMatch?.[1]) {
+    const mins = Number(blockDurMatch[1]);
+    if (mins >= 5 && mins <= 60) {
+      wfPatch.blockDurationMinutes = mins;
+      if (canEditCampaign) summaryParts.push(`set block duration to **${mins}m**`);
+    }
+  }
+
+  const cruiseMatch = text.match(
+    /\bcruise\s+(?:capacity\s+)?ceiling\s*(?:to|=|:|of)?\s*(\d{1,2})(?:\s+blocks?)?\b/i,
+  );
+  if (cruiseMatch?.[1]) {
+    const blocks = Number(cruiseMatch[1]);
+    if (blocks >= 1 && blocks <= 24) {
+      wfPatch.cruiseCeilingBlocks = blocks;
+      if (canEditCampaign) summaryParts.push(`set Cruise ceiling to **${blocks} blocks**`);
+    }
+  }
+
+  const stickyRx =
+    /\b(?:move|set|pin|promote|make|assign)\s+["']?([A-Za-z][A-Za-z0-9_ -]{1,24}?)["']?\s+(?:to|as|into)\s+(?:a\s+)?sticky\s+channel\b/gi;
+  const parsedStickyChannels: WorkflowChannelPatch[] = [];
+  let stickyHit: RegExpExecArray | null;
+  while ((stickyHit = stickyRx.exec(text)) !== null) {
+    const cand = stickyHit[1].trim();
+    const matchedChannel = WORKSPACE_CHANNEL_OPTIONS.find(
+      (opt) => opt.toLowerCase() === cand.toLowerCase(),
+    );
+    if (matchedChannel) {
+      parsedStickyChannels.push({ key: matchedChannel, sticky: true });
+    }
+  }
+  if (parsedStickyChannels.length > 0) {
+    wfPatch.channels = parsedStickyChannels;
+    if (canEditCampaign) {
+      summaryParts.push(
+        `moved **${parsedStickyChannels.map((c) => c.key).join(', ')}** to sticky channel`,
+      );
+    }
+  }
+  if (Object.keys(wfPatch).length > 0) {
+    rawPatch.workflow = wfPatch;
+  }
+
+  if (/\b(?:house\s*rules?|table\s*rules?|homebrew\s*rules?|custom\s+rule)\b/i.test(text)) {
+    const isDisableRule = /\b(?:disable|turn\s+off|deactivate)\b/i.test(text);
+    if (/\bflank(?:ing)?\b/i.test(text)) {
+      rawPatch.houseRules = [
+        {
+          id: 'rule_flanking',
+          title: 'Flanking Tactical Advantage',
+          category: 'combat',
+          ruleText:
+            'When two allied creatures stand on opposite sides of an enemy within melee reach, melee attacks against that target gain +2 to hit (or advantage per table option).',
+          mechanicalSummary: '+2 melee attack bonus (or advantage) while flanking',
+          enabled: !isDisableRule,
+          op: isDisableRule ? 'disable' : 'upsert',
+        },
+      ];
+      if (canEditCampaign) {
+        summaryParts.push(
+          `${isDisableRule ? 'disabled' : 'added'} **Flanking Tactical Advantage** house rule`,
+        );
+      }
+    } else {
+      const topicMatch = text.match(
+        /\b(?:house|table|custom)\s*rule\s+(?:for|about|on|called)\s+([^:.;!]+?)(?:\s+in\s+this\s+campaign)?(?:\s*[:—-]\s*(.+))?$/i,
+      );
+      const rawTitle = (topicMatch?.[1] || 'Custom House Rule')
+        .replace(/\s+in\s+this\s+campaign$/i, '')
+        .trim()
+        .slice(0, 64);
+      const ruleBody =
+        topicMatch?.[2]?.trim() ||
+        `Custom campaign house rule governing ${rawTitle.toLowerCase()}.`;
+      rawPatch.houseRules = [
+        {
+          id: makeSlugId('rule', rawTitle),
+          title: rawTitle.replace(/\b\w/g, (c) => c.toUpperCase()),
+          category: 'custom',
+          ruleText: ruleBody.slice(0, 480),
+          enabled: !isDisableRule,
+          op: isDisableRule ? 'disable' : 'upsert',
+        },
+      ];
+      if (canEditCampaign) {
+        summaryParts.push(`added house rule **${rawTitle}**`);
+      }
+    }
   }
 
   // 5. Build Clickable Option A / Option B Follow-up Chips for Ambiguous Rules

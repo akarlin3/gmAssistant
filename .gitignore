@@ -19,3 +19,7 @@ firebase-config.json
 public/sw.js.map
 public/workbox-*.js
 public/workbox-*.js.map
+
+# Prompt evaluation local SQLite completion cache
+/evals/.cache
+

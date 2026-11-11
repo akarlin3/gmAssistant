@@ -1,0 +1,58 @@
+suite: scene_turn_grounding
+description: >
+  Evaluates Scene Mode structured JSON narration (`lib/scene`), enforcing
+  NPC roster grounding (zero hallucinated npcIds), SRD ability/DC bounds (5–30),
+  and null suggestedRoll on passive observation.
+default_target: scene_turn
+
+cases:
+  - id: persuade_grounded_npc_check
+    description: Emits grounded NPC dialogue using only present npcIds and proposes a valid CHA/Persuasion check within DC 5–30.
+    context_state:
+      location:
+        id: loc_candlekeep_vault
+        name: "Sub-Vault of Ash"
+        description: "Basalt pillars, warded bronze doors, scent of ozone and ancient parchment."
+      npcs:
+        - id: npc_archivist_seren
+          name: "Archivist Seren"
+          traits: "Guarded, meticulous"
+          voice: "Clipped whisper"
+          goals: "Keep uninitiated visitors away from the sealed reliquary"
+      partyState: "Level 5 party, 2 torches burning, Charmed ward active"
+    user_input: "I try to persuade Archivist Seren to unseal the bronze reliquary door so we can inspect the inscription."
+    assertions:
+      json_parse: true
+      schema: scene_turn
+      max_latency_ms: 5000
+      forbidden_tokens:
+        - "npc_hallucinated"
+        - "||"
+      exact_fields:
+        - output.dialogue[0].npcId == "npc_archivist_seren"
+        - output.suggestedRoll.ability == "CHA"
+        - output.suggestedRoll.dc >= 5
+        - output.suggestedRoll.dc <= 30
+
+  - id: passive_observation_no_roll
+    description: Sets suggestedRoll to null when the player merely observes quietly without uncertain risk.
+    context_state:
+      location:
+        id: loc_moonlit_courtyard
+        name: "Moonlit Courtyard"
+        description: "Cracked marble fountain, silver ivy, distant owl calls."
+      npcs:
+        - id: npc_watchman_bram
+          name: "Watchman Bram"
+          traits: "Tired, observant"
+          voice: "Gravelly baritone"
+          goals: "Finish the midnight patrol peacefully"
+      partyState: "Rested, lanterns hooded"
+    user_input: "I look around and observe quietly from beside the marble fountain."
+    assertions:
+      json_parse: true
+      schema: scene_turn
+      max_latency_ms: 5000
+      exact_fields:
+        - output.dialogue[0].npcId == "npc_watchman_bram"
+        - output.suggestedRoll == null

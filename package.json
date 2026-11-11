@@ -23,6 +23,8 @@
     "test:node": "node --import tsx --test lib/generators/__tests__/*.test.ts lib/__tests__/*.test.ts lib/world/__tests__/*.test.ts",
     "test:vitest": "vitest run",
     "test:e2e": "playwright test",
+    "eval": "tsx evals/cli.ts",
+    "eval:judge": "tsx evals/cli.ts --judge",
     "test:rules": "firebase emulators:exec --only firestore --project player-mode-rules-test \"vitest run lib/playerMode/__tests__/rules.test.ts\"",
     "deploy:rules": "firebase deploy --only firestore:rules,storage --project campaign-prep-fc9ed --non-interactive",
     "deploy:firestore": "firebase deploy --only firestore,storage --project campaign-prep-fc9ed --non-interactive"
@@ -73,6 +75,7 @@
     "tsx": "^4.22.3",
     "typescript": "^5.9.3",
     "vitest": "^4.1.7",
-    "wrangler": "^4.158.0"
+    "wrangler": "^4.158.0",
+    "yaml": "^2.9.1"
   }
 }
