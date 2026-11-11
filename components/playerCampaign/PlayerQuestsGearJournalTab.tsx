@@ -35,6 +35,7 @@ import type { PlayerPc } from './types';
 import { PlayerPrivacyPill } from '@/components/ui/VisibilityBadge';
 import { GuidedEmptyState } from '@/components/ui/GuidedEmptyState';
 import { useEntityPeek } from '@/components/ui/EntityPeekDrawer';
+import { resolveTerm, type TerminologyMap } from '@/lib/workspaceConfigCompiler';
 
 export type PrivacyFilterMode = 'all' | 'shared' | 'private';
 
@@ -48,6 +49,7 @@ export default function PlayerQuestsGearJournalTab({
   trackerState,
   onUpdateTrackerState,
   revealedEntities,
+  terminologyMap,
 }: {
   pc?: PlayerPc;
   partyPcs?: PlayerPc[];
@@ -58,8 +60,13 @@ export default function PlayerQuestsGearJournalTab({
   trackerState: PlayerLocalTrackerState;
   onUpdateTrackerState: (next: PlayerLocalTrackerState) => void;
   revealedEntities: Array<{ id: string; name: string; category: string }>;
+  terminologyMap?: TerminologyMap;
 }) {
   const entityPeek = useEntityPeek();
+  const questsLabel = resolveTerm(terminologyMap, 'quests', 'Quests');
+  const coinPurseLabel = terminologyMap?.gold
+    ? `${resolveTerm(terminologyMap, 'gold', 'Gold')} Purse`
+    : 'Coin Purse';
 
   // Privacy filter state ("Filter: Shared with GM")
   const [questPrivacyFilter, setQuestPrivacyFilter] = useState<PrivacyFilterMode>('all');
@@ -483,7 +490,7 @@ export default function PlayerQuestsGearJournalTab({
             <CheckSquare size={18} className="text-[var(--accent-primary)]" />
             <div>
               <h3 className="font-display text-lg font-semibold tracking-wide text-[var(--text-primary)]">
-                My Quests &amp; Rumors
+                My {questsLabel} &amp; Rumors
               </h3>
               <p className="font-sans text-xs text-[var(--text-muted)]">
                 Track active quests, personal goals, and rumors. Private to your device unless shared.
@@ -775,7 +782,7 @@ export default function PlayerQuestsGearJournalTab({
         {/* Coin Purse (cp, sp, ep, gp, pp) */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-            <Coins size={12} className="text-amber-500" /> Coin Purse
+            <Coins size={12} className="text-amber-500" /> {coinPurseLabel}
           </div>
           <div className="grid grid-cols-5 gap-2">
             {(['cp', 'sp', 'ep', 'gp', 'pp'] as Array<keyof CoinPurse>).map((coin) => (

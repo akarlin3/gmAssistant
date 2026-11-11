@@ -45,6 +45,9 @@ import { PreviewAsPartyDrawer } from './ui/PreviewAsPartyDrawer';
 import { makeLogEntryId, type PlayerLogEntry } from '@/lib/playerMode/sessionLog';
 import { useReactiveWorldEvents } from '@/lib/world/useReactiveWorldEvents';
 import { GeminiBridgeModal } from './GeminiBridgeModal';
+import { WorkspaceArchitectModal } from './WorkspaceArchitectModal';
+import { useAuth } from '@/lib/firebase/auth-context';
+import { useWorkspaceCustomization } from '@/lib/useWorkspaceHudPrefs';
 import {
   captureVaultSnapshot,
   computeSnapshotDiff,
@@ -55,6 +58,7 @@ import {
 } from '@/lib/snapshotVault';
 
 export default function CampaignEditor(props: CampaignEditorProps) {
+  const { user: authUser } = useAuth();
   const ed = useCampaignEditor(props);
   const [companionTab, setCompanionTab] = React.useState<PlayerCompanionTabId>('sheet');
   const [previewAsPartyOpen, setPreviewAsPartyOpen] = React.useState(false);
@@ -153,6 +157,8 @@ export default function CampaignEditor(props: CampaignEditorProps) {
     uploadingPc,
     wikiValue,
     worldOnlyMode,
+    workspaceArchitectOpen,
+    setWorkspaceArchitectOpen,
     writePcs,
   } = ed;
 
@@ -168,6 +174,15 @@ export default function CampaignEditor(props: CampaignEditorProps) {
 
   // Decoupled Role vs. Prep Scale
   const workspaceRole: WorkspaceRole = playMode === 'player' ? 'player' : 'gm';
+  const isCampaignOwner =
+    workspaceRole === 'gm' &&
+    (!authUser || !campaign.userId || campaign.userId === authUser.uid);
+
+  const workspaceCust = useWorkspaceCustomization({
+    campaignId: campaign.id,
+    role: workspaceRole,
+    campaignStateOrProjectedConfig: state,
+  });
   const prepScale: PrepScale =
     playMode === 'solo' || playMode === 'duet' || playMode === 'standard'
       ? playMode
@@ -270,6 +285,7 @@ export default function CampaignEditor(props: CampaignEditorProps) {
           activePauseSignal={activePauseSignal}
           onDismissPauseSignal={() => setActivePauseSignal(null)}
           onOpenGeminiBridge={() => setGeminiBridgeOpen(true)}
+          onOpenWorkspaceArchitect={() => setWorkspaceArchitectOpen(true)}
           onEndSession={handleEndSession}
           onExitWithoutEnding={() => setVal('__runSessionOpen', false)}
           onOpenLibrary={() => {
@@ -374,6 +390,8 @@ export default function CampaignEditor(props: CampaignEditorProps) {
               : 'saved'
         }
         onOpenCommandPalette={() => setPaletteOpen(true)}
+        onOpenWorkspaceArchitect={() => setWorkspaceArchitectOpen(true)}
+        terminologyMap={workspaceCust.terminologyMap}
         onOpenShortcuts={() => setShortcutsOpen(true)}
         onOpenPreviewAsParty={() => setPreviewAsPartyOpen(true)}
         onSyncCapsule={() => setPreviewAsPartyOpen(true)}
@@ -816,6 +834,27 @@ export default function CampaignEditor(props: CampaignEditorProps) {
           setState(nextData);
           showUndoToast('Applied Gemini Studio payload to campaign', 3500);
         }}
+      />
+
+      <WorkspaceArchitectModal
+        open={workspaceArchitectOpen}
+        onClose={() => setWorkspaceArchitectOpen(false)}
+        campaignId={campaign.id}
+        campaignName={name}
+        campaignOwnerUid={campaign.userId}
+        campaignData={state}
+        role={workspaceRole}
+        isCampaignOwner={isCampaignOwner}
+        pcs={pcs}
+        onApplyCampaignData={(nextData, nextMode) => {
+          setState(nextData);
+          if (nextMode) setPlayMode(nextMode);
+        }}
+        onApplyPlayerPcWriteback={(pcId, updates) => {
+          const existing = pcs.find((p) => p.id === pcId);
+          if (existing) updatePc({ ...existing, ...(updates as any) });
+        }}
+        onNotify={(msg) => showUndoToast(msg, 3500)}
       />
 
       {snapshotVaultOpen && (

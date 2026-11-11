@@ -109,6 +109,7 @@ export function useCampaignEditor(props: CampaignEditorProps) {
   const [modeSwitcherOpen, setModeSwitcherOpen] = useState(false);
   const [oracleOpen, setOracleOpen] = useState(false);
   const [geminiBridgeOpen, setGeminiBridgeOpen] = useState(false);
+  const [workspaceArchitectOpen, setWorkspaceArchitectOpen] = useState(false);
   const [snapshotVaultOpen, setSnapshotVaultOpen] = useState(false);
   const [activePauseSignal, setActivePauseSignal] = useState<TablePauseSignal | null>(null);
   const [activeTourMode, setActiveTourMode] = useState<'solo' | 'duet' | null>(null);
@@ -832,6 +833,8 @@ export function useCampaignEditor(props: CampaignEditorProps) {
     wikiValue,
     world,
     worldOnlyMode,
+    workspaceArchitectOpen,
+    setWorkspaceArchitectOpen,
     writePcs,
   };
 }

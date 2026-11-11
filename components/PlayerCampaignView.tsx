@@ -60,6 +60,8 @@ import WhisperDrawer from './WhisperDrawer';
 import HandoutOverlay from './HandoutOverlay';
 import TacticalMapStage from './TacticalMapStage';
 import GeminiBridgeModal from './GeminiBridgeModal';
+import WorkspaceArchitectModal from './WorkspaceArchitectModal';
+import { useWorkspaceCustomization } from '@/lib/useWorkspaceHudPrefs';
 
 export type PlayerPrimarySubTab = 'world' | 'character' | 'tracker';
 
@@ -437,7 +439,27 @@ export default function PlayerCampaignView({
   );
 
   const [geminiModalOpen, setGeminiModalOpen] = useState(false);
+  const [architectModalOpen, setArchitectModalOpen] = useState(false);
   const [localPlayerSentWhispers, setLocalPlayerSentWhispers] = useState<PlayerWhisperMessage[]>([]);
+
+  const workspaceCust = useWorkspaceCustomization({
+    campaignId: campaignId || token,
+    role: 'player',
+    slotId,
+    campaignStateOrProjectedConfig: projection?.workspaceConfig ?? null,
+  });
+  const { hudLayout, term } = workspaceCust;
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setArchitectModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   return (
     <EntityPeekProvider playerSafe campaignData={peekCampaignData}>
@@ -451,11 +473,13 @@ export default function PlayerCampaignView({
           playerActiveTab={headerTab}
           onPlayerTabChange={handleHeaderTabChange}
           onSyncCapsule={() => setSyncCapsuleOpen(true)}
+          onOpenWorkspaceArchitect={() => setArchitectModalOpen(true)}
+          terminologyMap={workspaceCust.terminologyMap}
         />
 
-        <div className="w-full max-w-none space-y-3 px-3 py-2 sm:px-5">
+        <div className={`w-full max-w-none px-3 py-2 sm:px-5 ${hudLayout.densitySpacingClass}`}>
           {/* Redacted Live Initiative & Turn Banner */}
-          {encounterHud?.active && (
+          {encounterHud?.active && hudLayout.isWidgetVisible('initiative') && (
             <section
               data-testid="player-encounter-hud"
               className={`rounded-lg border p-3 shadow-card transition-all ${
@@ -526,13 +550,15 @@ export default function PlayerCampaignView({
           )}
 
           {/* Collapsible Shared Table Roll Feed */}
-          <CollapsibleTableRollFeed
-            rolls={combinedRollFeed}
-            currentPcId={activePc?.id}
-          />
+          {hudLayout.isWidgetVisible('rollFeed') && (
+            <CollapsibleTableRollFeed
+              rolls={combinedRollFeed}
+              currentPcId={activePc?.id}
+            />
+          )}
 
           {/* Live Session Music (Small Single Line Widget) */}
-          {activePlaylistUrl && (
+          {activePlaylistUrl && hudLayout.isWidgetVisible('audioNarration') && (
             <MusicPlayer
               playlistUrl={activePlaylistUrl}
               readOnly={true}
@@ -720,7 +746,7 @@ export default function PlayerCampaignView({
                   }`}
                 >
                   <Compass size={15} />
-                  <span>My Quests, Gear &amp; Journal</span>
+                  <span>My {term('quests', 'Quests')}, Gear &amp; Journal</span>
                 </button>
               </div>
 
@@ -1145,8 +1171,34 @@ export default function PlayerCampaignView({
           }}
         />
 
+        {/* Conversational Table & HUD Customizer (Strictly Player-Scoped: Local HUD + Whitelisted Owned Sheet Only) */}
+        <WorkspaceArchitectModal
+          open={architectModalOpen}
+          onClose={() => setArchitectModalOpen(false)}
+          campaignId={campaignId || token}
+          campaignName={campaignName}
+          role="player"
+          isCampaignOwner={false}
+          activeSlotId={slotId}
+          pcs={myPcs as any}
+          ownedPcIds={myPcs.map((p) => p.id)}
+          currentTrackerState={trackerState}
+          onApplyPlayerPcWriteback={async (pcId, updates) => {
+            if (campaignId && token && slotId && myPcs.some((p) => p.id === pcId)) {
+              await submitPlayerBatchUpdate({
+                campaignId,
+                shareToken: token,
+                slotId,
+                pcId,
+                updates,
+              });
+            }
+          }}
+          onApplyPlayerTrackerState={handleUpdateTrackerState}
+        />
+
         {/* Thumb-Zone Mobile Combat & Quick-Action Bottom Sheet (<768px) */}
-        {activePc && (
+        {activePc && hudLayout.isWidgetVisible('actionEconomy') && (
           <MobilePlayerCombatBar
             pc={activePc as unknown as Record<string, unknown>}
             isMyTurn={isMyTurn}

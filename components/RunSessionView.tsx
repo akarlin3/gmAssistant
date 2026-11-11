@@ -36,6 +36,8 @@ import { Overlays } from './runSession/view/Overlays';
 import { useAutoPublish, useShareActions } from './runSession/view/useAutoPublish';
 import { SECTION_META } from './runSession/view/constants';
 import type { Props } from './runSession/view/types';
+import { useWorkspaceCustomization } from '@/lib/useWorkspaceHudPrefs';
+import { WORKSPACE_CONFIG_STATE_KEY } from '@/lib/workspaceConfigCompiler';
 
 // Re-exported to preserve the existing import contract used by
 // CampaignEditor.tsx and PlayerCampaignView.tsx.
@@ -45,9 +47,18 @@ export { MusicPlayer } from './runSession/MusicPlayer';
 
 export default function RunSessionView({
   get, setVal, characters, pcs: pcsProp, onUpdatePcs, activePauseSignal, onDismissPauseSignal, onOpenGeminiBridge,
-  onEndSession, onExitWithoutEnding, onOpenLibrary, campaignContext, campaignId, campaignName,
+  onOpenWorkspaceArchitect, onEndSession, onExitWithoutEnding, onOpenLibrary, campaignContext, campaignId, campaignName,
   sessionPlaylistAnchor, setSessionPlaylistAnchor,
 }: Props) {
+  const workspaceCust = useWorkspaceCustomization({
+    campaignId,
+    role: 'gm',
+    campaignStateOrProjectedConfig: {
+      [WORKSPACE_CONFIG_STATE_KEY]: get(WORKSPACE_CONFIG_STATE_KEY, undefined),
+    },
+  });
+  const { hudLayout, term } = workspaceCust;
+
   const [section, setSection] = useState<Record<SectionKey, boolean>>({
     scenes: true, secrets: true, npcs: true, locations: true,
     monsters: true, magicItems: true, goals: true, clocks: true,
@@ -646,48 +657,50 @@ export default function RunSessionView({
               )}
             </SectionShell>
 
-            <SectionShell id="section-clocks" title={SECTION_META.clocks.label} icon={SECTION_META.clocks.icon} open={section.clocks} onToggle={() => toggleSection('clocks')} count={clocks.length}>
-              {clocks.length === 0 ? <Empty>No clocks prepped.</Empty> : (
-                <ul className="space-y-1.5">
-                  {clocks.map((c: any, i: number) => {
-                    const max = c.max || 6;
-                    const filled = c.filled || 0;
-                    const isShared = playerConfig.entityVisibility?.clocks?.[c.id]?.mode === 'party';
-                    return (
-                      <li key={i} className="space-y-1 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-ink">{c.text || `Clock ${i + 1}`}</span>
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => toggleEntityShare('clocks', c.id)}
-                              className={`p-1 transition-colors ${isShared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
-                              title={isShared ? 'Shared with Players (Click to hide)' : 'Share with Players'}
-                            >
-                              {isShared ? <Eye size={12} /> : <EyeOff size={12} />}
-                            </button>
-                            <span className="font-display text-[11px] text-brass-deep">{filled}/{max}</span>
+            {hudLayout.isWidgetVisible('clocks') && (
+              <SectionShell id="section-clocks" title={term('clocks', SECTION_META.clocks.label)} icon={SECTION_META.clocks.icon} open={section.clocks} onToggle={() => toggleSection('clocks')} count={clocks.length}>
+                {clocks.length === 0 ? <Empty>No clocks prepped.</Empty> : (
+                  <ul className="space-y-1.5">
+                    {clocks.map((c: any, i: number) => {
+                      const max = c.max || 6;
+                      const filled = c.filled || 0;
+                      const isShared = playerConfig.entityVisibility?.clocks?.[c.id]?.mode === 'party';
+                      return (
+                        <li key={i} className="space-y-1 rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-ink">{c.text || `Clock ${i + 1}`}</span>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => toggleEntityShare('clocks', c.id)}
+                                className={`p-1 transition-colors ${isShared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:bg-brass/10 hover:text-brass-deep'}`}
+                                title={isShared ? 'Shared with Players (Click to hide)' : 'Share with Players'}
+                              >
+                                {isShared ? <Eye size={12} /> : <EyeOff size={12} />}
+                              </button>
+                              <span className="font-display text-[11px] text-brass-deep">{filled}/{max}</span>
+                            </div>
                           </div>
-                        </div>
-                        {c.faction && <div className="text-[10px] italic text-ink-mute">{c.faction}</div>}
-                        <div className="flex gap-0.5">
-                          {Array.from({ length: max }).map((_, j) => (
-                            <button
-                              key={j}
-                              onClick={() => tickClock(i, j + 1 === filled ? -filled : (j + 1) - filled)}
-                              className={`h-3 flex-1 rounded-sm transition-colors ${j < filled ? 'bg-crimson' : 'bg-parchment-deep hover:bg-parchment-deep/70'}`}
-                            />
-                          ))}
-                        </div>
-                        <div className="flex gap-1">
-                          <button onClick={() => tickClock(i, -1)} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">−1</button>
-                          <button onClick={() => tickClock(i, 1)} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">+1</button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </SectionShell>
+                          {c.faction && <div className="text-[10px] italic text-ink-mute">{c.faction}</div>}
+                          <div className="flex gap-0.5">
+                            {Array.from({ length: max }).map((_, j) => (
+                              <button
+                                key={j}
+                                onClick={() => tickClock(i, j + 1 === filled ? -filled : (j + 1) - filled)}
+                                className={`h-3 flex-1 rounded-sm transition-colors ${j < filled ? 'bg-crimson' : 'bg-parchment-deep hover:bg-parchment-deep/70'}`}
+                              />
+                            ))}
+                          </div>
+                          <div className="flex gap-1">
+                            <button onClick={() => tickClock(i, -1)} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">−1</button>
+                            <button onClick={() => tickClock(i, 1)} className="rounded border border-rule px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-ink-soft hover:bg-parchment-deep">+1</button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </SectionShell>
+            )}
 
             {factions.length > 0 && (
               <SectionShell title="Faction Renown" icon={Users} open={true} onToggle={() => {}} count={factions.length}>

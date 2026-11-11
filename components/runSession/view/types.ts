@@ -18,6 +18,7 @@ export type Props = {
   activePauseSignal?: TablePauseSignal | null;
   onDismissPauseSignal?: () => void;
   onOpenGeminiBridge?: () => void;
+  onOpenWorkspaceArchitect?: () => void;
   onEndSession: () => void;
   onExitWithoutEnding: () => void;
   onOpenLibrary: () => void;

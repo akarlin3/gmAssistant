@@ -47,6 +47,7 @@ export function usePaletteItems(
   setPhaseOpen: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
   setState?: React.Dispatch<React.SetStateAction<Record<string, any>>>,
   pcFileInputRef?: React.RefObject<HTMLInputElement | null>,
+  setWorkspaceArchitectOpen?: (v: boolean) => void,
 ): CommandItem[] {
   const { theme, toggleTheme } = useTheme();
   const viewForSection = (sectionId: string): { mode: Mode; subview: string } => {
@@ -66,6 +67,18 @@ export function usePaletteItems(
         keywords: t.keywords,
         icon: t.icon,
         run: () => navigateTo({ mode: t.mode, subview: t.subview }),
+      });
+    }
+
+    if (setWorkspaceArchitectOpen) {
+      items.push({
+        id: 'act:workspace-architect',
+        label: 'Open Conversational Campaign & Table Customizer…',
+        sublabel: 'Mode, Prep Targets, Custom Trackers, Terminology & HUD Layout (⌘⇧K)',
+        group: 'Actions',
+        keywords: ['customizer', 'architect', 'sanity', 'terminology', 'hud', 'layout', 'trackers', 'duet', 'solo'],
+        icon: Wand2,
+        run: () => setWorkspaceArchitectOpen(true),
       });
     }
 

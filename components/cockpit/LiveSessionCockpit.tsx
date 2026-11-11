@@ -74,6 +74,11 @@ import LoreRagAssistant from '@/components/LoreRagAssistant';
 import K1CPrintQueuePanel from '@/components/printQueue/K1CPrintQueuePanel';
 import { normalizePcs } from '@/lib/pc/factory';
 import { PartyRunTrackerSection } from '@/components/CharacterSheetLifecycleControls';
+import { useWorkspaceCustomization } from '@/lib/useWorkspaceHudPrefs';
+import {
+  WORKSPACE_CONFIG_STATE_KEY,
+  type StoredWorkspaceConfig,
+} from '@/lib/workspaceConfigCompiler';
 
 
 interface LiveSessionCockpitProps {
@@ -91,6 +96,17 @@ export default function LiveSessionCockpit({
   setState,
   characters = [],
 }: LiveSessionCockpitProps) {
+  const { hudLayout, term } = useWorkspaceCustomization({
+    campaignId,
+    role: 'gm',
+    campaignStateOrProjectedConfig: state,
+  });
+  const customClockCategories = useMemo(
+    () =>
+      (state[WORKSPACE_CONFIG_STATE_KEY] as StoredWorkspaceConfig | undefined)
+        ?.systemFlavorAndTrackers?.clockCategories ?? [],
+    [state],
+  );
   const locations: any[] = useMemo(
     () => (Array.isArray(state.locations) ? state.locations : []),
     [state.locations]
@@ -608,7 +624,47 @@ export default function LiveSessionCockpit({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={hudLayout.densitySpacingClass}>
+      {hudLayout.isWidgetVisible('clocks') &&
+        hudLayout.pinnedTopWidgetIds.includes('clocks') && (
+          <section
+            data-testid="cockpit-pinned-clocks"
+            className="rounded border border-brass-deep/60 bg-parchment p-2.5 shadow-card"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 font-display text-xs uppercase tracking-wider text-brass-deep">
+                <Clock size={13} /> Pinned {term('clocks', 'Clocks')} ({clocks.length})
+              </span>
+              <button
+                type="button"
+                onClick={handleAddQuickClock}
+                className="inline-flex items-center gap-1 rounded border border-rule bg-parchment-soft px-2 py-0.5 font-display text-[9px] uppercase tracking-wider text-brass-deep hover:border-crimson hover:text-crimson"
+              >
+                <Plus size={10} /> Add Clock
+              </button>
+            </div>
+            {clocks.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {clocks.map((c, idx) => {
+                  const max = Number(c.max) || 6;
+                  const filled = Math.max(0, Math.min(max, Number(c.filled) || 0));
+                  return (
+                    <span
+                      key={c.id || `pin-clock-${idx}`}
+                      className="inline-flex items-center gap-1.5 rounded border border-rule bg-parchment-soft px-2 py-0.5 font-display text-[11px] text-ink"
+                    >
+                      <span>{c.text || `Clock ${idx + 1}`}</span>
+                      <span className="text-crimson font-bold">
+                        {filled}/{max}
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
       {/* ===================================================================
           MODULE 1C: 1-CLICK "IMPROV PANIC BAR" (TOP COMMAND BAR)
          =================================================================== */}
@@ -793,6 +849,7 @@ export default function LiveSessionCockpit({
             MODULE 1A: INITIATIVE, HP DELTA & CONDITION/CONCENTRATION TRACKER
            ----------------------------------------------------------------- */}
         <div className="space-y-3 lg:col-span-6">
+          {hudLayout.isWidgetVisible('initiative') && (
           <section className="space-y-3 rounded border border-rule bg-parchment p-3.5 shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-2.5">
               <div className="flex items-center gap-2">
@@ -1231,11 +1288,14 @@ export default function LiveSessionCockpit({
               </button>
             </div>
           </section>
+          )}
 
-          <PartyRunTrackerSection
-            pcs={normalizePcs(state.pcs ?? [])}
-            onUpdatePcs={(nextPcs) => setState((prev) => ({ ...prev, pcs: nextPcs }))}
-          />
+          {hudLayout.isWidgetVisible('actionEconomy') && (
+            <PartyRunTrackerSection
+              pcs={normalizePcs(state.pcs ?? [])}
+              onUpdatePcs={(nextPcs) => setState((prev) => ({ ...prev, pcs: nextPcs }))}
+            />
+          )}
         </div>
 
 
@@ -1513,10 +1573,11 @@ export default function LiveSessionCockpit({
             </div>
 
             {/* Active Faction Clocks (Module 3 Wired into Scene Card) */}
+            {hudLayout.isWidgetVisible('clocks') && (
             <div className="space-y-2 border-t border-rule pt-2.5">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 font-display text-[10px] uppercase tracking-wider text-brass-deep">
-                  <Clock size={12} /> Active Faction Progress Clocks (Click Segments to Tick/Untick)
+                  <Clock size={12} /> Active Faction Progress {term('clocks', 'Clocks')} (Click Segments to Tick/Untick)
                 </span>
                 <button
                   type="button"
@@ -1526,6 +1587,21 @@ export default function LiveSessionCockpit({
                   <Plus size={10} /> Add Clock
                 </button>
               </div>
+              {customClockCategories.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute">
+                    Categories:
+                  </span>
+                  {customClockCategories.map((cat) => (
+                    <span
+                      key={cat}
+                      className="rounded border border-brass-deep/40 bg-brass/10 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-wider text-brass-deep"
+                    >
+                      {cat}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {clocks.length === 0 ? (
                 <div className="rounded border border-dashed border-rule bg-parchment-soft p-3 text-center font-serif text-xs italic text-ink-mute">
@@ -1616,6 +1692,7 @@ export default function LiveSessionCockpit({
                 </div>
               )}
             </div>
+            )}
           </section>
         </div>
       </div>

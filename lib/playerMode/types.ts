@@ -238,6 +238,8 @@ export type SlotProjection = {
     anchorWallTimeMs: number;
     playlistIndex: number;
   };
+  // Public campaign terminology & tracker templates (strictly spoiler-scrubbed, zero GM secrets)
+  workspaceConfig?: import('@/lib/workspaceConfigCompiler').ProjectedWorkspaceConfig;
 };
 
 export type CampaignItem = {

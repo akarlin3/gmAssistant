@@ -19,11 +19,13 @@ import {
   Archive,
   LogOut,
   RefreshCw,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { ThemeToggleButton } from '@/lib/theme';
 import { UnifiedSyncDot } from '@/components/SyncIndicator';
 import { triggerPwaInstallPrompt } from '@/src/components/PwaInstaller';
 import { useAuth } from '@/lib/firebase/auth-context';
+import { resolveTerm, type TerminologyMap } from '@/lib/workspaceConfigCompiler';
 
 export type GmPrimaryTab = 'prep' | 'world_roster' | 'run' | 'reference';
 export type PlayerPrimaryTab = 'sheet' | 'quests' | 'world_journal' | 'gear' | 'play';
@@ -67,6 +69,8 @@ export interface TopHeaderBarProps {
   saveStatus?: 'saved' | 'saving' | 'error';
   idbHydrated?: boolean;
   onOpenCommandPalette?: () => void;
+  onOpenWorkspaceArchitect?: () => void;
+  terminologyMap?: TerminologyMap;
   onOpenShortcuts?: () => void;
   onOpenPreviewAsParty?: () => void;
   onSyncCapsule?: () => void;
@@ -95,6 +99,8 @@ export function TopHeaderBar({
   saveStatus = 'saved',
   idbHydrated = true,
   onOpenCommandPalette,
+  onOpenWorkspaceArchitect,
+  terminologyMap,
   onOpenShortcuts,
   onOpenPreviewAsParty,
   onSyncCapsule,
@@ -509,6 +515,25 @@ export function TopHeaderBar({
                   >
                     <Upload size={13} className="text-[var(--text-muted)]" />
                     <span>Import Campaign JSON</span>
+                  </button>
+                )}
+
+                {onOpenWorkspaceArchitect && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenWorkspaceArchitect();
+                      setOverflowOpen(false);
+                    }}
+                    className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left font-sans text-xs text-[var(--text-primary)] hover:bg-white/5"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <SlidersHorizontal size={13} className="text-[var(--accent-primary)]" />
+                      <span>Campaign &amp; Table Customizer</span>
+                    </span>
+                    <kbd className="rounded border border-[var(--border-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">
+                      ⌘⇧K
+                    </kbd>
                   </button>
                 )}
 

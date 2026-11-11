@@ -12,6 +12,7 @@ import type { EntityType, Relationship } from '@/lib/wiki/types';
 import { projectPlayerMaps } from '@/lib/maps/playerProjection';
 import type { PartyLootItem, RollEvent } from '@/lib/pc/types';
 import { projectWorldClockForPlayers } from '@/lib/worldClock';
+import { projectPublicWorkspaceConfig } from '@/lib/workspaceConfigCompiler';
 import {
   PLAYER_ENTITY_TYPES,
   normalizeItem,
@@ -703,6 +704,7 @@ export function buildSlotProjection(
 
   // World Clock projection (only projected when worldClock.visibility === 'party')
   const worldClock = projectWorldClockForPlayers(data as Record<string, unknown>);
+  const workspaceConfig = projectPublicWorkspaceConfig(data as Record<string, unknown>);
 
   return {
     campaignName,
@@ -725,6 +727,7 @@ export function buildSlotProjection(
     handoutGallery,
     activeHandoutFlash,
     ...(worldClock ? { worldClock } : {}),
+    ...(workspaceConfig ? { workspaceConfig } : {}),
     tableSafetyEnabled: config.tableSafetyEnabled === true,
     playlistUrl: data.__sessionPlaylist || '',
     playlistPlaying: !!data.__sessionPlaylistPlaying,

@@ -24,6 +24,7 @@ export function useKeyboardShortcuts(
   setShortcutsOpen: React.Dispatch<React.SetStateAction<boolean>>,
   setMode: React.Dispatch<React.SetStateAction<Mode>>,
   setSubview: React.Dispatch<React.SetStateAction<string>>,
+  setWorkspaceArchitectOpen?: React.Dispatch<React.SetStateAction<boolean>>,
 ) {
   useEffect(() => {
     const isTyping = (el: EventTarget | null) => {
@@ -34,7 +35,14 @@ export function useKeyboardShortcuts(
     };
 
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'k') {
+        if (setWorkspaceArchitectOpen) {
+          e.preventDefault();
+          setWorkspaceArchitectOpen((p) => !p);
+          return;
+        }
+      }
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'k') {
         e.preventDefault(); setPaletteOpen(p => !p); return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
@@ -67,5 +75,5 @@ export function useKeyboardShortcuts(
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [paletteOpen, shortcutsOpen, syncState, syncError, mode, subview, confirmUnsavedNav, showUndoToast,
-    undoStackRef, skipNextSnapshotRef, setState, setDone, setName, setCanUndo, setPaletteOpen, setShortcutsOpen, setMode, setSubview]);
+    undoStackRef, skipNextSnapshotRef, setState, setDone, setName, setCanUndo, setPaletteOpen, setShortcutsOpen, setMode, setSubview, setWorkspaceArchitectOpen]);
 }

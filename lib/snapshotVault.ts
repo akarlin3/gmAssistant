@@ -19,6 +19,7 @@ export type VaultSnapshotReason =
   | 'json_import'
   | 'pre_json_import'
   | 'gemini_bridge_apply'
+  | 'workspace_architect_apply'
   | 'character_upload'
   | 'batch_character_upload'
   | 'destructive_delete'
@@ -30,6 +31,7 @@ export const VAULT_REASON_LABELS: Record<VaultSnapshotReason, string> = {
   json_import: 'Pre-JSON Import Backup',
   pre_json_import: 'Pre-JSON Import Backup',
   gemini_bridge_apply: 'Pre-Gemini Bridge Apply',
+  workspace_architect_apply: 'Pre-Workspace Customizer Apply',
   character_upload: 'Pre-Character Sheet Upload',
   batch_character_upload: 'Pre-Batch Character Upload',
   destructive_delete: 'Pre-Delete Safety Backup',
