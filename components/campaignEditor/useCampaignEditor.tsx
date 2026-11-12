@@ -111,6 +111,7 @@ export function useCampaignEditor(props: CampaignEditorProps) {
   const [geminiBridgeOpen, setGeminiBridgeOpen] = useState(false);
   const [workspaceArchitectOpen, setWorkspaceArchitectOpen] = useState(false);
   const [snapshotVaultOpen, setSnapshotVaultOpen] = useState(false);
+  const [vttImportOpen, setVttImportOpen] = useState(false);
   const [activePauseSignal, setActivePauseSignal] = useState<TablePauseSignal | null>(null);
   const [activeTourMode, setActiveTourMode] = useState<'solo' | 'duet' | null>(null);
   const suppressBroadcastRef = useRef(false);
@@ -616,7 +617,7 @@ export function useCampaignEditor(props: CampaignEditorProps) {
     state, soloMode, sortedSessionLogs, pcs, generatorLogs,
     navigateTo, get, addPc, addSessionLog, exportJSON, fileInputRef,
     setModeSwitcherOpen, setPrepTargetsOpen, setPhaseOpen,
-    setState, pcFileInputRef,
+    setState, pcFileInputRef, setWorkspaceArchitectOpen, setVttImportOpen,
   );
 
   // ── Prep wizard helpers ──────────────────────────────────────────────────
@@ -835,6 +836,8 @@ export function useCampaignEditor(props: CampaignEditorProps) {
     worldOnlyMode,
     workspaceArchitectOpen,
     setWorkspaceArchitectOpen,
+    vttImportOpen,
+    setVttImportOpen,
     writePcs,
   };
 }

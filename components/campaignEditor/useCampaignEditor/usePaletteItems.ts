@@ -16,6 +16,17 @@ import { useTheme } from '@/lib/theme';
 import spellsData from '@/lib/srd/spells.json';
 import type { Spell } from '@/components/SpellsTab';
 import { isEntityPlayerVisible, syncEntityPlayerVisibility } from '@/lib/playerMode/spoilers';
+import {
+  SRD_CORE_MONSTERS,
+  SRD_MAGIC_ITEMS,
+  SRD_SPELLS,
+  createPartyLootFromItem,
+  grantMagicItemToPc,
+  grantSpellToPc,
+  instantiateMonsterCombatants,
+} from '@/lib/srdCompendium';
+import { makeDefaultLayer, makeMap, readMaps } from '@/lib/maps/types';
+import { normalizePcs } from '@/lib/pc/factory';
 
 const SPELLS = spellsData as Spell[];
 
@@ -48,6 +59,7 @@ export function usePaletteItems(
   setState?: React.Dispatch<React.SetStateAction<Record<string, any>>>,
   pcFileInputRef?: React.RefObject<HTMLInputElement | null>,
   setWorkspaceArchitectOpen?: (v: boolean) => void,
+  setVttImportOpen?: (v: boolean) => void,
 ): CommandItem[] {
   const { theme, toggleTheme } = useTheme();
   const viewForSection = (sectionId: string): { mode: Mode; subview: string } => {
@@ -79,6 +91,18 @@ export function usePaletteItems(
         keywords: ['customizer', 'architect', 'sanity', 'terminology', 'hud', 'layout', 'trackers', 'duet', 'solo'],
         icon: Wand2,
         run: () => setWorkspaceArchitectOpen(true),
+      });
+    }
+
+    if (setVttImportOpen) {
+      items.push({
+        id: 'act:vtt-import',
+        label: 'Import from Foundry VTT / D&D Beyond / 5e Markdown…',
+        sublabel: 'Universal VTT & Encounter Importer (🔒 Private default + Snapshot Vault backup)',
+        group: 'Actions',
+        keywords: ['vtt', 'foundry', 'ddb', 'beyond', 'roll20', 'open5e', '5etools', 'kobold', 'markdown', 'statblock', 'import'],
+        icon: Upload,
+        run: () => setVttImportOpen(true),
       });
     }
 
@@ -395,6 +419,127 @@ export function usePaletteItems(
           run: () => navigateTo({ mode: destView.mode, subview: destView.subview }),
         });
       });
+    }
+
+    if (setState) {
+      SRD_CORE_MONSTERS.forEach((mon) => {
+        items.push({
+          id: `srd:spawn:${mon.slug}`,
+          label: `Spawn ${mon.name} to Encounter / Map (🔒 Private)`,
+          sublabel: `CR ${mon.cr} · AC ${mon.ac} · HP ${mon.hp} (${mon.hitDice})`,
+          group: 'Monsters',
+          keywords: ['srd', 'monster', 'spawn', 'encounter', 'token', mon.type, mon.slug, `cr${mon.cr}`],
+          icon: Skull,
+          run: () => {
+            setState((prev) => {
+              const curInit = (prev.__initiative ?? prev.initiative ?? {
+                round: 1,
+                activeIndex: 0,
+                combatants: [],
+              }) as { round: number; activeIndex: number; combatants: any[] };
+              const maps = readMaps({ maps: prev.maps });
+              let targetMap = maps[0];
+              let nextMaps = [...maps];
+              if (!targetMap) {
+                const layer = makeDefaultLayer(0);
+                layer.visibleToPlayers = true;
+                targetMap = makeMap({ name: 'Tactical Encounter Stage', type: 'dungeon' });
+                targetMap.layers = [layer];
+                nextMaps = [targetMap];
+              }
+              const spawned = instantiateMonsterCombatants(mon, {
+                count: 1,
+                rollHp: true,
+                hidden: true,
+                existingCombatants: curInit.combatants ?? [],
+                existingTokens: targetMap.tokens ?? [],
+              });
+              const updatedInit = {
+                ...curInit,
+                combatants: [...(curInit.combatants ?? []), ...spawned.combatants],
+              };
+              const updatedMaps = nextMaps.map((m, idx) =>
+                idx === 0 ? { ...m, tokens: [...(m.tokens ?? []), ...spawned.tokens] } : m,
+              );
+              return {
+                ...prev,
+                __initiative: updatedInit,
+                initiative: updatedInit,
+                maps: updatedMaps,
+              };
+            });
+            navigateTo({ mode: 'run', subview: 'maps' });
+          },
+        });
+      });
+
+      SRD_MAGIC_ITEMS.forEach((item) => {
+        items.push({
+          id: `srd:loot:${item.slug}`,
+          label: `Drop ${item.name} into Party Loot`,
+          sublabel: `${item.rarity} · ${item.category}${item.requiresAttunement ? ' · Attunement' : ''}`,
+          group: 'Magic items',
+          keywords: ['srd', 'item', 'loot', 'magic', item.rarity, item.category, item.slug],
+          icon: Gift,
+          run: () => {
+            setState((prev) => {
+              const loot = createPartyLootFromItem(item, 1);
+              return {
+                ...prev,
+                partyLootItems: [...(Array.isArray(prev.partyLootItems) ? prev.partyLootItems : []), loot],
+              };
+            });
+          },
+        });
+
+        if (pcs.length > 0) {
+          const firstPcName = (pcs[0]?.name || '').trim() || 'Active PC';
+          items.push({
+            id: `srd:grant-item:${item.slug}`,
+            label: `Grant ${item.name} → ${firstPcName}`,
+            sublabel: `${item.rarity} · Auto-wires attack/AC bonuses`,
+            group: 'Magic items',
+            keywords: ['srd', 'grant', 'sheet', 'equip', item.name, firstPcName],
+            icon: Gift,
+            run: () => {
+              setState((prev) => {
+                const fullPcs = normalizePcs(prev.pcs);
+                if (fullPcs.length === 0) return prev;
+                const updatedFirst = grantMagicItemToPc(fullPcs[0], item, { equip: true });
+                return {
+                  ...prev,
+                  pcs: [updatedFirst, ...fullPcs.slice(1)],
+                };
+              });
+            },
+          });
+        }
+      });
+
+      if (pcs.length > 0) {
+        const firstPcName = (pcs[0]?.name || '').trim() || 'Active PC';
+        SRD_SPELLS.slice(0, 60).forEach((srdSpell) => {
+          items.push({
+            id: `srd:grant-spell:${srdSpell.slug}`,
+            label: `Add ${srdSpell.name} to ${firstPcName}'s Sheet`,
+            sublabel: `${srdSpell.level === 0 ? 'Cantrip' : `Lvl ${srdSpell.level}`} · ${srdSpell.school}${srdSpell.concentration ? ' · Conc.' : ''}`,
+            group: 'Spells',
+            keywords: ['srd', 'spell', 'grant', 'sheet', srdSpell.name, firstPcName],
+            icon: Sparkles,
+            run: () => {
+              setState((prev) => {
+                const fullPcs = normalizePcs(prev.pcs);
+                if (fullPcs.length === 0) return prev;
+                const updatedFirst = grantSpellToPc(fullPcs[0], srdSpell);
+                return {
+                  ...prev,
+                  pcs: [updatedFirst, ...fullPcs.slice(1)],
+                };
+              });
+            },
+          });
+        });
+      }
     }
 
     SPELLS.slice(0, 80).forEach((spell: Spell, idx: number) => {

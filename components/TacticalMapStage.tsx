@@ -7,6 +7,7 @@ import {
   newId,
   readMaps,
   type CampaignMap,
+  type MapAoeTemplate,
   type MapFogRegion,
   type MapPing,
   type MapTokenPin,
@@ -18,15 +19,41 @@ import {
   projectMapTokens,
   type PlayerMap,
 } from '@/lib/maps/playerProjection';
-import type { PlayerCharacter } from '@/lib/pc/types';
+import {
+  applyAutomatedDamageToCombatant,
+  applyAutomatedDamageToPc,
+  autoRollMonsterSavePrompt,
+  buildAoeSvgGeometry,
+  computeTokensInAoe,
+  createCombatSavePrompt,
+  measureMapDistance,
+  type AoeShape,
+  type CombatSavePrompt,
+  type DamageOutcomeMode,
+  type DiagonalDistanceRule,
+  type ProjectedSavePrompt,
+} from '@/lib/combatAutomation';
+import {
+  SRD_CORE_MONSTERS,
+  getSrdMonsterBySlugOrName,
+  instantiateMonsterCombatants,
+  rollHitPointsFormula,
+  type SrdMonster,
+} from '@/lib/srdCompendium';
+import { SRD_MONSTER_DRAG_MIME } from '@/components/CompendiumDrawer';
+import { rollConcentrationCheck } from '@/lib/diceRoller';
+import type { Combatant } from '@/lib/initiative';
+import type { AbilityName, PlayerCharacter, RollEvent } from '@/lib/pc/types';
 
 export interface TacticalMapStageProps {
   /** Role of the viewer: 'gm' (full authoring + fog/trap controls), 'standalone-player', or 'shared-player'. */
   role: 'gm' | 'standalone-player' | 'shared-player';
   /** Raw campaign maps (for GM / standalone-player) or projected PlayerMap[] (for shared-player). */
   maps?: CampaignMap[] | PlayerMap[];
-  /** Party PCs for 1-click PC token spawning & ownership lookup. */
+  /** Party PCs for 1-click PC token spawning, resistance lookup & automated damage application. */
   pcs?: PlayerCharacter[];
+  /** Active encounter combatants for monster save auto-rolls, HP deduction & SRD drop spawning. */
+  combatants?: Combatant[];
   /** Monsters / NPCs for 1-click monster/NPC token spawning (GM only). */
   monsters?: Array<{ id?: string; name: string }>;
   npcs?: Array<{ id?: string; name: string }>;
@@ -35,16 +62,44 @@ export interface TacticalMapStageProps {
   activePcColor?: string;
   /** Callback for GM / standalone-player to persist updated CampaignMap[] into campaign data. */
   onChangeMaps?: (nextMaps: CampaignMap[]) => void;
+  /** Optional callback to persist updated Combatant[] when spawning SRD monsters or applying save/damage. */
+  onChangeCombatants?: (nextCombatants: Combatant[]) => void;
+  /** Optional callback to persist updated PlayerCharacter[] when applying damage directly. */
+  onUpdatePcs?: (nextPcs: PlayerCharacter[]) => void;
+  /** Optional callback to broadcast a targeted CombatSavePrompt to `/player` slots. */
+  onDispatchSavePrompt?: (prompt: CombatSavePrompt) => void;
+  /** Optional custom handler when an SRD monster card is dragged and dropped onto the map stage. */
+  onDropSrdMonster?: (
+    monster: SrdMonster,
+    opts: { x: number; y: number; count: number; rollHp: boolean; hidden: boolean },
+  ) => void;
   /** Callback for claimed player in /player to move their own PC token via pcWritebacks. */
   onPlayerMoveOwnToken?: (pos: { mapId: string; x: number; y: number; updatedAt: number }) => void;
   /** Callback for claimed player in /player to emit a 3-second live map ping via pcWritebacks. */
-  onPlayerEmitPing?: (ping: { id: string; mapId: string; pcId: string; x: number; y: number; color: string; timestamp: number }) => void;
+  onPlayerEmitPing?: (ping: {
+    id: string;
+    mapId: string;
+    pcId: string;
+    x: number;
+    y: number;
+    color: string;
+    timestamp: number;
+  }) => void;
   /** Optional callback to flash the map image as a party handout (GM only). */
   onFlashMapAsHandout?: (map: CampaignMap) => void;
   compact?: boolean;
 }
 
-type GmMapTool = 'select' | 'ping' | 'fog-room' | 'fog-poly' | 'fog-brush' | 'add-token' | 'add-trap';
+type GmMapTool =
+  | 'select'
+  | 'ping'
+  | 'ruler'
+  | 'aoe'
+  | 'fog-room'
+  | 'fog-poly'
+  | 'fog-brush'
+  | 'add-token'
+  | 'add-trap';
 
 const PRESET_GRID_BACKGROUNDS = [
   { label: 'Dungeon Stone Grid', value: '' },
@@ -82,6 +137,100 @@ const PRESET_GRID_BACKGROUNDS = [
   },
 ];
 
+const SAVE_AUTOMATION_PRESETS: Array<{
+  label: string;
+  sourceName: string;
+  ability: AbilityName;
+  dc: number;
+  formula: string;
+  avgDamage: number;
+  damageType: string;
+  halfOnSuccess: boolean;
+  aoeShape?: AoeShape;
+  aoeSizeFt?: number;
+}> = [
+  {
+    label: '🔥 Fireball (DEX 15 · 8d6)',
+    sourceName: 'Fireball',
+    ability: 'DEX',
+    dc: 15,
+    formula: '8d6',
+    avgDamage: 28,
+    damageType: 'fire',
+    halfOnSuccess: true,
+    aoeShape: 'sphere',
+    aoeSizeFt: 20,
+  },
+  {
+    label: '🔥 Burning Hands (DEX 13 · 3d6)',
+    sourceName: 'Burning Hands',
+    ability: 'DEX',
+    dc: 13,
+    formula: '3d6',
+    avgDamage: 10,
+    damageType: 'fire',
+    halfOnSuccess: true,
+    aoeShape: 'cone',
+    aoeSizeFt: 15,
+  },
+  {
+    label: '⚡ Lightning Bolt (DEX 15 · 8d6)',
+    sourceName: 'Lightning Bolt',
+    ability: 'DEX',
+    dc: 15,
+    formula: '8d6',
+    avgDamage: 28,
+    damageType: 'lightning',
+    halfOnSuccess: true,
+    aoeShape: 'line',
+    aoeSizeFt: 100,
+  },
+  {
+    label: '✨ Sacred Flame (DEX 13 · 1d8)',
+    sourceName: 'Sacred Flame',
+    ability: 'DEX',
+    dc: 13,
+    formula: '1d8',
+    avgDamage: 5,
+    damageType: 'radiant',
+    halfOnSuccess: false,
+  },
+  {
+    label: '❄️ Cone of Cold (CON 16 · 8d8)',
+    sourceName: 'Cone of Cold',
+    ability: 'CON',
+    dc: 16,
+    formula: '8d8',
+    avgDamage: 36,
+    damageType: 'cold',
+    halfOnSuccess: true,
+    aoeShape: 'cone',
+    aoeSizeFt: 60,
+  },
+];
+
+const DAMAGE_TYPE_OPTIONS = [
+  'fire',
+  'cold',
+  'lightning',
+  'thunder',
+  'acid',
+  'poison',
+  'necrotic',
+  'radiant',
+  'force',
+  'psychic',
+  'slashing',
+  'piercing',
+  'bludgeoning',
+];
+
+const ABILITY_OPTIONS: AbilityName[] = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
+
+const SRD_MONSTERS_BY_ID: Map<string, SrdMonster> = new Map(
+  SRD_CORE_MONSTERS.map((m) => [m.id, m]),
+);
+
 const PING_LIFETIME_MS = 3000;
 const LONG_PRESS_MS = 420;
 
@@ -89,11 +238,16 @@ export function TacticalMapStage({
   role,
   maps: rawMapsProp,
   pcs = [],
+  combatants = [],
   monsters = [],
   npcs = [],
   activePcId,
   activePcColor,
   onChangeMaps,
+  onChangeCombatants,
+  onUpdatePcs,
+  onDispatchSavePrompt,
+  onDropSrdMonster,
   onPlayerMoveOwnToken,
   onPlayerEmitPing,
   onFlashMapAsHandout,
@@ -123,6 +277,11 @@ export function TacticalMapStage({
         fogEnabled: pm.fogEnabled,
         fogRevealedRegions: pm.fogRevealedRegions ?? [],
         pings: pm.pings ?? [],
+        gridFeetPerSquare: pm.gridFeetPerSquare ?? 5,
+        aoeTemplates: (pm.aoeTemplates ?? []).map((a) => ({
+          ...a,
+          visibility: 'party' as const,
+        })),
         createdAt: 0,
       }));
     }
@@ -143,6 +302,48 @@ export function TacticalMapStage({
   const [localPings, setLocalPings] = useState<MapPing[]>([]);
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
   const [previewPlayerRedaction, setPreviewPlayerRedaction] = useState(false);
+
+  // Distance Ruler state
+  const [localGridFeet, setLocalGridFeet] = useState<number>(5);
+  const [diagonalRule, setDiagonalRule] = useState<DiagonalDistanceRule>('5e-chebyshev');
+  const [rulerDragActive, setRulerDragActive] = useState(false);
+  const [rulerPoints, setRulerPoints] = useState<{
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+  } | null>(null);
+
+  // AoE Template authoring & dragging state
+  const [aoeShape, setAoeShape] = useState<AoeShape>('sphere');
+  const [aoeSizeFt, setAoeSizeFt] = useState<number>(20);
+  const [aoeColor, setAoeColor] = useState<string>('#f97316');
+  const [aoeLabel, setAoeLabel] = useState<string>('Fireball');
+  const [aoeVisibility, setAoeVisibility] = useState<'party' | 'private'>('party');
+  const [localAoeTemplates, setLocalAoeTemplates] = useState<MapAoeTemplate[]>([]);
+  const [draggingAoeHandle, setDraggingAoeHandle] = useState<{
+    id: string;
+    part: 'origin' | 'target';
+    isLocal: boolean;
+  } | null>(null);
+
+  // SRD drag-drop feedback
+  const [dragOverStage, setDragOverStage] = useState(false);
+  const [combatLogBanner, setCombatLogBanner] = useState<string | null>(null);
+
+  // Targeted Attack / Save / Automated Damage loop state
+  const [selectedTargetTokenIds, setSelectedTargetTokenIds] = useState<string[]>([]);
+  const [showCombatBar, setShowCombatBar] = useState(false);
+  const [saveSourceName, setSaveSourceName] = useState('Fireball');
+  const [saveAbility, setSaveAbility] = useState<AbilityName>('DEX');
+  const [saveDc, setSaveDc] = useState<number>(15);
+  const [damageFormula, setDamageFormula] = useState('8d6');
+  const [rawDamageInput, setRawDamageInput] = useState<number>(28);
+  const [damageType, setDamageType] = useState<string>('fire');
+  const [halfOnSuccess, setHalfOnSuccess] = useState<boolean>(true);
+  const [concentrationAlerts, setConcentrationAlerts] = useState<
+    Array<{ pcId: string; pcName: string; spell: string; dc: number }>
+  >([]);
 
   const stageRef = useRef<SVGSVGElement | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
@@ -180,6 +381,12 @@ export function TacticalMapStage({
     return () => window.clearInterval(timer);
   }, [activeMap?.pings, localPings]);
 
+  const effectiveGridFeetPerSquare = useMemo(() => {
+    const fromMap = activeMap?.gridFeetPerSquare;
+    if (canAuthorMap && typeof fromMap === 'number' && fromMap > 0) return fromMap;
+    return localGridFeet > 0 ? localGridFeet : 5;
+  }, [activeMap?.gridFeetPerSquare, canAuthorMap, localGridFeet]);
+
   const commitMapUpdate = useCallback(
     (updater: (m: CampaignMap) => CampaignMap) => {
       if (!activeMap || !onChangeMaps) return;
@@ -188,6 +395,13 @@ export function TacticalMapStage({
     },
     [activeMap, normalizedMaps, onChangeMaps],
   );
+
+  const handleSetGridFeetPerSquare = (feet: number) => {
+    setLocalGridFeet(feet);
+    if (canAuthorMap && onChangeMaps) {
+      commitMapUpdate((m) => ({ ...m, gridFeetPerSquare: feet }));
+    }
+  };
 
   const handleCreateDefaultTacticalMap = () => {
     if (!onChangeMaps) return;
@@ -200,6 +414,7 @@ export function TacticalMapStage({
     });
     created.layers = [layer];
     created.fogEnabled = true;
+    created.gridFeetPerSquare = 5;
     created.fogRevealedRegions = [
       {
         id: newId('fog'),
@@ -358,9 +573,62 @@ export function TacticalMapStage({
     }
   };
 
+  const placeAoeTemplateAt = (x: number, y: number) => {
+    if (!activeMap) return;
+    const targetX = Math.min(0.96, x + 0.14);
+    const targetY = y;
+    const created: MapAoeTemplate = {
+      id: newId('aoe'),
+      shape: aoeShape,
+      label: aoeLabel.trim() || `${aoeSizeFt}ft ${aoeShape}`,
+      originX: x,
+      originY: y,
+      targetX,
+      targetY,
+      sizeFt: aoeSizeFt,
+      lineWidthFt: 5,
+      color: aoeColor,
+      visibility: isGm ? aoeVisibility : 'party',
+    };
+    if (canAuthorMap && onChangeMaps) {
+      commitMapUpdate((m) => ({
+        ...m,
+        aoeTemplates: [...(m.aoeTemplates ?? []), created],
+      }));
+    } else {
+      setLocalAoeTemplates((prev) => [...prev, created]);
+    }
+  };
+
+  const removeAoeTemplate = (aoeId: string, isLocal: boolean) => {
+    if (isLocal || !canAuthorMap || !onChangeMaps) {
+      setLocalAoeTemplates((prev) => prev.filter((a) => a.id !== aoeId));
+      return;
+    }
+    commitMapUpdate((m) => ({
+      ...m,
+      aoeTemplates: (m.aoeTemplates ?? []).filter((a) => a.id !== aoeId),
+    }));
+  };
+
   const handleStagePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!activeMap || draggingTokenId) return;
+    if (!activeMap || draggingTokenId || draggingAoeHandle) return;
     clearLongPressTimer();
+
+    if (tool === 'ruler') {
+      const coords = toNormalizedCoords(e.clientX, e.clientY);
+      if (coords) {
+        setRulerDragActive(true);
+        setRulerPoints({
+          startX: coords.x,
+          startY: coords.y,
+          endX: coords.x,
+          endY: coords.y,
+        });
+      }
+      return;
+    }
+
     const clientX = e.clientX;
     const clientY = e.clientY;
     longPressOriginRef.current = { clientX, clientY, triggered: false };
@@ -374,13 +642,19 @@ export function TacticalMapStage({
   };
 
   const handleStageClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!activeMap || draggingTokenId) return;
+    if (!activeMap || draggingTokenId || draggingAoeHandle) return;
+    if (tool === 'ruler') return;
     if (longPressOriginRef.current?.triggered) {
       longPressOriginRef.current.triggered = false;
       return;
     }
     const coords = toNormalizedCoords(e.clientX, e.clientY);
     if (!coords) return;
+
+    if (tool === 'aoe') {
+      placeAoeTemplateAt(coords.x, coords.y);
+      return;
+    }
 
     // Shared players can single-click empty map canvas (or use Ping / double-click / long-press) to emit a 3s Map Ping
     if (tool === 'ping' || e.detail === 2 || role === 'shared-player') {
@@ -477,6 +751,51 @@ export function TacticalMapStage({
         clearLongPressTimer();
       }
     }
+
+    if (rulerDragActive && activeMap) {
+      const coords = toNormalizedCoords(e.clientX, e.clientY);
+      if (coords) {
+        setRulerPoints((prev) =>
+          prev ? { ...prev, endX: coords.x, endY: coords.y } : null,
+        );
+      }
+      return;
+    }
+
+    if (draggingAoeHandle && activeMap) {
+      const coords = toNormalizedCoords(e.clientX, e.clientY);
+      if (!coords) return;
+      const updateTemplate = (tpl: MapAoeTemplate): MapAoeTemplate => {
+        if (tpl.id !== draggingAoeHandle.id) return tpl;
+        if (draggingAoeHandle.part === 'origin') {
+          const dx = coords.x - tpl.originX;
+          const dy = coords.y - tpl.originY;
+          return {
+            ...tpl,
+            originX: coords.x,
+            originY: coords.y,
+            targetX: Math.max(0.01, Math.min(0.99, tpl.targetX + dx)),
+            targetY: Math.max(0.01, Math.min(0.99, tpl.targetY + dy)),
+          };
+        }
+        return {
+          ...tpl,
+          targetX: coords.x,
+          targetY: coords.y,
+        };
+      };
+
+      if (draggingAoeHandle.isLocal || !canAuthorMap || !onChangeMaps) {
+        setLocalAoeTemplates((prev) => prev.map(updateTemplate));
+      } else {
+        commitMapUpdate((m) => ({
+          ...m,
+          aoeTemplates: (m.aoeTemplates ?? []).map(updateTemplate),
+        }));
+      }
+      return;
+    }
+
     if (!draggingTokenId || !activeMap) return;
     const coords = toNormalizedCoords(e.clientX, e.clientY);
     if (!coords) return;
@@ -488,6 +807,14 @@ export function TacticalMapStage({
 
   const handlePointerUp = () => {
     clearLongPressTimer();
+    if (rulerDragActive) {
+      setRulerDragActive(false);
+      return;
+    }
+    if (draggingAoeHandle) {
+      setDraggingAoeHandle(null);
+      return;
+    }
     if (!draggingTokenId || !activeMap) return;
     const moved = localTokenOverrides[draggingTokenId];
     const token = (activeMap.tokens ?? []).find((t) => t.id === draggingTokenId);
@@ -517,6 +844,80 @@ export function TacticalMapStage({
     }
   };
 
+  // Drag-and-drop SRD Monster directly onto TacticalMapStage
+  const handleStageDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!canAuthorMap) return;
+    if (Array.from(e.dataTransfer.types).includes(SRD_MONSTER_DRAG_MIME)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      if (!dragOverStage) setDragOverStage(true);
+    }
+  };
+
+  const handleStageDragLeave = () => {
+    if (dragOverStage) setDragOverStage(false);
+  };
+
+  const handleStageDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    setDragOverStage(false);
+    if (!canAuthorMap || !activeMap) return;
+    const rawPayload = e.dataTransfer.getData(SRD_MONSTER_DRAG_MIME);
+    if (!rawPayload) return;
+    e.preventDefault();
+
+    let monster: SrdMonster | undefined;
+    let count = 1;
+    let rollHp = true;
+    let hidden = isGm ? true : false;
+    try {
+      const parsed = JSON.parse(rawPayload);
+      if (parsed && typeof parsed === 'object') {
+        monster =
+          getSrdMonsterBySlugOrName(parsed.slug || parsed.id || parsed.name || '') ||
+          (parsed.monster && typeof parsed.monster.name === 'string' ? parsed.monster : undefined);
+        if (typeof parsed.count === 'number') count = Math.max(1, Math.min(12, parsed.count));
+        if (typeof parsed.rollHp === 'boolean') rollHp = parsed.rollHp;
+        if (typeof parsed.hidden === 'boolean') hidden = parsed.hidden;
+      }
+    } catch {
+      monster = getSrdMonsterBySlugOrName(rawPayload);
+    }
+
+    if (!monster) return;
+    const coords = toNormalizedCoords(e.clientX, e.clientY) ?? { x: 0.5, y: 0.5 };
+
+    if (onDropSrdMonster) {
+      onDropSrdMonster(monster, { x: coords.x, y: coords.y, count, rollHp, hidden });
+      setCombatLogBanner(
+        `Spawned ${count}x ${monster.name} at map drop (${hidden ? '🔒 Private' : '📢 Party'})`,
+      );
+      return;
+    }
+
+    const spawned = instantiateMonsterCombatants(monster, {
+      count,
+      rollHp,
+      hidden,
+      existingCombatants: combatants,
+      existingTokens: activeMap.tokens ?? [],
+      baseX: coords.x,
+      baseY: coords.y,
+    });
+
+    if (onChangeMaps) {
+      commitMapUpdate((m) => ({
+        ...m,
+        tokens: [...(m.tokens ?? []), ...spawned.tokens],
+      }));
+    }
+    if (onChangeCombatants) {
+      onChangeCombatants([...combatants, ...spawned.combatants]);
+    }
+    setCombatLogBanner(
+      `Spawned ${spawned.tokens.map((t) => t.label).join(', ')} (${hidden ? '🔒 Private' : '📢 Party'})`,
+    );
+  };
+
   // Visible tokens & fog regions based on whether viewer is GM or Player (or GM previewing player redaction)
   const effectivePlayerView = role !== 'gm' || previewPlayerRedaction;
 
@@ -538,11 +939,211 @@ export function TacticalMapStage({
       : activeMap.fogRevealedRegions ?? [];
   }, [activeMap, effectivePlayerView]);
 
+  const displayedAoeTemplates: Array<MapAoeTemplate & { isLocal?: boolean }> = useMemo(() => {
+    if (!activeMap) return [];
+    const mapAoes = (activeMap.aoeTemplates ?? [])
+      .filter((a) => !effectivePlayerView || a.visibility !== 'private')
+      .map((a) => ({ ...a, isLocal: false }));
+    const locals = localAoeTemplates.map((a) => ({ ...a, isLocal: true }));
+    return [...mapAoes, ...locals];
+  }, [activeMap, effectivePlayerView, localAoeTemplates]);
+
+  // Real-time AoE hit-testing across displayed tokens
+  const aoeAffectedTokenIds: Set<string> = useMemo(() => {
+    const hit = new Set<string>();
+    for (const tpl of displayedAoeTemplates) {
+      const ids = computeTokensInAoe(
+        {
+          ...tpl,
+          gridFeetPerSquare: effectiveGridFeetPerSquare,
+        },
+        displayedTokens,
+      );
+      for (const id of ids) hit.add(id);
+    }
+    return hit;
+  }, [displayedAoeTemplates, displayedTokens, effectiveGridFeetPerSquare]);
+
+  const activeRulerMeasurement = useMemo(() => {
+    if (!rulerPoints) return null;
+    return measureMapDistance({
+      ...rulerPoints,
+      gridFeetPerSquare: effectiveGridFeetPerSquare,
+      diagonalRule,
+    });
+  }, [diagonalRule, effectiveGridFeetPerSquare, rulerPoints]);
+
   const activePings: MapPing[] = useMemo(() => {
     if (!activeMap) return [];
     const combined = projectMapPings(activeMap.pings, localPings);
     return combined.filter((p) => nowTick - p.timestamp < PING_LIFETIME_MS);
   }, [activeMap, localPings, nowTick]);
+
+  // Resolve selected target tokens to PCs and Combatants
+  const resolvedTargets = useMemo(() => {
+    const selectedSet = new Set(selectedTargetTokenIds);
+    const selectedTokens = displayedTokens.filter((t) => selectedSet.has(t.id));
+    const targetPcs: PlayerCharacter[] = [];
+    const targetCombatants: Combatant[] = [];
+    const seenPcIds = new Set<string>();
+    const seenCombIds = new Set<string>();
+
+    for (const tok of selectedTokens) {
+      if (tok.pcId) {
+        const pc = pcs.find((p) => p.id === tok.pcId);
+        if (pc && !seenPcIds.has(pc.id)) {
+          seenPcIds.add(pc.id);
+          targetPcs.push(pc);
+        }
+        continue;
+      }
+      const labelNorm = tok.label.trim().toLowerCase();
+      const comb = combatants.find(
+        (c) => c.id === tok.id || c.name.trim().toLowerCase() === labelNorm,
+      );
+      if (comb && !seenCombIds.has(comb.id)) {
+        seenCombIds.add(comb.id);
+        targetCombatants.push(comb);
+      }
+    }
+
+    return { selectedTokens, targetPcs, targetCombatants };
+  }, [combatants, displayedTokens, pcs, selectedTargetTokenIds]);
+
+  const toggleSelectTargetToken = (tokenId: string) => {
+    setSelectedTargetTokenIds((prev) =>
+      prev.includes(tokenId) ? prev.filter((id) => id !== tokenId) : [...prev, tokenId],
+    );
+    if (!showCombatBar && canAuthorMap) {
+      setShowCombatBar(true);
+    }
+  };
+
+  const selectAllAoeTokens = () => {
+    const ids = Array.from(aoeAffectedTokenIds);
+    setSelectedTargetTokenIds(ids);
+    if (ids.length > 0 && canAuthorMap) {
+      setShowCombatBar(true);
+    }
+  };
+
+  const handleRollFormulaDamage = () => {
+    const rolled = rollHitPointsFormula(damageFormula, rawDamageInput || 10);
+    setRawDamageInput(rolled);
+    setCombatLogBanner(`🎲 Rolled ${damageFormula} = ${rolled} ${damageType} damage`);
+  };
+
+  const handleDispatchSaveOrAutoRoll = () => {
+    const { targetPcs, targetCombatants } = resolvedTargets;
+    if (targetPcs.length === 0 && targetCombatants.length === 0) {
+      setCombatLogBanner('Select at least one PC or combatant token on the stage first.');
+      return;
+    }
+
+    let prompt = createCombatSavePrompt({
+      sourceName: saveSourceName,
+      ability: saveAbility,
+      dc: saveDc,
+      baseDamage: rawDamageInput,
+      damageFormula,
+      damageType,
+      halfOnSuccess,
+      targetPcIds: targetPcs.map((p) => p.id),
+      targetCombatantIds: targetCombatants.map((c) => c.id),
+    });
+
+    const summaryParts: string[] = [];
+
+    if (targetCombatants.length > 0 && onChangeCombatants) {
+      const { updatedCombatants, updatedPrompt, logLines } = autoRollMonsterSavePrompt({
+        prompt,
+        combatants,
+        monstersById: SRD_MONSTERS_BY_ID,
+      });
+      prompt = updatedPrompt;
+      onChangeCombatants(updatedCombatants);
+      summaryParts.push(...logLines);
+    }
+
+    if (targetPcs.length > 0 && onDispatchSavePrompt) {
+      onDispatchSavePrompt(prompt);
+      summaryParts.push(
+        `⚡ Projected ${saveAbility} Save (DC ${saveDc} vs. ${saveSourceName}) to ${targetPcs.map((p) => p.name).join(', ')}`,
+      );
+    } else if (targetPcs.length > 0 && !onDispatchSavePrompt && onUpdatePcs) {
+      summaryParts.push(
+        `Ready to apply damage to ${targetPcs.map((p) => p.name).join(', ')} — use Full / Half / Zero below.`,
+      );
+    }
+
+    setCombatLogBanner(summaryParts.join(' · ') || 'Save prompt processed.');
+  };
+
+  const handleDirectDamageApplication = (outcome: DamageOutcomeMode) => {
+    const { targetPcs, targetCombatants } = resolvedTargets;
+    if (targetPcs.length === 0 && targetCombatants.length === 0) {
+      setCombatLogBanner('Select at least one target token first.');
+      return;
+    }
+
+    const logParts: string[] = [];
+    const newConcAlerts: Array<{ pcId: string; pcName: string; spell: string; dc: number }> = [];
+
+    if (targetPcs.length > 0 && onUpdatePcs) {
+      const targetPcMap = new Map<string, PlayerCharacter>();
+      for (const pc of targetPcs) {
+        const { updatedPc, result } = applyAutomatedDamageToPc(pc, {
+          rawDamage: rawDamageInput,
+          outcome,
+          damageType,
+        });
+        targetPcMap.set(pc.id, updatedPc);
+        const defNote =
+          result.defenseApplied !== 'none' ? ` [${result.defenseApplied}]` : '';
+        logParts.push(
+          `${pc.name}: -${result.finalDamage} HP${defNote} (HP ${result.hpAfter}/${updatedPc.hp.max})`,
+        );
+        if (result.concentrationCheckRequired && result.concentrationDc !== null) {
+          newConcAlerts.push({
+            pcId: pc.id,
+            pcName: pc.name,
+            spell: result.concentrationSpell || 'Concentration',
+            dc: result.concentrationDc,
+          });
+        }
+      }
+      onUpdatePcs(pcs.map((p) => targetPcMap.get(p.id) ?? p));
+    }
+
+    if (targetCombatants.length > 0 && onChangeCombatants) {
+      const targetCombMap = new Map<string, Combatant>();
+      for (const comb of targetCombatants) {
+        const mon = comb.sourceMonsterId
+          ? SRD_MONSTERS_BY_ID.get(comb.sourceMonsterId)
+          : undefined;
+        const { updatedCombatant, result } = applyAutomatedDamageToCombatant(comb, {
+          rawDamage: rawDamageInput,
+          outcome,
+          damageType,
+          monsterStatblock: mon,
+        });
+        targetCombMap.set(comb.id, updatedCombatant);
+        const defNote =
+          result.defenseApplied !== 'none' ? ` [${result.defenseApplied}]` : '';
+        logParts.push(
+          `${comb.name}: -${result.finalDamage} HP${defNote} (HP ${result.hpAfter}/${updatedCombatant.hp.max})`,
+        );
+      }
+      onChangeCombatants(combatants.map((c) => targetCombMap.get(c.id) ?? c));
+    }
+
+    if (newConcAlerts.length > 0) {
+      setConcentrationAlerts(newConcAlerts);
+    }
+    setCombatLogBanner(
+      logParts.join(' · ') || `Applied ${outcome.toUpperCase()} damage.`,
+    );
+  };
 
   const spawnPartyPcTokens = () => {
     if (!activeMap || !canAuthorMap) return;
@@ -552,8 +1153,8 @@ export function TacticalMapStage({
       .map((pc, i) => ({
         id: `tok_pc_${pc.id}`,
         label: pc.name || `PC ${i + 1}`,
-        x: 0.15 + ((i % 4) * 0.08),
-        y: 0.25 + (Math.floor(i / 4) * 0.1),
+        x: 0.15 + (i % 4) * 0.08,
+        y: 0.25 + Math.floor(i / 4) * 0.1,
         size: 1,
         color: '#38bdf8',
         pcId: pc.id,
@@ -594,6 +1195,7 @@ export function TacticalMapStage({
       ...m,
       tokens: (m.tokens ?? []).filter((t) => t.id !== tokenId),
     }));
+    setSelectedTargetTokenIds((prev) => prev.filter((id) => id !== tokenId));
   };
 
   if (!activeMap) {
@@ -606,7 +1208,7 @@ export function TacticalMapStage({
             </h3>
             <p className="text-xs text-[var(--text-muted)]">
               {canAuthorMap
-                ? 'Create a player-safe battlemap or dungeon stage with room-by-room Fog of War, token pins, and live 3-second Map Pings.'
+                ? 'Create a player-safe battlemap or dungeon stage with room-by-room Fog of War, AoE templates, distance ruler, and live 3-second Map Pings.'
                 : 'No player-visible tactical map has been revealed by the GM yet.'}
             </p>
           </div>
@@ -633,9 +1235,9 @@ export function TacticalMapStage({
     );
   }
 
-  const fogActive = activeMap.fogEnabled !== false && (
-    (activeMap.fogRevealedRegions?.length ?? 0) > 0 || activeMap.fogEnabled === true
-  );
+  const fogActive =
+    activeMap.fogEnabled !== false &&
+    ((activeMap.fogRevealedRegions?.length ?? 0) > 0 || activeMap.fogEnabled === true);
 
   return (
     <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 text-[var(--text-primary)] shadow-lg space-y-3">
@@ -680,8 +1282,33 @@ export function TacticalMapStage({
                 ? 'bg-sky-500/25 text-sky-600 dark:text-sky-200 border border-sky-500/50'
                 : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
             }`}
+            title="Drag tokens to move; Shift+Click tokens to target"
           >
-            ✥ Move Token
+            ✥ Move / Target
+          </button>
+          <button
+            type="button"
+            onClick={() => setTool('ruler')}
+            className={`rounded px-2 py-1 text-xs font-medium ${
+              tool === 'ruler'
+                ? 'bg-cyan-500/25 text-cyan-600 dark:text-cyan-200 border border-cyan-500/50'
+                : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
+            }`}
+            title="Drag across grid squares to measure distance"
+          >
+            📏 Ruler ({effectiveGridFeetPerSquare}ft)
+          </button>
+          <button
+            type="button"
+            onClick={() => setTool('aoe')}
+            className={`rounded px-2 py-1 text-xs font-medium ${
+              tool === 'aoe'
+                ? 'bg-orange-500/25 text-orange-600 dark:text-orange-200 border border-orange-500/50'
+                : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
+            }`}
+            title="Drop & aim Sphere, Cone, Cube, or Line spell AoE overlays"
+          >
+            💥 AoE
           </button>
           <button
             type="button"
@@ -698,6 +1325,19 @@ export function TacticalMapStage({
 
           {canAuthorMap && (
             <>
+              <button
+                type="button"
+                onClick={() => setShowCombatBar((v) => !v)}
+                className={`rounded px-2 py-1 text-xs font-medium ${
+                  showCombatBar || selectedTargetTokenIds.length > 0
+                    ? 'bg-rose-500/25 text-rose-600 dark:text-rose-200 border border-rose-500/50'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
+                }`}
+                title="Open Targeted Save Prompt & Automated Damage panel"
+              >
+                ⚡ Save / Damage
+                {selectedTargetTokenIds.length > 0 ? ` (${selectedTargetTokenIds.length})` : ''}
+              </button>
               <button
                 type="button"
                 onClick={() => setTool('fog-brush')}
@@ -786,6 +1426,393 @@ export function TacticalMapStage({
           )}
         </div>
       </div>
+
+      {/* Ruler Controls Sub-bar (Available to ALL roles when tool === 'ruler') */}
+      {tool === 'ruler' && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-cyan-600 dark:text-cyan-200">
+              📏 Grid Distance Ruler:
+            </span>
+            <label className="flex items-center gap-1 text-[var(--text-secondary)]">
+              <span>Scale:</span>
+              <select
+                value={effectiveGridFeetPerSquare}
+                onChange={(e) => handleSetGridFeetPerSquare(Number(e.target.value))}
+                className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-0.5 text-xs text-[var(--text-primary)]"
+              >
+                <option value={5}>5 ft / square</option>
+                <option value={10}>10 ft / square</option>
+                <option value={15}>15 ft / square</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-1 text-[var(--text-secondary)]">
+              <span>Diagonals:</span>
+              <select
+                value={diagonalRule}
+                onChange={(e) => setDiagonalRule(e.target.value as DiagonalDistanceRule)}
+                className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-0.5 text-xs text-[var(--text-primary)]"
+              >
+                <option value="5e-chebyshev">5e Standard (1 sq)</option>
+                <option value="5-10-5">DMG Variant (5-10-5)</option>
+                <option value="euclidean">True Euclidean</option>
+              </select>
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            {activeRulerMeasurement ? (
+              <span className="font-mono font-bold text-cyan-600 dark:text-cyan-200">
+                {activeRulerMeasurement.label}
+              </span>
+            ) : (
+              <span className="text-[var(--text-muted)]">
+                Drag across map squares to measure range
+              </span>
+            )}
+            {rulerPoints && (
+              <button
+                type="button"
+                onClick={() => setRulerPoints(null)}
+                className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AoE Template Sub-bar */}
+      {tool === 'aoe' && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-orange-600 dark:text-orange-200">
+              💥 Spell AoE Overlay:
+            </span>
+            <select
+              value={aoeShape}
+              onChange={(e) => setAoeShape(e.target.value as AoeShape)}
+              className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-0.5 text-xs text-[var(--text-primary)]"
+            >
+              <option value="sphere">◯ Sphere / Radius</option>
+              <option value="cone">◁ Cone</option>
+              <option value="cube">▢ Cube</option>
+              <option value="line">═ Line (5ft wide)</option>
+            </select>
+            <select
+              value={aoeSizeFt}
+              onChange={(e) => setAoeSizeFt(Number(e.target.value))}
+              className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-0.5 text-xs text-[var(--text-primary)]"
+            >
+              <option value={10}>10 ft</option>
+              <option value={15}>15 ft</option>
+              <option value={20}>20 ft</option>
+              <option value={30}>30 ft</option>
+              <option value={40}>40 ft</option>
+              <option value={60}>60 ft</option>
+              <option value={100}>100 ft</option>
+            </select>
+            <input
+              type="text"
+              value={aoeLabel}
+              onChange={(e) => setAoeLabel(e.target.value)}
+              placeholder="Spell label (e.g. Fireball)"
+              className="w-32 rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-0.5 text-xs text-[var(--text-primary)]"
+            />
+            <input
+              type="color"
+              value={aoeColor}
+              onChange={(e) => setAoeColor(e.target.value)}
+              className="h-6 w-7 cursor-pointer rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)]"
+              title="AoE Overlay Color"
+            />
+            {isGm && (
+              <select
+                value={aoeVisibility}
+                onChange={(e) => setAoeVisibility(e.target.value as 'party' | 'private')}
+                className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-0.5 text-xs text-[var(--text-primary)]"
+              >
+                <option value="party">📢 Party Visible</option>
+                <option value="private">🔒 GM Preview Only</option>
+              </select>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] text-[var(--text-secondary)]">
+              Hit Tokens: <strong>{aoeAffectedTokenIds.size}</strong>
+            </span>
+            {canAuthorMap && aoeAffectedTokenIds.size > 0 && (
+              <button
+                type="button"
+                onClick={selectAllAoeTokens}
+                className="rounded border border-rose-500/40 bg-rose-500/20 px-2 py-0.5 text-[11px] font-semibold text-rose-600 dark:text-rose-200 hover:bg-rose-500/30"
+              >
+                🎯 Target {aoeAffectedTokenIds.size} in AoE
+              </button>
+            )}
+            {displayedAoeTemplates.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setLocalAoeTemplates([]);
+                  if (canAuthorMap && onChangeMaps) {
+                    commitMapUpdate((m) => ({ ...m, aoeTemplates: [] }));
+                  }
+                }}
+                className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-0.5 text-[11px] text-[var(--text-muted)]"
+              >
+                Clear AoEs ({displayedAoeTemplates.length})
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Targeted Attack / Save / Automated Damage Bar */}
+      {canAuthorMap && (showCombatBar || selectedTargetTokenIds.length > 0) && (
+        <div className="rounded-lg border border-rose-500/35 bg-rose-500/5 p-2.5 space-y-2 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-bold text-rose-500">
+                ⚡ Prompt Save / Automated Damage
+              </span>
+              <select
+                value=""
+                onChange={(e) => {
+                  const preset = SAVE_AUTOMATION_PRESETS.find((p) => p.label === e.target.value);
+                  if (!preset) return;
+                  setSaveSourceName(preset.sourceName);
+                  setSaveAbility(preset.ability);
+                  setSaveDc(preset.dc);
+                  setDamageFormula(preset.formula);
+                  setRawDamageInput(preset.avgDamage);
+                  setDamageType(preset.damageType);
+                  setHalfOnSuccess(preset.halfOnSuccess);
+                  if (preset.aoeShape) setAoeShape(preset.aoeShape);
+                  if (preset.aoeSizeFt) setAoeSizeFt(preset.aoeSizeFt);
+                  setAoeLabel(preset.sourceName);
+                }}
+                className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]"
+              >
+                <option value="">Quick Spell / Breath Preset…</option>
+                {SAVE_AUTOMATION_PRESETS.map((p) => (
+                  <option key={p.label} value={p.label}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+              {aoeAffectedTokenIds.size > 0 && (
+                <button
+                  type="button"
+                  onClick={selectAllAoeTokens}
+                  className="rounded border border-orange-500/40 bg-orange-500/15 px-2 py-0.5 text-[11px] text-orange-600 dark:text-orange-200"
+                >
+                  Select {aoeAffectedTokenIds.size} in AoE
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              {selectedTargetTokenIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedTargetTokenIds([])}
+                  className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-0.5 text-[11px] text-[var(--text-muted)]"
+                >
+                  Clear Targets ({selectedTargetTokenIds.length})
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowCombatBar(false)}
+                className="rounded px-1.5 py-0.5 text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Target Token Pills */}
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-[11px] text-[var(--text-muted)] mr-1">Targets:</span>
+            {displayedTokens.length === 0 ? (
+              <span className="text-[11px] text-[var(--text-muted)]">
+                Drop or spawn tokens on stage to target
+              </span>
+            ) : (
+              displayedTokens.map((t) => {
+                const selected = selectedTargetTokenIds.includes(t.id);
+                const inAoe = aoeAffectedTokenIds.has(t.id);
+                return (
+                  <button
+                    key={`tgt_${t.id}`}
+                    type="button"
+                    onClick={() => toggleSelectTargetToken(t.id)}
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium border transition ${
+                      selected
+                        ? 'bg-rose-500/25 text-rose-600 dark:text-rose-200 border-rose-500/60'
+                        : inAoe
+                        ? 'bg-orange-500/15 text-orange-600 dark:text-orange-200 border-orange-500/40'
+                        : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-subtle)]'
+                    }`}
+                  >
+                    {selected ? '🎯 ' : inAoe ? '💥 ' : ''}
+                    {t.label}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Save & Damage Inputs + 1-Tap Execution */}
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            <input
+              type="text"
+              value={saveSourceName}
+              onChange={(e) => setSaveSourceName(e.target.value)}
+              placeholder="Effect (e.g. Fireball)"
+              className="w-28 rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-1 text-xs text-[var(--text-primary)]"
+            />
+            <select
+              value={saveAbility}
+              onChange={(e) => setSaveAbility(e.target.value as AbilityName)}
+              className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-1 text-xs text-[var(--text-primary)]"
+            >
+              {ABILITY_OPTIONS.map((ab) => (
+                <option key={ab} value={ab}>
+                  {ab} Save
+                </option>
+              ))}
+            </select>
+            <label className="flex items-center gap-1 text-[var(--text-secondary)]">
+              <span>DC</span>
+              <input
+                type="number"
+                min={1}
+                max={40}
+                value={saveDc}
+                onChange={(e) => setSaveDc(Number(e.target.value) || 10)}
+                className="w-14 rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-1 text-xs text-[var(--text-primary)]"
+              />
+            </label>
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={damageFormula}
+                onChange={(e) => setDamageFormula(e.target.value)}
+                placeholder="8d6"
+                className="w-16 rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-1 text-xs font-mono text-[var(--text-primary)]"
+                title="Dice formula for quick damage roll"
+              />
+              <button
+                type="button"
+                onClick={handleRollFormulaDamage}
+                className="rounded border border-amber-500/40 bg-amber-500/15 px-2 py-1 text-[11px] font-semibold text-amber-600 dark:text-amber-200 hover:bg-amber-500/25"
+              >
+                🎲 Roll
+              </button>
+            </div>
+            <label className="flex items-center gap-1 text-[var(--text-secondary)]">
+              <span>Dmg</span>
+              <input
+                type="number"
+                min={0}
+                max={999}
+                value={rawDamageInput}
+                onChange={(e) => setRawDamageInput(Math.max(0, Number(e.target.value) || 0))}
+                className="w-16 rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-1 text-xs font-semibold text-[var(--text-primary)]"
+              />
+            </label>
+            <select
+              value={damageType}
+              onChange={(e) => setDamageType(e.target.value)}
+              className="rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-1.5 py-1 text-xs text-[var(--text-primary)]"
+            >
+              {DAMAGE_TYPE_OPTIONS.map((dt) => (
+                <option key={dt} value={dt}>
+                  {dt}
+                </option>
+              ))}
+            </select>
+            <label className="flex items-center gap-1 text-[11px] text-[var(--text-secondary)]">
+              <input
+                type="checkbox"
+                checked={halfOnSuccess}
+                onChange={(e) => setHalfOnSuccess(e.target.checked)}
+              />
+              <span>Half on save</span>
+            </label>
+
+            <div className="flex flex-wrap items-center gap-1 ml-auto">
+              <button
+                type="button"
+                onClick={handleDispatchSaveOrAutoRoll}
+                className="rounded bg-amber-500/25 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-200 border border-amber-500/50 hover:bg-amber-500/35"
+                title="Projects interactive Save Banner to targeted `/player` slots and auto-rolls saves for targeted GM monsters"
+              >
+                ⚡ Prompt Save / Auto-Roll
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDirectDamageApplication('full')}
+                className="rounded bg-rose-500/25 px-2 py-1 text-xs font-semibold text-rose-700 dark:text-rose-200 border border-rose-500/50 hover:bg-rose-500/35"
+                title="Apply Full damage (respecting evaluateCharacterSheet resistances/immunities & tempHp first)"
+              >
+                Full
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDirectDamageApplication('half')}
+                className="rounded bg-orange-500/20 px-2 py-1 text-xs font-semibold text-orange-700 dark:text-orange-200 border border-orange-500/40 hover:bg-orange-500/30"
+                title="Apply Half damage"
+              >
+                Half
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDirectDamageApplication('zero')}
+                className="rounded bg-emerald-500/20 px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-200 border border-emerald-500/40 hover:bg-emerald-500/30"
+                title="Apply Zero damage (evaded / saved)"
+              >
+                Zero
+              </button>
+            </div>
+          </div>
+
+          {concentrationAlerts.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-purple-500/40 bg-purple-500/15 px-2.5 py-1.5 text-[11px] text-purple-700 dark:text-purple-200">
+              <div className="flex flex-wrap items-center gap-2">
+                {concentrationAlerts.map((alert) => (
+                  <span key={`${alert.pcId}_${alert.dc}`}>
+                    🧠 <strong>{alert.pcName}</strong> is concentrating on{' '}
+                    <em>{alert.spell}</em> — must roll <strong>CON Save DC {alert.dc}</strong>!
+                  </span>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setConcentrationAlerts([])}
+                className="text-[10px] underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {combatLogBanner && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700 dark:text-amber-200">
+          <span className="truncate">{combatLogBanner}</span>
+          <button
+            type="button"
+            onClick={() => setCombatLogBanner(null)}
+            className="text-[11px] opacity-75 hover:opacity-100"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Secondary Authoring Sub-bar for GM / Standalone Player */}
       {canAuthorMap && !compact && (
@@ -943,12 +1970,30 @@ export function TacticalMapStage({
       )}
 
       {/* Interactive SVG Map & Dungeon Stage */}
-      <div className="relative overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-slate-950 select-none">
+      <div
+        onDragOver={handleStageDragOver}
+        onDragLeave={handleStageDragLeave}
+        onDrop={handleStageDrop}
+        className={`relative overflow-hidden rounded-xl border ${
+          dragOverStage
+            ? 'border-amber-400 ring-2 ring-amber-400/50'
+            : 'border-[var(--border-subtle)]'
+        } bg-slate-950 select-none`}
+      >
+        {dragOverStage && (
+          <div className="pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center">
+            <span className="rounded-full bg-amber-500/90 px-3 py-1 text-xs font-bold text-slate-950 shadow-lg">
+              👹 Drop SRD Monster to Spawn Combatant + Token Here
+            </span>
+          </div>
+        )}
         <svg
           ref={stageRef}
           viewBox="0 0 1000 625"
           className={`w-full ${compact ? 'max-h-[340px]' : 'max-h-[520px]'} block ${
-            tool === 'ping' || tool === 'fog-poly' ? 'cursor-crosshair' : 'cursor-pointer'
+            tool === 'ping' || tool === 'fog-poly' || tool === 'ruler' || tool === 'aoe'
+              ? 'cursor-crosshair'
+              : 'cursor-pointer'
           }`}
           onPointerDown={handleStagePointerDown}
           onClick={handleStageClick}
@@ -1011,6 +2056,116 @@ export function TacticalMapStage({
             />
           )}
           <rect x="0" y="0" width="1000" height="625" fill="url(#tacticalGrid)" />
+
+          {/* Draggable Spell AoE Overlays */}
+          {displayedAoeTemplates.map((tpl) => {
+            const geom = buildAoeSvgGeometry({
+              ...tpl,
+              gridFeetPerSquare: effectiveGridFeetPerSquare,
+            });
+            const strokeColor = tpl.color || '#f97316';
+            const canDragThisAoe = Boolean(tpl.isLocal || canAuthorMap);
+            return (
+              <g key={tpl.id}>
+                {geom.kind === 'circle' && (
+                  <circle
+                    cx={geom.cx}
+                    cy={geom.cy}
+                    r={geom.r}
+                    fill={strokeColor}
+                    fillOpacity={0.22}
+                    stroke={strokeColor}
+                    strokeWidth="2.5"
+                    strokeDasharray={tpl.visibility === 'private' ? '6 4' : 'none'}
+                  />
+                )}
+                {geom.kind === 'rect' && (
+                  <rect
+                    x={geom.x}
+                    y={geom.y}
+                    width={geom.width}
+                    height={geom.height}
+                    fill={strokeColor}
+                    fillOpacity={0.22}
+                    stroke={strokeColor}
+                    strokeWidth="2.5"
+                    strokeDasharray={tpl.visibility === 'private' ? '6 4' : 'none'}
+                  />
+                )}
+                {geom.kind === 'polygon' && (
+                  <polygon
+                    points={geom.points}
+                    fill={strokeColor}
+                    fillOpacity={0.24}
+                    stroke={strokeColor}
+                    strokeWidth="2.5"
+                    strokeDasharray={tpl.visibility === 'private' ? '6 4' : 'none'}
+                  />
+                )}
+                {/* AoE Label */}
+                <text
+                  x={geom.originPx.x}
+                  y={Math.max(18, geom.originPx.y - 12)}
+                  textAnchor="middle"
+                  fill="#fff7ed"
+                  fontSize="11"
+                  fontWeight="bold"
+                >
+                  💥 {tpl.label || `${tpl.sizeFt}ft ${tpl.shape}`}
+                  {tpl.visibility === 'private' ? ' (GM)' : ''}
+                </text>
+
+                {canDragThisAoe && (
+                  <>
+                    {/* Draggable Origin Handle */}
+                    <circle
+                      cx={geom.originPx.x}
+                      cy={geom.originPx.y}
+                      r="7"
+                      fill="#fff"
+                      stroke={strokeColor}
+                      strokeWidth="2.5"
+                      className="cursor-move"
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        clearLongPressTimer();
+                        setDraggingAoeHandle({
+                          id: tpl.id,
+                          part: 'origin',
+                          isLocal: Boolean(tpl.isLocal),
+                        });
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        removeAoeTemplate(tpl.id, Boolean(tpl.isLocal));
+                      }}
+                    />
+                    {/* Draggable Aim / Direction Handle for Cones & Lines */}
+                    {(tpl.shape === 'cone' || tpl.shape === 'line') && (
+                      <circle
+                        cx={geom.handlePx.x}
+                        cy={geom.handlePx.y}
+                        r="6"
+                        fill={strokeColor}
+                        stroke="#fff"
+                        strokeWidth="2"
+                        className="cursor-grab active:cursor-grabbing"
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          clearLongPressTimer();
+                          setDraggingAoeHandle({
+                            id: tpl.id,
+                            part: 'target',
+                            isLocal: Boolean(tpl.isLocal),
+                          });
+                        }}
+                      />
+                    )}
+                  </>
+                )}
+              </g>
+            );
+          })}
 
           {/* Fog of War Overlay Layer */}
           {fogActive && (
@@ -1121,19 +2276,44 @@ export function TacticalMapStage({
             const radius = 18 * (token.size || 1);
             const draggable = canDragToken(token);
             const isOwnPc = Boolean(activePcId && token.pcId === activePcId);
+            const isInAoe = aoeAffectedTokenIds.has(token.id);
+            const isTargeted = selectedTargetTokenIds.includes(token.id);
+
             return (
               <g
                 key={token.id}
                 transform={`translate(${cx}, ${cy})`}
-                className={draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}
+                className={draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}
                 onPointerDown={(e) => {
-                  if (!draggable) return;
+                  if (e.shiftKey && canAuthorMap) {
+                    e.stopPropagation();
+                    toggleSelectTargetToken(token.id);
+                    return;
+                  }
+                  if (!draggable || tool === 'ruler') return;
                   e.stopPropagation();
                   clearLongPressTimer();
                   setDraggingTokenId(token.id);
                 }}
               >
-                {isOwnPc && (
+                {isInAoe && (
+                  <circle
+                    r={radius + 10}
+                    fill="none"
+                    stroke="#fb923c"
+                    strokeWidth="2.5"
+                    strokeDasharray="5 3"
+                  />
+                )}
+                {isTargeted && (
+                  <circle
+                    r={radius + 6}
+                    fill="none"
+                    stroke="#f43f5e"
+                    strokeWidth="3"
+                  />
+                )}
+                {isOwnPc && !isTargeted && (
                   <circle
                     r={radius + 6}
                     fill="none"
@@ -1181,6 +2361,62 @@ export function TacticalMapStage({
             );
           })}
 
+          {/* Distance Ruler Line & Measurement Pill */}
+          {rulerPoints && activeRulerMeasurement && (
+            <g pointerEvents="none">
+              <line
+                x1={rulerPoints.startX * 1000}
+                y1={rulerPoints.startY * 625}
+                x2={rulerPoints.endX * 1000}
+                y2={rulerPoints.endY * 625}
+                stroke="#22d3ee"
+                strokeWidth="3"
+                strokeDasharray="8 5"
+              />
+              <circle
+                cx={rulerPoints.startX * 1000}
+                cy={rulerPoints.startY * 625}
+                r="6"
+                fill="#06b6d4"
+                stroke="#fff"
+                strokeWidth="2"
+              />
+              <circle
+                cx={rulerPoints.endX * 1000}
+                cy={rulerPoints.endY * 625}
+                r="6"
+                fill="#22d3ee"
+                stroke="#fff"
+                strokeWidth="2"
+              />
+              <g
+                transform={`translate(${
+                  ((rulerPoints.startX + rulerPoints.endX) / 2) * 1000
+                }, ${Math.max(26, ((rulerPoints.startY + rulerPoints.endY) / 2) * 625 - 14)})`}
+              >
+                <rect
+                  x="-64"
+                  y="-14"
+                  width="128"
+                  height="22"
+                  rx="6"
+                  fill="rgba(8, 51, 68, 0.94)"
+                  stroke="#22d3ee"
+                  strokeWidth="1.5"
+                />
+                <text
+                  y="1"
+                  textAnchor="middle"
+                  fill="#ecfeff"
+                  fontSize="12"
+                  fontWeight="bold"
+                >
+                  📏 {activeRulerMeasurement.label}
+                </text>
+              </g>
+            </g>
+          )}
+
           {/* Animated 3-Second Live Map Pings */}
           {activePings.map((ping, idx) => {
             const cx = ping.x * 1000;
@@ -1190,7 +2426,10 @@ export function TacticalMapStage({
             const ringRadius = 12 + progress * 48;
             const opacity = Math.max(0, 1 - progress);
             return (
-              <g key={ping.id || `${ping.pcId}_${ping.timestamp}_${idx}`} transform={`translate(${cx}, ${cy})`}>
+              <g
+                key={ping.id || `${ping.pcId}_${ping.timestamp}_${idx}`}
+                transform={`translate(${cx}, ${cy})`}
+              >
                 <circle
                   r={ringRadius}
                   fill="none"
@@ -1213,12 +2452,12 @@ export function TacticalMapStage({
           <span>
             {role === 'shared-player'
               ? activePcId
-                ? '💡 Drag your own PC token to move, or click / long-press map to emit a 3s Map Ping.'
-                : '💡 Claim your PC slot to drag your token, or click / long-press map to Ping.'
-              : '💡 Double-click or long-press anywhere to drop a 3s Map Ping. Drag tokens to reposition.'}
+                ? '💡 Drag your PC token to move, use 📏 Ruler to measure range, or click map to Ping.'
+                : '💡 Claim your PC slot to drag your token, use 📏 Ruler, or click map to Ping.'
+              : '💡 Shift+Click tokens to target · Drag SRD Monsters onto map · Double-click AoE handle to remove.'}
           </span>
           <span>
-            Tokens: {displayedTokens.length} • Revealed Zones:{' '}
+            Tokens: {displayedTokens.length} • AoEs: {displayedAoeTemplates.length} • Revealed Zones:{' '}
             {displayedFogRegions.filter((r) => r.revealed).length}
           </span>
         </div>
@@ -1316,6 +2555,18 @@ export function TacticalMapStage({
                     <span className="truncate text-[var(--text-primary)]">{t.label}</span>
                   </div>
                   <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleSelectTargetToken(t.id)}
+                      className={`rounded px-1.5 py-0.5 text-[10px] ${
+                        selectedTargetTokenIds.includes(t.id)
+                          ? 'bg-rose-500/25 text-rose-600 dark:text-rose-200'
+                          : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
+                      }`}
+                      title="Target token for Save / Damage"
+                    >
+                      🎯
+                    </button>
                     {isGm && (
                       <button
                         type="button"
@@ -1357,4 +2608,169 @@ export function TacticalMapStage({
     </div>
   );
 }
+
+// ---- Interactive Targeted Save Prompt Banner for `/player` & Standalone `Play` ----
+
+export interface TargetedSavePromptBannerProps {
+  prompts: ProjectedSavePrompt[];
+  activePc?: PlayerCharacter | null;
+  secretRoll?: boolean;
+  onResolvePrompt: (
+    prompt: ProjectedSavePrompt,
+    overrideOutcome?: DamageOutcomeMode,
+    autoRollConcentration?: boolean,
+  ) => {
+    summary: string;
+    concentrationDc?: number | null;
+    concentrationSpell?: string;
+    concentrationRoll?: RollEvent | null;
+  } | void;
+  onRollFollowUpConcentration?: (dc: number, spellName: string) => void;
+}
+
+export function TargetedSavePromptBanner({
+  prompts,
+  activePc,
+  onResolvePrompt,
+  onRollFollowUpConcentration,
+}: TargetedSavePromptBannerProps) {
+  const [localFeedback, setLocalFeedback] = useState<
+    Record<
+      string,
+      {
+        summary: string;
+        concentrationDc?: number | null;
+        concentrationSpell?: string;
+      }
+    >
+  >({});
+
+  const visiblePrompts = useMemo(() => {
+    return prompts.filter((p) => !p.resolved || Boolean(localFeedback[p.id]));
+  }, [localFeedback, prompts]);
+
+  if (visiblePrompts.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      {visiblePrompts.map((prompt) => {
+        const fb = localFeedback[prompt.id];
+        const isResolved = prompt.resolved || Boolean(fb);
+        return (
+          <div
+            key={`${prompt.id}_${prompt.targetPcId}`}
+            className="rounded-xl border border-amber-500/50 bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 px-3.5 py-2.5 shadow-md"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="text-xs font-bold text-amber-600 dark:text-amber-200">
+                  {prompt.bannerText}
+                </div>
+                <div className="text-[11px] text-[var(--text-secondary)]">
+                  Target: <strong>{prompt.targetPcName}</strong> · Incoming:{' '}
+                  <strong>
+                    {prompt.baseDamage} {prompt.damageType}
+                  </strong>{' '}
+                  damage ({prompt.halfOnSuccess ? 'Half on save' : 'Zero on save'})
+                </div>
+              </div>
+
+              {!isResolved ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const res = onResolvePrompt(prompt, undefined, false);
+                      if (res) {
+                        setLocalFeedback((prev) => ({ ...prev, [prompt.id]: res }));
+                      }
+                    }}
+                    className="rounded-lg bg-amber-500/25 px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-100 border border-amber-500/60 hover:bg-amber-500/35"
+                  >
+                    🎲 Roll {prompt.ability} Save &amp; Apply
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const res = onResolvePrompt(prompt, 'full', false);
+                      if (res) setLocalFeedback((prev) => ({ ...prev, [prompt.id]: res }));
+                    }}
+                    className="rounded-lg bg-rose-500/20 px-2 py-1 text-[11px] font-semibold text-rose-700 dark:text-rose-200 border border-rose-500/40"
+                    title="Apply Full Damage ( deducts Temp HP & resistances automatically )"
+                  >
+                    Full
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const res = onResolvePrompt(prompt, 'half', false);
+                      if (res) setLocalFeedback((prev) => ({ ...prev, [prompt.id]: res }));
+                    }}
+                    className="rounded-lg bg-orange-500/20 px-2 py-1 text-[11px] font-semibold text-orange-700 dark:text-orange-200 border border-orange-500/40"
+                    title="Apply Half Damage"
+                  >
+                    Half
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const res = onResolvePrompt(prompt, 'zero', false);
+                      if (res) setLocalFeedback((prev) => ({ ...prev, [prompt.id]: res }));
+                    }}
+                    className="rounded-lg bg-emerald-500/20 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-200 border border-emerald-500/40"
+                    title="Apply Zero Damage"
+                  >
+                    Zero
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-200 border border-emerald-500/30">
+                    ✓ {fb?.summary || prompt.resolutionSummary || 'Save Resolved'}
+                  </span>
+                  {fb?.concentrationDc && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onRollFollowUpConcentration && fb.concentrationDc) {
+                          onRollFollowUpConcentration(
+                            fb.concentrationDc,
+                            fb.concentrationSpell || activePc?.concentrationSpell || 'Spell',
+                          );
+                        } else if (activePc && fb.concentrationDc) {
+                          rollConcentrationCheck(activePc, fb.concentrationDc * 2);
+                        }
+                        setLocalFeedback((prev) => ({
+                          ...prev,
+                          [prompt.id]: { ...fb, concentrationDc: null },
+                        }));
+                      }}
+                      className="rounded-lg bg-purple-500/25 px-2.5 py-1 text-xs font-bold text-purple-700 dark:text-purple-200 border border-purple-500/50 hover:bg-purple-500/35"
+                    >
+                      🧠 Roll CON Save (DC {fb.concentrationDc} · {fb.concentrationSpell})
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLocalFeedback((prev) => {
+                        const copy = { ...prev };
+                        delete copy[prompt.id];
+                        return copy;
+                      })
+                    }
+                    className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default TacticalMapStage;

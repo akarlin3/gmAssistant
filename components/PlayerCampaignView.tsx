@@ -45,7 +45,11 @@ import {
   PlayerSyncCapsuleModal,
 } from './MobilePlayerCombatBar';
 import { expireActiveBuffs, type RollMode } from '@/lib/activeModifiers';
-import { appendRollEventRingBuffer, sanitizeRollEventsForOutbound } from '@/lib/diceRoller';
+import {
+  appendRollEventRingBuffer,
+  rollConcentrationCheck,
+  sanitizeRollEventsForOutbound,
+} from '@/lib/diceRoller';
 import type { Character } from '@/lib/character-schema';
 import type { LoreAttitudeTag, PlayerStickyCard, PlayerTheoryLink, RollEvent, PlayerWhisperMessage } from '@/lib/pc/types';
 import type { PlayerCampaignViewProps, ProjectionEntityKey } from './playerCampaign/types';
@@ -58,7 +62,10 @@ import WorldClockBar from './WorldClockBar';
 import ExternalTablePiP from './ExternalTablePiP';
 import WhisperDrawer from './WhisperDrawer';
 import HandoutOverlay from './HandoutOverlay';
-import TacticalMapStage from './TacticalMapStage';
+import TacticalMapStage, { TargetedSavePromptBanner } from './TacticalMapStage';
+import { CompendiumDrawer } from './CompendiumDrawer';
+import { VisualDiceOverlay } from './VisualDiceOverlay';
+import { resolveSavePromptForPlayer } from '@/lib/combatAutomation';
 import GeminiBridgeModal from './GeminiBridgeModal';
 import WorkspaceArchitectModal from './WorkspaceArchitectModal';
 import { useWorkspaceCustomization } from '@/lib/useWorkspaceHudPrefs';
@@ -553,6 +560,67 @@ export default function PlayerCampaignView({
             </section>
           )}
 
+          {/* Targeted Saving Throw & Automated Damage Prompt Banner */}
+          {activePc && (projection?.pendingSavePrompts?.length ?? 0) > 0 && (
+            <TargetedSavePromptBanner
+              prompts={projection?.pendingSavePrompts ?? []}
+              activePc={activePc as any}
+              onResolvePrompt={(prompt, overrideOutcome) => {
+                const res = resolveSavePromptForPlayer({
+                  prompt,
+                  pc: activePc as any,
+                  resolverSlotId: slotId,
+                  overrideOutcome,
+                  autoRollConcentration: false,
+                  rollMode: mobileRollMode,
+                  secretRoll: mobileSecretRoll,
+                });
+                if (!res.ok) return undefined;
+                if (mobileSecretRoll && res.saveRoll) {
+                  const nextLocal: PlayerLocalTrackerState = {
+                    ...trackerState,
+                    secretRolls: [res.saveRoll, ...(trackerState.secretRolls ?? [])].slice(0, 50),
+                  };
+                  setTrackerState(nextLocal);
+                  saveLocalTrackerState(token, trackerPcKey, nextLocal);
+                }
+                if (campaignId && token && slotId) {
+                  void submitPlayerBatchUpdate({
+                    campaignId,
+                    shareToken: token,
+                    slotId,
+                    pcId: activePc.id,
+                    updates: res.writebackUpdates,
+                  });
+                }
+                return {
+                  summary: res.saveRoll
+                    ? `Rolled ${res.saveRoll.total} (${res.passed ? 'Saved' : 'Failed'}) · -${res.damageResult.finalDamage} HP`
+                    : `Applied ${res.damageResult.outcomeMode} (-${res.damageResult.finalDamage} HP)`,
+                  concentrationDc: res.damageResult.concentrationDc,
+                  concentrationSpell: res.damageResult.concentrationSpell,
+                };
+              }}
+              onRollFollowUpConcentration={(dc) => {
+                const concRoll = rollConcentrationCheck(activePc as any, dc * 2, {
+                  rollMode: mobileRollMode,
+                  secretRoll: mobileSecretRoll,
+                });
+                handleAppendRollFromBar(concRoll);
+                if (concRoll.total < dc && campaignId && token && slotId) {
+                  void submitPlayerUpdate({
+                    campaignId,
+                    shareToken: token,
+                    slotId,
+                    pcId: activePc.id,
+                    field: 'concentrationSpell',
+                    value: '',
+                  });
+                }
+              }}
+            />
+          )}
+
           {/* Collapsible Shared Table Roll Feed */}
           {hudLayout.isWidgetVisible('rollFeed') && (
             <CollapsibleTableRollFeed
@@ -701,6 +769,59 @@ export default function PlayerCampaignView({
                   </button>
                 </div>
               </div>
+
+              {/* Offline 5e SRD Compendium — 1-Click Spell & Item Grant */}
+              <details className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 shadow-sm">
+                <summary className="cursor-pointer select-none font-display text-xs font-semibold uppercase tracking-wider text-[var(--accent-primary)]">
+                  📖 5e SRD Compendium — 1-Click Add Spells, Magic Items &amp; Conditions
+                </summary>
+                <div className="mt-3">
+                  <CompendiumDrawer
+                    role="player"
+                    pcs={myPcs as any}
+                    activePcId={activePc?.id}
+                    compact
+                    onUpdatePc={(updatedPc) => {
+                      if (
+                        campaignId &&
+                        token &&
+                        slotId &&
+                        myPcs.some((p) => p.id === updatedPc.id)
+                      ) {
+                        void submitPlayerBatchUpdate({
+                          campaignId,
+                          shareToken: token,
+                          slotId,
+                          pcId: updatedPc.id,
+                          updates: {
+                            spellsKnown: updatedPc.spellsKnown,
+                            attacks: updatedPc.attacks,
+                            inventory: updatedPc.inventory,
+                            attunedCount: updatedPc.attunedCount,
+                            ac: updatedPc.ac,
+                            evaluation: updatedPc.evaluation,
+                          },
+                        });
+                      }
+                    }}
+                    onAddPartyLootItem={(lootItem) => {
+                      if (activePc && campaignId && token && slotId) {
+                        const curLoot = Array.isArray((activePc as any).partyLootItems)
+                          ? (activePc as any).partyLootItems
+                          : [];
+                        void submitPlayerUpdate({
+                          campaignId,
+                          shareToken: token,
+                          slotId,
+                          pcId: activePc.id,
+                          field: 'partyLootItems',
+                          value: [...curLoot, lootItem],
+                        });
+                      }
+                    }}
+                  />
+                </div>
+              </details>
 
               {/* Primary 3 Sub-Tabs Navigation */}
               <div
@@ -1236,6 +1357,12 @@ export default function PlayerCampaignView({
             }}
           />
         )}
+
+        <VisualDiceOverlay
+          publicRollEvents={(projection?.rollEvents ?? []).filter((r) => !r.secretRoll)}
+          actorName={activePc?.name || displayName}
+          onPublicQuickRoll={handleAppendRollFromBar}
+        />
       </main>
     </EntityPeekProvider>
   );

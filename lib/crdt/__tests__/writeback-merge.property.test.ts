@@ -31,8 +31,13 @@ import type {
   PlayerQuest,
   PlayerLoreAnnotation,
   PlayerJournalEntry,
+  RollEvent,
 } from '@/lib/pc/types';
 import { arbCampaign, expectedFieldPrivacy } from '@/lib/playerMode/__tests__/arbitraries';
+import { emptyPc } from '@/lib/pc/factory';
+import { executeSheetRoll } from '@/lib/diceRoller';
+import { filterPublicVisualRolls, shouldBroadcastVisualRoll } from '@/lib/visualDiceBus';
+import { createCombatSavePrompt, resolveSavePromptForPlayer } from '@/lib/combatAutomation';
 
 function admits(vis: EntityVisibility | undefined, slotId: string): boolean {
   if (!vis) return false;
@@ -727,5 +732,165 @@ describe('writeback merge preserves the bidirectional privacy invariant', () => 
       RUNS,
     );
   });
+
+  it('6. Secret Roll & Save Isolation: secretRoll:true visual dice events never leave the local client, and targeted save prompts only allow a player to resolve saves/HP for their owned PC slot', () => {
+    fc.assert(
+      fc.property(
+        fc.uuid().map((u) => `slot-owner-${u}`),
+        fc.uuid().map((u) => `slot-other-${u}`),
+        fc.constantFrom('STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA' as const),
+        fc.integer({ min: 8, max: 24 }),
+        fc.integer({ min: 4, max: 60 }),
+        fc.integer({ min: 0, max: 15 }),
+        fc.boolean(),
+        fc.boolean(),
+        fc.double({ min: 0, max: 0.9999, noNaN: true }),
+        (
+          ownerSlot,
+          otherSlot,
+          ability,
+          dc,
+          baseDamage,
+          tempHp,
+          isSecret,
+          isCrossSlotAttempt,
+          rngSeed,
+        ) => {
+          fc.pre(ownerSlot !== otherSlot);
+
+          const secretLabelSentinel = `SECRET_VISUAL_DICE_${ownerSlot}`;
+          const secretRollEvt: RollEvent = executeSheetRoll({
+            actorName: 'Shadow Rogue',
+            label: secretLabelSentinel,
+            isD20: true,
+            baseMod: 5,
+            secretRoll: true,
+            rng: () => rngSeed,
+          });
+
+          // A. Visual Dice Tray broadcast boundary: secretRoll:true NEVER broadcasts
+          expect(shouldBroadcastVisualRoll(secretRollEvt)).toBe(false);
+          expect(filterPublicVisualRolls([secretRollEvt])).toHaveLength(0);
+
+          // B. Targeted Save Prompt resolution & slot isolation
+          const ownerPc = {
+            ...emptyPc(),
+            id: 'pc-aria-save',
+            name: 'Aria',
+            hp: { current: 40, max: 40, temp: tempHp },
+            concentrationSpell: 'Bless',
+            ownership: { ownerType: 'player' as const, playerSlotId: ownerSlot },
+          };
+          const otherPc = {
+            ...emptyPc(),
+            id: 'pc-bram-save',
+            name: 'Bram',
+            hp: { current: 45, max: 45, temp: 0 },
+            ownership: { ownerType: 'player' as const, playerSlotId: otherSlot },
+          };
+
+          const prompt = createCombatSavePrompt({
+            id: `save-${dc}`,
+            sourceName: 'Dragon Breath',
+            ability,
+            dc,
+            baseDamage,
+            damageType: 'fire',
+            halfOnSuccess: true,
+            targetPcIds: [ownerPc.id],
+          });
+
+          const resolverSlot = isCrossSlotAttempt ? otherSlot : ownerSlot;
+          const resolution = resolveSavePromptForPlayer({
+            prompt,
+            pc: ownerPc,
+            resolverSlotId: resolverSlot,
+            autoRollConcentration: true,
+            secretRoll: isSecret,
+            rng: () => rngSeed,
+          });
+
+          if (isCrossSlotAttempt) {
+            // Cross-slot attempt fails closed at client resolution AND at GM CRDT merge!
+            expect(resolution.ok).toBe(false);
+            const tamperedMerge = mergePcWritebacks(
+              [ownerPc as any, otherPc as any],
+              [
+                {
+                  slotId: otherSlot,
+                  pcId: ownerPc.id,
+                  updates: {
+                    'hp.current': 0,
+                    'hp.temp': 0,
+                    rollEvents: [secretRollEvt],
+                  },
+                  updatedAtMs: 5000,
+                },
+              ],
+            );
+            expect(tamperedMerge.changed).toBe(false);
+            expect(tamperedMerge.pcs[0]).toBe(ownerPc);
+            return;
+          }
+
+          expect(resolution.ok).toBe(true);
+          if (!resolution.ok) return;
+
+          const wbJson = JSON.stringify(resolution.writebackUpdates);
+          const sanitizedWb = sanitizeOutboundWritebackUpdates({
+            ...resolution.writebackUpdates,
+            ...(isSecret && resolution.saveRoll
+              ? { rollEvents: [resolution.saveRoll, secretRollEvt] }
+              : {}),
+          });
+          const sanitizedWbJson = JSON.stringify(sanitizedWb);
+
+          // Secret rolls NEVER leave the local client in writebackUpdates or sanitized payloads
+          expect(sanitizedWbJson).not.toContain(secretLabelSentinel);
+          if (isSecret) {
+            expect('rollEvents' in resolution.writebackUpdates).toBe(false);
+            if (resolution.saveRoll) {
+              expect(wbJson).not.toContain(resolution.saveRoll.id);
+              expect(sanitizedWbJson).not.toContain(resolution.saveRoll.id);
+              expect(shouldBroadcastVisualRoll(resolution.saveRoll)).toBe(false);
+            }
+          } else if (resolution.saveRoll) {
+            expect(shouldBroadcastVisualRoll(resolution.saveRoll)).toBe(true);
+          }
+
+          // Merge legitimate owner's writeback into campaign state:
+          // - Owner PC HP/tempHp update cleanly
+          // - Other player's PC is 100% untouched
+          // - Zero secretRoll events survive into merged state or peer projections
+          const mergeRes = mergePcWritebacks(
+            [ownerPc as any, otherPc as any],
+            [
+              {
+                slotId: ownerSlot,
+                pcId: ownerPc.id,
+                updates: {
+                  ...resolution.writebackUpdates,
+                  // Even if a malicious client stuffs secretRollEvt into rollEvents, merge strips it:
+                  rollEvents: [
+                    ...(((resolution.writebackUpdates.rollEvents as RollEvent[]) ?? [])),
+                    secretRollEvt,
+                  ],
+                },
+                updatedAtMs: 6000,
+              },
+            ],
+          );
+
+          expect(mergeRes.pcs[1]).toBe(otherPc);
+          const mergedOwnerJson = JSON.stringify(mergeRes.pcs[0]);
+          expect(mergedOwnerJson).not.toContain(secretLabelSentinel);
+          expect(mergeRes.pcs[0].hp.current).toBe(resolution.updatedPc.hp.current);
+          expect(mergeRes.pcs[0].hp.temp).toBe(resolution.updatedPc.hp.temp);
+        },
+      ),
+      RUNS,
+    );
+  });
 });
+
 

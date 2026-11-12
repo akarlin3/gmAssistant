@@ -30,6 +30,9 @@ import {
   expectedFieldPrivacy,
   STRUCTURAL_KEYS,
 } from './arbitraries';
+import { SRD_CORE_MONSTERS, instantiateMonsterCombatants } from '@/lib/srdCompendium';
+import { applyVttImportToCampaign, parseVttExport } from '@/lib/vttImporter';
+import { createCombatSavePrompt } from '@/lib/combatAutomation';
 
 const TYPE_TO_EDGE: Record<PlayerEntityType, string> = {
   characters: 'pc',
@@ -536,5 +539,230 @@ describe('redaction invariant (property-based)', () => {
       RUNS,
     );
   });
+
+  // I15 — Compendium & VTT Import Redaction + Targeted Save Prompt Isolation:
+  // Imported monsters, traps, maps, NPCs, locations, and GM-spawned hidden encounter tokens
+  // default to `Private` and NEVER leak statblocks, AC, exact HP, or trap DCs into `/player`
+  // projections; and `pendingSavePrompts` project ONLY to the owning target PC's `slotId`.
+  it('I15 — Compendium & VTT Import Redaction: imported Foundry/Open5e/Markdown monsters, traps, and GM-spawned SRD encounter tokens default to Private and never leak statblocks, AC, or exact HP into /player', () => {
+    fc.assert(
+      fc.property(
+        arbCampaignAndSlot(),
+        fc.integer({ min: 0, max: SRD_CORE_MONSTERS.length - 1 }),
+        fc.integer({ min: 1, max: 3 }),
+        fc.integer({ min: 13, max: 24 }),
+        fc.integer({ min: 25, max: 250 }),
+        fc.constantFrom('foundry', 'open5e', 'markdown'),
+        ({ camp, slotId }, monsterIdx, spawnCount, secretAc, secretHp, exportKind) => {
+          const srdMonster = SRD_CORE_MONSTERS[monsterIdx];
+          const monsterSecretSentinel = `VTT_IMPORTED_BOSS_${secretAc}_${secretHp}`;
+          const trapSecretSentinel = `FOUNDRY_HIDDEN_TRAP_DC_${secretAc}`;
+          const gmSaveNoteSentinel = `GM_SAVE_PROMPT_SECRET_${secretHp}`;
+
+          const rawExport =
+            exportKind === 'foundry'
+              ? JSON.stringify({
+                  actors: [
+                    {
+                      name: monsterSecretSentinel,
+                      type: 'npc',
+                      system: {
+                        abilities: {
+                          str: { value: 18 },
+                          dex: { value: 14 },
+                          con: { value: 16 },
+                          int: { value: 12 },
+                          wis: { value: 13 },
+                          cha: { value: 15 },
+                        },
+                        attributes: {
+                          ac: { flat: secretAc },
+                          hp: { value: secretHp, max: secretHp, formula: '12d10+36' },
+                        },
+                        details: { cr: 9, biography: { value: 'TOP_SECRET_STATBLOCK_BIO' } },
+                      },
+                    },
+                  ],
+                  scenes: [
+                    {
+                      name: 'Imported Vault Map',
+                      width: 1000,
+                      height: 800,
+                      walls: [{ c: [0, 0, 100, 100] }],
+                      tokens: [
+                        {
+                          name: trapSecretSentinel,
+                          x: 400,
+                          y: 400,
+                          flags: { isTrap: true, dc: secretAc },
+                        },
+                      ],
+                    },
+                  ],
+                })
+              : exportKind === 'open5e'
+                ? JSON.stringify({
+                    slug: 'secret-vtt-fiend',
+                    name: monsterSecretSentinel,
+                    size: 'Large',
+                    type: 'fiend',
+                    armor_class: secretAc,
+                    hit_points: secretHp,
+                    hit_dice: '12d10+36',
+                    challenge_rating: '9',
+                    actions: [
+                      {
+                        name: 'Hellfire Cleave',
+                        desc: '+9 to hit, Hit: 22 (4d8+4) fire damage.',
+                      },
+                    ],
+                  })
+                : `### ${monsterSecretSentinel}\n*Large fiend, lawful evil*\n**Armor Class** ${secretAc}\n**Hit Points** ${secretHp} (12d10 + 36)\n**Challenge** 9 (5,000 XP)\n***Actions***\n***Claw.*** *Melee Weapon Attack:* +9 to hit. *Hit:* 15 (2d10 + 4) slashing damage.`;
+
+          const preview = parseVttExport(rawExport);
+          const imported = applyVttImportToCampaign({
+            campaignId: 'prop-test-camp',
+            campaignName: 'Camp',
+            currentState: camp.data as Record<string, any>,
+            preview,
+            captureSnapshot: false,
+          }).nextState;
+
+          // Also spawn SRD monsters via 1-Click Monster Spawn (defaults to Private)
+          const spawned = instantiateMonsterCombatants(srdMonster, {
+            count: spawnCount,
+            rollHp: true,
+          });
+          const mergedCombatants = [
+            ...(imported.__initiative?.combatants ?? []),
+            ...spawned.combatants,
+          ];
+
+          // Create an active Map with both spawned default-private tokens AND a private AoE
+          const existingMaps = Array.isArray(imported.maps) ? [...imported.maps] : [];
+          if (existingMaps.length > 0) {
+            existingMaps[0] = {
+              ...existingMaps[0],
+              layers: existingMaps[0].layers.map((l: any, i: number) =>
+                i === 0 ? { ...l, visibleToPlayers: true } : l,
+              ),
+              tokens: [...(existingMaps[0].tokens ?? []), ...spawned.tokens],
+              aoeTemplates: [
+                {
+                  id: 'aoe-secret-gm',
+                  shape: 'sphere',
+                  originX: 0.5,
+                  originY: 0.5,
+                  sizeFt: 20,
+                  label: 'HIDDEN_GM_AOE_AMBUSH',
+                  visibility: 'private',
+                },
+              ],
+            };
+          }
+
+          // Also attach a targeted Save Prompt for a separate slot (`other-isolated-slot`)
+          const otherPcId = 'pc-isolated-other-slot';
+          const pcsWithOther = [
+            ...(Array.isArray(imported.pcs) ? imported.pcs : []),
+            {
+              id: otherPcId,
+              name: 'Other Slot Hero',
+              hp: { current: 30, max: 30, temp: 0 },
+              ac: 16,
+              ownership: { ownerType: 'player', playerSlotId: 'other-isolated-slot' },
+            },
+          ];
+          const promptForOther = createCombatSavePrompt({
+            id: 'save-isolated-other',
+            sourceName: 'Secret Ambush Fireball',
+            ability: 'DEX',
+            dc: 17,
+            baseDamage: 32,
+            damageType: 'fire',
+            targetPcIds: [otherPcId],
+            targetCombatantIds: spawned.combatants.map((c) => c.id),
+            gmNotes: gmSaveNoteSentinel,
+          });
+
+          const stateUnderTest = {
+            ...imported,
+            pcs: pcsWithOther,
+            maps: existingMaps,
+            __initiative: {
+              ...(imported.__initiative ?? {}),
+              combatants: mergedCombatants,
+              round: 1,
+              activeIndex: 0,
+            },
+            combatSavePrompts: [promptForOther],
+          } as unknown as PlayerModeData;
+
+          const proj = buildSlotProjection(stateUnderTest, 'Camp', slotId, 2000);
+          const projJson = JSON.stringify(proj);
+
+          // 1. VTT-imported monster name, biography, traps, and private AoEs NEVER leak
+          expect(projJson).not.toContain(monsterSecretSentinel);
+          expect(projJson).not.toContain('TOP_SECRET_STATBLOCK_BIO');
+          expect(projJson).not.toContain(trapSecretSentinel);
+          expect(projJson).not.toContain('HIDDEN_GM_AOE_AMBUSH');
+          expect(projJson).not.toContain(gmSaveNoteSentinel);
+
+          // 2. GM-spawned SRD combatants & tokens default to Private and NEVER appear in HUD or map tokens
+          for (const sc of spawned.combatants) {
+            expect(sc.hidden).toBe(true);
+            expect(sc.player_visible).toBe(false);
+            expect(proj.activeEncounterHud?.entries.some((e) => e.id === sc.id)).toBeFalsy();
+          }
+          for (const st of spawned.tokens) {
+            expect(st.visibility).toBe('private');
+            for (const m of proj.maps ?? []) {
+              expect(m.tokens?.some((t) => t.id === st.id)).toBeFalsy();
+            }
+          }
+
+          // 3. Even if a monster IS explicitly revealed later, exact HP & AC NEVER leak in activeEncounterHud
+          const revealedCombatant = {
+            ...spawned.combatants[0],
+            id: 'revealed-mon-check',
+            name: 'Revealed Ogre',
+            ac: secretAc,
+            hp: { current: secretHp, max: secretHp, temp: 0 },
+            hidden: false,
+            revealed: true,
+            player_visible: true,
+          };
+          const projWithRevealed = buildSlotProjection(
+            {
+              ...stateUnderTest,
+              __initiative: {
+                combatants: [revealedCombatant],
+                round: 1,
+                activeIndex: 0,
+              },
+            } as unknown as PlayerModeData,
+            'Camp',
+            slotId,
+            2001,
+          );
+          const hudEntry = projWithRevealed.activeEncounterHud?.entries.find(
+            (e) => e.id === 'revealed-mon-check',
+          );
+          expect(hudEntry).toBeDefined();
+          expect('ac' in (hudEntry as Record<string, unknown>)).toBe(false);
+          expect('hp' in (hudEntry as Record<string, unknown>)).toBe(false);
+
+          // 4. Save prompt targeting `other-isolated-slot` never projects to `slotId`
+          if (slotId !== 'other-isolated-slot') {
+            expect(
+              (proj.pendingSavePrompts ?? []).some((p) => p.id === 'save-isolated-other'),
+            ).toBe(false);
+          }
+        },
+      ),
+      { numRuns: 120 },
+    );
+  });
 });
+
 

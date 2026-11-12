@@ -47,6 +47,11 @@ export default function MapsTab({ data, onMapsChange, onDataChange, isPro }: Pro
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
   const selectedMap = maps.find((m) => m.id === selectedMapId) ?? null;
 
+  const initRaw = (data?.__initiative ?? data?.initiative) as
+    | { round?: number; activeIndex?: number; combatants?: any[] }
+    | undefined;
+  const combatants = Array.isArray(initRaw?.combatants) ? initRaw!.combatants : [];
+
   if (!selectedMap) {
     return (
       <div className="space-y-4">
@@ -66,8 +71,28 @@ export default function MapsTab({ data, onMapsChange, onDataChange, isPro }: Pro
           role="gm"
           maps={maps}
           pcs={pcs}
+          combatants={combatants}
           npcs={npcs}
           onChangeMaps={onMapsChange}
+          onChangeCombatants={(nextCombatants) => {
+            onDataChange((prev) => {
+              const cur = (prev.__initiative ?? prev.initiative ?? { round: 1, activeIndex: 0 }) as Record<string, any>;
+              const updatedInit = { ...cur, combatants: nextCombatants };
+              return { ...prev, __initiative: updatedInit, initiative: updatedInit };
+            });
+          }}
+          onUpdatePcs={(nextPcs) => {
+            onDataChange((prev) => ({ ...prev, pcs: nextPcs }));
+          }}
+          onDispatchSavePrompt={(prompt) => {
+            onDataChange((prev) => ({
+              ...prev,
+              combatSavePrompts: [
+                prompt,
+                ...(Array.isArray(prev.combatSavePrompts) ? prev.combatSavePrompts : []),
+              ].slice(0, 30),
+            }));
+          }}
         />
       </div>
     );

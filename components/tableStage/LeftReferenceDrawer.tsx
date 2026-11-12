@@ -20,8 +20,12 @@ import type { OracleRoll } from '@/lib/oracle/wells';
 const SpellsTab = dynamic(() => import('@/components/SpellsTab'));
 const DMRefTab = dynamic(() => import('@/components/DMRefTab'));
 const ChaseTracker = dynamic(() => import('@/components/ChaseTracker'));
+const CompendiumDrawer = dynamic(() =>
+  import('@/components/CompendiumDrawer').then((m) => m.CompendiumDrawer),
+);
 
 export type ReferenceTabId =
+  | 'compendium'
   | 'spells'
   | 'library'
   | 'oracle'
@@ -35,6 +39,12 @@ export const REFERENCE_TABS: ReadonlyArray<{
   shortLabel: string;
   icon: React.ReactNode;
 }> = [
+  {
+    id: 'compendium',
+    label: '5e SRD Compendium',
+    shortLabel: 'SRD 5e',
+    icon: <BookOpen size={12} />,
+  },
   {
     id: 'spells',
     label: 'Spell Lookup',
@@ -84,7 +94,7 @@ export function LeftReferenceDrawer({
   campaignData,
   onUpdateCampaignKey,
 }: LeftReferenceDrawerProps) {
-  const [activeTab, setActiveTab] = useState<ReferenceTabId>('spells');
+  const [activeTab, setActiveTab] = useState<ReferenceTabId>('compendium');
   const [selectedTableId, setSelectedTableId] = useState<string>(
     Object.keys(TABLES)[0] || 'introductions',
   );
@@ -137,7 +147,7 @@ export function LeftReferenceDrawer({
         )}
       </div>
 
-      {/* 6 Quick-Switch Reference Tabs */}
+      {/* Quick-Switch Reference Tabs */}
       <div className="grid grid-cols-3 gap-1 border-b border-[var(--border-subtle)] bg-[var(--bg-canvas)]/50 p-1.5">
         {REFERENCE_TABS.map((tab) => {
           const active = activeTab === tab.id;
@@ -162,6 +172,15 @@ export function LeftReferenceDrawer({
 
       {/* Scrollable Tool Content */}
       <div className="flex-1 overflow-y-auto p-3">
+        {activeTab === 'compendium' && (
+          <CompendiumDrawer
+            role="gm"
+            campaignData={campaignData}
+            onUpdateCampaignKey={onUpdateCampaignKey}
+            compact
+          />
+        )}
+
         {activeTab === 'spells' && (
           <SpellsTab
             favorites={(campaignData?.__spellFavorites as string[]) ?? []}

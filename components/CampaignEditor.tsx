@@ -48,6 +48,8 @@ import { normalizeWorldClockState } from '@/lib/worldClock';
 import { useReactiveWorldEvents } from '@/lib/world/useReactiveWorldEvents';
 import { GeminiBridgeModal } from './GeminiBridgeModal';
 import { WorkspaceArchitectModal } from './WorkspaceArchitectModal';
+import { VttImportModal } from './VttImportModal';
+import { VisualDiceOverlay } from './VisualDiceOverlay';
 import WorldClockBar from './WorldClockBar';
 import WhisperDrawer, { TableSafetyBanner } from './WhisperDrawer';
 import HandoutOverlay from './HandoutOverlay';
@@ -165,6 +167,8 @@ export default function CampaignEditor(props: CampaignEditorProps) {
     worldOnlyMode,
     workspaceArchitectOpen,
     setWorkspaceArchitectOpen,
+    vttImportOpen,
+    setVttImportOpen,
     writePcs,
   } = ed;
 
@@ -455,6 +459,7 @@ export default function CampaignEditor(props: CampaignEditorProps) {
           };
           reader.readAsText(file);
         }}
+        onOpenVttImporter={() => setVttImportOpen(true)}
         onUploadCharacterSheet={() => pcFileInputRef.current?.click()}
         onOpenSessionZeroSetup={() => setSession0Open(true)}
         onArchiveCampaign={handleArchive}
@@ -510,6 +515,14 @@ export default function CampaignEditor(props: CampaignEditorProps) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setVttImportOpen(true)}
+              title="Import Foundry VTT, D&D Beyond, Open5e, 5etools, or Markdown Statblocks"
+              className="flex items-center gap-1.5 rounded-md border border-sky-500/40 bg-sky-500/10 px-2.5 py-1 font-sans text-xs font-medium text-sky-400 hover:bg-sky-500/20"
+            >
+              📥 Import VTT
+            </button>
             <button
               type="button"
               onClick={() => setGeminiBridgeOpen(true)}
@@ -1024,6 +1037,27 @@ export default function CampaignEditor(props: CampaignEditorProps) {
         }}
         onNotify={(msg) => showUndoToast(msg, 3500)}
       />
+
+      <VttImportModal
+        open={vttImportOpen}
+        onClose={() => setVttImportOpen(false)}
+        campaignId={campaign.id}
+        campaignName={name}
+        campaignData={state}
+        onApplyCampaignData={(nextData, summaryMessage) => {
+          setState(nextData);
+          showUndoToast(summaryMessage, 4000);
+        }}
+      />
+
+      {workspaceRole === 'gm' && gmActiveTab === 'run' && (
+        <VisualDiceOverlay
+          publicRollEvents={pcs
+            .flatMap((p) => (Array.isArray(p.rollEvents) ? p.rollEvents : []))
+            .filter((r) => !r.secretRoll)}
+          actorName="GM"
+        />
+      )}
 
       {snapshotVaultOpen && (
         <div

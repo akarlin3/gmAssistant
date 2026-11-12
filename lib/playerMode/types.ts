@@ -240,6 +240,8 @@ export type SlotProjection = {
   };
   // Public campaign terminology & tracker templates (strictly spoiler-scrubbed, zero GM secrets)
   workspaceConfig?: import('@/lib/workspaceConfigCompiler').ProjectedWorkspaceConfig;
+  // Targeted saving-throw prompts strictly scoped to PCs owned by this slotId
+  pendingSavePrompts?: import('@/lib/combatAutomation').ProjectedSavePrompt[];
 };
 
 export type CampaignItem = {

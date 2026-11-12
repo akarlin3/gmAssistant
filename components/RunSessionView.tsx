@@ -20,6 +20,8 @@ import ExternalTablePiP, { VoiceDictationButton } from './ExternalTablePiP';
 import WhisperDrawer from './WhisperDrawer';
 import HandoutOverlay from './HandoutOverlay';
 import TacticalMapStage from './TacticalMapStage';
+import { CompendiumDrawer } from './CompendiumDrawer';
+import { VisualDiceOverlay } from './VisualDiceOverlay';
 import {
   type Get, type SetVal, type PinKind, type PinRef, type SectionKey, SECTION_KEYS,
 } from './runSession/types';
@@ -408,13 +410,55 @@ export default function RunSessionView({
           onOpenStatBlock={(slug) => setStatBlockSlug(slug)}
         />
 
-        {/* Lightweight Fog-of-War Map Stage, Token Pins & Live Player Pings */}
+        {/* Quick Collapsible 5e SRD Compendium for Drag-and-Drop Monster Spawns & Spell/Loot Grants */}
+        <details className="rounded-xl border border-rule bg-parchment-soft p-2.5 shadow-sm">
+          <summary className="cursor-pointer select-none font-display text-xs font-bold uppercase tracking-wider text-brass-deep">
+            📖 5e SRD Compendium — Drag Monsters to Map · 1-Click Spells, Items &amp; Conditions
+          </summary>
+          <div className="mt-2.5">
+            <CompendiumDrawer
+              role="gm"
+              pcs={party}
+              campaignData={{
+                pcs: party,
+                maps: mapsList,
+                __initiative: get('__initiative', null),
+                initiative: get('initiative', null),
+                partyLootItems: get('partyLootItems', []),
+              }}
+              onUpdateCampaignKey={setVal}
+              compact
+            />
+          </div>
+        </details>
+
+        {/* Lightweight Fog-of-War Map Stage, Token Pins, Ruler, AoEs & Targeted Save Automation */}
         <TacticalMapStage
           role="gm"
           maps={mapsList}
           pcs={party}
+          combatants={
+            (((get('__initiative', null) ?? get('initiative', null)) as InitiativeState | null)
+              ?.combatants) ?? []
+          }
           npcs={npcs}
           onChangeMaps={(nextMaps: CampaignMap[]) => setVal('maps', nextMaps)}
+          onChangeCombatants={(nextCombatants) => {
+            const cur = ((get('__initiative', null) ?? get('initiative', null)) as InitiativeState | null) ?? {
+              round: 1,
+              activeIndex: 0,
+              combatants: [],
+            };
+            const updated = { ...cur, combatants: nextCombatants };
+            setVal('__initiative', updated);
+            setVal('initiative', updated);
+          }}
+          onUpdatePcs={writePartyPcs}
+          onDispatchSavePrompt={(prompt) => {
+            const existing = (get('combatSavePrompts', []) as any[]) || [];
+            setVal('combatSavePrompts', [prompt, ...existing].slice(0, 30));
+            setToast(`Projected ${prompt.ability} Save (DC ${prompt.dc} vs. ${prompt.sourceName}) to party!`);
+          }}
           onFlashMapAsHandout={(m) => {
             handleFlashHandout({
               id: `handout_map_${m.id}_${Date.now()}`,
@@ -754,6 +798,14 @@ export default function RunSessionView({
         onDismissLongSession={() => setLongSessionPrompt(false)}
         onEndSession={onEndSession}
         onCloseStatBlock={() => setStatBlockSlug(null)}
+      />
+
+      <VisualDiceOverlay
+        publicRollEvents={party
+          .flatMap((p) => (Array.isArray(p.rollEvents) ? p.rollEvents : []))
+          .filter((r) => !r.secretRoll)}
+        actorName="GM"
+        bottomOffsetClass="bottom-20"
       />
 
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-rule bg-parchment shadow-page">

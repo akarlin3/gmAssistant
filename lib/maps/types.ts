@@ -134,6 +134,20 @@ export type MapPing = {
   timestamp: number;
 };
 
+export type MapAoeTemplate = {
+  id: string;
+  shape: 'sphere' | 'cube' | 'cone' | 'line';
+  label?: string;
+  originX: number;
+  originY: number;
+  targetX: number;
+  targetY: number;
+  sizeFt: number;
+  lineWidthFt?: number;
+  color?: string;
+  visibility?: 'private' | 'party';
+};
+
 export type CampaignMap = {
   id: string;
   name: string;
@@ -151,6 +165,8 @@ export type CampaignMap = {
   traps?: MapTrapPin[]; // GM-only trap markers; strictly stripped in player projection
   gmMapNotes?: string; // GM-only secret notes; strictly stripped in player projection
   pings?: MapPing[];
+  gridFeetPerSquare?: number; // Configurable ruler/AoE grid scale (default 5 ft/square)
+  aoeTemplates?: MapAoeTemplate[];
   createdAt: number;
 };
 
@@ -266,6 +282,29 @@ function normalizeMap(m: any): CampaignMap {
     out.pings = m.pings
       .filter((p: any) => p && typeof p.pcId === 'string' && typeof p.timestamp === 'number')
       .map(normalizeMapPing);
+  }
+  if (typeof m.gridFeetPerSquare === 'number' && m.gridFeetPerSquare > 0) {
+    out.gridFeetPerSquare = m.gridFeetPerSquare;
+  }
+  if (Array.isArray(m.aoeTemplates)) {
+    out.aoeTemplates = m.aoeTemplates
+      .filter((a: any) => a && typeof a.id === 'string')
+      .map((a: any): MapAoeTemplate => ({
+        id: String(a.id),
+        shape:
+          a.shape === 'cone' || a.shape === 'cube' || a.shape === 'line' ? a.shape : 'sphere',
+        ...(typeof a.label === 'string' ? { label: a.label } : {}),
+        originX: clamp01(a.originX),
+        originY: clamp01(a.originY),
+        targetX: clamp01(a.targetX),
+        targetY: clamp01(a.targetY),
+        sizeFt: typeof a.sizeFt === 'number' && a.sizeFt > 0 ? a.sizeFt : 20,
+        ...(typeof a.lineWidthFt === 'number' && a.lineWidthFt > 0
+          ? { lineWidthFt: a.lineWidthFt }
+          : {}),
+        ...(typeof a.color === 'string' ? { color: a.color } : {}),
+        visibility: a.visibility === 'private' ? 'private' : 'party',
+      }));
   }
   return out;
 }

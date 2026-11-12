@@ -79,6 +79,7 @@ export interface TopHeaderBarProps {
   onSyncCapsule?: () => void;
   onExportCampaignJson?: () => void;
   onImportCampaignJson?: (file: File) => void;
+  onOpenVttImporter?: () => void;
   onExportPartyPdf?: () => void;
   onUploadCharacterSheet?: (file: File) => void;
   onOpenSessionZeroSetup?: () => void;
@@ -111,6 +112,7 @@ export function TopHeaderBar({
   onSyncCapsule,
   onExportCampaignJson,
   onImportCampaignJson,
+  onOpenVttImporter,
   onExportPartyPdf,
   onUploadCharacterSheet,
   onOpenSessionZeroSetup,
@@ -520,6 +522,20 @@ export function TopHeaderBar({
                   >
                     <Upload size={13} className="text-[var(--text-muted)]" />
                     <span>Import Campaign JSON</span>
+                  </button>
+                )}
+
+                {onOpenVttImporter && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenVttImporter();
+                      setOverflowOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left font-sans text-xs text-[var(--text-primary)] hover:bg-white/5"
+                  >
+                    <Upload size={13} className="text-amber-400" />
+                    <span>Import VTT / Encounter (.json / .md)</span>
                   </button>
                 )}
 

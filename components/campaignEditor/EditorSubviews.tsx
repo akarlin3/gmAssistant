@@ -52,6 +52,9 @@ const NPCRelationshipWeb = dynamic(() => import('../NPCRelationshipWeb'));
 const FactionEngineTab = dynamic(() => import('../FactionEngineTab'));
 const LivingWorldTab = dynamic(() => import('../world/LivingWorldTab'));
 const MapsTab = dynamic(() => import('../maps/MapsTab'));
+const CompendiumDrawer = dynamic(() =>
+  import('../CompendiumDrawer').then((m) => m.CompendiumDrawer),
+);
 import { type CampaignEditorModel } from './useCampaignEditor';
 
 export function EditorSubviews({ ed }: { ed: CampaignEditorModel }) {
@@ -276,13 +279,20 @@ export function EditorSubviews({ ed }: { ed: CampaignEditorModel }) {
           />
         )}
 
-        {mode === 'run' && subview === 'spells' && (
-          <SpellsTab
-            favorites={get('spellFavs', []) as string[]}
-            onFavoritesChange={(v) => setVal('spellFavs', v)}
-            homebrewSpells={get('homebrewSpells', []) as Spell[]}
-            onHomebrewSpellsChange={(v) => setVal('homebrewSpells', v)}
-          />
+        {(mode === 'run' || mode === 'library') && subview === 'spells' && (
+          <div className="space-y-4">
+            <CompendiumDrawer
+              role="gm"
+              campaignData={state}
+              onUpdateCampaignKey={setVal}
+            />
+            <SpellsTab
+              favorites={get('spellFavs', []) as string[]}
+              onFavoritesChange={(v) => setVal('spellFavs', v)}
+              homebrewSpells={get('homebrewSpells', []) as Spell[]}
+              onHomebrewSpellsChange={(v) => setVal('homebrewSpells', v)}
+            />
+          </div>
         )}
 
         {mode === 'library' && subview === 'generators' && (
@@ -318,24 +328,31 @@ export function EditorSubviews({ ed }: { ed: CampaignEditorModel }) {
         )}
 
         {mode === 'library' && subview === 'monsters' && (
-          <MonstersTab
-            characters={characters}
-            homebrewMonsters={get('homebrewMonsters', []) as HomebrewMonster[]}
-            onHomebrewMonstersChange={(v) => {
-              const prev = (get('homebrewMonsters', []) as HomebrewMonster[]);
-              setVal('homebrewMonsters', v);
-              if (v.length > prev.length) {
-                const added = v[v.length - 1];
-                trackEvent('monster_added', `Added monster: ${added?.name || 'unnamed'}`);
-              }
-            }}
-            rollLogEntries={logEntriesFor('monster-roll')}
-            onRollLogEntriesChange={setLogEntriesFor('monster-roll')}
-            scaleLogEntries={logEntriesFor('monster-scale')}
-            onScaleLogEntriesChange={setLogEntriesFor('monster-scale')}
-            onAddRollToCampaign={addToCampaignFor('monster-roll')}
-            onAddScaleToCampaign={addToCampaignFor('monster-scale')}
-          />
+          <div className="space-y-4">
+            <CompendiumDrawer
+              role="gm"
+              campaignData={state}
+              onUpdateCampaignKey={setVal}
+            />
+            <MonstersTab
+              characters={characters}
+              homebrewMonsters={get('homebrewMonsters', []) as HomebrewMonster[]}
+              onHomebrewMonstersChange={(v) => {
+                const prev = (get('homebrewMonsters', []) as HomebrewMonster[]);
+                setVal('homebrewMonsters', v);
+                if (v.length > prev.length) {
+                  const added = v[v.length - 1];
+                  trackEvent('monster_added', `Added monster: ${added?.name || 'unnamed'}`);
+                }
+              }}
+              rollLogEntries={logEntriesFor('monster-roll')}
+              onRollLogEntriesChange={setLogEntriesFor('monster-roll')}
+              scaleLogEntries={logEntriesFor('monster-scale')}
+              onScaleLogEntriesChange={setLogEntriesFor('monster-scale')}
+              onAddRollToCampaign={addToCampaignFor('monster-roll')}
+              onAddScaleToCampaign={addToCampaignFor('monster-scale')}
+            />
+          </div>
         )}
 
         {mode === 'library' && subview === 'vivify' && (isPro ? (
@@ -359,7 +376,16 @@ export function EditorSubviews({ ed }: { ed: CampaignEditorModel }) {
           />
         )}
 
-        {mode === 'run' && subview === 'dmref' && <DMRefTab />}
+        {mode === 'run' && subview === 'dmref' && (
+          <div className="space-y-4">
+            <CompendiumDrawer
+              role="gm"
+              campaignData={state}
+              onUpdateCampaignKey={setVal}
+            />
+            <DMRefTab />
+          </div>
+        )}
 
         {mode === 'run' && subview === 'logged' && (
           <LoggedTab

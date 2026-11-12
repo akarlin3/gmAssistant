@@ -16,6 +16,7 @@ import {
   type SkillName,
   type SpellSlotLevel,
 } from './pc/types';
+import { emitLocalVisualRoll } from './visualDiceBus';
 
 export const ROLL_RING_BUFFER_CAP = 50;
 
@@ -175,7 +176,7 @@ export function executeSheetRoll(opts: SheetRollOptions): RollEvent {
           ? `${formulaBase} (Dis)`
           : formulaBase;
 
-    return {
+    const evt: RollEvent = {
       id: makeRollId(now),
       ...(pcId ? { pcId } : {}),
       actorName,
@@ -190,6 +191,8 @@ export function executeSheetRoll(opts: SheetRollOptions): RollEvent {
       rollMode: effectiveMode,
       ...(opts.situationalBonus ? { situationalBonus: opts.situationalBonus } : {}),
     };
+    emitLocalVisualRoll(evt);
+    return evt;
   }
 
   // Non-d20 formula roll (e.g., weapon/spell damage, Hit Die)
@@ -218,7 +221,7 @@ export function executeSheetRoll(opts: SheetRollOptions): RollEvent {
         parts.push(`${prefix}${t.count}d${t.sides}[${rolls.join(',')}]`);
       }
     }
-    return {
+    const evt: RollEvent = {
       id: makeRollId(now),
       ...(pcId ? { pcId } : {}),
       actorName,
@@ -233,6 +236,8 @@ export function executeSheetRoll(opts: SheetRollOptions): RollEvent {
       rollMode: 'normal',
       ...(opts.situationalBonus ? { situationalBonus: opts.situationalBonus } : {}),
     };
+    emitLocalVisualRoll(evt);
+    return evt;
   }
 
   // Fallback to components/diceRoller/parser for complex expressions (like kh/kl)
@@ -242,7 +247,7 @@ export function executeSheetRoll(opts: SheetRollOptions): RollEvent {
     evaluated.parts.length > 0
       ? evaluated.parts.map((p) => `${p.expr} (${p.subtotal})`).join(' + ')
       : rawFormula;
-  return {
+  const evt: RollEvent = {
     id: makeRollId(now),
     ...(pcId ? { pcId } : {}),
     actorName,
@@ -256,6 +261,8 @@ export function executeSheetRoll(opts: SheetRollOptions): RollEvent {
     ...(opts.secretRoll ? { secretRoll: true } : {}),
     rollMode: 'normal',
   };
+  emitLocalVisualRoll(evt);
+  return evt;
 }
 
 // ---- High-level PC sheet click-to-roll helpers --------------------------

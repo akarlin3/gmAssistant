@@ -69,6 +69,19 @@ export type PlayerMapPing = {
   timestamp: number;
 };
 
+export type PlayerMapAoeTemplate = {
+  id: string;
+  shape: 'sphere' | 'cube' | 'cone' | 'line';
+  label?: string;
+  originX: number;
+  originY: number;
+  targetX: number;
+  targetY: number;
+  sizeFt: number;
+  lineWidthFt?: number;
+  color?: string;
+};
+
 export type PlayerMap = {
   id: string;
   name: string;
@@ -84,6 +97,8 @@ export type PlayerMap = {
   fogEnabled?: boolean;
   fogRevealedRegions?: PlayerMapFogRegion[];
   pings?: PlayerMapPing[];
+  gridFeetPerSquare?: number;
+  aoeTemplates?: PlayerMapAoeTemplate[];
 };
 
 export function projectMapTokens(
@@ -239,6 +254,26 @@ function projectMap(
   ];
   if (Array.isArray(map.pings) || extraPings.length > 0) {
     out.pings = projectMapPings(map.pings, extraPings);
+  }
+  if (typeof map.gridFeetPerSquare === 'number' && map.gridFeetPerSquare > 0) {
+    out.gridFeetPerSquare = map.gridFeetPerSquare;
+  }
+  if (Array.isArray(map.aoeTemplates)) {
+    const partyAoes: PlayerMapAoeTemplate[] = map.aoeTemplates
+      .filter((a) => a && a.visibility !== 'private')
+      .map((a) => ({
+        id: String(a.id),
+        shape: a.shape,
+        ...(a.label ? { label: a.label } : {}),
+        originX: Math.max(0, Math.min(1, a.originX)),
+        originY: Math.max(0, Math.min(1, a.originY)),
+        targetX: Math.max(0, Math.min(1, a.targetX)),
+        targetY: Math.max(0, Math.min(1, a.targetY)),
+        sizeFt: a.sizeFt,
+        ...(a.lineWidthFt ? { lineWidthFt: a.lineWidthFt } : {}),
+        ...(a.color ? { color: a.color } : {}),
+      }));
+    if (partyAoes.length > 0) out.aoeTemplates = partyAoes;
   }
   return out;
 }

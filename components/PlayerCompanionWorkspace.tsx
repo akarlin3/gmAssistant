@@ -85,7 +85,15 @@ import { PlayerPrivacyPill } from './ui/VisibilityBadge';
 import { MentionText } from './wiki/MentionText';
 import { readMaps, type CampaignMap } from '@/lib/maps/types';
 import ExternalTablePiP, { VoiceDictationButton } from './ExternalTablePiP';
-import TacticalMapStage from './TacticalMapStage';
+import TacticalMapStage, { TargetedSavePromptBanner } from './TacticalMapStage';
+import { CompendiumDrawer } from './CompendiumDrawer';
+import { VisualDiceOverlay } from './VisualDiceOverlay';
+import {
+  formatSavePromptBanner,
+  resolveSavePromptForPlayer,
+  type CombatSavePrompt,
+  type ProjectedSavePrompt,
+} from '@/lib/combatAutomation';
 import GeminiBridgeModal from './GeminiBridgeModal';
 
 export type PlayerCompanionTabId = 'sheet' | 'quests' | 'world' | 'gear' | 'play';
@@ -429,6 +437,42 @@ export default function PlayerCompanionWorkspace({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
   const mapsList = useMemo(() => readMaps({ maps: get('maps', []) }), [get]);
+  const localSavePrompts: ProjectedSavePrompt[] = useMemo(() => {
+    if (!activePc) return [];
+    const rawPrompts = (get('combatSavePrompts', []) as CombatSavePrompt[]) || [];
+    if (!Array.isArray(rawPrompts)) return [];
+    return rawPrompts
+      .filter((p) => p && Array.isArray(p.targetPcIds) && p.targetPcIds.includes(activePc.id))
+      .map((p) => {
+        const res = p.resolutions?.[activePc.id];
+        return {
+          id: p.id,
+          targetPcId: activePc.id,
+          targetPcName: activePc.name || 'Adventurer',
+          bannerText: formatSavePromptBanner({
+            ability: p.ability,
+            dc: p.dc,
+            sourceName: p.sourceName,
+          }),
+          sourceName: p.sourceName,
+          ability: p.ability,
+          dc: p.dc,
+          baseDamage: p.baseDamage,
+          damageType: p.damageType,
+          halfOnSuccess: p.halfOnSuccess,
+          createdAtMs: p.createdAtMs,
+          resolved: Boolean(res),
+          ...(res
+            ? {
+                resolutionSummary:
+                  res.rollTotal !== undefined
+                    ? `Rolled ${res.rollTotal} (${res.passed ? 'Saved' : 'Failed'}) · Took ${res.finalDamage} dmg`
+                    : `Applied ${res.outcomeMode} (${res.finalDamage} dmg)`,
+              }
+            : {}),
+        };
+      });
+  }, [activePc, get]);
 
   return (
     <div className="space-y-4 pb-24">
@@ -1897,6 +1941,69 @@ export default function PlayerCompanionWorkspace({
             onUpdateCampaignKey={setVal}
             centerStage={
               <div className="space-y-4">
+                {activePc && localSavePrompts.length > 0 && (
+                  <TargetedSavePromptBanner
+                    prompts={localSavePrompts}
+                    activePc={activePc}
+                    onResolvePrompt={(prompt, overrideOutcome) => {
+                      const res = resolveSavePromptForPlayer({
+                        prompt,
+                        pc: activePc,
+                        resolverSlotId: null,
+                        overrideOutcome,
+                        autoRollConcentration: false,
+                        rollMode: playRollMode,
+                        secretRoll: playSecretRoll,
+                      });
+                      if (!res.ok) return undefined;
+                      onUpdatePc(res.updatedPc);
+                      if (res.saveRoll) {
+                        handleEmitCompanionRoll(res.saveRoll);
+                      }
+                      const rawPrompts = (get('combatSavePrompts', []) as CombatSavePrompt[]) || [];
+                      setVal(
+                        'combatSavePrompts',
+                        rawPrompts.map((p) =>
+                          p.id === prompt.id
+                            ? {
+                                ...p,
+                                resolutions: {
+                                  ...(p.resolutions ?? {}),
+                                  [activePc.id]: {
+                                    targetId: activePc.id,
+                                    targetName: activePc.name || 'Adventurer',
+                                    ...(res.saveRoll ? { rollTotal: res.saveRoll.total } : {}),
+                                    ...(res.passed !== null ? { passed: res.passed } : {}),
+                                    outcomeMode: res.damageResult.outcomeMode,
+                                    finalDamage: res.damageResult.finalDamage,
+                                    resolvedAtMs: Date.now(),
+                                  },
+                                },
+                              }
+                            : p,
+                        ),
+                      );
+                      return {
+                        summary: res.saveRoll
+                          ? `Rolled ${res.saveRoll.total} (${res.passed ? 'Saved' : 'Failed'}) · -${res.damageResult.finalDamage} HP`
+                          : `Applied ${res.damageResult.outcomeMode} (-${res.damageResult.finalDamage} HP)`,
+                        concentrationDc: res.damageResult.concentrationDc,
+                        concentrationSpell: res.damageResult.concentrationSpell,
+                      };
+                    }}
+                    onRollFollowUpConcentration={(dc) => {
+                      const concRoll = rollConcentrationCheck(activePc, dc * 2, {
+                        rollMode: playRollMode,
+                        secretRoll: playSecretRoll,
+                      });
+                      handleEmitCompanionRoll(concRoll);
+                      if (concRoll.total < dc) {
+                        patchActivePc({ concentrationSpell: '' });
+                      }
+                    }}
+                  />
+                )}
+
                 {/* My Turn Action Economy Checklist */}
                 <section className="space-y-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-sm">
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
@@ -2207,6 +2314,22 @@ export default function PlayerCompanionWorkspace({
                   </div>
                 </section>
 
+                <section className="space-y-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-sm">
+                  <CompendiumDrawer
+                    role="player"
+                    pcs={pcs}
+                    activePcId={activePc?.id}
+                    onUpdatePc={onUpdatePc}
+                    onAddPartyLootItem={(loot) =>
+                      setVal('partyLootItems', [
+                        ...(((get('partyLootItems', []) as any[]) || [])),
+                        loot,
+                      ])
+                    }
+                    compact
+                  />
+                </section>
+
                 <TacticalMapStage
                   role="standalone-player"
                   maps={mapsList}
@@ -2215,6 +2338,13 @@ export default function PlayerCompanionWorkspace({
                   activePcId={activePc?.id}
                   activePcColor="#38bdf8"
                   onChangeMaps={(nextMaps: CampaignMap[]) => setVal('maps', nextMaps)}
+                  onUpdatePcs={(nextPcs) => setVal('pcs', nextPcs)}
+                  onDispatchSavePrompt={(p) =>
+                    setVal(
+                      'combatSavePrompts',
+                      [p, ...(((get('combatSavePrompts', []) as any[]) || []))].slice(0, 30),
+                    )
+                  }
                 />
               </div>
             }
@@ -2334,6 +2464,12 @@ export default function PlayerCompanionWorkspace({
           if (Array.isArray(nextData.npcs)) setVal('npcs', nextData.npcs);
           if (Array.isArray(nextData.locations)) setVal('locations', nextData.locations);
         }}
+      />
+
+      <VisualDiceOverlay
+        publicRollEvents={combinedRolls.filter((r) => !r.secretRoll)}
+        actorName={activePc?.name || 'Adventurer'}
+        onPublicQuickRoll={handleEmitCompanionRoll}
       />
     </div>
   );

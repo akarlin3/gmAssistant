@@ -13,6 +13,7 @@ import { projectPlayerMaps } from '@/lib/maps/playerProjection';
 import type { PartyLootItem, RollEvent } from '@/lib/pc/types';
 import { projectWorldClockForPlayers } from '@/lib/worldClock';
 import { projectPublicWorkspaceConfig } from '@/lib/workspaceConfigCompiler';
+import { projectSavePromptsForSlot } from '@/lib/combatAutomation';
 import {
   PLAYER_ENTITY_TYPES,
   normalizeItem,
@@ -705,6 +706,7 @@ export function buildSlotProjection(
   // World Clock projection (only projected when worldClock.visibility === 'party')
   const worldClock = projectWorldClockForPlayers(data as Record<string, unknown>);
   const workspaceConfig = projectPublicWorkspaceConfig(data as Record<string, unknown>);
+  const pendingSavePrompts = projectSavePromptsForSlot(data as Record<string, unknown>, slotId);
 
   return {
     campaignName,
@@ -726,6 +728,7 @@ export function buildSlotProjection(
     whispers,
     handoutGallery,
     activeHandoutFlash,
+    ...(pendingSavePrompts.length > 0 ? { pendingSavePrompts } : {}),
     ...(worldClock ? { worldClock } : {}),
     ...(workspaceConfig ? { workspaceConfig } : {}),
     tableSafetyEnabled: config.tableSafetyEnabled === true,

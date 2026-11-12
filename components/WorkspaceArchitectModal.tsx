@@ -53,13 +53,15 @@ import {
   buildKeyValueDiff,
   computeJsonPatch,
   invertJsonPatch,
+  type JsonPatchOp,
+} from '@/lib/customization/jsonPatch';
+import {
   isUndoDirective,
   loadCustomizationHistory,
   popCustomizationHistory,
   pushCustomizationHistory,
   type CustomizationHistoryEntry,
-  type JsonPatchOp,
-} from '@/lib/customization';
+} from '@/lib/customization/history';
 
 export interface WorkspaceArchitectModalProps {
   open: boolean;
